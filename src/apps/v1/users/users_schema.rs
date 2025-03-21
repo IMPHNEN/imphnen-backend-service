@@ -6,4 +6,5 @@ pub struct UsersSchema {
 	pub email: String,
 	pub fullname: String,
 	pub password: String,
+	pub is_active: bool,
 }

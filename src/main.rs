@@ -1,4 +1,4 @@
-use imphnen_cms_be::{apps, axum_init};
+use imphnen_backend_service::{apps, axum_init};
 
 #[tokio::main]
 async fn main() {

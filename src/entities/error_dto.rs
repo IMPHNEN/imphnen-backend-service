@@ -13,8 +13,7 @@ pub mod error {
 
 	impl IntoResponse for Error {
 		fn into_response(self) -> Response {
-			(StatusCode::INTERNAL_SERVER_ERROR, Json(self.to_string()))
-				.into_response()
+			(StatusCode::INTERNAL_SERVER_ERROR, Json(self.to_string())).into_response()
 		}
 	}
 

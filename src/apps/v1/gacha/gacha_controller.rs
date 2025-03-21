@@ -1,27 +1,28 @@
-use super::{GachaRequestDto, GachaService};
+use super::{GachaCreateClaimRequestDto, GachaCreateRollRequestDto, GachaService};
 use crate::{v1::GachaCreateItemRequestDto, AppState, MessageResponseDto};
-use axum::{response::IntoResponse, Extension, Json};
+use axum::{http::HeaderMap, response::IntoResponse, Extension, Json};
 
 #[utoipa::path(
     post,
-    path = "/v1/gacha/create",
-    request_body = GachaRequestDto,
+    path = "/v1/gacha/claims/create",
+    request_body = GachaCreateClaimRequestDto,
     responses(
-        (status = 200, description = "Create gacha successful", body = MessageResponseDto),
-        (status = 401, description = "Create gacha failed", body = MessageResponseDto)
+        (status = 200, description = "Create gacha claim successful", body = MessageResponseDto),
+        (status = 401, description = "Create gacha claim failed", body = MessageResponseDto)
     ),
     tag = "Gacha"
 )]
-pub async fn post_create_gacha(
+pub async fn post_create_gacha_claim(
+	header: HeaderMap,
 	Extension(state): Extension<AppState>,
-	Json(payload): Json<GachaRequestDto>,
+	Json(payload): Json<GachaCreateClaimRequestDto>,
 ) -> impl IntoResponse {
-	GachaService::mutation_create_gacha(payload, &state).await
+	GachaService::mutation_create_gacha_claim(payload, &state, header).await
 }
 
 #[utoipa::path(
     post,
-    path = "/v1/gacha/create/item",
+    path = "/v1/gacha/items/create",
     request_body = GachaCreateItemRequestDto,
     responses(
         (status = 200, description = "Create gacha item successful", body = MessageResponseDto),
@@ -34,4 +35,21 @@ pub async fn post_create_gacha_item(
 	Json(payload): Json<GachaCreateItemRequestDto>,
 ) -> impl IntoResponse {
 	GachaService::mutation_create_gacha_item(payload, &state).await
+}
+
+#[utoipa::path(
+    post,
+    path = "/v1/gacha/rolls/create",
+    request_body = GachaCreateRollRequestDto,
+    responses(
+        (status = 200, description = "Create gacha roll successful", body = MessageResponseDto),
+        (status = 401, description = "Create gacha roll failed", body = MessageResponseDto)
+    ),
+    tag = "Gacha"
+)]
+pub async fn post_create_gacha_roll(
+	Extension(state): Extension<AppState>,
+	Json(payload): Json<GachaCreateRollRequestDto>,
+) -> impl IntoResponse {
+	GachaService::mutation_create_gacha_roll(payload, &state).await
 }

@@ -10,7 +10,7 @@ pub fn send_email(
 	body: &str,
 ) -> Result<(), Box<dyn Error>> {
 	let env = Env::new();
-	let host = env.smpt_host;
+	let host = env.smtp_host;
 	let sender_email = env.smtp_email;
 	let sender_name = env.smtp_name;
 	let sender_password = env.smtp_password;

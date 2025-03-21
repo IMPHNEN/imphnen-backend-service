@@ -5,4 +5,5 @@ use utoipa::ToSchema;
 pub struct UsersItemDto {
 	pub email: String,
 	pub fullname: String,
+	pub is_active: bool,
 }

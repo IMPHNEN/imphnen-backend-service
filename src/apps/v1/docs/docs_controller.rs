@@ -1,5 +1,9 @@
 use crate::{
-	v1::{auth, AuthLoginRequestDto, AuthLoginResponsetDto},
+	v1::{
+		auth, gacha, AuthLoginRequestDto, AuthLoginResponsetDto,
+		AuthResendOtpRequestDto, AuthVerifyEmailRequestDto, GachaCreateClaimRequestDto,
+		GachaCreateItemRequestDto, GachaCreateRollRequestDto,
+	},
 	MessageResponseDto, MetaRequestDto, MetaResponseDto, ResponseSuccessDto,
 };
 
@@ -12,17 +16,26 @@ use utoipa::{
 #[openapi(
     paths(
      auth::auth_controller::post_login,
-     auth::auth_controller::post_register
+     auth::auth_controller::post_register,
+     auth::auth_controller::post_verify_email,
+     auth::auth_controller::post_resend_otp,
+     gacha::gacha_controller::post_create_gacha_claim,
+     gacha::gacha_controller::post_create_gacha_item,
+     gacha::gacha_controller::post_create_gacha_roll
     ),
     components(
         schemas(
            MetaRequestDto,
            MetaResponseDto,
            MessageResponseDto,
-           
            AuthLoginRequestDto,
            AuthLoginResponsetDto,
+           AuthVerifyEmailRequestDto,
+           AuthResendOtpRequestDto,
            ResponseSuccessDto<AuthLoginResponsetDto>,
+           GachaCreateClaimRequestDto,
+           GachaCreateItemRequestDto,
+           GachaCreateRollRequestDto
         )
     ),
     info(
@@ -41,7 +54,6 @@ use utoipa::{
     modifiers(&SecurityAddon),
     tags(
         (name = "Authentication", description = "List of Authentication Endpoints"),
-        (name = "Users", description = "List of Users Endpoints")
     )
 )]
 
