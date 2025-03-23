@@ -33,6 +33,19 @@ impl<'a> UserRepository<'a> {
 		}
 	}
 
+	pub async fn query_user_by_id(&self, id: &str) -> Result<UsersSchema> {
+		let db = &self.state.surrealdb;
+		let result = db
+			.select((ResourceEnum::Users.to_string(), id))
+			.await?;
+		match result {
+			Some(response) => Ok(response),
+			None => {
+				bail!("User not found")
+			}
+		}
+	}
+
 	pub async fn query_create_user(
 		&self,
 		data: CreateUserRequestDto,
@@ -53,10 +66,10 @@ impl<'a> UserRepository<'a> {
 		}
 	}
 
-	pub async fn query_update_user(&self, data: UpdateRequestDto) -> Result<String> {
+	pub async fn query_update_user(&self, id: &str, data: UpdateRequestDto) -> Result<String> {
 		let db = &self.state.surrealdb;
 		let record: Option<UsersItemDto> = db
-			.update((ResourceEnum::Users.to_string(), &data.email))
+			.update((ResourceEnum::Users.to_string(), id))
 			.content(UpdateRequest {
 				fullname: data.fullname.clone(),
 				email: data.email.clone(),
@@ -68,10 +81,10 @@ impl<'a> UserRepository<'a> {
 		}
 	}
 
-	pub async fn query_delete_user(&self, email: &str) -> Result<String> {
+	pub async fn query_delete_user(&self, id: &str) -> Result<String> {
 		let db = &self.state.surrealdb;
 		let record: Option<UsersItemDto> = db
-			.delete((ResourceEnum::Users.to_string(), email))
+			.delete((ResourceEnum::Users.to_string(), id))
 			.await?;
 		match record {
 			Some(_) => Ok("Success delete user".into()),

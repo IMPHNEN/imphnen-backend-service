@@ -2,7 +2,7 @@ use crate::{
 	v1::{
 		auth, gacha, users, AuthLoginRequestDto, AuthLoginResponsetDto,
 		AuthResendOtpRequestDto, AuthVerifyEmailRequestDto, GachaCreateClaimRequestDto,
-		GachaCreateItemRequestDto, GachaCreateRollRequestDto, CreateUserRequestDto, UpdateRequestDto, DeleteRequestDto
+		GachaCreateItemRequestDto, GachaCreateRollRequestDto, CreateUserRequestDto, UpdateRequestDto
 	},
 	MessageResponseDto, MetaRequestDto, MetaResponseDto, ResponseSuccessDto,
 };
@@ -26,7 +26,7 @@ use utoipa::{
 	 users::user_controller::get_user,
 	 users::user_controller::put_user,
 	 users::user_controller::delete_user,
-	 users::user_controller::get_user_by_email
+	 users::user_controller::get_user_by_id
     ),
     components(
         schemas(
@@ -43,7 +43,6 @@ use utoipa::{
            GachaCreateRollRequestDto,
 		   CreateUserRequestDto, 
 		   UpdateRequestDto, 
-		   DeleteRequestDto
         )
     ),
     info(

@@ -1,5 +1,4 @@
 use std::env;
-use dotenv::dotenv;
 
 #[derive(Debug)]
 pub struct Env {
@@ -26,7 +25,6 @@ pub struct Env {
 
 impl Env {
 	pub fn new() -> Self {
-		dotenv().ok();
 		Self {
 			port: env::var("PORT")
 				.unwrap_or_else(|_| "3000".to_string())

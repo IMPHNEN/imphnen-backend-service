@@ -1,7 +1,7 @@
 use axum::{http::StatusCode, response::Response};
 
 use super::{
-	user_repository::UserRepository, CreateUserRequestDto, DeleteRequestDto,
+	user_repository::UserRepository, CreateUserRequestDto,
 	UpdateRequestDto,
 };
 use crate::{
@@ -64,15 +64,16 @@ impl UserService {
 		}
 	}
 
-	pub async fn read_user_by_email(email: &str, state: &AppState) -> Response {
+	pub async fn read_user_by_id(id: &str, state: &AppState) -> Response {
 		let repository = UserRepository::new(state);
-		match repository.query_user_by_email(email).await {
+		match repository.query_user_by_id(id).await {
 			Ok(user) => success_response(ResponseSuccessDto { data: user }),
 			Err(err) => common_response(StatusCode::BAD_REQUEST, &err.to_string()),
 		}
 	}
 
 	pub async fn mutation_update_user(
+		id: &str,
 		payload: UpdateRequestDto,
 		state: &AppState,
 	) -> Response {
@@ -80,10 +81,9 @@ impl UserService {
 		let user = UpdateRequestDto {
 			email: payload.email,
 			fullname: payload.fullname,
-			old_email: payload.old_email,
 		};
 
-		match repository.query_update_user(user).await {
+		match repository.query_update_user(id, user).await {
 			Ok(_) => common_response(StatusCode::CREATED, "Update user is successful"),
 			Err(err) => {
 				common_response(StatusCode::INTERNAL_SERVER_ERROR, &err.to_string())
@@ -92,11 +92,11 @@ impl UserService {
 	}
 
 	pub async fn mutation_delete_user(
-		payload: DeleteRequestDto,
+		id: &str,
 		state: &AppState,
 	) -> Response {
 		let repository = UserRepository::new(state);
-		match repository.query_delete_user(&payload.email).await {
+		match repository.query_delete_user(id).await {
 			Ok(_) => common_response(StatusCode::CREATED, "Delete user is successful"),
 			Err(err) => {
 				common_response(StatusCode::INTERNAL_SERVER_ERROR, &err.to_string())

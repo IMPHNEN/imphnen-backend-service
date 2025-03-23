@@ -11,7 +11,7 @@ pub use users::*;
 
 pub async fn routes() -> Router {
 	let public_routes = Router::new()
-		.nest("/user", user_router())
+		.nest("/users", user_router())
 		.nest("/auth", auth_router());
 
 	let protected_routes = Router::new()
