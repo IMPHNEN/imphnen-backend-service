@@ -27,10 +27,5 @@ pub struct CreateUserRequestDto {
 pub struct UpdateRequestDto {
 	pub email: String,
 	pub fullname: String,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
-pub struct UpdateRequest {
-	pub email: String,
-	pub fullname: String,
+	pub is_active: bool,
 }

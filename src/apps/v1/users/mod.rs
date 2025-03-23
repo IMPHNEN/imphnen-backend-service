@@ -15,7 +15,7 @@ pub fn user_router() -> Router {
 	Router::new()
 		.route("/", get(user_controller::get_user))
 		.route("/create", post(user_controller::post_create_user))
-		.route("/{id}/update", put(user_controller::put_user))
-		.route("/{id}/delete", delete(user_controller::delete_user))
-		.route("/{id}/detail", get(user_controller::get_user_by_id))
+		.route("/{mail}/update", put(user_controller::put_user))
+		.route("/{mail}/delete", delete(user_controller::delete_user))
+		.route("/{mail}/detail", get(user_controller::get_user_by_id))
 }

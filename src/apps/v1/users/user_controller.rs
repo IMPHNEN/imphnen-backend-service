@@ -38,8 +38,11 @@ pub async fn get_user(
 
 #[utoipa::path(
     put,
-    path = "/v1/users/:id/update",
+    path = "/v1/users/{mail}/update",
     request_body = UpdateRequestDto,
+	params(
+        ("mail" = String, Path, description = "User Email")
+    ),
     responses(
         (status = 200, description = "Update successful", body = MessageResponseDto),
         (status = 401, description = "Update failed", body = MessageResponseDto)
@@ -47,16 +50,19 @@ pub async fn get_user(
     tag = "UserManagement"
 )]
 pub async fn put_user(
-	Path(id): Path<String>,
+	Path(mail): Path<String>,
 	Extension(state): Extension<AppState>,
 	Json(payload): Json<UpdateRequestDto>,
 ) -> impl IntoResponse {
-	UserService::mutation_update_user(&id, payload, &state).await
+	UserService::mutation_update_user(&mail, payload, &state).await
 }
 
 #[utoipa::path(
     delete,
-    path = "/v1/users/:id/delete",
+    path = "/v1/users/{mail}/delete",
+	params(
+        ("mail" = String, Path, description = "User Email")
+    ),
     responses(
         (status = 200, description = "Delete successful", body = MessageResponseDto),
         (status = 401, description = "Delete failed", body = MessageResponseDto)
@@ -65,14 +71,17 @@ pub async fn put_user(
 )]
 pub async fn delete_user(
 	Extension(state): Extension<AppState>,
-	Path(id): Path<String>
+	Path(mail): Path<String>
 ) -> impl IntoResponse {
-	UserService::mutation_delete_user(&id,& state).await
+	UserService::mutation_delete_user(&mail,& state).await
 }
 
 #[utoipa::path(
     get,
-    path = "/v1/user/:id/detail",
+    path = "/v1/users/{mail}/detail",
+	params(
+        ("mail" = String, Path, description = "User Email")
+    ),
     responses(
         (status = 200, description = "Delete successful", body = MessageResponseDto),
         (status = 401, description = "Delete failed", body = MessageResponseDto)
@@ -81,7 +90,7 @@ pub async fn delete_user(
 )]
 pub async fn get_user_by_id(
 	Extension(state): Extension<AppState>,
-	Path(id): Path<String>
+	Path(mail): Path<String>
 ) -> impl IntoResponse {
-	UserService::read_user_by_id(&id, &state).await
+	UserService::read_user_by_mail(&mail, &state).await
 }

@@ -4,7 +4,7 @@ use crate::{
 };
 use anyhow::{bail, Result};
 
-use super::{CreateUserRequestDto, UpdateRequest, UpdateRequestDto};
+use super::{CreateUserRequestDto, UpdateRequestDto};
 
 pub struct UserRepository<'a> {
 	state: &'a AppState,
@@ -24,19 +24,6 @@ impl<'a> UserRepository<'a> {
 		let db = &self.state.surrealdb;
 		let result = db
 			.select((ResourceEnum::Users.to_string(), email))
-			.await?;
-		match result {
-			Some(response) => Ok(response),
-			None => {
-				bail!("User not found")
-			}
-		}
-	}
-
-	pub async fn query_user_by_id(&self, id: &str) -> Result<UsersSchema> {
-		let db = &self.state.surrealdb;
-		let result = db
-			.select((ResourceEnum::Users.to_string(), id))
 			.await?;
 		match result {
 			Some(response) => Ok(response),
@@ -66,13 +53,14 @@ impl<'a> UserRepository<'a> {
 		}
 	}
 
-	pub async fn query_update_user(&self, id: &str, data: UpdateRequestDto) -> Result<String> {
+	pub async fn query_update_user(&self, mail: &str, data: UpdateRequestDto) -> Result<String> {
 		let db = &self.state.surrealdb;
 		let record: Option<UsersItemDto> = db
-			.update((ResourceEnum::Users.to_string(), id))
-			.content(UpdateRequest {
+			.update((ResourceEnum::Users.to_string(), mail))
+			.merge(UpdateRequestDto {
 				fullname: data.fullname.clone(),
 				email: data.email.clone(),
+				is_active: data.is_active,
 			})
 			.await?;
 		match record {
@@ -81,14 +69,15 @@ impl<'a> UserRepository<'a> {
 		}
 	}
 
-	pub async fn query_delete_user(&self, id: &str) -> Result<String> {
+	pub async fn query_delete_user(&self, mail: &str) -> Result<String> {
 		let db = &self.state.surrealdb;
-		let record: Option<UsersItemDto> = db
-			.delete((ResourceEnum::Users.to_string(), id))
-			.await?;
+		let record = db
+			.query(format!("DELETE FROM {} WHERE email = $email", ResourceEnum::Users.to_string()))
+			.bind(("email", mail.to_string()))
+			.await;
 		match record {
-			Some(_) => Ok("Success delete user".into()),
-			None => bail!("Failed to delete user"),
+			Ok(_) => Ok("Success delete user".into()),
+			Err(_) => bail!("Failed to delete user"),
 		}
 	}
 }

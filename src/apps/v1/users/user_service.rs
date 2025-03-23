@@ -64,16 +64,16 @@ impl UserService {
 		}
 	}
 
-	pub async fn read_user_by_id(id: &str, state: &AppState) -> Response {
+	pub async fn read_user_by_mail(mail: &str, state: &AppState) -> Response {
 		let repository = UserRepository::new(state);
-		match repository.query_user_by_id(id).await {
+		match repository.query_user_by_email(mail).await {
 			Ok(user) => success_response(ResponseSuccessDto { data: user }),
 			Err(err) => common_response(StatusCode::BAD_REQUEST, &err.to_string()),
 		}
 	}
 
 	pub async fn mutation_update_user(
-		id: &str,
+		mail: &str,
 		payload: UpdateRequestDto,
 		state: &AppState,
 	) -> Response {
@@ -81,9 +81,10 @@ impl UserService {
 		let user = UpdateRequestDto {
 			email: payload.email,
 			fullname: payload.fullname,
+			is_active: payload.is_active,
 		};
 
-		match repository.query_update_user(id, user).await {
+		match repository.query_update_user(mail, user).await {
 			Ok(_) => common_response(StatusCode::CREATED, "Update user is successful"),
 			Err(err) => {
 				common_response(StatusCode::INTERNAL_SERVER_ERROR, &err.to_string())
@@ -92,11 +93,11 @@ impl UserService {
 	}
 
 	pub async fn mutation_delete_user(
-		id: &str,
+		mail: &str,
 		state: &AppState,
 	) -> Response {
 		let repository = UserRepository::new(state);
-		match repository.query_delete_user(id).await {
+		match repository.query_delete_user(mail).await {
 			Ok(_) => common_response(StatusCode::CREATED, "Delete user is successful"),
 			Err(err) => {
 				common_response(StatusCode::INTERNAL_SERVER_ERROR, &err.to_string())
