@@ -34,19 +34,11 @@ pub struct UsersCreateRequestDto {
 	pub password: String,
 	#[validate(length(min = 2, message = "Fullname at least have 2 character"))]
 	pub fullname: String,
-	#[validate(length(min = 1, message = "Student type is required"))]
-	pub student_type: String,
 	#[validate(length(
 		min = 10,
 		message = "Phone number at least have 10 character"
 	))]
 	pub phone_number: String,
-	#[validate(length(
-		max = 4,
-		message = "Referal code cannot be more than 4 character"
-	))]
-	pub referral_code: Option<String>,
-	pub referred_by: Option<String>,
 	pub is_active: bool,
 	pub role_id: String,
 }
@@ -64,24 +56,12 @@ pub struct UsersUpdateRequestDto {
 	))]
 	#[validate(length(min = 2, message = "Fullname at least have 2 character"))]
 	pub fullname: String,
-	#[validate(length(min = 1, message = "Student type is required"))]
-	pub student_type: String,
 	#[validate(length(
 		min = 10,
 		message = "Phone number at least have 10 character"
 	))]
 	pub phone_number: String,
-	#[validate(length(
-		max = 4,
-		message = "Referal code cannot be more than 4 character"
-	))]
-	pub referral_code: Option<String>,
-	pub referred_by: Option<String>,
 	pub is_active: bool,
-	#[validate(length(min = 16, message = "NIK at least have 16 character"))]
-	pub identity_number: Option<String>,
-	#[validate(length(min = 1, message = "Religion is required"))]
-	pub religion: Option<String>,
 	#[validate(length(min = 1, message = "Gender is required"))]
 	pub gender: Option<String>,
 	#[validate(length(min = 1, message = "Birthdate is required"))]
@@ -99,14 +79,8 @@ pub struct UsersItemDto {
 	pub email: String,
 	pub avatar: Option<String>,
 	pub phone_number: String,
-	pub referred_by: Option<String>,
-	pub referral_code: Option<String>,
-	pub student_type: String,
 	pub is_active: bool,
-	pub is_profile_completed: bool,
 	pub is_deleted: bool,
-	pub identity_number: Option<String>,
-	pub religion: Option<String>,
 	pub gender: Option<String>,
 	pub birthdate: Option<String>,
 	pub password: String,
@@ -122,13 +96,7 @@ pub struct UsersDetailItemDto {
 	pub email: String,
 	pub avatar: Option<String>,
 	pub phone_number: String,
-	pub referred_by: Option<String>,
-	pub referral_code: Option<String>,
-	pub student_type: String,
 	pub is_active: bool,
-	pub is_profile_completed: bool,
-	pub identity_number: Option<String>,
-	pub religion: Option<String>,
 	pub gender: Option<String>,
 	pub birthdate: Option<String>,
 }
@@ -141,10 +109,9 @@ pub struct UsersListItemDto {
 	pub email: String,
 	pub avatar: Option<String>,
 	pub phone_number: String,
-	pub referred_by: Option<String>,
-	pub referral_code: Option<String>,
-	pub student_type: String,
 	pub is_active: bool,
+	pub created_at: String,
+	pub updated_at: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -155,10 +122,9 @@ pub struct UsersListItemDtoRaw {
 	pub email: String,
 	pub avatar: Option<String>,
 	pub phone_number: String,
-	pub referred_by: Option<String>,
-	pub referral_code: Option<String>,
-	pub student_type: String,
 	pub is_active: bool,
+	pub created_at: String,
+	pub updated_at: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -168,14 +134,8 @@ pub struct UsersItemDtoRaw {
 	pub email: String,
 	pub avatar: Option<String>,
 	pub phone_number: String,
-	pub referred_by: Option<String>,
-	pub referral_code: Option<String>,
-	pub student_type: String,
 	pub is_active: bool,
-	pub is_profile_completed: bool,
 	pub is_deleted: bool,
-	pub identity_number: Option<String>,
-	pub religion: Option<String>,
 	pub gender: Option<String>,
 	pub birthdate: Option<String>,
 	pub role: RolesItemDtoRaw,

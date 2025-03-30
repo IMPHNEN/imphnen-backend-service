@@ -119,11 +119,8 @@ async fn test_create_user_should_return_201() {
 		email: format!("test-{}@create.com", Uuid::new_v4()).into(),
 		role_id,
 		password: "Password1!".into(),
-		student_type: "general".into(),
 		phone_number: "081234567890".into(),
 		is_active: true,
-		referral_code: None,
-		referred_by: None,
 	};
 	let res = server.post("/v1/users/create").json(&payload).await;
 	assert_eq!(res.status_code(), StatusCode::CREATED);
@@ -148,11 +145,8 @@ async fn test_get_user_detail_should_return_200() {
 		email: "detail@test.com".into(),
 		role_id,
 		password: "Password1!".into(),
-		student_type: "general".into(),
 		phone_number: "081234567890".into(),
 		is_active: true,
-		referral_code: None,
-		referred_by: None,
 	};
 	server.post("/v1/users/create").json(&payload).await;
 	let user = repo.query_user_by_email(payload.email).await.unwrap();
@@ -178,12 +172,9 @@ async fn test_delete_user_should_return_200() {
 		fullname: "Test Delete Me".into(),
 		email: "test@delete-me.com".into(),
 		password: "Password1!".into(),
-		student_type: "general".into(),
 		role_id: role.id.clone(),
 		phone_number: "081234567890".into(),
 		is_active: true,
-		referral_code: None,
-		referred_by: None,
 	};
 	let create_res = server.post("/v1/users/create").json(&payload).await;
 	assert_eq!(create_res.status_code(), StatusCode::CREATED);
@@ -216,11 +207,8 @@ async fn test_activate_user_should_return_200() {
 		email: format!("inactive-{}@test.com", Uuid::new_v4()).into(),
 		password: "Password1!".into(),
 		role_id,
-		student_type: "general".into(),
 		phone_number: "081234567890".into(),
 		is_active: false,
-		referral_code: None,
-		referred_by: None,
 	};
 	let res_create = server.post("/v1/users/create").json(&payload).await;
 	dbg!(res_create.text());
@@ -255,11 +243,8 @@ async fn test_update_user_should_return_200() {
 		email: unique_email.clone(),
 		password: "Password1!".into(),
 		role_id: role_id.clone(),
-		student_type: "general".into(),
 		phone_number: "081234567890".into(),
 		is_active: true,
-		referral_code: None,
-		referred_by: None,
 	};
 	let create_res = server.post("/v1/users/create").json(&payload).await;
 	assert_eq!(create_res.status_code(), StatusCode::CREATED);
@@ -268,14 +253,9 @@ async fn test_update_user_should_return_200() {
 	let update_payload = UsersUpdateRequestDto {
 		fullname: "Updated Name".into(),
 		email: payload.email.clone(),
-		student_type: "general".into(),
 		phone_number: "081234567890".into(),
 		role_id: user.role.id.id.to_raw(),
 		is_active: true,
-		referral_code: None,
-		referred_by: None,
-		identity_number: Some("1234567890123456".into()),
-		religion: Some("Islam".into()),
 		gender: Some("Laki-laki".into()),
 		birthdate: Some("2000-01-01".into()),
 		avatar: None,
@@ -307,12 +287,9 @@ async fn test_create_user_should_fail_if_email_taken() {
 		fullname: "User Satu".into(),
 		email: email.clone(),
 		password: "Password1!".into(),
-		student_type: "general".into(),
 		role_id,
 		phone_number: "081234567890".into(),
 		is_active: true,
-		referral_code: None,
-		referred_by: None,
 	};
 	let res1 = server.post("/v1/users/create").json(&payload).await;
 	assert_eq!(res1.status_code(), StatusCode::CREATED);
@@ -354,11 +331,8 @@ async fn test_delete_user_should_fail_if_already_deleted() {
 		email: "delete-me@example.com".into(),
 		role_id,
 		password: "Password1!".into(),
-		student_type: "general".into(),
 		phone_number: "081234567890".into(),
 		is_active: true,
-		referral_code: None,
-		referred_by: None,
 	};
 	server.post("/v1/users/create").json(&payload).await;
 	let user = repo.query_user_by_email(payload.email).await.unwrap();
@@ -387,14 +361,9 @@ async fn test_update_user_should_fail_if_user_not_found() {
 	let update_payload = UsersUpdateRequestDto {
 		fullname: "Does Not Exist".into(),
 		email: "nonexistent@test.com".into(),
-		student_type: "general".into(),
 		phone_number: "081234567890".into(),
 		role_id,
 		is_active: true,
-		referral_code: None,
-		referred_by: None,
-		identity_number: Some("1234567890123456".into()),
-		religion: Some("Islam".into()),
 		gender: Some("Laki-laki".into()),
 		birthdate: Some("2000-01-01".into()),
 		avatar: None,
@@ -526,11 +495,8 @@ async fn test_user_detail_should_fail_if_user_is_soft_deleted() {
 		fullname: "Soft Deleted".into(),
 		email: "softdeleted@test.com".into(),
 		password: "Password1!".into(),
-		student_type: "general".into(),
 		phone_number: "081234567890".into(),
 		is_active: true,
-		referral_code: None,
-		referred_by: None,
 	};
 	server.post("/v1/users/create").json(&payload).await;
 	let user = repo.query_user_by_email(payload.email).await.unwrap();
@@ -562,11 +528,8 @@ async fn test_update_user_should_fail_if_user_is_deleted() {
 		fullname: "To Be Deleted".into(),
 		email: "deleteduser@test.com".into(),
 		password: "Password1!".into(),
-		student_type: "general".into(),
 		phone_number: "081234567890".into(),
 		is_active: true,
-		referral_code: None,
-		referred_by: None,
 	};
 	server.post("/v1/users/create").json(&payload).await;
 	let user = repo.query_user_by_email(payload.email).await.unwrap();
@@ -576,13 +539,8 @@ async fn test_update_user_should_fail_if_user_is_deleted() {
 		role_id: role_id.clone(),
 		fullname: "Should Fail".into(),
 		email: "deleteduser@test.com".into(),
-		student_type: "general".into(),
 		phone_number: "081234567890".into(),
 		is_active: true,
-		referral_code: None,
-		referred_by: None,
-		identity_number: Some("1234567890123456".into()),
-		religion: Some("Islam".into()),
 		gender: Some("Laki-laki".into()),
 		birthdate: Some("2000-01-01".into()),
 		avatar: None,
@@ -615,11 +573,8 @@ async fn test_update_user_should_fail_if_payload_invalid() {
 		email: "invalid@test.com".into(),
 		role_id: role_id.clone(),
 		password: "Password1!".into(),
-		student_type: "general".into(),
 		phone_number: "081234567890".into(),
 		is_active: true,
-		referral_code: None,
-		referred_by: None,
 	};
 	server.post("/v1/users/create").json(&payload).await;
 	let user = repo.query_user_by_email(payload.email).await.unwrap();
@@ -627,14 +582,9 @@ async fn test_update_user_should_fail_if_payload_invalid() {
 	let update_payload = UsersUpdateRequestDto {
 		fullname: "".into(),
 		email: "invalid@test.com".into(),
-		student_type: "general".into(),
 		phone_number: "081234567890".into(),
 		is_active: true,
-		referral_code: None,
 		role_id: role_id.clone(),
-		referred_by: None,
-		identity_number: Some("1234567890123456".into()),
-		religion: Some("Islam".into()),
 		gender: Some("Laki-laki".into()),
 		birthdate: Some("2000-01-01".into()),
 		avatar: None,

@@ -23,37 +23,28 @@ impl<'a> UsersRepository<'a> {
 		meta: MetaRequestDto,
 	) -> Result<ResponseListSuccessDto<Vec<UsersListItemDto>>> {
 		let db = &self.state.surrealdb_ws;
-
 		let mut conditions = vec!["is_deleted = false".to_string()];
-
 		if let Some(search) = meta.search.as_deref() {
 			if !search.is_empty() {
 				conditions.push("string::contains(fullname ?? '', $search)".to_string());
 			}
 		}
-
 		if let (Some(filter_by), Some(_filter)) =
 			(meta.filter_by.as_ref(), meta.filter.as_ref())
 		{
 			conditions.push(format!("{} = $filter", filter_by));
 		}
-
 		let where_clause = if !conditions.is_empty() {
 			format!("WHERE {}", conditions.join(" AND "))
 		} else {
 			String::new()
 		};
-
 		let limit = meta.per_page.unwrap_or(10);
 		let page = meta.page.unwrap_or(1);
-
-		// Validate pagination parameters explicitly
 		if page < 1 || limit < 1 {
 			return Err(anyhow!("Invalid pagination parameters"));
 		}
-
 		let start = (page - 1) * limit;
-
 		let select_query = format!(
 			"
 			SELECT
@@ -63,15 +54,11 @@ impl<'a> UsersRepository<'a> {
 				email,
 				avatar,
 				phone_number,
-				referred_by,
-				referral_code,
-				student_type,
 				is_active,
-				is_profile_completed,
-				identity_number,
-				religion,
 				gender,
-				birthdate
+				birthdate,
+				created_at,
+				updated_at
 			FROM {}
 			{}
 			LIMIT {} START {}
@@ -82,7 +69,6 @@ impl<'a> UsersRepository<'a> {
 			limit,
 			start
 		);
-
 		let raw_result = query_list_with_meta::<UsersListItemDtoRaw>(
 			db,
 			&ResourceEnum::Users.to_string(),
@@ -91,7 +77,6 @@ impl<'a> UsersRepository<'a> {
 			Some(select_query),
 		)
 		.await?;
-
 		let transformed_data = raw_result
 			.data
 			.into_iter()
@@ -101,14 +86,12 @@ impl<'a> UsersRepository<'a> {
 				email: user.email,
 				avatar: user.avatar,
 				phone_number: user.phone_number,
-				referred_by: user.referred_by,
-				referral_code: user.referral_code,
-				student_type: user.student_type,
 				is_active: user.is_active,
 				role: user.role.unwrap_or_else(|| "-".into()),
+				created_at: user.created_at,
+				updated_at: user.updated_at,
 			})
 			.collect::<Vec<_>>();
-
 		Ok(ResponseListSuccessDto {
 			data: transformed_data,
 			meta: raw_result.meta,
@@ -147,14 +130,8 @@ impl<'a> UsersRepository<'a> {
 					email: user.email,
 					avatar: user.avatar,
 					phone_number: user.phone_number,
-					referred_by: user.referred_by,
-					referral_code: user.referral_code,
-					student_type: user.student_type,
 					is_active: user.is_active,
 					is_deleted: user.is_deleted,
-					is_profile_completed: user.is_profile_completed,
-					identity_number: user.identity_number,
-					religion: user.religion,
 					gender: user.gender,
 					birthdate: user.birthdate,
 					password: user.password,
@@ -206,14 +183,8 @@ impl<'a> UsersRepository<'a> {
 					email: user.email,
 					avatar: user.avatar,
 					phone_number: user.phone_number,
-					referred_by: user.referred_by,
-					referral_code: user.referral_code,
-					student_type: user.student_type,
 					is_active: user.is_active,
 					is_deleted: user.is_deleted,
-					is_profile_completed: user.is_profile_completed,
-					identity_number: user.identity_number,
-					religion: user.religion,
 					gender: user.gender,
 					birthdate: user.birthdate,
 					password: user.password,

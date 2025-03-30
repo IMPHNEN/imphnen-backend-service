@@ -66,15 +66,9 @@ pub fn create_test_user(
 		is_deleted: false,
 		avatar: None,
 		phone_number: "081234567890".to_string(),
-		referral_code: None,
-		referred_by: None,
-		identity_number: None,
 		is_active,
-		student_type: "TNI".to_string(),
-		religion: None,
 		gender: None,
 		birthdate: None,
-		is_profile_completed: false,
 		role: make_thing("app_roles", role_id),
 		..Default::default()
 	}

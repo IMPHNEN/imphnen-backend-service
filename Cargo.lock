@@ -1871,6 +1871,33 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb56e1aa765b4b4f3aadfab769793b7087bb03a4ea4920644a6d238e2df5b9ed"
 
 [[package]]
+name = "imphnen-backend-service"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "argon2",
+ "axum",
+ "axum-test",
+ "chrono",
+ "fancy-regex",
+ "jsonwebtoken",
+ "lazy_static",
+ "lettre",
+ "log",
+ "rand 0.9.0",
+ "regex",
+ "serde",
+ "serde_json",
+ "surrealdb",
+ "thiserror 2.0.12",
+ "tokio",
+ "tower-http",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "validator",
+]
+
+[[package]]
 name = "indexmap"
 version = "1.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2254,33 +2281,6 @@ dependencies = [
  "mime",
  "spin",
  "version_check",
-]
-
-[[package]]
-name = "najm-course-api"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "argon2",
- "axum",
- "axum-test",
- "chrono",
- "fancy-regex",
- "jsonwebtoken",
- "lazy_static",
- "lettre",
- "log",
- "rand 0.9.0",
- "regex",
- "serde",
- "serde_json",
- "surrealdb",
- "thiserror 2.0.12",
- "tokio",
- "tower-http",
- "utoipa",
- "utoipa-swagger-ui",
- "validator",
 ]
 
 [[package]]

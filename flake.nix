@@ -1,5 +1,5 @@
 {
-  description = "IMPHNEN CMS API Nix Flake";
+  description = "IMPHNEN Backend Service Nix Flake";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";

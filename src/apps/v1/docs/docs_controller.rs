@@ -69,8 +69,8 @@ use utoipa::{
         )
     ),
     info(
-        title = "NAJM Course API",
-        description = "NAJM Course API",
+        title = "IMPHNEN Backend Service",
+        description = "IMPHNEN Backend Service for Provide Gacha, Dimentorin and Backoffice Web App",
         version = "0.1.0",
         contact(
             name = "Maulana Sodiqin",
