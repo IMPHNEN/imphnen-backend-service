@@ -6,6 +6,7 @@ use surrealdb::{sql::Thing, Uuid};
 pub struct GachaItemSchema {
 	pub id: Thing,
 	pub name: String,
+	pub image_url: String,
 	pub is_deleted: bool,
 	pub created_at: Option<String>,
 	pub updated_at: Option<String>,
@@ -19,6 +20,7 @@ impl Default for GachaItemSchema {
 				&Uuid::new_v4().to_string(),
 			),
 			name: String::new(),
+			image_url: String::new(),
 			is_deleted: false,
 			created_at: None,
 			updated_at: None,
