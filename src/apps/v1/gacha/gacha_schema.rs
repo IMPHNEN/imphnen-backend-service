@@ -73,11 +73,11 @@ impl Default for GachaRollSchema {
 	fn default() -> Self {
 		GachaRollSchema {
 			id: make_thing(
-				&ResourceEnum::GachaClaims.to_string(),
+				&ResourceEnum::GachaRolls.to_string(),
 				&Uuid::new_v4().to_string(),
 			),
 			item: make_thing(
-				&ResourceEnum::GachaRolls.to_string(),
+				&ResourceEnum::GachaItems.to_string(),
 				&Uuid::new_v4().to_string(),
 			),
 			weight: 0.2,
