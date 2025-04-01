@@ -1,10 +1,7 @@
 use serde::{Deserialize, Serialize};
-use surrealdb::{
-	sql::{Id, Thing},
-	Uuid,
-};
+use surrealdb::{sql::Thing, Uuid};
 
-use crate::ResourceEnum;
+use crate::{make_thing, ResourceEnum};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RolesSchema {
@@ -19,14 +16,14 @@ pub struct RolesSchema {
 impl Default for RolesSchema {
 	fn default() -> Self {
 		RolesSchema {
-			id: Thing::from((
-				ResourceEnum::Roles.to_string(),
-				Id::String(Uuid::new_v4().to_string()),
-			)),
-			permissions: vec![Thing::from((
-				ResourceEnum::Permissions.to_string(),
-				Id::String(Uuid::new_v4().to_string()),
-			))],
+			id: make_thing(
+				&ResourceEnum::Roles.to_string(),
+				&Uuid::new_v4().to_string(),
+			),
+			permissions: vec![make_thing(
+				&ResourceEnum::Permissions.to_string(),
+				&Uuid::new_v4().to_string(),
+			)],
 			name: String::new(),
 			is_deleted: false,
 			created_at: None,

@@ -106,7 +106,7 @@ async fn test_create_user_should_return_201() {
 	let state = create_mock_app_state().await;
 	let role_repo = RolesRepository::new(&state);
 	let role = role_repo
-		.query_role_by_name(RolesEnum::Student.to_string())
+		.query_role_by_name(RolesEnum::User.to_string())
 		.await
 		.unwrap();
 	let role_id = role.id;
@@ -131,7 +131,7 @@ async fn test_get_user_detail_should_return_200() {
 	let state = create_mock_app_state().await;
 	let role_repo = RolesRepository::new(&state);
 	let role = role_repo
-		.query_role_by_name(RolesEnum::Student.to_string())
+		.query_role_by_name(RolesEnum::User.to_string())
 		.await
 		.unwrap();
 	let role_id = role.id;
@@ -160,7 +160,7 @@ async fn test_delete_user_should_return_200() {
 	let state = create_mock_app_state().await;
 	let role_repo = RolesRepository::new(&state);
 	let role = role_repo
-		.query_role_by_name(RolesEnum::Student.to_string())
+		.query_role_by_name(RolesEnum::User.to_string())
 		.await
 		.expect("Failed to get role");
 	let repo = UsersRepository::new(&state);
@@ -193,7 +193,7 @@ async fn test_activate_user_should_return_200() {
 	let state = create_mock_app_state().await;
 	let role_repo = RolesRepository::new(&state);
 	let role = role_repo
-		.query_role_by_name(RolesEnum::Student.to_string())
+		.query_role_by_name(RolesEnum::User.to_string())
 		.await
 		.unwrap();
 	let role_id = role.id;
@@ -228,7 +228,7 @@ async fn test_update_user_should_return_200() {
 	let state = create_mock_app_state().await;
 	let role_repo = RolesRepository::new(&state);
 	let role = role_repo
-		.query_role_by_name(RolesEnum::Student.to_string())
+		.query_role_by_name(RolesEnum::User.to_string())
 		.await
 		.unwrap();
 	let role_id = role.id.clone();
@@ -274,7 +274,7 @@ async fn test_create_user_should_fail_if_email_taken() {
 	let state = create_mock_app_state().await;
 	let role_repo = RolesRepository::new(&state);
 	let role = role_repo
-		.query_role_by_name(RolesEnum::Student.to_string())
+		.query_role_by_name(RolesEnum::User.to_string())
 		.await
 		.unwrap();
 	let role_id = role.id.clone();
@@ -317,7 +317,7 @@ async fn test_delete_user_should_fail_if_already_deleted() {
 	let state = create_mock_app_state().await;
 	let role_repo = RolesRepository::new(&state);
 	let role = role_repo
-		.query_role_by_name(RolesEnum::Student.to_string())
+		.query_role_by_name(RolesEnum::User.to_string())
 		.await
 		.unwrap();
 	let role_id = role.id.clone();
@@ -350,7 +350,7 @@ async fn test_update_user_should_fail_if_user_not_found() {
 	let state = create_mock_app_state().await;
 	let role_repo = RolesRepository::new(&state);
 	let role = role_repo
-		.query_role_by_name(RolesEnum::Student.to_string())
+		.query_role_by_name(RolesEnum::User.to_string())
 		.await
 		.unwrap();
 	let role_id = role.id.clone();
@@ -481,7 +481,7 @@ async fn test_user_detail_should_fail_if_user_is_soft_deleted() {
 	let state = create_mock_app_state().await;
 	let role_repo = RolesRepository::new(&state);
 	let role = role_repo
-		.query_role_by_name(RolesEnum::Student.to_string())
+		.query_role_by_name(RolesEnum::User.to_string())
 		.await
 		.unwrap();
 	let role_id = role.id.clone();
@@ -514,7 +514,7 @@ async fn test_update_user_should_fail_if_user_is_deleted() {
 	let state = create_mock_app_state().await;
 	let role_repo = RolesRepository::new(&state);
 	let role = role_repo
-		.query_role_by_name(RolesEnum::Student.to_string())
+		.query_role_by_name(RolesEnum::User.to_string())
 		.await
 		.unwrap();
 	let role_id = role.id.clone();
@@ -559,7 +559,7 @@ async fn test_update_user_should_fail_if_payload_invalid() {
 	let state = create_mock_app_state().await;
 	let role_repo = RolesRepository::new(&state);
 	let role = role_repo
-		.query_role_by_name(RolesEnum::Student.to_string())
+		.query_role_by_name(RolesEnum::User.to_string())
 		.await
 		.unwrap();
 	let role_id = role.id.clone();

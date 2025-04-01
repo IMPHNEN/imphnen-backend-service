@@ -1,9 +1,6 @@
-use crate::ResourceEnum;
+use crate::{make_thing, ResourceEnum};
 use serde::{Deserialize, Serialize};
-use surrealdb::{
-	sql::{Id, Thing},
-	Uuid,
-};
+use surrealdb::{sql::Thing, Uuid};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PermissionsSchema {
@@ -17,10 +14,10 @@ pub struct PermissionsSchema {
 impl Default for PermissionsSchema {
 	fn default() -> Self {
 		PermissionsSchema {
-			id: Thing::from((
-				ResourceEnum::Permissions.to_string(),
-				Id::String(Uuid::new_v4().to_string()),
-			)),
+			id: make_thing(
+				&ResourceEnum::Permissions.to_string(),
+				&Uuid::new_v4().to_string(),
+			),
 			name: String::new(),
 			is_deleted: false,
 			created_at: None,

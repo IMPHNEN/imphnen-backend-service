@@ -41,7 +41,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
-          source: ./target/release/imphnen-backend-service
+          source: ./target/release/*
           target: /opt/imphnen-backend-service/imphnen-backend-service
           rm: true
           overwrite: true

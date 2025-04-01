@@ -1,6 +1,7 @@
 use axum::{middleware::from_fn, Router};
 pub mod auth;
 pub mod docs;
+pub mod gacha;
 pub mod permissions;
 pub mod roles;
 pub mod users;

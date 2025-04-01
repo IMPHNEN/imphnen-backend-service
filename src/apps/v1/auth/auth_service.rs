@@ -120,7 +120,7 @@ impl AuthService {
 		let auth_repo = AuthRepository::new(state);
 		let role_repo = RolesRepository::new(state);
 		let role = match role_repo
-			.query_role_by_name(RolesEnum::Student.to_string())
+			.query_role_by_name(RolesEnum::User.to_string())
 			.await
 		{
 			Ok(role) => role,

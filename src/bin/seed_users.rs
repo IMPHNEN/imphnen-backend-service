@@ -54,8 +54,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		),
 		(
 			"d5e89c12-72af-4b1a-abc3-ff1234567890",
-			"student@example.com",
-			"Student",
+			"user@example.com",
+			"User",
 			"5713cb37-dc02-4e87-8048-d7a41d352059",
 		),
 	];
