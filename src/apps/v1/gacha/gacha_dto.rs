@@ -7,6 +7,8 @@ use validator::Validate;
 pub struct GachaItemRequestDto {
 	#[validate(length(min = 1, message = "Item name must not be empty"))]
 	pub name: String,
+	#[validate(length(min = 1, message = "Image URL must not be empty"))]
+	pub image_url: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Validate)]
