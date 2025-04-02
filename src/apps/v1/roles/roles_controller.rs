@@ -6,8 +6,8 @@ use axum::{
 
 use super::{RolesItemDto, RolesRequestCreateDto, RolesRequestUpdateDto};
 use crate::{
-	v1::roles_service::RolesService, AppState, MessageResponseDto, MetaRequestDto,
-	ResponseListSuccessDto, ResponseSuccessDto,
+	permissions_guard, v1::roles_service::RolesService, AppState, MessageResponseDto,
+	MetaRequestDto, PermissionsEnum, ResponseListSuccessDto, ResponseSuccessDto,
 };
 
 #[utoipa::path(
@@ -31,10 +31,20 @@ use crate::{
     tag = "Roles"
 )]
 pub async fn get_role_list(
+	headers: axum::http::HeaderMap,
 	Extension(state): Extension<AppState>,
 	Query(meta): Query<MetaRequestDto>,
 ) -> impl IntoResponse {
-	RolesService::get_role_list(&state, meta).await
+	match permissions_guard(
+		&headers,
+		state.clone(),
+		vec![PermissionsEnum::ReadListRoles],
+	)
+	.await
+	{
+		Ok(_) => RolesService::get_role_list(&state, meta).await,
+		Err(response) => response,
+	}
 }
 
 #[utoipa::path(
@@ -50,10 +60,20 @@ pub async fn get_role_list(
     tag = "Roles"
 )]
 pub async fn get_role_by_id(
+	headers: axum::http::HeaderMap,
 	Extension(state): Extension<AppState>,
 	Path(id): Path<String>,
 ) -> impl IntoResponse {
-	RolesService::get_role_by_id(&state, id).await
+	match permissions_guard(
+		&headers,
+		state.clone(),
+		vec![PermissionsEnum::ReadDetailRoles],
+	)
+	.await
+	{
+		Ok(_) => RolesService::get_role_by_id(&state, id).await,
+		Err(response) => response,
+	}
 }
 
 #[utoipa::path(
@@ -69,10 +89,20 @@ pub async fn get_role_by_id(
     tag = "Roles"
 )]
 pub async fn post_create_role(
+	headers: axum::http::HeaderMap,
 	Extension(state): Extension<AppState>,
 	Json(payload): Json<RolesRequestCreateDto>,
 ) -> impl IntoResponse {
-	RolesService::create_role(&state, payload).await
+	match permissions_guard(
+		&headers,
+		state.clone(),
+		vec![PermissionsEnum::CreateRoles],
+	)
+	.await
+	{
+		Ok(_) => RolesService::create_role(&state, payload).await,
+		Err(response) => response,
+	}
 }
 
 #[utoipa::path(
@@ -88,11 +118,21 @@ pub async fn post_create_role(
     tag = "Roles"
 )]
 pub async fn put_update_role(
+	headers: axum::http::HeaderMap,
 	Extension(state): Extension<AppState>,
 	Path(id): Path<String>,
 	Json(payload): Json<RolesRequestUpdateDto>,
 ) -> impl IntoResponse {
-	RolesService::update_role(&state, id, payload).await
+	match permissions_guard(
+		&headers,
+		state.clone(),
+		vec![PermissionsEnum::UpdateRoles],
+	)
+	.await
+	{
+		Ok(_) => RolesService::update_role(&state, id, payload).await,
+		Err(response) => response,
+	}
 }
 
 #[utoipa::path(
@@ -107,8 +147,18 @@ pub async fn put_update_role(
     tag = "Roles"
 )]
 pub async fn delete_role(
+	headers: axum::http::HeaderMap,
 	Extension(state): Extension<AppState>,
 	Path(id): Path<String>,
 ) -> impl IntoResponse {
-	RolesService::delete_role(&state, id).await
+	match permissions_guard(
+		&headers,
+		state.clone(),
+		vec![PermissionsEnum::DeleteRoles],
+	)
+	.await
+	{
+		Ok(_) => RolesService::delete_role(&state, id).await,
+		Err(response) => response,
+	}
 }

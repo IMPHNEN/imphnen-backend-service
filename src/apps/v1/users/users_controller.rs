@@ -3,11 +3,12 @@ use axum::http::HeaderMap;
 use axum::response::IntoResponse;
 use axum::{Extension, Json};
 
-use crate::{v1::users_service::UsersService, AppState, MetaRequestDto};
 use crate::{
-	MessageResponseDto, ResponseListSuccessDto, ResponseSuccessDto,
-	UsersActiveInactiveRequestDto, UsersCreateRequestDto, UsersDetailItemDto,
+	permissions_guard, MessageResponseDto, PermissionsEnum, ResponseListSuccessDto,
+	ResponseSuccessDto, UsersActiveInactiveRequestDto, UsersCreateRequestDto,
+	UsersDetailItemDto,
 };
+use crate::{v1::users_service::UsersService, AppState, MetaRequestDto};
 
 use super::{UsersListItemDto, UsersUpdateRequestDto};
 
@@ -32,10 +33,20 @@ use super::{UsersListItemDto, UsersUpdateRequestDto};
 	tag = "Users"
 )]
 pub async fn get_user_list(
+	headers: HeaderMap,
 	Extension(state): Extension<AppState>,
 	Query(meta): Query<MetaRequestDto>,
 ) -> impl IntoResponse {
-	UsersService::get_user_list(&state, meta).await
+	match permissions_guard(
+		&headers,
+		state.clone(),
+		vec![PermissionsEnum::ReadListUsers],
+	)
+	.await
+	{
+		Ok(_) => UsersService::get_user_list(&state, meta).await,
+		Err(response) => response,
+	}
 }
 
 #[utoipa::path(
@@ -53,10 +64,20 @@ pub async fn get_user_list(
 	tag = "Users"
 )]
 pub async fn get_user_by_id(
+	headers: HeaderMap,
 	Extension(state): Extension<AppState>,
 	Path(id): Path<String>,
 ) -> impl IntoResponse {
-	UsersService::get_user_by_id(&state, id).await
+	match permissions_guard(
+		&headers,
+		state.clone(),
+		vec![PermissionsEnum::ReadDetailUsers],
+	)
+	.await
+	{
+		Ok(_) => UsersService::get_user_by_id(&state, id).await,
+		Err(response) => response,
+	}
 }
 
 #[utoipa::path(
@@ -72,9 +93,12 @@ pub async fn get_user_by_id(
 )]
 pub async fn get_user_me(
 	Extension(state): Extension<AppState>,
-	header: HeaderMap,
+	headers: HeaderMap,
 ) -> impl IntoResponse {
-	UsersService::get_user_me(header, &state).await
+	match permissions_guard(&headers, state.clone(), vec![]).await {
+		Ok(_) => UsersService::get_user_me(headers, &state).await,
+		Err(response) => response,
+	}
 }
 
 #[utoipa::path(
@@ -90,10 +114,20 @@ pub async fn get_user_me(
 	tag = "Users"
 )]
 pub async fn post_create_user(
+	headers: HeaderMap,
 	Extension(state): Extension<AppState>,
 	Json(payload): Json<UsersCreateRequestDto>,
 ) -> impl IntoResponse {
-	UsersService::create_user(&state, payload).await
+	match permissions_guard(
+		&headers,
+		state.clone(),
+		vec![PermissionsEnum::CreateUsers],
+	)
+	.await
+	{
+		Ok(_) => UsersService::create_user(&state, payload).await,
+		Err(response) => response,
+	}
 }
 
 #[utoipa::path(
@@ -109,11 +143,21 @@ pub async fn post_create_user(
 	tag = "Users"
 )]
 pub async fn put_update_user(
+	headers: HeaderMap,
 	Extension(state): Extension<AppState>,
 	Path(id): Path<String>,
 	Json(payload): Json<UsersUpdateRequestDto>,
 ) -> impl IntoResponse {
-	UsersService::update_user(&state, id, payload).await
+	match permissions_guard(
+		&headers,
+		state.clone(),
+		vec![PermissionsEnum::UpdateUsers],
+	)
+	.await
+	{
+		Ok(_) => UsersService::update_user(&state, id, payload).await,
+		Err(response) => response,
+	}
 }
 
 #[utoipa::path(
@@ -129,11 +173,14 @@ pub async fn put_update_user(
 	tag = "Users"
 )]
 pub async fn put_update_user_me(
+	headers: HeaderMap,
 	Extension(state): Extension<AppState>,
-	header: HeaderMap,
 	Json(payload): Json<UsersUpdateRequestDto>,
 ) -> impl IntoResponse {
-	UsersService::update_user_me(&state, header, payload).await
+	match permissions_guard(&headers, state.clone(), vec![]).await {
+		Ok(_) => UsersService::update_user_me(&state, headers, payload).await,
+		Err(response) => response,
+	}
 }
 
 #[utoipa::path(
@@ -149,11 +196,21 @@ pub async fn put_update_user_me(
 	tag = "Users"
 )]
 pub async fn patch_user_active_status(
+	headers: HeaderMap,
 	Extension(state): Extension<AppState>,
-	axum::extract::Path(id): axum::extract::Path<String>,
+	Path(id): Path<String>,
 	Json(payload): Json<UsersActiveInactiveRequestDto>,
 ) -> impl IntoResponse {
-	UsersService::set_user_active_status(&state, id, payload).await
+	match permissions_guard(
+		&headers,
+		state.clone(),
+		vec![PermissionsEnum::UpdateUsers],
+	)
+	.await
+	{
+		Ok(_) => UsersService::set_user_active_status(&state, id, payload).await,
+		Err(response) => response,
+	}
 }
 
 #[utoipa::path(
@@ -168,8 +225,18 @@ pub async fn patch_user_active_status(
 	tag = "Users"
 )]
 pub async fn delete_user(
+	headers: HeaderMap,
 	Extension(state): Extension<AppState>,
 	Path(id): Path<String>,
 ) -> impl IntoResponse {
-	UsersService::delete_user(&state, id).await
+	match permissions_guard(
+		&headers,
+		state.clone(),
+		vec![PermissionsEnum::DeleteUsers],
+	)
+	.await
+	{
+		Ok(_) => UsersService::delete_user(&state, id).await,
+		Err(response) => response,
+	}
 }

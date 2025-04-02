@@ -13,6 +13,8 @@ use crate::{
 	ResponseSuccessDto,
 };
 
+use super::{permissions_guard, PermissionsEnum};
+
 #[utoipa::path(
 	get,
 	path = "/v1/permissions",
@@ -31,10 +33,20 @@ use crate::{
 	tag = "Permissions"
 )]
 pub async fn get_permission_list(
+	headers: axum::http::HeaderMap,
 	Extension(state): Extension<AppState>,
 	Query(meta): Query<MetaRequestDto>,
 ) -> impl IntoResponse {
-	PermissionsService::get_permission_list(&state, meta).await
+	match permissions_guard(
+		&headers,
+		state.clone(),
+		vec![PermissionsEnum::ReadListPermissions],
+	)
+	.await
+	{
+		Ok(_) => PermissionsService::get_permission_list(&state, meta).await,
+		Err(response) => response,
+	}
 }
 
 #[utoipa::path(
@@ -50,10 +62,20 @@ pub async fn get_permission_list(
 	tag = "Permissions"
 )]
 pub async fn get_permission_by_id(
+	headers: axum::http::HeaderMap,
 	Extension(state): Extension<AppState>,
 	Path(id): Path<String>,
 ) -> impl IntoResponse {
-	PermissionsService::get_permission_by_id(&state, id).await
+	match permissions_guard(
+		&headers,
+		state.clone(),
+		vec![PermissionsEnum::ReadDetailPermissions],
+	)
+	.await
+	{
+		Ok(_) => PermissionsService::get_permission_by_id(&state, id).await,
+		Err(response) => response,
+	}
 }
 
 #[utoipa::path(
@@ -69,10 +91,20 @@ pub async fn get_permission_by_id(
 	tag = "Permissions"
 )]
 pub async fn post_create_permission(
+	headers: axum::http::HeaderMap,
 	Extension(state): Extension<AppState>,
 	Json(payload): Json<PermissionsRequestDto>,
 ) -> impl IntoResponse {
-	PermissionsService::create_role(&state, payload).await
+	match permissions_guard(
+		&headers,
+		state.clone(),
+		vec![PermissionsEnum::CreatePermissions],
+	)
+	.await
+	{
+		Ok(_) => PermissionsService::create_role(&state, payload).await,
+		Err(response) => response,
+	}
 }
 
 #[utoipa::path(
@@ -88,11 +120,21 @@ pub async fn post_create_permission(
 	tag = "Permissions"
 )]
 pub async fn put_update_permission(
+	headers: axum::http::HeaderMap,
 	Extension(state): Extension<AppState>,
 	Path(id): Path<String>,
 	Json(payload): Json<PermissionsRequestDto>,
 ) -> impl IntoResponse {
-	PermissionsService::update_permission(&state, payload, id).await
+	match permissions_guard(
+		&headers,
+		state.clone(),
+		vec![PermissionsEnum::UpdatePermissions],
+	)
+	.await
+	{
+		Ok(_) => PermissionsService::update_permission(&state, payload, id).await,
+		Err(response) => response,
+	}
 }
 
 #[utoipa::path(
@@ -107,8 +149,18 @@ pub async fn put_update_permission(
 	tag = "Permissions"
 )]
 pub async fn delete_permission(
+	headers: axum::http::HeaderMap,
 	Extension(state): Extension<AppState>,
 	Path(id): Path<String>,
 ) -> impl IntoResponse {
-	PermissionsService::delete_permission(&state, id).await
+	match permissions_guard(
+		&headers,
+		state.clone(),
+		vec![PermissionsEnum::DeletePermissions],
+	)
+	.await
+	{
+		Ok(_) => PermissionsService::delete_permission(&state, id).await,
+		Err(response) => response,
+	}
 }
