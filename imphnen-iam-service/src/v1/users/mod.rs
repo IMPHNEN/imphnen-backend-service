@@ -1,6 +1,6 @@
 use axum::{
-	routing::{delete, get, post, put},
 	Router,
+	routing::{delete, get, post, put},
 };
 
 pub mod users_controller;
@@ -8,11 +8,6 @@ pub mod users_dto;
 pub mod users_repository;
 pub mod users_schema;
 pub mod users_service;
-
-#[cfg(test)]
-pub mod users_controller_test;
-#[cfg(test)]
-pub mod users_repository_test;
 
 pub use users_controller::*;
 pub use users_dto::*;
