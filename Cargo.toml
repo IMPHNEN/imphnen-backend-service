@@ -1,10 +1,8 @@
 [workspace]
 resolver = "2"
 members = [ 
-  "imphnen-apis",
-  "imphnen-utils",
-  "imphnen-libs",
-  "imphnen-entities",
+  "imphnen-*",
+  "tests",
 ]
 
 [workspace.dependencies]

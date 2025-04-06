@@ -1855,6 +1855,31 @@ dependencies = [
  "axum-test",
  "chrono",
  "imphnen-entities",
+ "imphnen-gateway-service",
+ "imphnen-libs",
+ "imphnen-utils",
+ "lazy_static",
+ "rand 0.9.0",
+ "regex",
+ "serde",
+ "serde_json",
+ "surrealdb",
+ "tokio",
+ "tower-http",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "validator",
+]
+
+[[package]]
+name = "imphnen-dimentorin-service"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "axum-test",
+ "chrono",
+ "imphnen-entities",
  "imphnen-libs",
  "imphnen-utils",
  "lazy_static",
@@ -1879,6 +1904,79 @@ dependencies = [
  "surrealdb",
  "thiserror 2.0.12",
  "utoipa",
+]
+
+[[package]]
+name = "imphnen-gacha-service"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "axum-test",
+ "chrono",
+ "imphnen-entities",
+ "imphnen-libs",
+ "imphnen-utils",
+ "lazy_static",
+ "rand 0.9.0",
+ "regex",
+ "serde",
+ "serde_json",
+ "surrealdb",
+ "tokio",
+ "tower-http",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "validator",
+]
+
+[[package]]
+name = "imphnen-gateway-service"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "axum-test",
+ "chrono",
+ "imphnen-entities",
+ "imphnen-iam-service",
+ "imphnen-libs",
+ "imphnen-utils",
+ "lazy_static",
+ "rand 0.9.0",
+ "regex",
+ "serde",
+ "serde_json",
+ "surrealdb",
+ "tokio",
+ "tower-http",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "validator",
+]
+
+[[package]]
+name = "imphnen-iam-service"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "axum-test",
+ "chrono",
+ "imphnen-entities",
+ "imphnen-libs",
+ "imphnen-utils",
+ "lazy_static",
+ "rand 0.9.0",
+ "regex",
+ "serde",
+ "serde_json",
+ "surrealdb",
+ "tokio",
+ "tower-http",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "validator",
 ]
 
 [[package]]
@@ -4157,6 +4255,22 @@ dependencies = [
  "dirs-next",
  "rustversion",
  "winapi",
+]
+
+[[package]]
+name = "tests"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "axum-test",
+ "chrono",
+ "imphnen-entities",
+ "imphnen-iam-service",
+ "imphnen-libs",
+ "imphnen-utils",
+ "serde_json",
+ "surrealdb",
+ "tokio",
 ]
 
 [[package]]
