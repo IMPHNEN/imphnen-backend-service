@@ -1,0 +1,17 @@
+[package]
+name = "imphnen-utils"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+imphnen-libs = { path = "../imphnen-libs"}
+imphnen-entities = { path = "../imphnen-entities" }
+surrealdb.workspace = true
+axum.workspace = true
+chrono.workspace = true
+rand.workspace = true
+anyhow.workspace = true
+axum-test.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+validator.workspace = true

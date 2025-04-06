@@ -1,0 +1,15 @@
+[package]
+name = "imphnen-libs"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+imphnen-entities = { path = "../imphnen-entities" }
+argon2.workspace = true
+axum.workspace = true
+tokio.workspace = true
+chrono.workspace = true
+jsonwebtoken.workspace = true
+serde.workspace = true
+lettre.workspace = true
+surrealdb = { workspace = true, features = ["kv-mem"] }
