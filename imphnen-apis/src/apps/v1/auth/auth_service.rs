@@ -202,10 +202,18 @@ impl AuthService {
 		if let Err((status, message)) = validate_request(&payload) {
 			return common_response(status, &message);
 		}
-		let repository = AuthRepository::new(state);
+		
+		let user_repo = UsersRepository::new(state);
+		if user_repo.query_user_by_email(payload.email.clone()).await.is_err() {
+			return common_response(StatusCode::BAD_REQUEST, "User not found");
+		}
+
+		let auth_repo = AuthRepository::new(state);
+		let  _ = auth_repo.query_get_stored_otp(payload.email.clone()).await;
+
 		let otp = generate_otp::OtpManager::generate_otp();
 		let message = format!("Your OTP code is {}", otp);
-		match repository.query_store_otp(payload.email.clone(), otp).await {
+		match auth_repo.query_store_otp(payload.email.clone(), otp).await {
 			Ok(_) => match send_email(&payload.email, "OTP Verification", &message) {
 				Ok(_) => common_response(StatusCode::OK, "OTP resent successfully"),
 				Err(err) => common_response(StatusCode::BAD_REQUEST, &err.to_string()),

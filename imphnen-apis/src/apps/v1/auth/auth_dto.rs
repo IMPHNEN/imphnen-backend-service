@@ -3,10 +3,23 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-use validator::Validate;
+use validator::{Validate, ValidationError};
 
 lazy_static! {
-	static ref PASSWORD_REGEX: Regex = Regex::new(r"^[A-Za-z\d@$!%*?&]{8,}$").unwrap();
+	static ref PASSWORD_REGEX: Regex = Regex::new(r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$").unwrap();
+}
+
+fn validate_password_complexity(password: &str) -> Result<(), ValidationError> {
+    let has_uppercase = password.chars().any(|c| c.is_ascii_uppercase());
+    let has_lowercase = password.chars().any(|c| c.is_ascii_lowercase());
+    let has_digit = password.chars().any(|c| c.is_ascii_digit());
+    let has_special = password.chars().any(|c| "@$!%*?&".contains(c));
+
+    if has_uppercase && has_lowercase && has_digit && has_special {
+        Ok(())
+    } else {
+        Err(ValidationError::new("complexity"))
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Validate)]
@@ -56,8 +69,8 @@ pub struct AuthRegisterRequestDto {
 		min = 8,
 		message = "Password must have at least 8 characters"
 	))]
-	#[validate(regex(
-		path = "PASSWORD_REGEX",
+	#[validate(custom(
+		function = "validate_password_complexity",
 		message = "Password must include uppercase, lowercase, number, and special character"
 	))]
 	pub password: String,
