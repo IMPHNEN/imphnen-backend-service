@@ -1,15 +1,15 @@
-use super::{GachaClaimSchema, GachaItemSchema, GachaRollSchema};
+use super::GachaItemSchema;
 use crate::{
 	AppState, MetaRequestDto, ResourceEnum, ResponseListSuccessDto, get_id,
 	make_thing, query_list_with_meta,
 };
 use anyhow::{Result, bail};
 
-pub struct GachaRepository<'a> {
+pub struct GachaItemRepository<'a> {
 	state: &'a AppState,
 }
 
-impl<'a> GachaRepository<'a> {
+impl<'a> GachaItemRepository<'a> {
 	pub fn new(state: &'a AppState) -> Self {
 		Self { state }
 	}
@@ -95,61 +95,6 @@ impl<'a> GachaRepository<'a> {
 		match record {
 			Some(_) => Ok("Success delete Gacha Item".into()),
 			None => bail!("Failed to delete Gacha Item"),
-		}
-	}
-
-	pub async fn query_gacha_claim_by_id(
-		&self,
-		id: String,
-	) -> Result<GachaClaimSchema> {
-		let db = &self.state.surrealdb_ws;
-		let result: Option<GachaClaimSchema> = db
-			.select((ResourceEnum::GachaClaims.to_string(), id.clone()))
-			.await?;
-		match result {
-			Some(claim) if !claim.is_deleted => Ok(claim),
-			_ => bail!("Gacha Claim not found"),
-		}
-	}
-
-	pub async fn query_create_gacha_claim(
-		&self,
-		data: GachaClaimSchema,
-	) -> Result<String> {
-		let db = &self.state.surrealdb_ws;
-		let record: Option<GachaClaimSchema> = db
-			.create(ResourceEnum::GachaClaims.to_string())
-			.content(data)
-			.await?;
-		match record {
-			Some(_) => Ok("Success create Gacha Claim".into()),
-			None => bail!("Failed to create Gacha Claim"),
-		}
-	}
-
-	pub async fn query_gacha_roll_by_id(&self, id: String) -> Result<GachaRollSchema> {
-		let db = &self.state.surrealdb_ws;
-		let result: Option<GachaRollSchema> = db
-			.select((ResourceEnum::GachaRolls.to_string(), id.clone()))
-			.await?;
-		match result {
-			Some(roll) if !roll.is_deleted => Ok(roll),
-			_ => bail!("Gacha Roll not found"),
-		}
-	}
-
-	pub async fn query_create_gacha_roll(
-		&self,
-		data: GachaRollSchema,
-	) -> Result<String> {
-		let db = &self.state.surrealdb_ws;
-		let record: Option<GachaRollSchema> = db
-			.create(ResourceEnum::GachaRolls.to_string())
-			.content(data)
-			.await?;
-		match record {
-			Some(_) => Ok("Success create Gacha Roll".into()),
-			None => bail!("Failed to create Gacha Roll"),
 		}
 	}
 }
