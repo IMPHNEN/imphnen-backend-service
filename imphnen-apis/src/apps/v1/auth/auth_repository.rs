@@ -88,7 +88,7 @@ impl<'a> AuthRepository<'a> {
 
 	pub async fn query_store_otp(&self, email: String, otp: u32) -> Result<String> {
 		let expires_at = Utc::now() + Duration::seconds(300);
-		let table = ResourceEnum::OtpCache.to_string();
+		let table: String = ResourceEnum::OtpCache.to_string();
 		let record: Option<AuthOtpSchema> = self
 			.state
 			.surrealdb_mem
