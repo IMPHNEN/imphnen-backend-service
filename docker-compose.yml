@@ -6,3 +6,11 @@ services:
     ports:
       - "${PORT}:${PORT}"
     env_file: ".env"
+    depends_on:
+      - surrealdb
+
+  surrealdb:
+    image: surrealdb/surrealdb:latest
+    command: start --log trace --user root --pass root
+    ports:
+      - "8000:8000"

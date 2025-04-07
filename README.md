@@ -1,78 +1,107 @@
-# Axum SurrealDB Boilerplate
+# IMPHNEN Backend Service
 
-## Features
+<p align="center">
+  <img src="docs/logo.svg" alt="IMPHNEN">
+</p>
 
-- **Authentication Ready**: Preconfigured authentication and middleware for secure API access.
-- **Database Integration**: SurrealDB seamlessly integrated as an Axum Extension.
-- **CORS Handling**: Fine-tuned CORS management with Tower HTTP `CorsLayer`.
-- **API Documentation**: Fully documented with OpenAPI and Swagger UI.
-- **Optimized for Performance**: Asynchronous, lightweight, and scalable architecture.
+This repository serves as the **monorepo** for all backend services of IMPHNEN. It encompasses several main services:
 
-## Prerequisites
+1. **Core Service** - Provides fundamental functionalities and shared resources for other services.
+2. **IAM Service** - Handles identity and access management across IMPHNEN applications.
+3. **CMS Service** - Supports the cms services by IMPHNEN [Landing Page website](https://imphnen.dev/).
+4. **Gacha Service** - Supports the gacha services by IMPHNEN [Gacha website](https://gacha.imphnen.dev/).
+5. **Dimentorin Service** - Supports the mentoring services by IMPHNEN [Dimentorin website](https://dimentorin.imphnen.dev/).
+6. **Gateway Service** - Acts as the API gateway, routing requests to appropriate services.
 
-- **Rust**: Install Rust from [rust-lang.org](https://www.rust-lang.org/).
-- **Database**: Set up a SurrealDB instance and configure connection details.
-- **Docker**: Required for containerized deployment, install from [docker.com](https://www.docker.com/).
-- **Nix (Optional)**: For reproducible builds, install from [nixos.org](https://nixos.org/).
+## How to Install
 
-## Getting Started
+1. **Clone the repository**:
 
-1. **Clone the Repository**:
+   ```sh
+   git clone https://github.com/IMPHNEN/imphnen-backend-service.git
+   cd imphnen-backend-service
+   ```
 
-   - `git clone https://github.com/maulanasdqn/axum-surrealdb-boilerplate`
+2. **Set up the environment**:
 
-2. **Set Up Environment Variables**:
+   - Copy the example environment files:
 
-   - Copy `.env.example` and rename it to `.env`
+     ```sh
+     cp .env.example .env
+     ```
 
-   - **Windows**: Run the script: `./apply-env.ps1`
-   - **Unix-based systems (Linux, macOS, BSD)**: Run the script: `./apply-env.sh`
+     if you use windows based system
 
-3. **Install Dependencies**:
+     ```sh
+     ./apply-env.ps1
+     ```
 
-   - `cargo install .`
+     if you use unix based system
 
-4. **Setup Database**:
+     ```sh
+     sh apply-env.sh
+     ```
 
-   - Install the surrealDB
-   - **Windows**: `iwr https://windows.surrealdb.com -useb | iex`
-   - **Unix-based systems (Linux, macOS, BSD)**: `curl -sSf https://install.surrealdb.com | sh`
-   - Start the database `surreal start --user root --pass root`
+   - Modify the `.env` files with your specific configuration settings.
 
-5. **Start the Server**:
+3. **Install dependencies**:
 
-   - Install Cargo Watch `cargo install cargo-watch`
-   - Run it with cargo watch `cargo watch -x run`
+   Ensure you have [Rust](https://www.rust-lang.org/) installed. Then, run:
 
-   The API will be available at `http://localhost:3000/docs`.
+   ```sh
+   cargo build
+   ```
 
-## Docker
+## How to Run
 
-1. **Build the Docker Image**:
+### Development
 
-2. **Run the Docker Container**:
+To run the services in development mode:
 
-   The API will be accessible at `http://localhost:3000/docs`.
+1. **Start the database and other dependencies** using Docker Compose:
 
-## Using Nix as Builder (Optional)
+   ```sh
+   docker-compose up -d
+   ```
 
-1. **Install Nix**:
+2. **Run the desired service**. For example, to run the Core Service:
 
-2. **Enter Nix Shell or Use Nix Flakes**:
+   ```sh
+   cargo run -p imphnen-core-service --bin api
+   ```
 
-3. **Build the Project**:
+### Production
 
-4. **Run the Server**:
+For production deployment:
 
-## Contributing
+1. **Build the Docker image**:
 
-Contributions are welcome! Fork the repository and create a pull request with your improvements.
+   ```sh
+   docker build -t imphnen-backend-service .
+   ```
 
-## License
+2. **Run the Docker container**:
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+   ```sh
+   docker run -d --env-file .env -p 8080:8080 imphnen-backend-service
+   ```
 
-## Acknowledgements
+   Adjust the port and environment variables as needed.
 
-- [Axum](https://github.com/tokio-rs/axum)
-- [SurrealDB](https://github.com/surrealdb/surrealdb)
+## How to Contribute
+
+1. **Fork the repository** and clone it locally.
+2. **Create a new branch** for your feature or fix:
+
+   ```sh
+   git checkout -b feat/your-feature-name
+   ```
+
+3. **Make your changes**, commit them, and push to your forked repository.
+4. **Create a pull request** to the `develop` branch of this repository.
+
+If you encounter any issues or have questions, feel free to create a new issue in the repository.
+
+---
+
+_Note: For detailed API documentation, please refer to our [API Docs](https://api.imphnen.dev/docs)._
