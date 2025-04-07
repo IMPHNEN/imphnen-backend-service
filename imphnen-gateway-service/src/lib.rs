@@ -5,10 +5,8 @@ use imphnen_entities::{AppState, SurrealMemClient, SurrealWsClient};
 use imphnen_iam_service::{iam_protected_routes, iam_public_routes};
 
 pub mod docs;
-pub mod middleware;
-
 pub use docs::*;
-pub use middleware::*;
+use imphnen_middleware_service::{auth_middleware, cors_middleware};
 use utoipa_swagger_ui::SwaggerUi;
 
 pub async fn gateway_service(

@@ -1874,6 +1874,26 @@ dependencies = [
 [[package]]
 name = "imphnen-cms-service"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "axum-test",
+ "chrono",
+ "imphnen-entities",
+ "imphnen-libs",
+ "imphnen-utils",
+ "lazy_static",
+ "rand 0.9.0",
+ "regex",
+ "serde",
+ "serde_json",
+ "surrealdb",
+ "tokio",
+ "tower-http",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "validator",
+]
 
 [[package]]
 name = "imphnen-dimentorin-service"
@@ -1945,6 +1965,7 @@ dependencies = [
  "imphnen-entities",
  "imphnen-iam-service",
  "imphnen-libs",
+ "imphnen-middleware-service",
  "imphnen-utils",
  "lazy_static",
  "rand 0.9.0",
@@ -1996,6 +2017,33 @@ dependencies = [
  "serde",
  "surrealdb",
  "tokio",
+]
+
+[[package]]
+name = "imphnen-middleware-service"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "axum-test",
+ "chrono",
+ "futures",
+ "imphnen-entities",
+ "imphnen-iam-service",
+ "imphnen-libs",
+ "imphnen-utils",
+ "lazy_static",
+ "rand 0.9.0",
+ "regex",
+ "serde",
+ "serde_json",
+ "surrealdb",
+ "tokio",
+ "tower",
+ "tower-http",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "validator",
 ]
 
 [[package]]
