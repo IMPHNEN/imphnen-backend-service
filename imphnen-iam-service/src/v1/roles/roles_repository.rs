@@ -1,6 +1,5 @@
 use super::{
-	RolesItemByIdDto, RolesItemByIdDtoRaw, RolesRequestCreateDto,
-	RolesRequestUpdateDto, RolesSchema,
+	RolesItemByIdDto, RolesItemByIdDtoRaw, RolesItemDto, RolesItemDtoRaw, RolesRequestCreateDto, RolesRequestUpdateDto, RolesSchema
 };
 use crate::{
 	extract_id, get_id, make_thing, query_list_with_meta, AppState, MetaRequestDto,
@@ -32,7 +31,7 @@ impl<'a> RolesRepository<'a> {
 	pub async fn query_role_list(
 		&self,
 		meta: MetaRequestDto,
-	) -> Result<ResponseListSuccessDto<Vec<RolesSchema>>> {
+	) -> Result<ResponseListSuccessDto<Vec<RolesItemDto>>> {
 		let mut conditions = vec!["is_deleted = false".into()];
 		if meta.search.is_some() {
 			conditions.push("string::contains(name, $search)".into());
@@ -41,14 +40,41 @@ impl<'a> RolesRepository<'a> {
 			let filter_by = meta.filter_by.as_ref().unwrap();
 			conditions.push(format!("{} = $filter", filter_by));
 		}
-		query_list_with_meta(
+		let raw_result: ResponseListSuccessDto<Vec<RolesItemDtoRaw>> = query_list_with_meta(
 			&self.state.surrealdb_ws,
 			&ResourceEnum::Roles.to_string(),
 			&meta,
 			conditions,
 			None,
 		)
-		.await
+		.await?;
+		let transformed_data = raw_result
+			.data
+			.into_iter()
+			.map(|role| {
+				RolesItemDto {
+					name: role.name,
+					created_at: role.created_at,
+					updated_at: role.updated_at,
+					permissions: role.permissions
+						.into_iter()
+						.map(|perm| PermissionsItemDto {
+							id: extract_id(&perm.id),
+							name: perm.name,
+							created_at: perm.created_at,
+							updated_at: perm.updated_at,
+						})
+						.collect::<Vec<_>>(),
+					id: extract_id(&role.id),
+
+				}
+			})
+			.collect::<Vec<RolesItemDto>>();
+		let transformed_meta = raw_result.meta;
+		Ok(ResponseListSuccessDto {
+			data: transformed_data,
+			meta: transformed_meta,
+		})
 	}
 
 	pub async fn query_role_by_name(&self, name: String) -> Result<RolesItemByIdDto> {
