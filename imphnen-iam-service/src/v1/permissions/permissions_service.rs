@@ -30,7 +30,7 @@ impl PermissionsService {
 
 	pub async fn get_permission_by_id(state: &AppState, id: String) -> Response {
 		let repo = PermissionsRepository::new(state);
-		match repo.query_permission_by_id(id).await {
+		match repo.transformed_query_permission_by_id(id).await {
 			Ok(permission) => success_response(ResponseSuccessDto { data: permission }),
 			Err(e) => common_response(StatusCode::NOT_FOUND, &e.to_string()),
 		}

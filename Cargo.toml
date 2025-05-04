@@ -1,9 +1,20 @@
 [workspace]
 resolver = "2"
 members = [ 
-  "imphnen-*",
+#   "imphnen-*",
+  "imphnen-utils",
+  "imphnen-libs",
+  "imphnen-entities",
+  "imphnen-cms-service",
+  "imphnen-iam-service",
+  "imphnen-gacha-service",
+  "imphnen-gateway-service",
+  "imphnen-dimentorin-service",
+  "imphnen-middleware-service",
+  "imphnen-core-service",
   "tests",
 ]
+
 
 [workspace.dependencies]
 axum = { version = "0.8.1", features = ["multipart"] }

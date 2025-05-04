@@ -19,7 +19,7 @@ pub async fn gateway_service(
 	};
 
 	let public_routes = iam_public_routes();
-	let protected_routes = iam_protected_routes().layer(from_fn(auth_middleware));
+	let protected_routes = iam_protected_routes();//.layer(from_fn(auth_middleware));
 
 	Router::new()
 		.route("/", get(Redirect::to("/docs")))

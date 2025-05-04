@@ -1,9 +1,10 @@
-use super::PermissionsSchema;
+use super::{PermissionsItemDto, PermissionsItemDtoRaw, PermissionsSchema};
 use crate::{
 	get_id, make_thing, query_list_with_meta, AppState, MetaRequestDto, ResourceEnum,
 	ResponseListSuccessDto,
 };
 use anyhow::{bail, Result};
+use imphnen_utils::extract_id;
 
 pub struct PermissionsRepository<'a> {
 	state: &'a AppState,
@@ -17,7 +18,7 @@ impl<'a> PermissionsRepository<'a> {
 	pub async fn query_permission_list(
 		&self,
 		meta: MetaRequestDto,
-	) -> Result<ResponseListSuccessDto<Vec<PermissionsSchema>>> {
+	) -> Result<ResponseListSuccessDto<Vec<PermissionsItemDto>>> {
 		let mut conditions = vec!["is_deleted = false".into()];
 		if meta.search.is_some() {
 			conditions.push("string::contains(name, $search)".into());
@@ -26,14 +27,28 @@ impl<'a> PermissionsRepository<'a> {
 			let filter_by = meta.filter_by.as_ref().unwrap();
 			conditions.push(format!("{} = $filter", filter_by));
 		}
-		query_list_with_meta(
+		let raw_result: ResponseListSuccessDto<Vec<PermissionsItemDtoRaw>> = query_list_with_meta(
 			&self.state.surrealdb_ws,
 			&ResourceEnum::Permissions.to_string(),
 			&meta,
 			conditions,
 			None,
 		)
-		.await
+		.await?;
+		let transformed_data = raw_result
+			.data
+			.into_iter()
+			.map(|permission| PermissionsItemDto {
+				id: extract_id(&permission.id),
+				name: permission.name,
+				created_at: permission.created_at,
+				updated_at: permission.updated_at,
+			})
+			.collect();
+		Ok(ResponseListSuccessDto {
+			data: transformed_data,
+			meta: raw_result.meta,
+		})
 	}
 
 	pub async fn query_permission_by_id(
@@ -49,6 +64,23 @@ impl<'a> PermissionsRepository<'a> {
 			_ => bail!("Permission not found"),
 		}
 	}
+
+	pub async fn transformed_query_permission_by_id(
+		&self,
+		id: String,
+	) -> Result<PermissionsItemDto> {
+		let raw_result = self
+			.query_permission_by_id(id.clone())
+			.await?;
+		let transformed_data = PermissionsItemDto {
+			id: extract_id(&raw_result.id),
+			name: raw_result.name,
+			created_at: raw_result.created_at,
+			updated_at: raw_result.updated_at,
+		};
+		Ok(transformed_data)
+	}
+
 
 	pub async fn query_permission_by_name(
 		&self,
