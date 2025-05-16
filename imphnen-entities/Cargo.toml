@@ -6,6 +6,6 @@ edition = "2024"
 [dependencies]
 axum.workspace = true
 serde.workspace = true
-surrealdb = { workspace = true, features = ["kv-mem"] }
-thiserror.workspace = true
 utoipa.workspace = true
+surrealdb.workspace = true
+thiserror.workspace = true

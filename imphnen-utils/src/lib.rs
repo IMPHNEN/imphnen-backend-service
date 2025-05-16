@@ -2,17 +2,20 @@ use imphnen_entities::*;
 use imphnen_libs::*;
 
 pub mod bind_filter;
+pub mod crud;
 pub mod extract_email;
 pub mod generate_date;
 pub mod generate_otp;
 pub mod get_id;
 pub mod make_thing;
 pub mod mock_test;
+pub mod query_builder;
 pub mod query_list;
 pub mod response_format;
 pub mod validator;
 
 pub use bind_filter::*;
+pub use crud::*;
 pub use extract_email::*;
 pub use generate_date::*;
 pub use generate_otp::*;
@@ -21,6 +24,7 @@ pub use imphnen_entities::*;
 pub use imphnen_libs::*;
 pub use make_thing::*;
 pub use mock_test::*;
+pub use query_builder::*;
 pub use query_list::*;
 pub use response_format::*;
 pub use validator::*;

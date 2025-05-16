@@ -1,18 +1,16 @@
 [workspace]
 resolver = "2"
 members = [ 
-#   "imphnen-*",
-  "imphnen-utils",
-  "imphnen-libs",
-  "imphnen-entities",
-  "imphnen-cms-service",
-  "imphnen-iam-service",
-  "imphnen-gacha-service",
-  "imphnen-gateway-service",
-  "imphnen-dimentorin-service",
-  "imphnen-middleware-service",
-  "imphnen-core-service",
   "tests",
+  "imphnen-iam",
+  "imphnen-libs",
+  "imphnen-utils",
+  "imphnen-gacha",
+  "imphnen-gateway",
+  "imphnen-backend",
+  "imphnen-entities",
+  "imphnen-dimentorin",
+  "imphnen-middleware",
 ]
 
 
@@ -38,6 +36,8 @@ lazy_static = "1.4.0"
 regex = "1.11.1"
 axum-test = "17.2.0"
 fancy-regex = "0.14.0"
+futures = "0.3.31"
+tower = "0.5.2"
 
 [profile.release]
 lto = "fat"

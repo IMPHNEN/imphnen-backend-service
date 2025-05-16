@@ -1847,7 +1847,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb56e1aa765b4b4f3aadfab769793b7087bb03a4ea4920644a6d238e2df5b9ed"
 
 [[package]]
-name = "imphnen-backend-service"
+name = "imphnen-backend"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1855,7 +1855,7 @@ dependencies = [
  "axum-test",
  "chrono",
  "imphnen-entities",
- "imphnen-gateway-service",
+ "imphnen-gateway",
  "imphnen-libs",
  "imphnen-utils",
  "lazy_static",
@@ -1872,31 +1872,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "imphnen-cms-service"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "axum-test",
- "chrono",
- "imphnen-entities",
- "imphnen-libs",
- "imphnen-utils",
- "lazy_static",
- "rand 0.9.0",
- "regex",
- "serde",
- "serde_json",
- "surrealdb",
- "tokio",
- "tower-http",
- "utoipa",
- "utoipa-swagger-ui",
- "validator",
-]
-
-[[package]]
-name = "imphnen-dimentorin-service"
+name = "imphnen-dimentorin"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1931,7 +1907,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "imphnen-gacha-service"
+name = "imphnen-gacha"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1955,7 +1931,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "imphnen-gateway-service"
+name = "imphnen-gateway"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1963,9 +1939,9 @@ dependencies = [
  "axum-test",
  "chrono",
  "imphnen-entities",
- "imphnen-iam-service",
+ "imphnen-iam",
  "imphnen-libs",
- "imphnen-middleware-service",
+ "imphnen-middleware",
  "imphnen-utils",
  "lazy_static",
  "rand 0.9.0",
@@ -1981,7 +1957,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "imphnen-iam-service"
+name = "imphnen-iam"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -2020,7 +1996,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "imphnen-middleware-service"
+name = "imphnen-middleware"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -2029,7 +2005,7 @@ dependencies = [
  "chrono",
  "futures",
  "imphnen-entities",
- "imphnen-iam-service",
+ "imphnen-iam",
  "imphnen-libs",
  "imphnen-utils",
  "lazy_static",
@@ -4317,7 +4293,7 @@ dependencies = [
  "axum-test",
  "chrono",
  "imphnen-entities",
- "imphnen-iam-service",
+ "imphnen-iam",
  "imphnen-libs",
  "imphnen-utils",
  "serde_json",
