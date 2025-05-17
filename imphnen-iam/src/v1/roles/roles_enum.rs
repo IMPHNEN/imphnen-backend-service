@@ -4,8 +4,7 @@ use std::fmt;
 pub enum RolesEnum {
 	Admin,
 	User,
-	Student,
-	Staf,
+	Staff,
 }
 
 impl fmt::Display for RolesEnum {
@@ -13,8 +12,7 @@ impl fmt::Display for RolesEnum {
 		let roles_str = match self {
 			RolesEnum::Admin => "Admin",
 			RolesEnum::User => "User",
-			RolesEnum::Student => "Student",
-			RolesEnum::Staf => "Staf",
+			RolesEnum::Staff => "Staff",
 		};
 		write!(f, "{}", roles_str)
 	}

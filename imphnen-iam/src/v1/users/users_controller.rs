@@ -1,16 +1,16 @@
+use crate::{AppState, MetaRequestDto, v1::users_service::UsersService};
+use crate::{
+	MessageResponseDto, PermissionsEnum, ResponseListSuccessDto, ResponseSuccessDto,
+	UsersCreateRequestDto, UsersDetailItemDto, permissions_guard,
+};
 use axum::extract::{Path, Query};
 use axum::http::HeaderMap;
 use axum::response::IntoResponse;
 use axum::{Extension, Json};
 
-use crate::{
-	permissions_guard, MessageResponseDto, PermissionsEnum, ResponseListSuccessDto,
-	ResponseSuccessDto, UsersActiveInactiveRequestDto, UsersCreateRequestDto,
-	UsersDetailItemDto,
+use super::{
+	UsersActiveInactiveRequestDto, UsersListItemDto, UsersUpdateRequestDto,
 };
-use crate::{v1::users_service::UsersService, AppState, MetaRequestDto};
-
-use super::{UsersListItemDto, UsersUpdateRequestDto};
 
 #[utoipa::path(
 	get,
@@ -204,7 +204,7 @@ pub async fn patch_user_active_status(
 	match permissions_guard(
 		&headers,
 		state.clone(),
-		vec![PermissionsEnum::UpdateUsers],
+		vec![PermissionsEnum::ActivateUsers],
 	)
 	.await
 	{

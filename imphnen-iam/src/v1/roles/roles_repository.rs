@@ -1,13 +1,15 @@
 use super::{
-	RolesItemByIdDto, RolesItemByIdDtoRaw, RolesItemDto, RolesItemDtoRaw, RolesRequestCreateDto, RolesRequestUpdateDto, RolesSchema
+	RolesDetailItemDto, RolesDetailQueryDto, RolesListItemDto, RolesRequestCreateDto,
+	RolesRequestUpdateDto, RolesSchema,
 };
 use crate::{
-	extract_id, get_id, make_thing, query_list_with_meta, AppState, MetaRequestDto,
-	PermissionsItemDto, ResourceEnum, ResponseListSuccessDto,
+	AppState, MetaRequestDto, PermissionsItemDto, ResourceEnum,
+	ResponseListSuccessDto, extract_id, get_id, make_thing, query_list_with_meta,
 };
-use anyhow::{bail, Result};
-use surrealdb::sql::Thing;
+use anyhow::{Result, bail};
+use imphnen_utils::DetailQueryBuilder;
 use surrealdb::Uuid;
+use surrealdb::sql::Thing;
 
 pub struct RolesRepository<'a> {
 	state: &'a AppState,
@@ -18,74 +20,73 @@ impl<'a> RolesRepository<'a> {
 		Self { state }
 	}
 
-	pub async fn query_raw_role_by_id(&self, id: &str) -> Result<RolesSchema> {
-		let db = &self.state.surrealdb_ws;
-		let role: Option<RolesSchema> =
-			db.select((ResourceEnum::Roles.to_string(), id)).await?;
-		match role {
-			Some(r) if !r.is_deleted => Ok(r),
-			_ => bail!("Role not found"),
-		}
-	}
-
 	pub async fn query_role_list(
 		&self,
 		meta: MetaRequestDto,
-	) -> Result<ResponseListSuccessDto<Vec<RolesItemDto>>> {
+	) -> Result<ResponseListSuccessDto<Vec<RolesListItemDto>>> {
 		let mut conditions = vec!["is_deleted = false".into()];
-		if meta.search.is_some() {
-			conditions.push("string::contains(name, $search)".into());
+		if let Some(_search) = meta.search.as_deref().filter(|s| !s.is_empty()) {
+			conditions.push("string::contains(name ?? '', $search)".into());
 		}
-		if meta.filter_by.is_some() && meta.filter.is_some() {
-			let filter_by = meta.filter_by.as_ref().unwrap();
-			conditions.push(format!("{} = $filter", filter_by));
+		if let (Some(filter_by), Some(filter_val)) =
+			(meta.filter_by.as_ref(), meta.filter.as_ref())
+		{
+			if !filter_val.is_empty() {
+				conditions.push(format!("{} = $filter", filter_by));
+			}
 		}
-		let raw_result: ResponseListSuccessDto<Vec<RolesItemDtoRaw>> = query_list_with_meta(
-			&self.state.surrealdb_ws,
-			&ResourceEnum::Roles.to_string(),
-			&meta,
-			conditions,
-			None,
-		)
-		.await?;
-		let transformed_data = raw_result
+		let raw_result: ResponseListSuccessDto<Vec<RolesDetailQueryDto>> =
+			query_list_with_meta(
+				&self.state.surrealdb_ws,
+				&ResourceEnum::Roles.to_string(),
+				&meta,
+				conditions,
+				None,
+				"name",
+				None,
+			)
+			.await?;
+		let data = raw_result
 			.data
 			.into_iter()
-			.map(|role| {
-				RolesItemDto {
-					name: role.name,
-					created_at: role.created_at,
-					updated_at: role.updated_at,
-					permissions: role.permissions
-						.into_iter()
-						.map(|perm| PermissionsItemDto {
-							id: extract_id(&perm.id),
-							name: perm.name,
-							created_at: perm.created_at,
-							updated_at: perm.updated_at,
-						})
-						.collect::<Vec<_>>(),
-					id: extract_id(&role.id),
-
-				}
+			.map(|role| RolesListItemDto {
+				id: extract_id(&role.id),
+				name: role.name,
+				created_at: role.created_at,
+				updated_at: role.updated_at,
+				permissions_count: role.permissions.len(),
 			})
-			.collect::<Vec<RolesItemDto>>();
-		let transformed_meta = raw_result.meta;
+			.collect();
 		Ok(ResponseListSuccessDto {
-			data: transformed_data,
-			meta: transformed_meta,
+			data,
+			meta: raw_result.meta,
 		})
 	}
 
-	pub async fn query_role_by_name(&self, name: String) -> Result<RolesItemByIdDto> {
+	pub async fn query_role_by_name(
+		&self,
+		name: String,
+	) -> Result<RolesDetailItemDto> {
 		let db = &self.state.surrealdb_ws;
-		let sql = format!(
-			"SELECT *, permissions FROM {} WHERE name = $name AND is_deleted = false LIMIT 1 FETCH permissions",
-			ResourceEnum::Roles.to_string()
-		);
-		let mut result = db.query(sql).bind(("name", name.clone())).await?;
-		let role: Option<RolesItemByIdDtoRaw> = result.take(0)?;
-		let role = match role {
+		let builder = DetailQueryBuilder::new(ResourceEnum::Roles.to_string())
+			.with_where("name")
+			.where_value(name.clone())
+			.with_select_fields(vec![
+				"id",
+				"name",
+				"permissions",
+				"created_at",
+				"updated_at",
+				"is_deleted",
+			])
+			.with_fetch("permissions");
+
+		let sql = builder.build();
+		let result: Option<RolesDetailQueryDto> = builder
+			.apply_bindings(db.query(sql).bind(("name", name)))
+			.await?
+			.take(0)?;
+		let role = match result {
 			Some(r) if !r.is_deleted => r,
 			_ => bail!("Role not found"),
 		};
@@ -98,8 +99,8 @@ impl<'a> RolesRepository<'a> {
 				created_at: perm.created_at,
 				updated_at: perm.updated_at,
 			})
-			.collect::<Vec<_>>();
-		Ok(RolesItemByIdDto {
+			.collect();
+		Ok(RolesDetailItemDto {
 			id: extract_id(&role.id),
 			name: role.name,
 			is_deleted: role.is_deleted,
@@ -109,16 +110,23 @@ impl<'a> RolesRepository<'a> {
 		})
 	}
 
-	pub async fn query_role_by_id(&self, id: String) -> Result<RolesItemByIdDto> {
+	pub async fn query_role_by_id(&self, id: String) -> Result<RolesDetailItemDto> {
 		let db = &self.state.surrealdb_ws;
-		let query = format!(
-			"SELECT *, permissions.* AS permissions
-			FROM app_roles:⟨{}⟩ WHERE is_deleted = false FETCH permissions",
-			id
-		);
-		let mut result = db.query(query).await?;
-		let role: Option<RolesItemByIdDtoRaw> = result.take(0)?;
-		let role = match role {
+		let builder = DetailQueryBuilder::new(ResourceEnum::Roles.to_string())
+			.with_id(&id)
+			.with_select_fields(vec![
+				"id",
+				"name",
+				"is_deleted",
+				"permissions",
+				"created_at",
+				"updated_at",
+			])
+			.with_fetch("permissions");
+		let sql = builder.build();
+		let result: Option<RolesDetailQueryDto> =
+			builder.apply_bindings(db.query(sql)).await?.take(0)?;
+		let role = match result {
 			Some(r) if !r.is_deleted => r,
 			_ => bail!("Role not found"),
 		};
@@ -131,8 +139,8 @@ impl<'a> RolesRepository<'a> {
 				created_at: perm.created_at,
 				updated_at: perm.updated_at,
 			})
-			.collect::<Vec<_>>();
-		Ok(RolesItemByIdDto {
+			.collect();
+		Ok(RolesDetailItemDto {
 			id: extract_id(&role.id),
 			name: role.name,
 			is_deleted: role.is_deleted,
@@ -147,14 +155,12 @@ impl<'a> RolesRepository<'a> {
 		payload: RolesRequestCreateDto,
 	) -> Result<String> {
 		let db = &self.state.surrealdb_ws;
-
 		let role_id = Uuid::new_v4().to_string();
 		let permission_things: Vec<Thing> = payload
 			.permissions
 			.iter()
 			.map(|id| make_thing(&ResourceEnum::Permissions.to_string(), id))
 			.collect();
-
 		let role = RolesSchema {
 			id: make_thing(&ResourceEnum::Roles.to_string(), &role_id),
 			name: payload.name,
@@ -163,12 +169,10 @@ impl<'a> RolesRepository<'a> {
 			created_at: Some(crate::get_iso_date()),
 			updated_at: Some(crate::get_iso_date()),
 		};
-
 		let _: Option<RolesSchema> = db
 			.create((&ResourceEnum::Roles.to_string(), role_id))
 			.content(role)
 			.await?;
-
 		Ok("Role with permissions created successfully".into())
 	}
 
@@ -178,31 +182,11 @@ impl<'a> RolesRepository<'a> {
 		data: RolesRequestUpdateDto,
 	) -> Result<String> {
 		let db = &self.state.surrealdb_ws;
-		let thing_id = make_thing(&ResourceEnum::Roles.to_string(), &id);
-		let existing = self.query_raw_role_by_id(&id).await?;
+		let existing = self.query_role_by_id(id.clone()).await?;
 		if existing.is_deleted {
 			bail!("Role already deleted");
 		}
-		let permissions: Vec<Thing> = if let Some(permission_ids) = &data.permissions {
-			permission_ids
-				.iter()
-				.map(|id| make_thing(&ResourceEnum::Permissions.to_string(), id))
-				.collect()
-		} else {
-			existing
-				.permissions
-				.iter()
-				.map(|p| make_thing(&ResourceEnum::Permissions.to_string(), &p.id.to_raw()))
-				.collect()
-		};
-		let merged = RolesSchema {
-			id: thing_id,
-			name: data.name.unwrap_or(existing.name),
-			permissions,
-			is_deleted: existing.is_deleted,
-			created_at: existing.created_at,
-			updated_at: Some(crate::get_iso_date()),
-		};
+		let merged = RolesSchema::update(data, id.clone(), existing);
 		let record: Option<RolesSchema> =
 			db.update(get_id(&merged.id)?).content(merged).await?;
 		match record {

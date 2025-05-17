@@ -1,19 +1,17 @@
-use crate::{
-	common_response, extract_email, get_iso_date, hash_password, make_thing,
-	success_list_response, success_response, validate_request, ResourceEnum,
-	ResponseSuccessDto,
+use super::{
+	UsersActiveInactiveRequestDto, UsersCreateRequestDto, UsersDetailItemDto,
+	UsersSetNewPasswordRequestDto, UsersUpdateRequestDto,
 };
 use crate::{
-	AppState, MetaRequestDto, ResponseListSuccessDto, UsersActiveInactiveSchema,
-	UsersRepository, UsersSchema, UsersSetNewPasswordSchema,
+	AppState, MetaRequestDto, ResponseListSuccessDto, UsersRepository, UsersSchema,
+};
+use crate::{
+	ResourceEnum, ResponseSuccessDto, common_response, extract_email, make_thing,
+	success_list_response, success_response, validate_request,
 };
 use axum::http::HeaderMap;
 use axum::{http::StatusCode, response::Response};
-
-use super::{
-	UsersActiveInactiveRequestDto, UsersCreateRequestDto, UsersDetailItemDto,
-	UsersUpdateRequestDto,
-};
+use imphnen_libs::{hash_password, verify_password};
 
 pub struct UsersService;
 
@@ -36,17 +34,7 @@ impl UsersService {
 		let repo = UsersRepository::new(state);
 		match repo.query_user_by_id(id).await {
 			Ok(user) if !user.is_deleted => success_response(ResponseSuccessDto {
-				data: UsersDetailItemDto {
-					id: user.id,
-					role: user.role,
-					fullname: user.fullname,
-					email: user.email,
-					avatar: user.avatar,
-					phone_number: user.phone_number,
-					is_active: user.is_active,
-					gender: user.gender,
-					birthdate: user.birthdate,
-				},
+				data: UsersDetailItemDto::from(user),
 			}),
 			Ok(_) => common_response(StatusCode::NOT_FOUND, "User not found"),
 			Err(e) => common_response(StatusCode::NOT_FOUND, &e.to_string()),
@@ -55,22 +43,15 @@ impl UsersService {
 
 	pub async fn get_user_me(headers: HeaderMap, state: &AppState) -> Response {
 		let repo = UsersRepository::new(state);
-		let email = extract_email(&headers).unwrap();
-		let user = repo.query_user_by_email(email).await.unwrap();
-		match repo.query_user_by_id(user.id.id.to_raw()).await {
-			Ok(user) => success_response(ResponseSuccessDto {
-				data: UsersDetailItemDto {
-					id: user.id,
-					role: user.role,
-					fullname: user.fullname,
-					email: user.email,
-					avatar: user.avatar,
-					phone_number: user.phone_number,
-					is_active: user.is_active,
-					gender: user.gender,
-					birthdate: user.birthdate,
-				},
+		let email = match extract_email(&headers) {
+			Some(email) => email,
+			None => return common_response(StatusCode::UNAUTHORIZED, "Invalid token"),
+		};
+		match repo.query_user_by_email(email).await {
+			Ok(user) if !user.is_deleted => success_response(ResponseSuccessDto {
+				data: UsersDetailItemDto::from(user),
 			}),
+			Ok(_) => common_response(StatusCode::NOT_FOUND, "User not found"),
 			Err(e) => common_response(StatusCode::NOT_FOUND, &e.to_string()),
 		}
 	}
@@ -90,19 +71,7 @@ impl UsersService {
 		{
 			return common_response(StatusCode::BAD_REQUEST, "User already exists");
 		}
-		let role_thing = make_thing(&ResourceEnum::Roles.to_string(), &new_user.role_id);
-		match repo
-			.query_create_user(UsersSchema {
-				email: new_user.email.clone(),
-				fullname: new_user.fullname.clone(),
-				password: hash_password(&new_user.password).unwrap(),
-				phone_number: new_user.phone_number.clone(),
-				is_active: new_user.is_active.clone(),
-				role: role_thing,
-				..Default::default()
-			})
-			.await
-		{
+		match repo.query_create_user(UsersSchema::create(new_user)).await {
 			Ok(msg) => common_response(StatusCode::CREATED, &msg),
 			Err(err) => {
 				common_response(StatusCode::INTERNAL_SERVER_ERROR, &err.to_string())
@@ -116,28 +85,10 @@ impl UsersService {
 		user: UsersUpdateRequestDto,
 	) -> Response {
 		let repo = UsersRepository::new(state);
-
 		if let Err((status, message)) = validate_request(&user) {
 			return common_response(status, &message);
 		}
-
-		let user_id = make_thing(&ResourceEnum::Users.to_string(), &id);
-		let role_id = make_thing(&ResourceEnum::Roles.to_string(), "");
-
-		let updated_user = UsersSchema {
-			id: user_id,
-			fullname: user.fullname,
-			email: user.email,
-			phone_number: user.phone_number,
-			is_active: user.is_active,
-			gender: user.gender,
-			birthdate: user.birthdate,
-			avatar: user.avatar,
-			role: role_id,
-			updated_at: get_iso_date(),
-			..Default::default()
-		};
-
+		let updated_user = UsersSchema::update(user, id);
 		match repo.query_update_user(updated_user).await {
 			Ok(msg) => common_response(StatusCode::OK, &msg),
 			Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
@@ -150,30 +101,18 @@ impl UsersService {
 		user: UsersUpdateRequestDto,
 	) -> Response {
 		let repo = UsersRepository::new(state);
-		let email = extract_email(&headers).unwrap();
-		let user_data = repo.query_user_by_email(email).await.unwrap();
+		let email = match extract_email(&headers) {
+			Some(email) => email,
+			None => return common_response(StatusCode::UNAUTHORIZED, "Unauthorized"),
+		};
+		let user_data = match repo.query_user_by_email(email.clone()).await {
+			Ok(user) => user,
+			Err(_) => return common_response(StatusCode::NOT_FOUND, "User not found"),
+		};
 		if let Err((status, message)) = validate_request(&user) {
 			return common_response(status, &message);
 		}
-		let user_id =
-			make_thing(&ResourceEnum::Users.to_string(), &user_data.id.id.to_raw());
-		let role_id = make_thing(&ResourceEnum::Roles.to_string(), "");
-		let updated_user = UsersSchema {
-			id: user_id,
-			fullname: user.fullname,
-			email: user.email,
-			phone_number: user.phone_number,
-
-			is_active: user.is_active,
-
-			gender: user.gender,
-			birthdate: user.birthdate,
-			avatar: user.avatar,
-
-			role: role_id,
-			updated_at: get_iso_date(),
-			..Default::default()
-		};
+		let updated_user = UsersSchema::update(user, user_data.id.id.to_raw());
 		match repo.query_update_user(updated_user).await {
 			Ok(msg) => common_response(StatusCode::OK, &msg),
 			Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
@@ -183,23 +122,23 @@ impl UsersService {
 	pub async fn set_user_active_status(
 		state: &AppState,
 		id: String,
-		status: UsersActiveInactiveRequestDto,
+		payload: UsersActiveInactiveRequestDto,
 	) -> Response {
 		let repo = UsersRepository::new(state);
 		let thing_id = make_thing(&ResourceEnum::Users.to_string(), &id);
 		match repo.query_user_by_id(thing_id.id.to_raw()).await {
-			Ok(_) => match repo
-				.query_active_inactive_user_by_id(
-					id,
-					UsersActiveInactiveSchema {
-						is_active: status.is_active,
-					},
-				)
-				.await
-			{
-				Ok(msg) => common_response(StatusCode::OK, &msg),
-				Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
-			},
+			Ok(user) if !user.is_deleted => {
+				let patch = UsersSchema {
+					id: user.id.clone(),
+					is_active: payload.is_active,
+					..UsersSchema::from(user)
+				};
+				match repo.query_update_user(patch).await {
+					Ok(msg) => common_response(StatusCode::OK, &msg),
+					Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
+				}
+			}
+			Ok(_) => common_response(StatusCode::NOT_FOUND, "User not found"),
 			Err(err) => common_response(StatusCode::BAD_REQUEST, &err.to_string()),
 		}
 	}
@@ -207,10 +146,41 @@ impl UsersService {
 	pub async fn update_user_password(
 		state: &AppState,
 		email: String,
-		new_password: UsersSetNewPasswordSchema,
+		payload: UsersSetNewPasswordRequestDto,
 	) -> Response {
 		let repo = UsersRepository::new(state);
-		match repo.query_update_password_user(email, new_password).await {
+		let user = match repo.query_user_by_email(email.clone()).await {
+			Ok(user) if !user.is_deleted => user,
+			_ => return common_response(StatusCode::NOT_FOUND, "User not found"),
+		};
+		let verify_result = match verify_password(&payload.old_password, &user.password)
+		{
+			Ok(result) => result,
+			Err(_) => {
+				return common_response(
+					StatusCode::BAD_REQUEST,
+					"Old password is incorrect",
+				);
+			}
+		};
+		if !verify_result {
+			return common_response(StatusCode::BAD_REQUEST, "Old password is incorrect");
+		}
+		let new_password = match hash_password(&payload.password) {
+			Ok(pw) => pw,
+			Err(_) => {
+				return common_response(
+					StatusCode::INTERNAL_SERVER_ERROR,
+					"Failed to hash password",
+				);
+			}
+		};
+		let patch = UsersSchema {
+			id: user.id.clone(),
+			password: new_password,
+			..Default::default()
+		};
+		match repo.query_update_user(patch).await {
 			Ok(msg) => common_response(StatusCode::OK, &msg),
 			Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
 		}

@@ -1,13 +1,16 @@
 use axum::{
+	Extension, Json,
 	extract::{Path, Query},
 	response::IntoResponse,
-	Extension, Json,
 };
 
-use super::{RolesItemDto, RolesRequestCreateDto, RolesRequestUpdateDto};
+use super::{
+	RolesDetailItemDto, RolesListItemDto, RolesRequestCreateDto, RolesRequestUpdateDto,
+};
 use crate::{
-	permissions_guard, v1::roles_service::RolesService, AppState, MessageResponseDto,
-	MetaRequestDto, PermissionsEnum, ResponseListSuccessDto, ResponseSuccessDto,
+	AppState, MessageResponseDto, MetaRequestDto, PermissionsEnum,
+	ResponseListSuccessDto, ResponseSuccessDto, permissions_guard,
+	v1::roles_service::RolesService,
 };
 
 #[utoipa::path(
@@ -26,7 +29,7 @@ use crate::{
         ("filter_by" = Option<String>, Query, description = "Field to filter by"),
     ),
     responses(
-        (status = 200, description = "Get role list", body = ResponseListSuccessDto<Vec<RolesItemDto>>)
+        (status = 200, description = "Get role list", body = ResponseListSuccessDto<Vec<RolesListItemDto>>)
     ),
     tag = "Roles"
 )]
@@ -55,7 +58,7 @@ pub async fn get_role_list(
     path = "/v1/roles/detail/{id}",
     params(("id" = String, Path, description = "Role ID")),
     responses(
-        (status = 200, description = "Get role by ID", body = ResponseSuccessDto<RolesItemDto>)
+        (status = 200, description = "Get role by ID", body = ResponseSuccessDto<RolesDetailItemDto>)
     ),
     tag = "Roles"
 )]

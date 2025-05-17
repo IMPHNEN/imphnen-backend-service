@@ -17,6 +17,17 @@ pub struct PermissionsItemDto {
 	pub updated_at: Option<String>,
 }
 
+impl PermissionsItemDto {
+	pub fn from(dto: &PermissionsQueryDto) -> Self {
+		Self {
+			id: dto.id.id.to_raw(),
+			name: dto.name.clone(),
+			created_at: dto.created_at.clone(),
+			updated_at: dto.updated_at.clone(),
+		}
+	}
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PermissionsQueryDto {
 	pub id: Thing,

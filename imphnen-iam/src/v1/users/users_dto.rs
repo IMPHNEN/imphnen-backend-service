@@ -1,4 +1,4 @@
-use crate::{RolesDetailQueryDto, RolesItemDto};
+use crate::{RolesDetailItemDto, RolesDetailQueryDto};
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -8,6 +8,17 @@ use validator::Validate;
 
 lazy_static! {
 	static ref PASSWORD_REGEX: Regex = Regex::new(r"^[A-Za-z\d@$!%*?&]{8,}$").unwrap();
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+pub struct UsersActiveInactiveRequestDto {
+	pub is_active: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+pub struct UsersSetNewPasswordRequestDto {
+	pub password: String,
+	pub old_password: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Validate)]
@@ -71,7 +82,7 @@ pub struct UsersUpdateRequestDto {
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct UsersDetailItemDto {
 	pub id: String,
-	pub role: RolesItemDto,
+	pub role: RolesDetailItemDto,
 	pub fullname: String,
 	pub email: String,
 	pub avatar: Option<String>,
@@ -81,6 +92,24 @@ pub struct UsersDetailItemDto {
 	pub birthdate: Option<String>,
 	pub created_at: String,
 	pub updated_at: String,
+}
+
+impl UsersDetailItemDto {
+	pub fn from(dto: UsersDetailQueryDto) -> Self {
+		Self {
+			id: dto.id.id.to_raw(),
+			role: RolesDetailItemDto::from(&dto.role),
+			fullname: dto.fullname,
+			email: dto.email,
+			avatar: dto.avatar,
+			phone_number: dto.phone_number,
+			is_active: dto.is_active,
+			gender: dto.gender,
+			birthdate: dto.birthdate,
+			created_at: dto.created_at,
+			updated_at: dto.updated_at,
+		}
+	}
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
@@ -110,7 +139,7 @@ pub struct UsersListQueryDto {
 }
 
 impl UsersListQueryDto {
-	pub fn list_from(&self, role: String) -> UsersListItemDto {
+	pub fn from(&self, role: String) -> UsersListItemDto {
 		UsersListItemDto {
 			id: self.id.id.to_raw(),
 			role,

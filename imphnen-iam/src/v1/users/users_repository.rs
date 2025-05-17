@@ -1,27 +1,30 @@
 use super::{UsersDetailQueryDto, UsersListItemDto, UsersListQueryDto, UsersSchema};
 use crate::{
-	AppState, MetaRequestDto, PermissionsItemDto, PermissionsItemDtoRaw, ResourceEnum,
-	ResponseListSuccessDto, RolesDetailQueryDto, extract_id, get_id, make_thing,
+	AppState, MetaRequestDto, PermissionsQueryDto, ResourceEnum,
+	ResponseListSuccessDto, RolesDetailQueryDto, get_id, make_thing,
 	query_list_with_meta,
 };
 use anyhow::{Result, bail};
+use imphnen_utils::DetailQueryBuilder;
+use surrealdb::{Surreal, engine::remote::ws::Client};
 
 pub struct UsersRepository<'a> {
 	state: &'a AppState,
 }
 
-pub fn build_user_by_field_query(field: &str) -> String {
-	format!(
-		r#"
-		SELECT *, role AS role 
-		FROM {} 
-		WHERE {} = $value AND is_deleted = false 
-		LIMIT 1 
-		FETCH role, role.permissions
-		"#,
-		ResourceEnum::Users.to_string(),
-		field
-	)
+pub async fn update_partial_schema(
+	db: &Surreal<Client>,
+	table: &str,
+	id: &str,
+	patch: UsersSchema,
+) -> Result<String> {
+	let thing = make_thing(table, id);
+	let record_key = get_id(&thing)?;
+	let result: Option<UsersSchema> = db.update(record_key).merge(patch).await?;
+	match result {
+		Some(_) => Ok("Success update".into()),
+		None => bail!("Failed to update"),
+	}
 }
 
 impl<'a> UsersRepository<'a> {
@@ -59,7 +62,7 @@ impl<'a> UsersRepository<'a> {
 			.into_iter()
 			.map(|schema| {
 				let role = schema.clone().role.name;
-				schema.list_from(role)
+				schema.from(role)
 			})
 			.collect::<Vec<_>>();
 
@@ -75,13 +78,31 @@ impl<'a> UsersRepository<'a> {
 	) -> Result<UsersDetailQueryDto> {
 		let db = &self.state.surrealdb_ws;
 
-		let sql = build_user_by_field_query("email");
+		let builder = DetailQueryBuilder::new(ResourceEnum::Users.to_string())
+			.with_where("email")
+			.where_value(email.clone())
+			.with_select_fields(vec![
+				"id",
+				"fullname",
+				"email",
+				"avatar",
+				"phone_number",
+				"is_active",
+				"is_deleted",
+				"gender",
+				"birthdate",
+				"password",
+				"created_at",
+				"updated_at",
+				"role",
+			])
+			.with_fetch("role")
+			.with_fetch("role.permissions");
 
-		let user_opt: Option<UsersDetailQueryDto> = db
-			.query(sql)
-			.bind(("email", email.clone()))
-			.await?
-			.take(0)?;
+		let sql = builder.build();
+
+		let user_opt: Option<UsersDetailQueryDto> =
+			builder.apply_bindings(db.query(sql)).await?.take(0)?;
 
 		let Some(user) = user_opt else {
 			bail!("User not found");
@@ -95,7 +116,7 @@ impl<'a> UsersRepository<'a> {
 			.role
 			.permissions
 			.into_iter()
-			.map(|perm| PermissionsItemDtoRaw {
+			.map(|perm| PermissionsQueryDto {
 				id: perm.id,
 				name: perm.name,
 				created_at: perm.created_at,
@@ -130,15 +151,32 @@ impl<'a> UsersRepository<'a> {
 	pub async fn query_user_by_id(&self, id: String) -> Result<UsersDetailQueryDto> {
 		let db = &self.state.surrealdb_ws;
 
-		let sql = build_user_by_field_query(&make_thing("app_users", &id).to_raw());
+		let builder = DetailQueryBuilder::new(ResourceEnum::Users.to_string())
+			.with_id(&id)
+			.with_select_fields(vec![
+				"id",
+				"fullname",
+				"email",
+				"avatar",
+				"phone_number",
+				"is_active",
+				"is_deleted",
+				"gender",
+				"birthdate",
+				"password",
+				"created_at",
+				"updated_at",
+				"role",
+			])
+			.with_fetch("role")
+			.with_fetch("role.permissions");
 
-		let user_opt: Option<UsersDetailQueryDto> = db
-			.query(sql)
-			.bind(("email", make_thing("app_users", &id).to_raw()))
-			.await?
-			.take(0)?;
+		let sql = builder.build();
 
-		let Some(user) = user_opt else {
+		let result: Option<UsersDetailQueryDto> =
+			builder.apply_bindings(db.query(sql)).await?.take(0)?;
+
+		let Some(user) = result else {
 			bail!("User not found");
 		};
 
@@ -150,7 +188,7 @@ impl<'a> UsersRepository<'a> {
 			.role
 			.permissions
 			.into_iter()
-			.map(|perm| PermissionsItemDtoRaw {
+			.map(|perm| PermissionsQueryDto {
 				id: perm.id,
 				name: perm.name,
 				created_at: perm.created_at,
@@ -201,10 +239,15 @@ impl<'a> UsersRepository<'a> {
 		if existing.is_deleted {
 			bail!("User already deleted");
 		}
+		let role_thing = if data.role == existing.role.id {
+			existing.role.id
+		} else {
+			data.clone().role
+		};
 		let merged = UsersSchema {
 			password: existing.password,
 			created_at: existing.created_at,
-			role: make_thing("app_roles", &existing.role.id),
+			role: role_thing,
 			..data.clone()
 		};
 		let record: Option<UsersSchema> = db.update(record_key).merge(merged).await?;
@@ -214,76 +257,13 @@ impl<'a> UsersRepository<'a> {
 		}
 	}
 
-	pub async fn query_active_inactive_user(
-		&self,
-		email: String,
-		data: UsersActiveInactiveSchema,
-	) -> Result<String> {
+	pub async fn query_delete_user(&self, id: String) -> Result<String> {
 		let db = &self.state.surrealdb_ws;
-		let user = self.query_user_by_email(email.clone()).await?;
+		let user = self.query_user_by_id(id).await?;
 		if user.is_deleted {
 			bail!("User already deleted");
 		}
 		let record_key = get_id(&user.id)?;
-		let record: Option<UsersSchema> = db
-			.update(record_key)
-			.merge(UsersActiveInactiveSchema {
-				is_active: data.is_active,
-			})
-			.await?;
-		match record {
-			Some(_) => Ok("Success update user".into()),
-			None => bail!("Failed to update user"),
-		}
-	}
-
-	pub async fn query_active_inactive_user_by_id(
-		&self,
-		id: String,
-		data: UsersActiveInactiveSchema,
-	) -> Result<String> {
-		let db = &self.state.surrealdb_ws;
-		let record: Option<UsersSchema> = db
-			.update((ResourceEnum::Users.to_string(), id))
-			.merge(UsersActiveInactiveSchema {
-				is_active: data.is_active,
-			})
-			.await?;
-		match record {
-			Some(_) => Ok("Success update user".into()),
-			None => bail!("Failed to update user"),
-		}
-	}
-
-	pub async fn query_update_password_user(
-		&self,
-		email: String,
-		data: UsersSetNewPasswordSchema,
-	) -> Result<String> {
-		let db = &self.state.surrealdb_ws;
-		let user = self.query_user_by_email(email).await?;
-		let record: Option<UsersSetNewPasswordSchema> = db
-			.update((ResourceEnum::Users.to_string(), user.id.id.to_raw()))
-			.merge(UsersSetNewPasswordSchema {
-				password: data.password.clone(),
-			})
-			.await?;
-		dbg!(record.clone());
-		match record {
-			Some(_) => Ok("Success update password user".into()),
-			None => bail!("Failed to update password user"),
-		}
-	}
-
-	pub async fn query_delete_user(&self, id: String) -> Result<String> {
-		let db = &self.state.surrealdb_ws;
-		let user_id = make_thing(&ResourceEnum::Users.to_string(), &id);
-		let user = self.query_user_by_id(user_id.id.to_raw()).await?;
-		if user.is_deleted {
-			bail!("User already deleted");
-		}
-		let id = make_thing(&ResourceEnum::Users.to_string(), &user.id);
-		let record_key = get_id(&id)?;
 		let record: Option<UsersSchema> = db
 			.update(record_key)
 			.merge(serde_json::json!({ "is_deleted": true }))
