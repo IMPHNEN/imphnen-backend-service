@@ -5,11 +5,11 @@ edition = "2024"
 
 [dependencies]
 imphnen-entities = { path = "../imphnen-entities" }
-argon2.workspace = true
 axum.workspace = true
 tokio.workspace = true
-chrono.workspace = true
-jsonwebtoken.workspace = true
 serde.workspace = true
+argon2.workspace = true
 lettre.workspace = true
-surrealdb = { workspace = true, features = ["kv-mem"] }
+chrono.workspace = true
+surrealdb.workspace = true
+jsonwebtoken.workspace = true

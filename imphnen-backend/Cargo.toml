@@ -1,0 +1,27 @@
+[package]
+name = "imphnen-backend"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+imphnen-libs = { version = "0.1.0", path = "../imphnen-libs" }
+imphnen-utils = { version = "0.1.0", path = "../imphnen-utils" }
+imphnen-gateway = { version = "0.1.0", path = "../imphnen-gateway" }
+imphnen-entities = { version = "0.1.0", path = "../imphnen-entities" }
+imphnen-iam = { version = "0.1.0", path = "../imphnen-iam" }
+axum.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+utoipa.workspace = true
+lazy_static.workspace = true
+regex.workspace = true
+validator.workspace = true
+axum-test.workspace = true
+surrealdb.workspace = true
+rand.workspace = true
+tokio.workspace = true
+chrono.workspace = true
+anyhow.workspace = true
+tower-http.workspace = true
+utoipa-swagger-ui.workspace = true
+env_logger.workspace = true

@@ -1,6 +1,5 @@
 pub use imphnen_entities::*;
-pub use imphnen_iam_service::*;
-pub use imphnen_utils::*;
+pub use imphnen_iam::*;
 
 #[cfg(test)]
-pub mod iam_service;
+pub mod iam;
