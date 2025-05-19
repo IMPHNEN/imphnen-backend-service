@@ -25,8 +25,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		(
 			"0269ed71-0ae0-4c43-ad29-e3d861d8f9a0",
 			"Create Permissions",
-			None,
-			None,
+			Some("2025-01-29T05:11:01.265+00"),
+			Some("2025-01-29T05:11:01.265001+00"),
 		),
 		(
 			"299cb4d5-6556-4cc9-b6c1-32e6d31e0f9b",
@@ -37,20 +37,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		(
 			"319ee593-ff0a-4f29-bbaf-9feb3174a3a2",
 			"Create Roles",
-			None,
-			None,
+			Some("2025-01-29T05:11:01.265+00"),
+			Some("2025-01-29T05:11:01.265001+00"),
 		),
 		(
 			"319ee593-ff0a-4f29-bbaf-9feb3174a3a6",
 			"Read Detail Users",
-			None,
-			None,
+			Some("2025-01-29T05:11:01.265+00"),
+			Some("2025-01-29T05:11:01.265001+00"),
 		),
 		(
 			"35b0d992-65c8-4b62-b030-e6e0320e4048",
 			"Delete Roles",
-			None,
-			None,
+			Some("2025-01-29T05:34:40.621554+00"),
+			Some("2025-01-29T05:34:40.621555+00"),
 		),
 		(
 			"4da8b434-89f9-4d91-85ae-eebd63cdbeda",
@@ -91,8 +91,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		(
 			"9164ca6e-c7e3-4238-a15f-f36ab9577e7e",
 			"Read List Roles",
-			None,
-			None,
+			Some("2025-01-29T05:34:40.621554+00"),
+			Some("2025-01-29T05:34:40.621555+00"),
 		),
 		(
 			"96df0689-2ae9-4894-bf00-837c19415e5c",
@@ -109,8 +109,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		(
 			"a00d5608-4c48-4542-845c-dfe004687022",
 			"Update Roles",
-			None,
-			None,
+			Some("2025-01-29T05:34:40.621554+00"),
+			Some("2025-01-29T05:34:40.621555+00"),
 		),
 		(
 			"b2dc3928-86ba-4c59-a03d-0b57d5183ebc",

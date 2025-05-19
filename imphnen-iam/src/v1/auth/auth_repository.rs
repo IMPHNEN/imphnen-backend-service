@@ -1,6 +1,6 @@
 use super::AuthOtpSchema;
-use crate::{make_thing, AppState, ResourceEnum, UsersItemDtoRaw};
-use anyhow::{anyhow, bail, Result};
+use crate::{AppState, ResourceEnum, UsersDetailQueryDto, make_thing};
+use anyhow::{Result, anyhow, bail};
 use chrono::{Duration, Utc};
 
 pub struct AuthRepository<'a> {
@@ -12,7 +12,7 @@ impl<'a> AuthRepository<'a> {
 		Self { state }
 	}
 
-	pub async fn query_store_user(&self, user: UsersItemDtoRaw) -> Result<String> {
+	pub async fn query_store_user(&self, user: UsersDetailQueryDto) -> Result<String> {
 		if user.email.trim().is_empty() {
 			bail!("Email is required");
 		}
@@ -22,11 +22,11 @@ impl<'a> AuthRepository<'a> {
 		let _ = self
 			.state
 			.surrealdb_mem
-			.delete::<Option<UsersItemDtoRaw>>((table.clone(), user_id.clone()))
+			.delete::<Option<UsersDetailQueryDto>>((table.clone(), user_id.clone()))
 			.await?;
 		let mut user_to_store = user.clone();
 		user_to_store.id = id.clone();
-		let record: Option<UsersItemDtoRaw> = self
+		let record: Option<UsersDetailQueryDto> = self
 			.state
 			.surrealdb_mem
 			.create((table, user_id))
@@ -41,8 +41,8 @@ impl<'a> AuthRepository<'a> {
 	pub async fn query_get_stored_user(
 		&self,
 		email: String,
-	) -> Result<UsersItemDtoRaw> {
-		let user: Option<UsersItemDtoRaw> = self
+	) -> Result<UsersDetailQueryDto> {
+		let user: Option<UsersDetailQueryDto> = self
 			.state
 			.surrealdb_mem
 			.select((ResourceEnum::UsersCache.to_string(), email))
@@ -54,7 +54,7 @@ impl<'a> AuthRepository<'a> {
 	}
 
 	pub async fn query_delete_stored_user(&self, email: String) -> Result<String> {
-		let record: Option<UsersItemDtoRaw> = self
+		let record: Option<UsersDetailQueryDto> = self
 			.state
 			.surrealdb_mem
 			.delete((ResourceEnum::UsersCache.to_string(), email))

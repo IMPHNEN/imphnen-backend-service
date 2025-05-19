@@ -1,10 +1,11 @@
 #[cfg(test)]
 mod auth_repository_test {
 	use crate::{
-		create_mock_app_state, get_iso_date, make_thing, AuthOtpSchema, AuthRepository,
-		ResourceEnum, RolesItemDtoRaw, UsersItemDtoRaw, UsersRepository, UsersSchema,
+		AuthOtpSchema, AuthRepository, ResourceEnum, UsersRepository, UsersSchema,
+		create_mock_app_state, get_iso_date, make_thing,
 	};
 	use chrono::{Duration, Utc};
+	use imphnen_iam::{RolesDetailQueryDto, UsersDetailQueryDto};
 	use surrealdb::Uuid;
 
 	fn create_mock_user(email: &str) -> UsersSchema {
@@ -47,7 +48,7 @@ mod auth_repository_test {
 		let state = create_mock_app_state().await;
 		let auth_repo = AuthRepository::new(&state);
 		let email = "delete_me@example.com".to_string();
-		let mock_user = UsersItemDtoRaw {
+		let mock_user = UsersDetailQueryDto {
 			id: make_thing(&ResourceEnum::UsersCache.to_string(), &email),
 			fullname: "Test User".into(),
 			email: email.clone(),
@@ -56,7 +57,7 @@ mod auth_repository_test {
 			is_active: true,
 			gender: None,
 			birthdate: None,
-			role: RolesItemDtoRaw {
+			role: RolesDetailQueryDto {
 				id: make_thing("app_roles", &Uuid::new_v4().to_string()),
 				name: "Dummy Role".into(),
 				permissions: vec![],
@@ -69,7 +70,7 @@ mod auth_repository_test {
 			created_at: get_iso_date(),
 			updated_at: get_iso_date(),
 		};
-		let _: Option<UsersItemDtoRaw> = state
+		let _: Option<UsersDetailQueryDto> = state
 			.surrealdb_mem
 			.create((ResourceEnum::UsersCache.to_string(), email.clone()))
 			.content(mock_user)

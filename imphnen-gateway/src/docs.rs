@@ -1,6 +1,5 @@
 use imphnen_iam::{
-auth, permissions, roles, users, AuthLoginRequestDto, AuthLoginResponsetDto, AuthResendOtpRequestDto, AuthVerifyEmailRequestDto,
- AuthNewPasswordRequestDto, AuthRefreshTokenRequestDto, MessageResponseDto, MetaRequestDto, MetaResponseDto, PermissionsItemDto, PermissionsRequestDto, ResponseListSuccessDto, ResponseSuccessDto, RolesItemDto, RolesRequestCreateDto, RolesRequestUpdateDto, TokenDto, UsersCreateRequestDto, UsersDetailItemDto, UsersItemDto, UsersListItemDto, UsersUpdateRequestDto
+auth, permissions, roles, users, AuthLoginRequestDto, AuthLoginResponsetDto, AuthNewPasswordRequestDto, AuthRefreshTokenRequestDto, AuthResendOtpRequestDto, AuthVerifyEmailRequestDto, MessageResponseDto, MetaRequestDto, MetaResponseDto, PermissionsItemDto, PermissionsRequestDto, ResponseListSuccessDto, ResponseSuccessDto, RolesDetailItemDto, RolesListItemDto, RolesRequestCreateDto, RolesRequestUpdateDto, TokenDto, UsersCreateRequestDto, UsersDetailItemDto, UsersListItemDto, UsersUpdateRequestDto
 };
 use utoipa::{
 	openapi::security::{Http, HttpAuthScheme, SecurityScheme},
@@ -48,18 +47,18 @@ use utoipa::{
            AuthNewPasswordRequestDto,
            AuthRefreshTokenRequestDto,
            ResponseSuccessDto<TokenDto>,
-           RolesItemDto,
+           RolesListItemDto,
            RolesRequestCreateDto, 
            RolesRequestUpdateDto,
            PermissionsRequestDto,
            PermissionsItemDto,
-           UsersItemDto,
+           UsersDetailItemDto,
            UsersListItemDto,
            UsersUpdateRequestDto,
            UsersCreateRequestDto,
            ResponseSuccessDto<AuthLoginResponsetDto>,
-           ResponseListSuccessDto<Vec<RolesItemDto>>,
-           ResponseSuccessDto<RolesItemDto>,
+           ResponseListSuccessDto<Vec<RolesListItemDto>>,
+           ResponseSuccessDto<RolesDetailItemDto>,
            ResponseListSuccessDto<Vec<UsersListItemDto>>,
            ResponseSuccessDto<UsersDetailItemDto>,
            ResponseListSuccessDto<Vec<PermissionsItemDto>>,

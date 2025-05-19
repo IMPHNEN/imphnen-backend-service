@@ -95,19 +95,19 @@ pub struct UsersDetailItemDto {
 }
 
 impl UsersDetailItemDto {
-	pub fn from(dto: UsersDetailQueryDto) -> Self {
+	pub fn from(dto: &UsersDetailQueryDto) -> Self {
 		Self {
-			id: dto.id.id.to_raw(),
+			id: dto.id.id.to_raw().clone(),
 			role: RolesDetailItemDto::from(&dto.role),
-			fullname: dto.fullname,
-			email: dto.email,
-			avatar: dto.avatar,
-			phone_number: dto.phone_number,
-			is_active: dto.is_active,
-			gender: dto.gender,
-			birthdate: dto.birthdate,
-			created_at: dto.created_at,
-			updated_at: dto.updated_at,
+			fullname: dto.fullname.clone(),
+			email: dto.email.clone(),
+			avatar: dto.avatar.clone(),
+			phone_number: dto.phone_number.clone(),
+			is_active: dto.is_active.clone(),
+			gender: dto.gender.clone(),
+			birthdate: dto.birthdate.clone(),
+			created_at: dto.created_at.clone(),
+			updated_at: dto.updated_at.clone(),
 		}
 	}
 }

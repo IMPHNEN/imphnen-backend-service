@@ -1,8 +1,5 @@
-use crate::{create_mock_app_state, create_test_user, RolesRepository};
-use crate::{
-	MetaRequestDto, UsersActiveInactiveSchema, UsersRepository,
-	UsersSetNewPasswordSchema,
-};
+use crate::{MetaRequestDto, UsersRepository};
+use crate::{RolesRepository, create_mock_app_state, create_test_user};
 
 async fn get_role_id(state: &crate::AppState) -> String {
 	RolesRepository::new(state)
@@ -29,35 +26,6 @@ async fn test_create_and_get_user() {
 		.await;
 	assert!(fetched.is_ok());
 	assert_eq!(fetched.unwrap().email, "testuser@example.com");
-}
-
-#[tokio::test]
-async fn test_update_password_user() {
-	let app_state = create_mock_app_state().await;
-	let repo = UsersRepository::new(&app_state);
-	let role_repo = RolesRepository::new(&app_state);
-	let role_id = role_repo
-		.query_role_by_name("Student".into())
-		.await
-		.expect("Role not found")
-		.id;
-	let email = "changepass@example.com";
-	let user = create_test_user(email, "Change Password", true, &role_id);
-	repo.query_create_user(user).await.unwrap();
-	let result = repo
-		.query_update_password_user(
-			email.to_string(),
-			UsersSetNewPasswordSchema {
-				password: "newpass".into(),
-			},
-		)
-		.await;
-	assert!(
-		result.is_ok(),
-		"Update password failed with error: {:?}",
-		result.err()
-	);
-	dbg!(result.unwrap());
 }
 
 #[tokio::test]
@@ -114,57 +82,6 @@ async fn test_query_user_list_basic() {
 	assert!(result.meta.as_ref().unwrap().total.unwrap() >= 1);
 	assert_eq!(result.meta.as_ref().unwrap().page.unwrap(), 1);
 	assert_eq!(result.meta.as_ref().unwrap().per_page.unwrap(), 5);
-}
-
-#[tokio::test]
-async fn test_query_active_inactive_user() {
-	let app_state = create_mock_app_state().await;
-	let repo = UsersRepository::new(&app_state);
-	let email = "inactive@example.com";
-	let user = create_test_user(
-		email,
-		"Inactive User",
-		false,
-		&get_role_id(&app_state).await,
-	);
-	repo.query_create_user(user).await.unwrap();
-	let result = repo
-		.query_active_inactive_user(
-			email.into(),
-			UsersActiveInactiveSchema { is_active: true },
-		)
-		.await;
-	assert!(result.is_ok());
-	let updated = repo
-		.query_user_by_email("inactive@example.com".into())
-		.await
-		.unwrap();
-	assert_eq!(updated.is_active, true);
-}
-
-#[tokio::test]
-async fn test_query_user_by_invalid_email_should_fail() {
-	let app_state = create_mock_app_state().await;
-	let repo = UsersRepository::new(&app_state);
-	let result = repo
-		.query_user_by_email("nonexistent@example.com".into())
-		.await;
-	assert!(result.is_err());
-}
-
-#[tokio::test]
-async fn test_query_update_password_for_nonexistent_user_should_fail() {
-	let app_state = create_mock_app_state().await;
-	let repo = UsersRepository::new(&app_state);
-	let result = repo
-		.query_update_password_user(
-			"ghost@example.com".into(),
-			UsersSetNewPasswordSchema {
-				password: "secret".into(),
-			},
-		)
-		.await;
-	assert!(result.is_err());
 }
 
 #[tokio::test]

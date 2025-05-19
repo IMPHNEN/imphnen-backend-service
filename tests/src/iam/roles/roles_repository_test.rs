@@ -100,6 +100,7 @@ async fn test_query_update_role_should_update_name_and_permissions() {
 	let update_payload = RolesRequestUpdateDto {
 		name: Some("Updated Role Name".into()),
 		permissions: Some(vec![new_perm_id.clone()]),
+		overwrite: None,
 	};
 	let update_result = repo
 		.query_update_role(existing_role_id.clone(), update_payload)
@@ -158,6 +159,7 @@ async fn test_query_update_role_should_fallback_to_existing_permissions_if_none_
 	let update_payload = RolesRequestUpdateDto {
 		name: Some("Updated Role Name".into()),
 		permissions: None,
+		overwrite: None,
 	};
 	let update_res = repo
 		.query_update_role(existing_id.clone(), update_payload)

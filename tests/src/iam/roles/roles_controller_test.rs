@@ -1,11 +1,11 @@
 use crate::AppState;
 use crate::{
-	create_mock_app_state, roles_router, v1::roles_repository::RolesRepository,
-	RolesRequestCreateDto, RolesRequestUpdateDto,
+	RolesRequestCreateDto, RolesRequestUpdateDto, create_mock_app_state, roles_router,
+	v1::roles_repository::RolesRepository,
 };
-use axum::http::StatusCode;
 use axum::Extension;
 use axum::Router;
+use axum::http::StatusCode;
 use axum_test::TestServer;
 
 pub fn create_test_app(state: AppState) -> TestServer {
@@ -74,6 +74,7 @@ async fn test_put_update_role_should_return_200() {
 	let payload = RolesRequestUpdateDto {
 		name: Some("Updated Role".into()),
 		permissions: Some(vec![]),
+		overwrite: None,
 	};
 	let res = server
 		.put(&format!("/v1/roles/update/{}", id))
@@ -131,6 +132,7 @@ async fn test_put_update_nonexistent_role_should_return_404() {
 	let payload = RolesRequestUpdateDto {
 		name: Some("Does Not Exist".into()),
 		permissions: Some(vec![]),
+		overwrite: None,
 	};
 	let res = server
 		.put("/v1/roles/update/nonexistent-id")

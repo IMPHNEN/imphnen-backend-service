@@ -1,9 +1,9 @@
-use super::{PermissionsItemDto, PermissionsItemDtoRaw, PermissionsSchema};
+use super::{PermissionsItemDto, PermissionsSchema};
 use crate::{
-	get_id, make_thing, query_list_with_meta, AppState, MetaRequestDto, ResourceEnum,
-	ResponseListSuccessDto,
+	AppState, MetaRequestDto, ResourceEnum, ResponseListSuccessDto, get_id,
+	make_thing, query_list_with_meta,
 };
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use imphnen_utils::extract_id;
 
 pub struct PermissionsRepository<'a> {
@@ -27,14 +27,17 @@ impl<'a> PermissionsRepository<'a> {
 			let filter_by = meta.filter_by.as_ref().unwrap();
 			conditions.push(format!("{} = $filter", filter_by));
 		}
-		let raw_result: ResponseListSuccessDto<Vec<PermissionsItemDtoRaw>> = query_list_with_meta(
-			&self.state.surrealdb_ws,
-			&ResourceEnum::Permissions.to_string(),
-			&meta,
-			conditions,
-			None,
-		)
-		.await?;
+		let raw_result: ResponseListSuccessDto<Vec<PermissionsSchema>> =
+			query_list_with_meta(
+				&self.state.surrealdb_ws,
+				&ResourceEnum::Permissions.to_string(),
+				&meta,
+				conditions,
+				None,
+				"name",
+				None,
+			)
+			.await?;
 		let transformed_data = raw_result
 			.data
 			.into_iter()
@@ -69,9 +72,7 @@ impl<'a> PermissionsRepository<'a> {
 		&self,
 		id: String,
 	) -> Result<PermissionsItemDto> {
-		let raw_result = self
-			.query_permission_by_id(id.clone())
-			.await?;
+		let raw_result = self.query_permission_by_id(id.clone()).await?;
 		let transformed_data = PermissionsItemDto {
 			id: extract_id(&raw_result.id),
 			name: raw_result.name,
@@ -80,7 +81,6 @@ impl<'a> PermissionsRepository<'a> {
 		};
 		Ok(transformed_data)
 	}
-
 
 	pub async fn query_permission_by_name(
 		&self,

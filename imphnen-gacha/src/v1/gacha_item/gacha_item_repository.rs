@@ -28,6 +28,8 @@ impl<'a> GachaItemRepository<'a> {
 			&meta,
 			conditions,
 			None,
+			"name",
+			None,
 		)
 		.await
 	}

@@ -1,6 +1,6 @@
-use crate::{make_thing, ResourceEnum};
+use crate::{ResourceEnum, make_thing};
 use serde::{Deserialize, Serialize};
-use surrealdb::{sql::Thing, Uuid};
+use surrealdb::{Uuid, sql::Thing};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PermissionsSchema {

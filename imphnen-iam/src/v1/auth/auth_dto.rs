@@ -1,25 +1,29 @@
-use crate::RolesItemDto;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::{Validate, ValidationError};
 
+use crate::UsersDetailItemDto;
+
 lazy_static! {
-	static ref PASSWORD_REGEX: Regex = Regex::new(r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$").unwrap();
+	static ref PASSWORD_REGEX: Regex = Regex::new(
+		r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
+	)
+	.unwrap();
 }
 
 fn validate_password_complexity(password: &str) -> Result<(), ValidationError> {
-    let has_uppercase = password.chars().any(|c| c.is_ascii_uppercase());
-    let has_lowercase = password.chars().any(|c| c.is_ascii_lowercase());
-    let has_digit = password.chars().any(|c| c.is_ascii_digit());
-    let has_special = password.chars().any(|c| "@$!%*?&".contains(c));
+	let has_uppercase = password.chars().any(|c| c.is_ascii_uppercase());
+	let has_lowercase = password.chars().any(|c| c.is_ascii_lowercase());
+	let has_digit = password.chars().any(|c| c.is_ascii_digit());
+	let has_special = password.chars().any(|c| "@$!%*?&".contains(c));
 
-    if has_uppercase && has_lowercase && has_digit && has_special {
-        Ok(())
-    } else {
-        Err(ValidationError::new("complexity"))
-    }
+	if has_uppercase && has_lowercase && has_digit && has_special {
+		Ok(())
+	} else {
+		Err(ValidationError::new("complexity"))
+	}
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Validate)]
@@ -34,22 +38,9 @@ pub struct AuthLoginRequestDto {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
-pub struct AuthUserItemDto {
-	pub id: String,
-	pub role: RolesItemDto,
-	pub fullname: String,
-	pub email: String,
-	pub avatar: Option<String>,
-	pub phone_number: String,
-	pub is_active: bool,
-	pub gender: Option<String>,
-	pub birthdate: Option<String>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct AuthLoginResponsetDto {
 	pub token: TokenDto,
-	pub user: AuthUserItemDto,
+	pub user: UsersDetailItemDto,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
@@ -77,28 +68,7 @@ pub struct AuthRegisterRequestDto {
 	#[validate(length(min = 2, message = "Fullname at least have 2 character"))]
 	pub fullname: String,
 	#[validate(length(min = 1, message = "Student type is required"))]
-	pub student_type: String,
-	#[validate(length(
-		min = 10,
-		message = "Phone number at least have 10 character"
-	))]
 	pub phone_number: String,
-	#[validate(length(
-		max = 4,
-		message = "Referal code cannot be more than 4 character"
-	))]
-	pub referral_code: Option<String>,
-	pub referred_by: Option<String>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Validate)]
-pub struct AuthActiveInactiveRequestDto {
-	pub is_active: bool,
-	#[validate(
-		length(min = 1, message = "Email cannot be empty"),
-		email(message = "Email not valid")
-	)]
-	pub email: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Validate)]

@@ -2,7 +2,7 @@ use axum::{
 	Extension, extract::Request, http::StatusCode, middleware::Next,
 	response::Response,
 };
-use imphnen_iam::{UsersItemDtoRaw, UsersRepository};
+use imphnen_iam::{UsersDetailQueryDto, UsersRepository};
 use imphnen_libs::AppState;
 use imphnen_utils::{common_response, extract_email};
 use std::convert::Infallible;
@@ -23,7 +23,7 @@ pub async fn auth_middleware(
 		}
 	};
 	let repository = UsersRepository::new(&state);
-	let user: Option<UsersItemDtoRaw> =
+	let user: Option<UsersDetailQueryDto> =
 		match repository.query_user_by_email(email).await {
 			Ok(user) => Some(user),
 			Err(err) => {

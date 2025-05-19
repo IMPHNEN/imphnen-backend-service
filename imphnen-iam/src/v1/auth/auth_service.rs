@@ -1,15 +1,15 @@
 use super::{
 	AuthLoginRequestDto, AuthLoginResponsetDto, AuthNewPasswordRequestDto,
 	AuthRefreshTokenRequestDto, AuthRegisterRequestDto, AuthRepository,
-	AuthResendOtpRequestDto, AuthUserItemDto, AuthVerifyEmailRequestDto, TokenDto,
+	AuthResendOtpRequestDto, AuthVerifyEmailRequestDto, TokenDto,
 };
 use crate::{
-	common_response, decode_refresh_token, encode_access_token, encode_refresh_token,
+	AppState, Env, ResourceEnum, ResponseSuccessDto, RolesEnum, RolesRepository,
+	UsersDetailItemDto, UsersRepository, UsersSchema, common_response,
+	decode_refresh_token, encode_access_token, encode_refresh_token,
 	encode_reset_password_token, extract_email_token, generate_otp, get_iso_date,
 	hash_password, make_thing, send_email, success_response, validate_request,
-	verify_password, AppState, Env, ResourceEnum, ResponseSuccessDto, RolesEnum,
-	RolesItemDto, RolesRepository, UsersActiveInactiveSchema, UsersRepository,
-	UsersSchema, UsersSetNewPasswordSchema,
+	verify_password,
 };
 use axum::{http::StatusCode, response::Response};
 use surrealdb::Uuid;
@@ -27,7 +27,6 @@ impl AuthService {
 
 		let user_repo = UsersRepository::new(state);
 		let auth_repo = AuthRepository::new(state);
-		let role_repo = RolesRepository::new(state);
 
 		match user_repo.query_user_by_email(payload.email.clone()).await {
 			Ok(user) => {
@@ -54,7 +53,7 @@ impl AuthService {
 						return common_response(
 							StatusCode::INTERNAL_SERVER_ERROR,
 							"Failed to generate access token",
-						)
+						);
 					}
 				};
 
@@ -64,34 +63,13 @@ impl AuthService {
 						return common_response(
 							StatusCode::INTERNAL_SERVER_ERROR,
 							"Failed to generate refresh token",
-						)
+						);
 					}
 				};
 
-				let role_response = role_repo
-					.query_role_by_id(user.role.id.id.to_raw())
-					.await
-					.unwrap();
-
 				let response = ResponseSuccessDto {
 					data: AuthLoginResponsetDto {
-						user: AuthUserItemDto {
-							id: user.id.id.to_raw(),
-							fullname: user.fullname.clone(),
-							email: user.email.clone(),
-							is_active: user.is_active.clone(),
-							avatar: user.avatar.clone(),
-							phone_number: user.phone_number.clone(),
-							gender: user.gender.clone(),
-							birthdate: user.birthdate.clone(),
-							role: RolesItemDto {
-								id: role_response.id,
-								name: role_response.name,
-								permissions: role_response.permissions,
-								created_at: role_response.created_at,
-								updated_at: role_response.updated_at,
-							},
-						},
+						user: UsersDetailItemDto::from(&user),
 						token: TokenDto {
 							access_token,
 							refresh_token,
@@ -116,6 +94,7 @@ impl AuthService {
 		if let Err((status, message)) = validate_request(&payload) {
 			return common_response(status, &message);
 		}
+
 		let user_repo = UsersRepository::new(state);
 		let auth_repo = AuthRepository::new(state);
 		let role_repo = RolesRepository::new(state);
@@ -126,6 +105,7 @@ impl AuthService {
 			Ok(role) => role,
 			Err(_) => return common_response(StatusCode::BAD_REQUEST, "Role Not Found"),
 		};
+
 		if user_repo
 			.query_user_by_email(payload.email.clone())
 			.await
@@ -133,6 +113,7 @@ impl AuthService {
 		{
 			return common_response(StatusCode::BAD_REQUEST, "User already exists");
 		}
+
 		let hashed_password = match hash_password(&payload.password) {
 			Ok(hash) => hash,
 			Err(_) => {
@@ -142,16 +123,16 @@ impl AuthService {
 				);
 			}
 		};
+
 		let new_user = AuthRegisterRequestDto {
 			email: payload.email,
 			password: hashed_password,
 			fullname: payload.fullname,
-			student_type: payload.student_type,
 			phone_number: payload.phone_number,
-			referral_code: payload.referral_code,
-			referred_by: payload.referred_by,
 		};
+
 		let otp = generate_otp::OtpManager::generate_otp();
+
 		match auth_repo
 			.query_store_otp(new_user.email.clone(), otp.clone())
 			.await
@@ -169,11 +150,13 @@ impl AuthService {
 				return common_response(StatusCode::INTERNAL_SERVER_ERROR, &err.to_string());
 			}
 		}
+
 		let role_thing = make_thing(&ResourceEnum::Roles.to_string(), &role.id);
 		let user_thing = make_thing(
 			&ResourceEnum::Users.to_string(),
 			&Uuid::new_v4().to_string(),
 		);
+
 		match user_repo
 			.query_create_user(UsersSchema {
 				id: user_thing,
@@ -202,14 +185,18 @@ impl AuthService {
 		if let Err((status, message)) = validate_request(&payload) {
 			return common_response(status, &message);
 		}
-		
+
 		let user_repo = UsersRepository::new(state);
-		if user_repo.query_user_by_email(payload.email.clone()).await.is_err() {
+		if user_repo
+			.query_user_by_email(payload.email.clone())
+			.await
+			.is_err()
+		{
 			return common_response(StatusCode::BAD_REQUEST, "User not found");
 		}
 
 		let auth_repo = AuthRepository::new(state);
-		let  _ = auth_repo.query_get_stored_otp(payload.email.clone()).await;
+		let _ = auth_repo.query_get_stored_otp(payload.email.clone()).await;
 
 		let otp = generate_otp::OtpManager::generate_otp();
 		let message = format!("Your OTP code is {}", otp);
@@ -273,10 +260,10 @@ impl AuthService {
 		let user = match user_result {
 			Ok(user) => user,
 			Err(err) if err.to_string().contains("User not found") => {
-				return common_response(StatusCode::BAD_REQUEST, "User not found")
+				return common_response(StatusCode::BAD_REQUEST, "User not found");
 			}
 			Err(err) => {
-				return common_response(StatusCode::INTERNAL_SERVER_ERROR, &err.to_string())
+				return common_response(StatusCode::INTERNAL_SERVER_ERROR, &err.to_string());
 			}
 		};
 		let token = match encode_reset_password_token(user.email) {
@@ -285,7 +272,7 @@ impl AuthService {
 				return common_response(
 					StatusCode::INTERNAL_SERVER_ERROR,
 					"Failed to generate access token",
-				)
+				);
 			}
 		};
 		let env = Env::new();
@@ -310,15 +297,18 @@ impl AuthService {
 		let user_repo = UsersRepository::new(state);
 		let auth_repo = AuthRepository::new(state);
 		let email = payload.email.clone();
+		let user = match user_repo.query_user_by_email(email.clone()).await {
+			Ok(user) if !user.is_deleted => user,
+			_ => return common_response(StatusCode::NOT_FOUND, "User not found"),
+		};
+		let patch = UsersSchema {
+			id: user.id.clone(),
+			is_active: true,
+			..UsersSchema::from(user)
+		};
 		match auth_repo.query_get_stored_otp(email.clone()).await {
 			Ok(stored_otp) => match stored_otp == payload.otp {
-				true => match user_repo
-					.query_active_inactive_user(
-						email.clone(),
-						UsersActiveInactiveSchema { is_active: true },
-					)
-					.await
-				{
+				true => match user_repo.query_update_user(patch).await {
 					Ok(_) => match auth_repo.query_delete_stored_otp(email).await {
 						Ok(_) => common_response(StatusCode::OK, "Email verified successfully"),
 						Err(e) => {
@@ -346,7 +336,7 @@ impl AuthService {
 		if let Err((status, message)) = validate_request(&payload) {
 			return common_response(status, &message);
 		}
-		let user_repo = UsersRepository::new(state);
+		let repo = UsersRepository::new(state);
 		let email = match extract_email_token(payload.token.clone()) {
 			Some(email) => email,
 			None => {
@@ -362,12 +352,18 @@ impl AuthService {
 				);
 			}
 		};
-		match user_repo
-			.query_update_password_user(email, UsersSetNewPasswordSchema { password })
-			.await
-		{
+		let user = match repo.query_user_by_email(email.clone()).await {
+			Ok(user) if !user.is_deleted => user,
+			_ => return common_response(StatusCode::NOT_FOUND, "User not found"),
+		};
+		let patch = UsersSchema {
+			id: user.id.clone(),
+			password,
+			..Default::default()
+		};
+		match repo.query_update_user(patch).await {
 			Ok(msg) => common_response(StatusCode::OK, &msg),
-			Err(err) => common_response(StatusCode::BAD_REQUEST, &err.to_string()),
+			Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
 		}
 	}
 }

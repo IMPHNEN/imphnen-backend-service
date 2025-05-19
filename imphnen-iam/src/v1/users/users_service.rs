@@ -34,7 +34,7 @@ impl UsersService {
 		let repo = UsersRepository::new(state);
 		match repo.query_user_by_id(id).await {
 			Ok(user) if !user.is_deleted => success_response(ResponseSuccessDto {
-				data: UsersDetailItemDto::from(user),
+				data: UsersDetailItemDto::from(&user),
 			}),
 			Ok(_) => common_response(StatusCode::NOT_FOUND, "User not found"),
 			Err(e) => common_response(StatusCode::NOT_FOUND, &e.to_string()),
@@ -49,7 +49,7 @@ impl UsersService {
 		};
 		match repo.query_user_by_email(email).await {
 			Ok(user) if !user.is_deleted => success_response(ResponseSuccessDto {
-				data: UsersDetailItemDto::from(user),
+				data: UsersDetailItemDto::from(&user),
 			}),
 			Ok(_) => common_response(StatusCode::NOT_FOUND, "User not found"),
 			Err(e) => common_response(StatusCode::NOT_FOUND, &e.to_string()),
