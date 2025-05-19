@@ -2,7 +2,6 @@ use imphnen_entities::*;
 use imphnen_libs::*;
 
 pub mod bind_filter;
-pub mod crud;
 pub mod extract_email;
 pub mod generate_date;
 pub mod generate_otp;
@@ -15,7 +14,6 @@ pub mod response_format;
 pub mod validator;
 
 pub use bind_filter::*;
-pub use crud::*;
 pub use extract_email::*;
 pub use generate_date::*;
 pub use generate_otp::*;

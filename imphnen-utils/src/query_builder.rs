@@ -20,11 +20,13 @@ impl ListQueryBuilder {
 		meta: &MetaRequestDto,
 		search_field: impl Into<String>,
 		select_fields: Option<Vec<&str>>,
+		fetch_fields: Option<Vec<&str>>,
 	) -> Self {
 		let mut builder = Self::new(resource)
 			.with_search(meta.search.as_deref(), &search_field.into())
 			.with_filter(meta.filter_by.as_deref(), meta.filter.as_deref())
 			.with_sorting(meta.sort_by.as_deref(), meta.order.as_deref())
+			.with_fetch(fetch_fields)
 			.with_pagination(meta.page, meta.per_page);
 
 		if let Some(fields) = select_fields {
@@ -54,9 +56,10 @@ impl ListQueryBuilder {
 	pub fn with_search(mut self, search: Option<&str>, field: &str) -> Self {
 		if let Some(search) = search {
 			if !search.is_empty() {
-				self
-					.conditions
-					.push(format!("string::contains({} ?? '', $search)", field));
+				self.conditions.push(format!(
+					"string::contains(string::lowercase({} ?? ''), string::lowercase($search))",
+					field
+				));
 			}
 		}
 		self
@@ -65,7 +68,10 @@ impl ListQueryBuilder {
 	pub fn with_filter(mut self, field: Option<&str>, value: Option<&str>) -> Self {
 		if let (Some(f), Some(v)) = (field, value) {
 			if !v.is_empty() {
-				self.conditions.push(format!("{} = $filter", f));
+				self.conditions.push(format!(
+					"string::contains(string::join('', [{}]), $filter)",
+					f
+				));
 			}
 		}
 		self
@@ -89,8 +95,10 @@ impl ListQueryBuilder {
 		self
 	}
 
-	pub fn with_fetch(mut self, fetch: impl Into<String>) -> Self {
-		self.fetch.push(fetch.into());
+	pub fn with_fetch(mut self, fetches: Option<Vec<&str>>) -> Self {
+		if let Some(items) = fetches {
+			self.fetch.extend(items.into_iter().map(String::from));
+		}
 		self
 	}
 

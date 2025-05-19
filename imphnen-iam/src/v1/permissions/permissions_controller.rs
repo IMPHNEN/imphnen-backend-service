@@ -1,23 +1,26 @@
 use axum::{
+	Extension, Json,
 	extract::{Path, Query},
 	response::IntoResponse,
-	Extension, Json,
 };
 
 use crate::{
+	AppState, MessageResponseDto, MetaRequestDto, ResponseListSuccessDto,
+	ResponseSuccessDto,
 	v1::{
 		permissions_dto::{PermissionsItemDto, PermissionsRequestDto},
 		permissions_service::PermissionsService,
 	},
-	AppState, MessageResponseDto, MetaRequestDto, ResponseListSuccessDto,
-	ResponseSuccessDto,
 };
 
-use super::{permissions_guard, PermissionsEnum};
+use super::{PermissionsEnum, permissions_guard};
 
 #[utoipa::path(
 	get,
 	path = "/v1/permissions",
+	 security(
+        ("Bearer" = [])
+    ),
 	params(
 		("page" = Option<i64>, Query, description = "Page number"),
 		("per_page" = Option<i64>, Query, description = "Items per page"),

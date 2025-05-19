@@ -35,27 +35,21 @@ impl<'a> RolesRepository<'a> {
 				conditions.push(format!("{} = $filter", filter_by));
 			}
 		}
-		let raw_result: ResponseListSuccessDto<Vec<RolesDetailQueryDto>> =
-			query_list_with_meta(
-				&self.state.surrealdb_ws,
-				&ResourceEnum::Roles.to_string(),
-				&meta,
-				conditions,
-				None,
-				"name",
-				None,
-			)
-			.await?;
+		let raw_result: ResponseListSuccessDto<Vec<RolesSchema>> = query_list_with_meta(
+			&self.state.surrealdb_ws,
+			&ResourceEnum::Roles.to_string(),
+			&meta,
+			conditions,
+			None,
+			"name",
+			None,
+			None,
+		)
+		.await?;
 		let data = raw_result
 			.data
 			.into_iter()
-			.map(|role| RolesListItemDto {
-				id: extract_id(&role.id),
-				name: role.name,
-				created_at: role.created_at,
-				updated_at: role.updated_at,
-				permissions_count: role.permissions.len(),
-			})
+			.map(|role| RolesSchema::list(&role))
 			.collect();
 		Ok(ResponseListSuccessDto {
 			data,

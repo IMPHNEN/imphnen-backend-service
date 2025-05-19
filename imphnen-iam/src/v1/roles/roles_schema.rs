@@ -1,5 +1,5 @@
 use super::{
-	RolesDetailItemDto, RolesDetailQueryDto, RolesRequestCreateDto,
+	RolesDetailItemDto, RolesDetailQueryDto, RolesListItemDto, RolesRequestCreateDto,
 	RolesRequestUpdateDto,
 };
 use crate::{ResourceEnum, make_thing};
@@ -110,6 +110,16 @@ impl RolesSchema {
 			is_deleted: existing.is_deleted,
 			created_at: existing.created_at,
 			updated_at: Some(get_iso_date()),
+		}
+	}
+
+	pub fn list(&self) -> RolesListItemDto {
+		RolesListItemDto {
+			id: self.id.id.to_raw(),
+			name: self.name.clone(),
+			permissions_count: self.permissions.len(),
+			created_at: self.created_at.clone(),
+			updated_at: self.updated_at.clone(),
 		}
 	}
 }

@@ -1,8 +1,7 @@
 use super::{UsersDetailQueryDto, UsersListItemDto, UsersListQueryDto, UsersSchema};
 use crate::{
-	AppState, MetaRequestDto, PermissionsQueryDto, ResourceEnum,
-	ResponseListSuccessDto, RolesDetailQueryDto, get_id, make_thing,
-	query_list_with_meta,
+	AppState, MetaRequestDto, ResourceEnum, ResponseListSuccessDto, get_id,
+	make_thing, query_list_with_meta,
 };
 use anyhow::{Result, bail};
 use imphnen_utils::DetailQueryBuilder;
@@ -45,25 +44,15 @@ impl<'a> UsersRepository<'a> {
 			vec!["is_deleted = false".into()],
 			None,
 			"fullname",
-			Some(vec![
-				"email",
-				"fullname",
-				"id",
-				"is_active",
-				"is_deleted",
-				"role",
-				"role.permissions",
-			]),
+			Some(vec!["*"]),
+			Some(vec!["role", "role.permissions"]),
 		)
 		.await?;
 
 		let data = raw_result
 			.data
 			.into_iter()
-			.map(|schema| {
-				let role = schema.clone().role.name;
-				schema.from(role)
-			})
+			.map(|schema| UsersListQueryDto::from(&schema))
 			.collect::<Vec<_>>();
 
 		Ok(ResponseListSuccessDto {
@@ -81,21 +70,7 @@ impl<'a> UsersRepository<'a> {
 		let builder = DetailQueryBuilder::new(ResourceEnum::Users.to_string())
 			.with_where("email")
 			.where_value(email.clone())
-			.with_select_fields(vec![
-				"id",
-				"fullname",
-				"email",
-				"avatar",
-				"phone_number",
-				"is_active",
-				"is_deleted",
-				"gender",
-				"birthdate",
-				"password",
-				"created_at",
-				"updated_at",
-				"role",
-			])
+			.with_select_fields(vec!["*"])
 			.with_fetch("role")
 			.with_fetch("role.permissions");
 
@@ -112,40 +87,7 @@ impl<'a> UsersRepository<'a> {
 			bail!("User not found");
 		}
 
-		let permissions = user
-			.role
-			.permissions
-			.into_iter()
-			.map(|perm| PermissionsQueryDto {
-				id: perm.id,
-				name: perm.name,
-				created_at: perm.created_at,
-				updated_at: perm.updated_at,
-			})
-			.collect();
-
-		Ok(UsersDetailQueryDto {
-			id: user.id,
-			fullname: user.fullname,
-			email: user.email,
-			avatar: user.avatar,
-			phone_number: user.phone_number,
-			is_active: user.is_active,
-			is_deleted: user.is_deleted,
-			gender: user.gender,
-			birthdate: user.birthdate,
-			password: user.password,
-			created_at: user.created_at,
-			updated_at: user.updated_at,
-			role: RolesDetailQueryDto {
-				id: user.role.id,
-				name: user.role.name,
-				created_at: user.role.created_at,
-				updated_at: user.role.updated_at,
-				is_deleted: user.role.is_deleted,
-				permissions,
-			},
-		})
+		Ok(UsersDetailQueryDto::from(&user))
 	}
 
 	pub async fn query_user_by_id(&self, id: String) -> Result<UsersDetailQueryDto> {
@@ -153,21 +95,7 @@ impl<'a> UsersRepository<'a> {
 
 		let builder = DetailQueryBuilder::new(ResourceEnum::Users.to_string())
 			.with_id(&id)
-			.with_select_fields(vec![
-				"id",
-				"fullname",
-				"email",
-				"avatar",
-				"phone_number",
-				"is_active",
-				"is_deleted",
-				"gender",
-				"birthdate",
-				"password",
-				"created_at",
-				"updated_at",
-				"role",
-			])
+			.with_select_fields(vec!["*"])
 			.with_fetch("role")
 			.with_fetch("role.permissions");
 
@@ -184,40 +112,7 @@ impl<'a> UsersRepository<'a> {
 			bail!("User not found");
 		}
 
-		let permissions = user
-			.role
-			.permissions
-			.into_iter()
-			.map(|perm| PermissionsQueryDto {
-				id: perm.id,
-				name: perm.name,
-				created_at: perm.created_at,
-				updated_at: perm.updated_at,
-			})
-			.collect();
-
-		Ok(UsersDetailQueryDto {
-			id: user.id,
-			fullname: user.fullname,
-			email: user.email,
-			avatar: user.avatar,
-			phone_number: user.phone_number,
-			is_active: user.is_active,
-			is_deleted: user.is_deleted,
-			gender: user.gender,
-			birthdate: user.birthdate,
-			password: user.password,
-			created_at: user.created_at,
-			updated_at: user.updated_at,
-			role: RolesDetailQueryDto {
-				id: user.role.id,
-				name: user.role.name,
-				created_at: user.role.created_at,
-				updated_at: user.role.updated_at,
-				is_deleted: user.role.is_deleted,
-				permissions,
-			},
-		})
+		Ok(UsersDetailQueryDto::from(&user))
 	}
 
 	pub async fn query_create_user(&self, data: UsersSchema) -> Result<String> {

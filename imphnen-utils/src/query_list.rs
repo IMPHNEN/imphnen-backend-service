@@ -12,6 +12,7 @@ pub async fn query_list_with_meta<T>(
 	custom_select: Option<String>,
 	search_field: &str,
 	select_fields: Option<Vec<&str>>,
+	fetch_fields: Option<Vec<&str>>,
 ) -> Result<ResponseListSuccessDto<Vec<T>>>
 where
 	T: DeserializeOwned + Serialize,
@@ -21,13 +22,20 @@ where
 	let start = (page - 1) * per_page;
 
 	let sql = custom_select.unwrap_or_else(|| {
-		ListQueryBuilder::from_meta(table, meta, search_field, select_fields).build()
+		ListQueryBuilder::from_meta(
+			table,
+			meta,
+			search_field,
+			select_fields,
+			fetch_fields,
+		)
+		.build()
 	});
 
 	let mut query_exec = db.query(sql);
 	if let Some(search) = &meta.search {
 		if !search.is_empty() {
-			query_exec = query_exec.bind(("search", search.clone()));
+			query_exec = query_exec.bind(("search", search.to_lowercase().clone()));
 		}
 	}
 	if let Some(filter_val) = &meta.filter {

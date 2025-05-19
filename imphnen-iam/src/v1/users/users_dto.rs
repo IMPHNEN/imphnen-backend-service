@@ -139,10 +139,10 @@ pub struct UsersListQueryDto {
 }
 
 impl UsersListQueryDto {
-	pub fn from(&self, role: String) -> UsersListItemDto {
+	pub fn from(&self) -> UsersListItemDto {
 		UsersListItemDto {
 			id: self.id.id.to_raw(),
-			role,
+			role: self.role.name.clone(),
 			fullname: self.fullname.clone(),
 			email: self.email.clone(),
 			avatar: self.avatar.clone(),
@@ -169,4 +169,24 @@ pub struct UsersDetailQueryDto {
 	pub role: RolesDetailQueryDto,
 	pub created_at: String,
 	pub updated_at: String,
+}
+
+impl UsersDetailQueryDto {
+	pub fn from(&self) -> Self {
+		Self {
+			id: self.id.clone(),
+			role: RolesDetailQueryDto::from(self.role.clone()),
+			fullname: self.fullname.clone(),
+			email: self.email.clone(),
+			avatar: self.avatar.clone(),
+			phone_number: self.phone_number.clone(),
+			is_active: self.is_active,
+			gender: self.gender.clone(),
+			is_deleted: self.is_deleted,
+			password: self.password.clone(),
+			birthdate: self.birthdate.clone(),
+			created_at: self.created_at.clone(),
+			updated_at: self.updated_at.clone(),
+		}
+	}
 }

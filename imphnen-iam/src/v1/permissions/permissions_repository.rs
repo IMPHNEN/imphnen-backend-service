@@ -36,17 +36,13 @@ impl<'a> PermissionsRepository<'a> {
 				None,
 				"name",
 				None,
+				None,
 			)
 			.await?;
 		let transformed_data = raw_result
 			.data
 			.into_iter()
-			.map(|permission| PermissionsItemDto {
-				id: extract_id(&permission.id),
-				name: permission.name,
-				created_at: permission.created_at,
-				updated_at: permission.updated_at,
-			})
+			.map(|permission| PermissionsSchema::list(&permission))
 			.collect();
 		Ok(ResponseListSuccessDto {
 			data: transformed_data,

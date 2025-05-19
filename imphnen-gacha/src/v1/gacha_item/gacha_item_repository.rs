@@ -30,6 +30,7 @@ impl<'a> GachaItemRepository<'a> {
 			None,
 			"name",
 			None,
+			None,
 		)
 		.await
 	}
