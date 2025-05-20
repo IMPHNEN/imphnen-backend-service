@@ -6,14 +6,14 @@
 
 This repository serves as the **monorepo** for all backend services of IMPHNEN. It encompasses several main services:
 
-1. **Core Service** - Provides fundamental functionalities and shared resources for other services.
-2. **IAM Service** - Handles identity and access management across IMPHNEN applications.
-3. **CMS Service** - Supports the cms services by IMPHNEN [Landing Page website](https://imphnen.dev/).
-4. **Gacha Service** - Supports the gacha services by IMPHNEN [Gacha website](https://gacha.imphnen.dev/).
-5. **Dimentorin Service** - Supports the mentoring services by IMPHNEN [Dimentorin website](https://dimentorin.imphnen.dev/).
-6. **Gateway Service** - Acts as the API gateway, routing requests to appropriate services.
+1. **IMPHNEN-Backend** - Provides fundamental functionalities and shared resources for other services.
+2. **IMPHNEN-IAM** - Handles identity and access management across IMPHNEN applications.
+3. **IMPHNEN-CMS** - Supports the cms services by IMPHNEN [Landing Page website](https://imphnen.dev/).
+4. **IMPHNEN-Gacha** - Supports the gacha services by IMPHNEN [Gacha website](https://gacha.imphnen.dev/).
+5. **IMPHNEN-Dimentorin** - Supports the mentoring services by IMPHNEN [Dimentorin website](https://dimentorin.imphnen.dev/).
+6. **IMPHNEN-Gateway** - Acts as the API gateway, routing requests to appropriate services.
 
-## How to Install
+## IMPORTANT How to Install
 
 1. **Clone the repository**:
 
@@ -39,7 +39,7 @@ This repository serves as the **monorepo** for all backend services of IMPHNEN. 
      if you use unix based system
 
      ```sh
-     sh apply-env.sh
+     source ./apply-env.sh
      ```
 
    - Modify the `.env` files with your specific configuration settings.
@@ -49,7 +49,15 @@ This repository serves as the **monorepo** for all backend services of IMPHNEN. 
    Ensure you have [Rust](https://www.rust-lang.org/) installed. Then, run:
 
    ```sh
-   cargo build
+   cargo check
+   ```
+
+4. **Run the seeders**:
+
+   to run the seeders, run:
+
+   ```sh
+   cargo run --bin seeder
    ```
 
 ## How to Run
@@ -64,10 +72,16 @@ To run the services in development mode:
    docker-compose up -d
    ```
 
-2. **Run the desired service**. For example, to run the Core Service:
+2. **Run using cargo run**. For example, to run the Core Service:
 
    ```sh
-   cargo run -p imphnen-core-service --bin api
+   cargo run --bin api
+   ```
+
+3. **Run using cargo watch**. For example, to run the Core Service:
+
+   ```sh
+   cargo watch -x "run --bin api"
    ```
 
 ### Production
@@ -83,7 +97,7 @@ For production deployment:
 2. **Run the Docker container**:
 
    ```sh
-   docker run -d --env-file .env -p 8080:8080 imphnen-backend-service
+   docker run -d --env-file .env -p 3000:3000 imphnen-backend-service
    ```
 
    Adjust the port and environment variables as needed.

@@ -1,31 +1,34 @@
+use surrealdb::Uuid;
+
 use crate::{MetaRequestDto, UsersRepository};
 use crate::{RolesRepository, create_mock_app_state, create_test_user};
 
 async fn get_role_id(state: &crate::AppState) -> String {
 	RolesRepository::new(state)
-		.query_role_by_name("Student".into())
+		.query_role_by_name("User".into())
 		.await
 		.expect("Role not found")
 		.id
+}
+
+fn generate_unique_email(prefix: &str) -> String {
+	format!("{}_{}@example.com", prefix, Uuid::new_v4())
 }
 
 #[tokio::test]
 async fn test_create_and_get_user() {
 	let app_state = create_mock_app_state().await;
 	let repo = UsersRepository::new(&app_state);
-	let user = create_test_user(
-		"testuser@example.com",
-		"Test User",
-		true,
-		&get_role_id(&app_state).await,
-	);
+	let email = generate_unique_email("testuser");
+	let user =
+		create_test_user(&email, "Test User", true, &get_role_id(&app_state).await);
 	let create_result = repo.query_create_user(user.clone()).await;
 	assert!(create_result.is_ok());
 	let fetched = repo
 		.query_user_by_email("testuser@example.com".into())
 		.await;
 	assert!(fetched.is_ok());
-	assert_eq!(fetched.unwrap().email, "testuser@example.com");
+	assert_eq!(fetched.unwrap().email, email.clone());
 }
 
 #[tokio::test]
@@ -100,9 +103,7 @@ async fn test_query_delete_user() {
 		.query_delete_user(user_detail.id.id.to_raw().clone())
 		.await;
 	assert!(delete_result.is_ok());
-	let fetch_result = repo
-		.query_user_by_email(user_detail.id.id.to_raw().clone())
-		.await;
+	let fetch_result = repo.query_user_by_email(user_detail.email.clone()).await;
 	assert!(fetch_result.is_err());
 }
 

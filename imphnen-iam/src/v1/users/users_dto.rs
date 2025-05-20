@@ -139,7 +139,7 @@ pub struct UsersListQueryDto {
 }
 
 impl UsersListQueryDto {
-	pub fn from(&self) -> UsersListItemDto {
+	pub fn from(self) -> UsersListItemDto {
 		UsersListItemDto {
 			id: self.id.id.to_raw(),
 			role: self.role.name.clone(),

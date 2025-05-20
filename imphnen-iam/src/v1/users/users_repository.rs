@@ -36,8 +36,7 @@ impl<'a> UsersRepository<'a> {
 		meta: MetaRequestDto,
 	) -> Result<ResponseListSuccessDto<Vec<UsersListItemDto>>> {
 		let db = &self.state.surrealdb_ws;
-
-		let raw_result = query_list_with_meta::<UsersListQueryDto>(
+		let result = query_list_with_meta::<UsersListQueryDto>(
 			db,
 			&ResourceEnum::Users.to_string(),
 			&meta,
@@ -48,16 +47,14 @@ impl<'a> UsersRepository<'a> {
 			Some(vec!["role", "role.permissions"]),
 		)
 		.await?;
-
-		let data = raw_result
+		let data = result
 			.data
 			.into_iter()
-			.map(|schema| UsersListQueryDto::from(&schema))
+			.map(UsersListQueryDto::from)
 			.collect::<Vec<_>>();
-
 		Ok(ResponseListSuccessDto {
 			data,
-			meta: raw_result.meta,
+			meta: result.meta,
 		})
 	}
 
@@ -66,52 +63,46 @@ impl<'a> UsersRepository<'a> {
 		email: String,
 	) -> Result<UsersDetailQueryDto> {
 		let db = &self.state.surrealdb_ws;
-
 		let builder = DetailQueryBuilder::new(ResourceEnum::Users.to_string())
 			.with_where("email")
 			.where_value(email.clone())
 			.with_select_fields(vec!["*"])
 			.with_fetch("role")
 			.with_fetch("role.permissions");
-
 		let sql = builder.build();
-
 		let user_opt: Option<UsersDetailQueryDto> =
 			builder.apply_bindings(db.query(sql)).await?.take(0)?;
-
 		let Some(user) = user_opt else {
 			bail!("User not found");
 		};
-
+		if user.is_deleted {
+			bail!("User not found");
+		}
 		if user.role.is_deleted {
 			bail!("User not found");
 		}
-
 		Ok(UsersDetailQueryDto::from(&user))
 	}
 
 	pub async fn query_user_by_id(&self, id: String) -> Result<UsersDetailQueryDto> {
 		let db = &self.state.surrealdb_ws;
-
 		let builder = DetailQueryBuilder::new(ResourceEnum::Users.to_string())
 			.with_id(&id)
 			.with_select_fields(vec!["*"])
 			.with_fetch("role")
 			.with_fetch("role.permissions");
-
 		let sql = builder.build();
-
 		let result: Option<UsersDetailQueryDto> =
 			builder.apply_bindings(db.query(sql)).await?.take(0)?;
-
 		let Some(user) = result else {
 			bail!("User not found");
 		};
-
+		if user.is_deleted {
+			bail!("User not found");
+		}
 		if user.role.is_deleted {
 			bail!("User not found");
 		}
-
 		Ok(UsersDetailQueryDto::from(&user))
 	}
 
@@ -156,7 +147,7 @@ impl<'a> UsersRepository<'a> {
 		let db = &self.state.surrealdb_ws;
 		let user = self.query_user_by_id(id).await?;
 		if user.is_deleted {
-			bail!("User already deleted");
+			bail!("User not found");
 		}
 		let record_key = get_id(&user.id)?;
 		let record: Option<UsersSchema> = db
