@@ -29,7 +29,7 @@ impl GachaRollItemDto {
 	pub fn from(dto: &GachaRollQueryDto) -> Self {
 		Self {
 			id: dto.id.id.to_raw(),
-			item: GachaItemDto::from(&dto.item),
+			item: GachaItemDto::from(dto.item.clone()),
 			weight: dto.weight.to_string(),
 			quantity: dto.quantity,
 			is_deleted: dto.is_deleted,

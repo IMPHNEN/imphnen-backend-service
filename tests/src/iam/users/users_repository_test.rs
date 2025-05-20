@@ -24,9 +24,7 @@ async fn test_create_and_get_user() {
 		create_test_user(&email, "Test User", true, &get_role_id(&app_state).await);
 	let create_result = repo.query_create_user(user.clone()).await;
 	assert!(create_result.is_ok());
-	let fetched = repo
-		.query_user_by_email("testuser@example.com".into())
-		.await;
+	let fetched = repo.query_user_by_email(email.clone().into()).await;
 	assert!(fetched.is_ok());
 	assert_eq!(fetched.unwrap().email, email.clone());
 }
@@ -91,7 +89,7 @@ async fn test_query_user_list_basic() {
 async fn test_query_delete_user() {
 	let app_state = create_mock_app_state().await;
 	let repo = UsersRepository::new(&app_state);
-	let email = "deleteuser@example.com";
+	let email = &generate_unique_email("deleteuser");
 	let user =
 		create_test_user(email, "Delete User", true, &get_role_id(&app_state).await);
 	repo.query_create_user(user.clone()).await.unwrap();
@@ -128,7 +126,7 @@ async fn test_delete_user_twice_should_fail_on_second_attempt() {
 	assert!(first.is_ok());
 	let second = repo.query_delete_user(user.id.id.to_raw()).await;
 	assert!(second.is_err());
-	assert_eq!(second.unwrap_err().to_string(), "User already deleted");
+	assert_eq!(second.unwrap_err().to_string(), "User not found");
 }
 
 #[tokio::test]

@@ -1,9 +1,10 @@
 use super::GachaItemSchema;
 use crate::{
 	AppState, GachaItemDto, MetaRequestDto, ResourceEnum, ResponseListSuccessDto,
-	get_id, make_thing, query_list_with_meta,
+	get_id, make_thing,
 };
 use anyhow::{Result, bail};
+use imphnen_iam::QueryListBuilder;
 
 pub struct GachaItemRepository<'a> {
 	state: &'a AppState,
@@ -19,24 +20,23 @@ impl<'a> GachaItemRepository<'a> {
 		meta: MetaRequestDto,
 	) -> Result<ResponseListSuccessDto<Vec<GachaItemDto>>> {
 		let raw_result: ResponseListSuccessDto<Vec<GachaItemSchema>> =
-			query_list_with_meta(
+			QueryListBuilder::new(
 				&self.state.surrealdb_ws,
 				&ResourceEnum::GachaItems.to_string(),
 				&meta,
-				vec!["is_deleted = false".into()],
-				None,
-				"name",
-				Some(vec!["*"]),
-				None,
 			)
+			.with_condition("is_deleted = false")
+			.search_field("name")
+			.select_fields(vec!["*"])
+			.build()
 			.await?;
-		let transformed_data = raw_result
+		let data = raw_result
 			.data
 			.into_iter()
-			.map(|gacha_item| GachaItemDto::from(&gacha_item))
+			.map(GachaItemDto::from)
 			.collect();
 		Ok(ResponseListSuccessDto {
-			data: transformed_data,
+			data,
 			meta: raw_result.meta,
 		})
 	}

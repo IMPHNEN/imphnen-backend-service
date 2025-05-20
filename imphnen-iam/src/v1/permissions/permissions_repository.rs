@@ -1,10 +1,9 @@
 use super::{PermissionsItemDto, PermissionsSchema};
 use crate::{
-	AppState, MetaRequestDto, ResourceEnum, ResponseListSuccessDto, get_id,
-	make_thing, query_list_with_meta,
+	AppState, MetaRequestDto, ResourceEnum, ResponseListSuccessDto, get_id, make_thing,
 };
 use anyhow::{Result, bail};
-use imphnen_utils::{DetailQueryBuilder, extract_id};
+use imphnen_utils::{DetailQueryBuilder, QueryListBuilder, extract_id};
 
 pub struct PermissionsRepository<'a> {
 	state: &'a AppState,
@@ -20,22 +19,23 @@ impl<'a> PermissionsRepository<'a> {
 		meta: MetaRequestDto,
 	) -> Result<ResponseListSuccessDto<Vec<PermissionsItemDto>>> {
 		let raw_result: ResponseListSuccessDto<Vec<PermissionsSchema>> =
-			query_list_with_meta(
+			QueryListBuilder::new(
 				&self.state.surrealdb_ws,
 				&ResourceEnum::Permissions.to_string(),
 				&meta,
-				vec!["is_deleted = false".into()],
-				None,
-				"name",
-				Some(vec!["*"]),
-				None,
 			)
+			.with_condition("is_deleted = false")
+			.search_field("name")
+			.select_fields(vec!["*"])
+			.build()
 			.await?;
+
 		let transformed_data = raw_result
 			.data
 			.into_iter()
 			.map(|permission| PermissionsSchema::list(&permission))
 			.collect();
+
 		Ok(ResponseListSuccessDto {
 			data: transformed_data,
 			meta: raw_result.meta,

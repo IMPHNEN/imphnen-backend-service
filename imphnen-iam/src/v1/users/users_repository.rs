@@ -1,10 +1,9 @@
 use super::{UsersDetailQueryDto, UsersListItemDto, UsersListQueryDto, UsersSchema};
 use crate::{
-	AppState, MetaRequestDto, ResourceEnum, ResponseListSuccessDto, get_id,
-	make_thing, query_list_with_meta,
+	AppState, MetaRequestDto, ResourceEnum, ResponseListSuccessDto, get_id, make_thing,
 };
 use anyhow::{Result, bail};
-use imphnen_utils::DetailQueryBuilder;
+use imphnen_utils::{DetailQueryBuilder, QueryListBuilder};
 use surrealdb::{Surreal, engine::remote::ws::Client};
 
 pub struct UsersRepository<'a> {
@@ -35,23 +34,23 @@ impl<'a> UsersRepository<'a> {
 		&self,
 		meta: MetaRequestDto,
 	) -> Result<ResponseListSuccessDto<Vec<UsersListItemDto>>> {
-		let db = &self.state.surrealdb_ws;
-		let result = query_list_with_meta::<UsersListQueryDto>(
-			db,
-			&ResourceEnum::Users.to_string(),
-			&meta,
-			vec!["is_deleted = false".into()],
-			None,
-			"fullname",
-			Some(vec!["*"]),
-			Some(vec!["role", "role.permissions"]),
-		)
-		.await?;
+		let result: ResponseListSuccessDto<Vec<UsersListQueryDto>> =
+			QueryListBuilder::new(
+				&self.state.surrealdb_ws,
+				&ResourceEnum::Users.to_string(),
+				&meta,
+			)
+			.with_condition("is_deleted = false")
+			.search_field("fullname")
+			.select_fields(vec!["*"])
+			.fetch_fields(vec!["role", "role.permissions"])
+			.build()
+			.await?;
 		let data = result
 			.data
 			.into_iter()
 			.map(UsersListQueryDto::from)
-			.collect::<Vec<_>>();
+			.collect();
 		Ok(ResponseListSuccessDto {
 			data,
 			meta: result.meta,

@@ -102,6 +102,14 @@ For production deployment:
 
    Adjust the port and environment variables as needed.
 
+## How to Run the Tests
+
+1. **Run the tests**:
+
+   ```sh
+   cargo test
+   ```
+
 ## How to Contribute
 
 1. **Fork the repository** and clone it locally.

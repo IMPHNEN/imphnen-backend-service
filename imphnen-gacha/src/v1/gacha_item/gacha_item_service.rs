@@ -31,7 +31,7 @@ impl GachaItemService {
 		let repo = GachaItemRepository::new(state);
 		match repo.query_gacha_item_by_id(id).await {
 			Ok(item) => success_response(ResponseSuccessDto {
-				data: GachaItemDto::from(&item),
+				data: GachaItemDto::from(item),
 			}),
 			Err(e) => common_response(StatusCode::NOT_FOUND, &e.to_string()),
 		}

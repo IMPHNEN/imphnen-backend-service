@@ -3,11 +3,10 @@ use super::{
 	RolesRequestUpdateDto, RolesSchema,
 };
 use crate::{
-	AppState, MetaRequestDto, PermissionsItemDto, ResourceEnum,
-	ResponseListSuccessDto, extract_id, get_id, make_thing, query_list_with_meta,
+	AppState, MetaRequestDto, ResourceEnum, ResponseListSuccessDto, get_id, make_thing,
 };
 use anyhow::{Result, bail};
-use imphnen_utils::DetailQueryBuilder;
+use imphnen_utils::{DetailQueryBuilder, QueryListBuilder};
 use surrealdb::Uuid;
 use surrealdb::sql::Thing;
 
@@ -24,36 +23,23 @@ impl<'a> RolesRepository<'a> {
 		&self,
 		meta: MetaRequestDto,
 	) -> Result<ResponseListSuccessDto<Vec<RolesListItemDto>>> {
-		let mut conditions = vec!["is_deleted = false".into()];
-		if let Some(_search) = meta.search.as_deref().filter(|s| !s.is_empty()) {
-			conditions.push("string::contains(name ?? '', $search)".into());
-		}
-		if let (Some(filter_by), Some(filter_val)) =
-			(meta.filter_by.as_ref(), meta.filter.as_ref())
-		{
-			if !filter_val.is_empty() {
-				conditions.push(format!("{} = $filter", filter_by));
-			}
-		}
-		let raw_result: ResponseListSuccessDto<Vec<RolesSchema>> = query_list_with_meta(
+		let result: ResponseListSuccessDto<Vec<RolesSchema>> = QueryListBuilder::new(
 			&self.state.surrealdb_ws,
 			&ResourceEnum::Roles.to_string(),
 			&meta,
-			conditions,
-			None,
-			"name",
-			None,
-			None,
 		)
+		.with_condition("is_deleted = false")
+		.search_field("name")
+		.build()
 		.await?;
-		let data = raw_result
+		let data = result
 			.data
 			.into_iter()
 			.map(|role| RolesSchema::list(&role))
 			.collect();
 		Ok(ResponseListSuccessDto {
 			data,
-			meta: raw_result.meta,
+			meta: result.meta,
 		})
 	}
 
@@ -65,16 +51,8 @@ impl<'a> RolesRepository<'a> {
 		let builder = DetailQueryBuilder::new(ResourceEnum::Roles.to_string())
 			.with_where("name")
 			.where_value(name.clone())
-			.with_select_fields(vec![
-				"id",
-				"name",
-				"permissions",
-				"created_at",
-				"updated_at",
-				"is_deleted",
-			])
+			.with_select_fields(vec!["*"])
 			.with_fetch("permissions");
-
 		let sql = builder.build();
 		let result: Option<RolesDetailQueryDto> = builder
 			.apply_bindings(db.query(sql).bind(("name", name)))
@@ -84,38 +62,14 @@ impl<'a> RolesRepository<'a> {
 			Some(r) if !r.is_deleted => r,
 			_ => bail!("Role not found"),
 		};
-		let permissions = role
-			.permissions
-			.into_iter()
-			.map(|perm| PermissionsItemDto {
-				id: extract_id(&perm.id),
-				name: perm.name,
-				created_at: perm.created_at,
-				updated_at: perm.updated_at,
-			})
-			.collect();
-		Ok(RolesDetailItemDto {
-			id: extract_id(&role.id),
-			name: role.name,
-			is_deleted: role.is_deleted,
-			permissions,
-			created_at: role.created_at,
-			updated_at: role.updated_at,
-		})
+		Ok(RolesDetailItemDto::from(&role))
 	}
 
 	pub async fn query_role_by_id(&self, id: String) -> Result<RolesDetailItemDto> {
 		let db = &self.state.surrealdb_ws;
 		let builder = DetailQueryBuilder::new(ResourceEnum::Roles.to_string())
 			.with_id(&id)
-			.with_select_fields(vec![
-				"id",
-				"name",
-				"is_deleted",
-				"permissions",
-				"created_at",
-				"updated_at",
-			])
+			.with_select_fields(vec!["*"])
 			.with_fetch("permissions");
 		let sql = builder.build();
 		let result: Option<RolesDetailQueryDto> =
@@ -124,24 +78,7 @@ impl<'a> RolesRepository<'a> {
 			Some(r) if !r.is_deleted => r,
 			_ => bail!("Role not found"),
 		};
-		let permissions = role
-			.permissions
-			.into_iter()
-			.map(|perm| PermissionsItemDto {
-				id: extract_id(&perm.id),
-				name: perm.name,
-				created_at: perm.created_at,
-				updated_at: perm.updated_at,
-			})
-			.collect();
-		Ok(RolesDetailItemDto {
-			id: extract_id(&role.id),
-			name: role.name,
-			is_deleted: role.is_deleted,
-			permissions,
-			created_at: role.created_at,
-			updated_at: role.updated_at,
-		})
+		Ok(RolesDetailItemDto::from(&role))
 	}
 
 	pub async fn query_create_role(

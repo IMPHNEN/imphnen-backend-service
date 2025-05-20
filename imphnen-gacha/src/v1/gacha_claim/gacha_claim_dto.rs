@@ -38,7 +38,7 @@ impl GachaClaimItemDto {
 		Self {
 			id: dto.id.id.to_raw(),
 			user: UsersDetailItemDto::from(&dto.user),
-			item: GachaItemDto::from(&dto.item),
+			item: GachaItemDto::from(dto.item.clone()),
 			is_deleted: dto.is_deleted,
 			created_at: dto.created_at.clone(),
 			updated_at: dto.updated_at.clone(),

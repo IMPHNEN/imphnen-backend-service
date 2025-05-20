@@ -21,7 +21,7 @@ pub struct GachaItemDto {
 }
 
 impl GachaItemDto {
-	pub fn from(dto: &GachaItemSchema) -> Self {
+	pub fn from(dto: GachaItemSchema) -> Self {
 		Self {
 			id: dto.id.id.to_raw(),
 			name: dto.name.clone(),

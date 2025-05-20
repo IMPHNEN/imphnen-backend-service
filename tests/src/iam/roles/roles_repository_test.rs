@@ -10,7 +10,6 @@ use crate::{
 	},
 };
 use surrealdb::Uuid;
-use surrealdb::sql::Thing;
 
 #[tokio::test]
 async fn test_query_create_role_should_succeed() {
@@ -19,15 +18,15 @@ async fn test_query_create_role_should_succeed() {
 	let role_repo = RolesRepository::new(&state);
 	let perm_id = Uuid::new_v4().to_string();
 	let permission = PermissionsSchema {
-		id: Thing::from((ResourceEnum::Permissions.to_string(), perm_id.clone())),
+		id: make_thing(&ResourceEnum::Permissions.to_string(), &perm_id.clone()),
 		name: "Read Quiz".into(),
 		is_deleted: false,
 		created_at: Some(get_iso_date()),
-		updated_at: None,
+		updated_at: Some(get_iso_date()),
 	};
 	perm_repo.query_create_permission(permission).await.unwrap();
 	let payload = RolesRequestCreateDto {
-		name: "Student".into(),
+		name: "User".into(),
 		permissions: vec![perm_id.clone()],
 	};
 	let result = role_repo.query_create_role(payload).await;
