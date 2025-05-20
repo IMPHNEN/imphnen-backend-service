@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 imphnen-entities = { path = "../imphnen-entities" }
+log.workspace = true
 axum.workspace = true
 tokio.workspace = true
 serde.workspace = true

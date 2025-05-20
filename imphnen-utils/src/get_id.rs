@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use surrealdb::sql::Thing;
 
 pub fn get_id(thing: &Thing) -> Result<(&str, &str)> {

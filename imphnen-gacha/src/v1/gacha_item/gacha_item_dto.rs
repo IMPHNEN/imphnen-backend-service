@@ -1,5 +1,5 @@
+use super::GachaItemSchema;
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::Thing;
 use utoipa::ToSchema;
 use validator::Validate;
 
@@ -20,11 +20,14 @@ pub struct GachaItemDto {
 	pub updated_at: Option<String>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct GachaItemDtoRaw {
-	pub id: Thing,
-	pub name: String,
-	pub is_deleted: bool,
-	pub created_at: Option<String>,
-	pub updated_at: Option<String>,
+impl GachaItemDto {
+	pub fn from(dto: &GachaItemSchema) -> Self {
+		Self {
+			id: dto.id.id.to_raw(),
+			name: dto.name.clone(),
+			is_deleted: dto.is_deleted,
+			created_at: dto.created_at.clone(),
+			updated_at: dto.updated_at.clone(),
+		}
+	}
 }

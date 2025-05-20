@@ -3,6 +3,7 @@ resolver = "2"
 members = [ 
   "tests",
   "imphnen-iam",
+  "imphnen-cms",
   "imphnen-libs",
   "imphnen-utils",
   "imphnen-gacha",
@@ -15,22 +16,23 @@ members = [
 
 
 [workspace.dependencies]
-axum = { version = "0.8.1", features = ["multipart"] }
+axum = { version = "0.8.4", features = ["multipart"] }
 log = "0.4.25"
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.138"
-tokio = { version = "1.43.0" }
+tokio = { version = "1.45.0" }
 argon2 = { version = "0.5.3", features = ["password-hash"] }
 jsonwebtoken = "9.3.1"
-chrono = "0.4.39"
+chrono = "0.4.41"
 utoipa = { version = "5.3.1", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "9.0.0", features = ["axum"] }
-lettre = { version = "0.11.12", features = ["tokio1-native-tls"] }
-surrealdb = { version = "2.2.1", features = ["kv-mem"] }
-thiserror = "2.0.11"
-anyhow = "1.0.97"
-rand = "0.9.0"
-tower-http = { version = "0.6.2", features = ["cors"] }
+lettre = { version = "0.11.16", features = ["tokio1-native-tls"] }
+surrealdb = { version = "2.3.2", features = ["kv-mem"] }
+thiserror = "2.0.12"
+anyhow = "1.0.98"
+rand = { version = "0.9.1", features = ["std", "alloc"] }
+rand_distr = "0.5.1"
+tower-http = { version = "0.6.4", features = ["cors"] }
 validator = { version = "0.12", features = ["derive"] }
 lazy_static = "1.4.0"
 regex = "1.11.1"

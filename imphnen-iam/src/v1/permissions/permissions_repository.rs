@@ -4,7 +4,7 @@ use crate::{
 	make_thing, query_list_with_meta,
 };
 use anyhow::{Result, bail};
-use imphnen_utils::extract_id;
+use imphnen_utils::{DetailQueryBuilder, extract_id};
 
 pub struct PermissionsRepository<'a> {
 	state: &'a AppState,
@@ -19,23 +19,15 @@ impl<'a> PermissionsRepository<'a> {
 		&self,
 		meta: MetaRequestDto,
 	) -> Result<ResponseListSuccessDto<Vec<PermissionsItemDto>>> {
-		let mut conditions = vec!["is_deleted = false".into()];
-		if meta.search.is_some() {
-			conditions.push("string::contains(name, $search)".into());
-		}
-		if meta.filter_by.is_some() && meta.filter.is_some() {
-			let filter_by = meta.filter_by.as_ref().unwrap();
-			conditions.push(format!("{} = $filter", filter_by));
-		}
 		let raw_result: ResponseListSuccessDto<Vec<PermissionsSchema>> =
 			query_list_with_meta(
 				&self.state.surrealdb_ws,
 				&ResourceEnum::Permissions.to_string(),
 				&meta,
-				conditions,
+				vec!["is_deleted = false".into()],
 				None,
 				"name",
-				None,
+				Some(vec!["*"]),
 				None,
 			)
 			.await?;
@@ -83,16 +75,16 @@ impl<'a> PermissionsRepository<'a> {
 		name: String,
 	) -> Result<PermissionsSchema> {
 		let db = &self.state.surrealdb_ws;
-		let sql = format!(
-			"SELECT * FROM {} WHERE name = $name AND is_deleted = false",
-			ResourceEnum::Permissions.to_string()
-		);
-		let result: Vec<PermissionsSchema> =
-			db.query(sql).bind(("name", name.clone())).await?.take(0)?;
-		if let Some(permission) = result.into_iter().next() {
-			Ok(permission.into())
-		} else {
-			bail!("Permission not found")
+		let builder = DetailQueryBuilder::new(ResourceEnum::Permissions.to_string())
+			.with_where("name")
+			.where_value(name.clone())
+			.with_select_fields(vec!["*"]);
+		let sql = builder.build();
+		let result: Option<PermissionsSchema> =
+			builder.apply_bindings(db.query(sql)).await?.take(0)?;
+		match result {
+			Some(permission) => Ok(permission),
+			None => bail!("Permission not found"),
 		}
 	}
 

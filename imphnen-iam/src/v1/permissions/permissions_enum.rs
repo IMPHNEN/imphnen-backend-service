@@ -18,6 +18,16 @@ pub enum PermissionsEnum {
 	CreatePermissions,
 	DeletePermissions,
 	UpdatePermissions,
+	CreateGachaClaims,
+	ReadDetailGachaClaims,
+	ReadListGachaItems,
+	ReadDetailGachaItems,
+	CreateGachaItems,
+	DeleteGachaItems,
+	UpdateGachaItems,
+	ReadDetailGachaRolls,
+	CreateGachaRolls,
+	ExecuteGachaRolls,
 }
 
 impl fmt::Display for PermissionsEnum {
@@ -39,6 +49,16 @@ impl fmt::Display for PermissionsEnum {
 			PermissionsEnum::CreatePermissions => "Create Permissions",
 			PermissionsEnum::DeletePermissions => "Delete Permissions",
 			PermissionsEnum::UpdatePermissions => "Update Permissions",
+			PermissionsEnum::CreateGachaClaims => "Create Gacha Claims",
+			PermissionsEnum::ReadDetailGachaClaims => "Read Detail Gacha Claims",
+			PermissionsEnum::ReadListGachaItems => "Read List Gacha Items",
+			PermissionsEnum::ReadDetailGachaItems => "Read Detail Gacha Items",
+			PermissionsEnum::CreateGachaItems => "Create Gacha Items",
+			PermissionsEnum::DeleteGachaItems => "Delete Gacha Items",
+			PermissionsEnum::UpdateGachaItems => "Update Gacha Items",
+			PermissionsEnum::ReadDetailGachaRolls => "Read Detail Gacha Rolls",
+			PermissionsEnum::CreateGachaRolls => "Create Gacha Rolls",
+			PermissionsEnum::ExecuteGachaRolls => "Execute Gacha Rolls",
 		};
 		write!(f, "{}", permission_str)
 	}

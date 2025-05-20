@@ -1,7 +1,7 @@
 use super::GachaItemSchema;
 use crate::{
-	AppState, MetaRequestDto, ResourceEnum, ResponseListSuccessDto, get_id,
-	make_thing, query_list_with_meta,
+	AppState, GachaItemDto, MetaRequestDto, ResourceEnum, ResponseListSuccessDto,
+	get_id, make_thing, query_list_with_meta,
 };
 use anyhow::{Result, bail};
 
@@ -17,22 +17,28 @@ impl<'a> GachaItemRepository<'a> {
 	pub async fn query_gacha_item_list(
 		&self,
 		meta: MetaRequestDto,
-	) -> Result<ResponseListSuccessDto<Vec<GachaItemSchema>>> {
-		let mut conditions = vec!["is_deleted = false".into()];
-		if meta.search.is_some() {
-			conditions.push("string::contains(name, $search)".into());
-		}
-		query_list_with_meta(
-			&self.state.surrealdb_ws,
-			&ResourceEnum::GachaItems.to_string(),
-			&meta,
-			conditions,
-			None,
-			"name",
-			None,
-			None,
-		)
-		.await
+	) -> Result<ResponseListSuccessDto<Vec<GachaItemDto>>> {
+		let raw_result: ResponseListSuccessDto<Vec<GachaItemSchema>> =
+			query_list_with_meta(
+				&self.state.surrealdb_ws,
+				&ResourceEnum::GachaItems.to_string(),
+				&meta,
+				vec!["is_deleted = false".into()],
+				None,
+				"name",
+				Some(vec!["*"]),
+				None,
+			)
+			.await?;
+		let transformed_data = raw_result
+			.data
+			.into_iter()
+			.map(|gacha_item| GachaItemDto::from(&gacha_item))
+			.collect();
+		Ok(ResponseListSuccessDto {
+			data: transformed_data,
+			meta: raw_result.meta,
+		})
 	}
 
 	pub async fn query_gacha_item_by_id(&self, id: String) -> Result<GachaItemSchema> {

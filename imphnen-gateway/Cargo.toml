@@ -7,6 +7,7 @@ edition = "2024"
 imphnen-iam = { version = "0.1.0", path = "../imphnen-iam" }
 imphnen-libs = { version = "0.1.0", path = "../imphnen-libs" }
 imphnen-utils = { version = "0.1.0", path = "../imphnen-utils" }
+imphnen-gacha = { version = "0.1.0", path = "../imphnen-gacha" }
 imphnen-entities = { version = "0.1.0", path = "../imphnen-entities" }
 imphnen-middleware = { version = "0.1.0", path = "../imphnen-middleware" }
 axum.workspace = true

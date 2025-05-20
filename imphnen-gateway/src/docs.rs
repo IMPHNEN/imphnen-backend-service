@@ -5,6 +5,7 @@ use utoipa::{
 	openapi::security::{Http, HttpAuthScheme, SecurityScheme},
 	Modify, OpenApi,
 };
+use imphnen_gacha::{gacha_claim, gacha_item, gacha_roll, GachaClaimItemDto, GachaClaimRequestDto, GachaItemDto, GachaItemRequestDto, GachaRollItemDto, GachaRollRequestDto};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -33,7 +34,17 @@ use utoipa::{
      permissions::permissions_controller::get_permission_by_id,
      permissions::permissions_controller::post_create_permission,
      permissions::permissions_controller::put_update_permission,
-     permissions::permissions_controller::delete_permission
+     permissions::permissions_controller::delete_permission,
+     gacha_claim::get_detail_gacha_claim,
+     gacha_claim::post_create_gacha_claim,
+     gacha_item::get_gacha_item_list,
+     gacha_item::get_gacha_item_by_id,
+     gacha_item::post_create_gacha_item,
+     gacha_item::put_update_gacha_item,
+     gacha_item::delete_gacha_item,
+     gacha_roll::get_detail_gacha_roll,
+     gacha_roll::post_create_gacha_roll,
+     gacha_roll::post_execute_gacha_roll,
     ),
     components(
         schemas(
@@ -56,6 +67,16 @@ use utoipa::{
            UsersListItemDto,
            UsersUpdateRequestDto,
            UsersCreateRequestDto,
+           GachaClaimItemDto,
+           GachaClaimRequestDto,
+           GachaItemDto,
+           GachaItemRequestDto,
+           GachaRollItemDto,
+           GachaRollRequestDto,
+           ResponseListSuccessDto<Vec<GachaItemDto>>,
+           ResponseSuccessDto<GachaRollItemDto>,
+           ResponseSuccessDto<GachaItemDto>,
+           ResponseSuccessDto<GachaClaimItemDto>,
            ResponseSuccessDto<AuthLoginResponsetDto>,
            ResponseListSuccessDto<Vec<RolesListItemDto>>,
            ResponseSuccessDto<RolesDetailItemDto>,

@@ -1,6 +1,9 @@
 use crate::{ResourceEnum, make_thing};
+use imphnen_iam::get_iso_date;
 use serde::{Deserialize, Serialize};
 use surrealdb::{Uuid, sql::Thing};
+
+use super::GachaItemRequestDto;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GachaItemSchema {
@@ -22,8 +25,24 @@ impl Default for GachaItemSchema {
 			name: String::new(),
 			image_url: String::new(),
 			is_deleted: false,
-			created_at: None,
-			updated_at: None,
+			created_at: Some(get_iso_date()),
+			updated_at: Some(get_iso_date()),
+		}
+	}
+}
+
+impl GachaItemSchema {
+	pub fn from(dto: GachaItemRequestDto) -> Self {
+		Self {
+			id: make_thing(
+				&ResourceEnum::GachaItems.to_string(),
+				&Uuid::new_v4().to_string(),
+			),
+			name: dto.name,
+			image_url: dto.image_url,
+			is_deleted: false,
+			created_at: Some(get_iso_date()),
+			updated_at: Some(get_iso_date()),
 		}
 	}
 }
