@@ -1,30 +1,5 @@
-use imphnen_iam::RolesRequestCreateDto;
-use surrealdb::Uuid;
-
-use crate::{MetaRequestDto, UsersRepository};
-use crate::{RolesRepository, create_mock_app_state, create_test_user};
-
-async fn get_role_id(state: &crate::AppState) -> String {
-	let repo = RolesRepository::new(state);
-	if let Ok(existing) = repo.query_role_by_name("User".into()).await {
-		return existing.id;
-	}
-	let _ = repo
-		.query_create_role(RolesRequestCreateDto {
-			name: "User".into(),
-			permissions: vec![],
-		})
-		.await;
-	repo
-		.query_role_by_name("User".into())
-		.await
-		.expect("Role not found after creation")
-		.id
-}
-
-fn generate_unique_email(prefix: &str) -> String {
-	format!("{}_{}@example.com", prefix, Uuid::new_v4())
-}
+use crate::{MetaRequestDto, UsersRepository, generate_unique_email, get_role_id};
+use crate::{create_mock_app_state, create_test_user};
 
 #[tokio::test]
 async fn test_create_and_get_user() {

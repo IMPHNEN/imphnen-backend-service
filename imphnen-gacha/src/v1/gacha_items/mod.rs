@@ -3,17 +3,17 @@ use axum::{
 	routing::{delete, get, post, put},
 };
 
-pub mod gacha_item_controller;
-pub mod gacha_item_dto;
-pub mod gacha_item_repository;
-pub mod gacha_item_schema;
-pub mod gacha_item_service;
+pub mod gacha_items_controller;
+pub mod gacha_items_dto;
+pub mod gacha_items_repository;
+pub mod gacha_items_schema;
+pub mod gacha_items_service;
 
-pub use gacha_item_controller::*;
-pub use gacha_item_dto::*;
-pub use gacha_item_repository::*;
-pub use gacha_item_schema::*;
-pub use gacha_item_service::*;
+pub use gacha_items_controller::*;
+pub use gacha_items_dto::*;
+pub use gacha_items_repository::*;
+pub use gacha_items_schema::*;
+pub use gacha_items_service::*;
 
 pub fn gacha_item_router() -> Router {
 	Router::new()

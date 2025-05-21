@@ -1,12 +1,14 @@
 use axum::Router;
 
-pub mod gacha_claim;
-pub mod gacha_item;
-pub mod gacha_roll;
+pub mod gacha_claims;
+pub mod gacha_credits;
+pub mod gacha_items;
+pub mod gacha_rolls;
 
-pub use gacha_claim::*;
-pub use gacha_item::*;
-pub use gacha_roll::*;
+pub use gacha_claims::*;
+pub use gacha_credits::*;
+pub use gacha_items::*;
+pub use gacha_rolls::*;
 
 pub fn gacha_router() -> Router {
 	Router::new()

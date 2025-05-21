@@ -2,13 +2,14 @@
 mod auth_repository_test {
 	use crate::{
 		AuthOtpSchema, AuthRepository, ResourceEnum, UsersRepository, UsersSchema,
-		create_mock_app_state, get_iso_date, make_thing,
+		create_mock_app_state, generate_unique_email, get_iso_date, get_role_id,
+		make_thing,
 	};
 	use chrono::{Duration, Utc};
-	use imphnen_iam::{RolesDetailQueryDto, UsersDetailQueryDto};
+	use imphnen_iam::{AppState, RolesDetailQueryDto, UsersDetailQueryDto};
 	use surrealdb::Uuid;
 
-	fn create_mock_user(email: &str) -> UsersSchema {
+	async fn create_mock_user(state: &AppState, email: &str) -> UsersSchema {
 		UsersSchema {
 			id: make_thing("app_users", &Uuid::new_v4().to_string()),
 			email: email.to_string(),
@@ -20,7 +21,7 @@ mod auth_repository_test {
 			is_active: true,
 			gender: None,
 			birthdate: None,
-			role: make_thing("roles", "user"),
+			role: make_thing("app_roles", &get_role_id(state).await),
 			created_at: get_iso_date(),
 			updated_at: get_iso_date(),
 		}
@@ -30,10 +31,13 @@ mod auth_repository_test {
 	async fn test_store_and_get_user() {
 		let app_state = create_mock_app_state().await;
 		let repo = AuthRepository::new(&app_state);
-		let user = create_mock_user("forgot@example.com");
+		let email = generate_unique_email("forgot");
+		let user = create_mock_user(&app_state, &email).await;
 		let user_repo = UsersRepository::new(&app_state);
+		let create_user = user_repo.query_create_user(user.clone()).await;
+		assert!(create_user.is_ok());
 		let user_data = user_repo
-			.query_user_by_email("forgot@example.com".to_string())
+			.query_user_by_email(email.to_string())
 			.await
 			.unwrap();
 		let store = repo.query_store_user(user_data.clone()).await;

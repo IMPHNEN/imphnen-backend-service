@@ -46,9 +46,7 @@ impl GachaClaimSchema {
 			),
 			user: make_thing(&ResourceEnum::Users.to_string(), &dto.user_id),
 			item: make_thing(&ResourceEnum::GachaItems.to_string(), &dto.item_id),
-			is_deleted: false,
-			created_at: Some(get_iso_date()),
-			updated_at: Some(get_iso_date()),
+			..Default::default()
 		}
 	}
 

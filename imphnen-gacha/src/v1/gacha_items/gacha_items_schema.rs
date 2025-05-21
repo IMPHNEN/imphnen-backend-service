@@ -40,9 +40,7 @@ impl GachaItemSchema {
 			),
 			name: dto.name,
 			image_url: dto.image_url,
-			is_deleted: false,
-			created_at: Some(get_iso_date()),
-			updated_at: Some(get_iso_date()),
+			..Default::default()
 		}
 	}
 }

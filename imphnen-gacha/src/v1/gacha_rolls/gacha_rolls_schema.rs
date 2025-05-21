@@ -46,9 +46,7 @@ impl GachaRollSchema {
 			item: make_thing(&ResourceEnum::GachaItems.to_string(), &dto.item_id),
 			weight: dto.weight,
 			quantity: dto.quantity,
-			is_deleted: false,
-			created_at: Some(get_iso_date()),
-			updated_at: Some(get_iso_date()),
+			..Default::default()
 		}
 	}
 }
