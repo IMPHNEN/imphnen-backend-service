@@ -11,6 +11,10 @@ use crate::{
 };
 use surrealdb::Uuid;
 
+fn generate_unique_name(prefix: &str) -> String {
+	format!("{}_{}", prefix, Uuid::new_v4())
+}
+
 #[tokio::test]
 async fn test_query_create_role_should_succeed() {
 	let state = create_mock_app_state().await;
@@ -19,14 +23,14 @@ async fn test_query_create_role_should_succeed() {
 	let perm_id = Uuid::new_v4().to_string();
 	let permission = PermissionsSchema {
 		id: make_thing(&ResourceEnum::Permissions.to_string(), &perm_id.clone()),
-		name: "Read Quiz".into(),
+		name: generate_unique_name("read_quiz"),
 		is_deleted: false,
 		created_at: Some(get_iso_date()),
 		updated_at: Some(get_iso_date()),
 	};
 	perm_repo.query_create_permission(permission).await.unwrap();
 	let payload = RolesRequestCreateDto {
-		name: "User".into(),
+		name: generate_unique_name("user"),
 		permissions: vec![perm_id.clone()],
 	};
 	let result = role_repo.query_create_role(payload).await;
@@ -37,27 +41,29 @@ async fn test_query_create_role_should_succeed() {
 async fn test_query_role_by_name_should_return_data() {
 	let state = create_mock_app_state().await;
 	let role_repo = RolesRepository::new(&state);
+	let name = generate_unique_name("viewer");
 	let payload = RolesRequestCreateDto {
-		name: "Viewer".into(),
+		name: name.clone(),
 		permissions: vec![],
 	};
 	role_repo.query_create_role(payload.clone()).await.unwrap();
-	let role = role_repo.query_role_by_name("Viewer".into()).await.unwrap();
-	assert_eq!(role.name, "Viewer");
+	let role = role_repo.query_role_by_name(name.clone()).await.unwrap();
+	assert_eq!(role.name, name.clone());
 }
 
 #[tokio::test]
 async fn test_query_role_by_id_should_return_data() {
 	let state = create_mock_app_state().await;
 	let role_repo = RolesRepository::new(&state);
+	let name = generate_unique_name("tester");
 	let payload = RolesRequestCreateDto {
-		name: "Tester".into(),
+		name: name.clone(),
 		permissions: vec![],
 	};
 	role_repo.query_create_role(payload.clone()).await.unwrap();
-	let role = role_repo.query_role_by_name("Tester".into()).await.unwrap();
+	let role = role_repo.query_role_by_name(name.clone()).await.unwrap();
 	let result = role_repo.query_role_by_id(role.id).await.unwrap();
-	assert_eq!(result.name, "Tester");
+	assert_eq!(result.name, name.clone());
 }
 
 #[tokio::test]
@@ -116,15 +122,13 @@ async fn test_query_update_role_should_update_name_and_permissions() {
 async fn test_query_delete_role_should_soft_delete() {
 	let state = create_mock_app_state().await;
 	let role_repo = RolesRepository::new(&state);
+	let name = generate_unique_name("temporary");
 	let payload = RolesRequestCreateDto {
-		name: "Temporary".into(),
+		name: name.clone(),
 		permissions: vec![],
 	};
 	role_repo.query_create_role(payload.clone()).await.unwrap();
-	let role = role_repo
-		.query_role_by_name("Temporary".into())
-		.await
-		.unwrap();
+	let role = role_repo.query_role_by_name(name.clone()).await.unwrap();
 	let result = role_repo.query_delete_role(role.id.clone()).await;
 	assert!(result.is_ok());
 	let deleted = role_repo.query_role_by_id(role.id).await;
@@ -178,15 +182,13 @@ async fn test_query_role_by_name_should_fail_if_not_found() {
 async fn test_query_delete_role_should_fail_if_already_deleted() {
 	let state = create_mock_app_state().await;
 	let role_repo = RolesRepository::new(&state);
+	let name = generate_unique_name("soft_delete_test");
 	let payload = RolesRequestCreateDto {
-		name: "SoftDeleteTest".into(),
+		name: name.clone(),
 		permissions: vec![],
 	};
 	role_repo.query_create_role(payload.clone()).await.unwrap();
-	let role = role_repo
-		.query_role_by_name("SoftDeleteTest".into())
-		.await
-		.unwrap();
+	let role = role_repo.query_role_by_name(name.clone()).await.unwrap();
 	role_repo.query_delete_role(role.id.clone()).await.unwrap();
 	let result = role_repo.query_delete_role(role.id);
 	assert!(result.await.is_err());
