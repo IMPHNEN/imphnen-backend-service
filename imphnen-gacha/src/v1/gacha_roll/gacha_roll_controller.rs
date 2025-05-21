@@ -88,7 +88,7 @@ pub async fn post_execute_gacha_roll(
 	)
 	.await
 	{
-		Ok(_) => GachaRollService::execute_roll_once(&state).await,
+		Ok(_) => GachaRollService::execute_roll_once(headers, &state).await,
 		Err(response) => response,
 	}
 }

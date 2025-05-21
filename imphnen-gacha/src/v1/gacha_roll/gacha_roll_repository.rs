@@ -2,6 +2,7 @@ use super::GachaRollQueryDto;
 use super::GachaRollSchema;
 use crate::{AppState, DetailQueryBuilder, ResourceEnum};
 use anyhow::{Result, bail};
+use imphnen_iam::ListQueryBuilder;
 use rand::prelude::*;
 use rand::rng;
 use rand_distr::weighted::WeightedIndex;
@@ -50,12 +51,10 @@ impl<'a> GachaRollRepository<'a> {
 
 	pub async fn query_all_active_rolls(&self) -> Result<Vec<GachaRollQueryDto>> {
 		let db = &self.state.surrealdb_ws;
-		let sql = DetailQueryBuilder::new(ResourceEnum::GachaRolls.to_string())
-			.with_where("is_deleted")
-			.where_value("false")
+		let builder = ListQueryBuilder::new(ResourceEnum::GachaRolls.to_string())
 			.with_select_fields(vec!["*"])
-			.with_fetch("item")
-			.build();
+			.with_fetch(Some(vec!["item"]));
+		let sql = builder.build();
 		let result: Vec<GachaRollQueryDto> = db.query(sql).await?.take(0)?;
 		Ok(result)
 	}

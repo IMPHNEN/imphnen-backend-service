@@ -1,13 +1,24 @@
+use imphnen_iam::RolesRequestCreateDto;
 use surrealdb::Uuid;
 
 use crate::{MetaRequestDto, UsersRepository};
 use crate::{RolesRepository, create_mock_app_state, create_test_user};
 
 async fn get_role_id(state: &crate::AppState) -> String {
-	RolesRepository::new(state)
+	let repo = RolesRepository::new(state);
+	if let Ok(existing) = repo.query_role_by_name("User".into()).await {
+		return existing.id;
+	}
+	let _ = repo
+		.query_create_role(RolesRequestCreateDto {
+			name: "User".into(),
+			permissions: vec![],
+		})
+		.await;
+	repo
 		.query_role_by_name("User".into())
 		.await
-		.expect("Role not found")
+		.expect("Role not found after creation")
 		.id
 }
 

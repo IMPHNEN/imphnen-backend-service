@@ -74,7 +74,7 @@ async fn test_query_update_role_should_update_name_and_permissions() {
 	let original_perm_id = Uuid::new_v4().to_string();
 	let original_perm = PermissionsSchema {
 		id: make_thing(&ResourceEnum::Permissions.to_string(), &original_perm_id),
-		name: "Original Permission".into(),
+		name: generate_unique_name("original_permission"),
 		is_deleted: false,
 		created_at: Some(crate::get_iso_date()),
 		updated_at: None,
@@ -83,13 +83,14 @@ async fn test_query_update_role_should_update_name_and_permissions() {
 		.query_create_permission(original_perm)
 		.await
 		.unwrap();
+	let role_upadate_name = generate_unique_name("role_for_update");
 	let create_payload = RolesRequestCreateDto {
-		name: "Role For Update".into(),
+		name: role_upadate_name.clone(),
 		permissions: vec![original_perm_id.clone()],
 	};
 	repo.query_create_role(create_payload).await.unwrap();
 	let existing_role = repo
-		.query_role_by_name("Role For Update".into())
+		.query_role_by_name(role_upadate_name.clone())
 		.await
 		.unwrap();
 	let existing_role_id = existing_role.id.clone();
@@ -101,9 +102,10 @@ async fn test_query_update_role_should_update_name_and_permissions() {
 		created_at: Some(crate::get_iso_date()),
 		updated_at: None,
 	};
+	let new_role_name = generate_unique_name("updated_role_name");
 	perm_repo.query_create_permission(new_perm).await.unwrap();
 	let update_payload = RolesRequestUpdateDto {
-		name: Some("Updated Role Name".into()),
+		name: Some(new_role_name.clone()),
 		permissions: Some(vec![new_perm_id.clone()]),
 		overwrite: None,
 	};
@@ -115,7 +117,7 @@ async fn test_query_update_role_should_update_name_and_permissions() {
 		.query_role_by_id(existing_role_id.clone())
 		.await
 		.unwrap();
-	assert_eq!(updated.name, "Updated Role Name");
+	assert_eq!(updated.name, new_role_name.clone());
 }
 
 #[tokio::test]

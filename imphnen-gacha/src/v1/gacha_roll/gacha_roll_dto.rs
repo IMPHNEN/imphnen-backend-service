@@ -8,7 +8,6 @@ use validator::Validate;
 pub struct GachaRollRequestDto {
 	#[validate(length(min = 1, message = "Item ID must not be empty"))]
 	pub item_id: String,
-	#[validate(range(min = 1, message = "Weight must be greater than zero"))]
 	pub weight: f32,
 	#[validate(range(min = 1, message = "Quantity must be at least 1"))]
 	pub quantity: i32,
@@ -18,7 +17,7 @@ pub struct GachaRollRequestDto {
 pub struct GachaRollItemDto {
 	pub id: String,
 	pub item: GachaItemDto,
-	pub weight: String,
+	pub weight: f32,
 	pub quantity: i32,
 	pub is_deleted: bool,
 	pub created_at: Option<String>,
@@ -30,7 +29,7 @@ impl GachaRollItemDto {
 		Self {
 			id: dto.id.id.to_raw(),
 			item: GachaItemDto::from(dto.item.clone()),
-			weight: dto.weight.to_string(),
+			weight: dto.weight.clone(),
 			quantity: dto.quantity,
 			is_deleted: dto.is_deleted,
 			created_at: dto.created_at.clone(),

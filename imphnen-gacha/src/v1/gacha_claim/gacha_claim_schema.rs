@@ -1,4 +1,5 @@
-use crate::{ResourceEnum, make_thing};
+use crate::{GachaRollQueryDto, ResourceEnum, make_thing};
+use imphnen_iam::get_iso_date;
 use serde::{Deserialize, Serialize};
 use surrealdb::{Uuid, sql::Thing};
 
@@ -30,8 +31,8 @@ impl Default for GachaClaimSchema {
 				&Uuid::new_v4().to_string(),
 			),
 			is_deleted: false,
-			created_at: None,
-			updated_at: None,
+			created_at: Some(get_iso_date()),
+			updated_at: Some(get_iso_date()),
 		}
 	}
 }
@@ -46,8 +47,20 @@ impl GachaClaimSchema {
 			user: make_thing(&ResourceEnum::Users.to_string(), &dto.user_id),
 			item: make_thing(&ResourceEnum::GachaItems.to_string(), &dto.item_id),
 			is_deleted: false,
-			created_at: None,
-			updated_at: None,
+			created_at: Some(get_iso_date()),
+			updated_at: Some(get_iso_date()),
+		}
+	}
+
+	pub fn roll(roll: GachaRollQueryDto, user_id: Thing) -> Self {
+		Self {
+			id: make_thing(
+				&ResourceEnum::GachaClaims.to_string(),
+				&Uuid::new_v4().to_string(),
+			),
+			user: user_id,
+			item: roll.item.id.clone(),
+			..Default::default()
 		}
 	}
 }
