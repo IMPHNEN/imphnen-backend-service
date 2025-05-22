@@ -94,7 +94,6 @@ impl AuthService {
 		if let Err((status, message)) = validate_request(&payload) {
 			return common_response(status, &message);
 		}
-
 		let user_repo = UsersRepository::new(state);
 		let auth_repo = AuthRepository::new(state);
 		let role_repo = RolesRepository::new(state);
@@ -105,7 +104,6 @@ impl AuthService {
 			Ok(role) => role,
 			Err(_) => return common_response(StatusCode::BAD_REQUEST, "Role Not Found"),
 		};
-
 		if user_repo
 			.query_user_by_email(payload.email.clone())
 			.await
@@ -113,7 +111,6 @@ impl AuthService {
 		{
 			return common_response(StatusCode::BAD_REQUEST, "User already exists");
 		}
-
 		let hashed_password = match hash_password(&payload.password) {
 			Ok(hash) => hash,
 			Err(_) => {
@@ -123,16 +120,13 @@ impl AuthService {
 				);
 			}
 		};
-
 		let new_user = AuthRegisterRequestDto {
 			email: payload.email,
 			password: hashed_password,
 			fullname: payload.fullname,
 			phone_number: payload.phone_number,
 		};
-
 		let otp = generate_otp::OtpManager::generate_otp();
-
 		match auth_repo
 			.query_store_otp(new_user.email.clone(), otp.clone())
 			.await
@@ -150,13 +144,11 @@ impl AuthService {
 				return common_response(StatusCode::INTERNAL_SERVER_ERROR, &err.to_string());
 			}
 		}
-
 		let role_thing = make_thing(&ResourceEnum::Roles.to_string(), &role.id);
 		let user_thing = make_thing(
 			&ResourceEnum::Users.to_string(),
 			&Uuid::new_v4().to_string(),
 		);
-
 		match user_repo
 			.query_create_user(UsersSchema {
 				id: user_thing,
@@ -185,7 +177,6 @@ impl AuthService {
 		if let Err((status, message)) = validate_request(&payload) {
 			return common_response(status, &message);
 		}
-
 		let user_repo = UsersRepository::new(state);
 		if user_repo
 			.query_user_by_email(payload.email.clone())
@@ -194,10 +185,8 @@ impl AuthService {
 		{
 			return common_response(StatusCode::BAD_REQUEST, "User not found");
 		}
-
 		let auth_repo = AuthRepository::new(state);
 		let _ = auth_repo.query_get_stored_otp(payload.email.clone()).await;
-
 		let otp = generate_otp::OtpManager::generate_otp();
 		let message = format!("Your OTP code is {}", otp);
 		match auth_repo.query_store_otp(payload.email.clone(), otp).await {

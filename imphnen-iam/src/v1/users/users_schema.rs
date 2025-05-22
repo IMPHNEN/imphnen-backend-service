@@ -56,7 +56,7 @@ impl UsersSchema {
 			password: dto.password,
 			created_at: dto.created_at,
 			updated_at: dto.updated_at,
-			role: make_thing(&ResourceEnum::Roles.to_string(), &dto.role.id.to_string()),
+			role: make_thing(&ResourceEnum::Roles.to_string(), &dto.role.id.id.to_raw()),
 		}
 	}
 

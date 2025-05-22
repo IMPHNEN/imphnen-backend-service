@@ -125,9 +125,9 @@ impl<'a> UsersRepository<'a> {
 			bail!("User already deleted");
 		}
 		let role_thing = if data.role == existing.role.id {
-			existing.role.id
+			existing.role.id.clone()
 		} else {
-			data.clone().role
+			data.role.clone()
 		};
 		let merged = UsersSchema {
 			password: existing.password,
