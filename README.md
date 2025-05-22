@@ -12,8 +12,9 @@ This repository serves as the **monorepo** for all backend services of IMPHNEN. 
 4. **IMPHNEN-Gacha** - Supports the gacha services by IMPHNEN [Gacha website](https://gacha.imphnen.dev/).
 5. **IMPHNEN-Dimentorin** - Supports the mentoring services by IMPHNEN [Dimentorin website](https://dimentorin.imphnen.dev/).
 6. **IMPHNEN-Gateway** - Acts as the API gateway, routing requests to appropriate services.
+7. **IMPHNEN-Middleware** - Acts as the middleware for the API Gateway, providing authentication and authorization.
 
-## IMPORTANT How to Install
+## How to Install
 
 1. **Clone the repository**:
 
@@ -107,7 +108,7 @@ For production deployment:
 1. **Run the tests**:
 
    ```sh
-   cargo test
+   cargo test -p tests
    ```
 
 ## How to Contribute
