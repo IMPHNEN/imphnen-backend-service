@@ -50,7 +50,7 @@ This repository serves as the **monorepo** for all backend services of IMPHNEN. 
    Ensure you have [Rust](https://www.rust-lang.org/) installed. Then, run:
 
    ```sh
-   cargo check
+   cargo fetch
    ```
 
 4. **Run the seeders**:
@@ -92,13 +92,13 @@ For production deployment:
 1. **Build the Docker image**:
 
    ```sh
-   docker build -t imphnen-backend-service .
+   docker build -t imphnen-backend .
    ```
 
 2. **Run the Docker container**:
 
    ```sh
-   docker run -d --env-file .env -p 3000:3000 imphnen-backend-service
+   docker run -d --env-file .env -p 3000:3000 imphnen-backend
    ```
 
    Adjust the port and environment variables as needed.
