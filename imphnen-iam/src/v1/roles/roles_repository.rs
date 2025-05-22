@@ -28,7 +28,6 @@ impl<'a> RolesRepository<'a> {
 			&ResourceEnum::Roles.to_string(),
 			&meta,
 		)
-		.with_condition("is_deleted = false")
 		.search_field("name")
 		.build()
 		.await?;

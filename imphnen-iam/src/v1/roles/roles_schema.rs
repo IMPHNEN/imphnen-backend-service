@@ -46,7 +46,7 @@ impl RolesSchema {
 				.permissions
 				.into_iter()
 				.map(|perm| {
-					make_thing(&ResourceEnum::Permissions.to_string(), &perm.id.to_raw())
+					make_thing(&ResourceEnum::Permissions.to_string(), &perm.id.id.to_raw())
 				})
 				.collect(),
 			is_deleted: dto.is_deleted,

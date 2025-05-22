@@ -24,19 +24,25 @@ pub struct UsersSchema {
 impl Default for UsersSchema {
 	fn default() -> Self {
 		Self {
-			id: Thing::from(("app_users", "dummy")),
-			fullname: "".into(),
-			email: "".into(),
-			password: "".into(),
+			id: make_thing(
+				&ResourceEnum::Users.to_string(),
+				&Uuid::new_v4().to_string(),
+			),
+			fullname: String::new(),
+			email: String::new(),
+			password: hash_password("").unwrap(),
 			avatar: None,
-			phone_number: "".into(),
+			phone_number: String::new(),
 			is_active: false,
 			is_deleted: false,
 			gender: None,
 			birthdate: None,
-			role: Thing::from(("app_roles", "dummy")),
-			created_at: "".into(),
-			updated_at: "".into(),
+			role: make_thing(
+				&ResourceEnum::Roles.to_string(),
+				"5713cb37-dc02-4e87-8048-d7a41d352059",
+			),
+			created_at: get_iso_date(),
+			updated_at: get_iso_date(),
 		}
 	}
 }
