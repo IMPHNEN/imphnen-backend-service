@@ -10,6 +10,7 @@ imphnen-utils = { version = "0.1.0", path = "../imphnen-utils" }
 imphnen-gacha = { version = "0.1.0", path = "../imphnen-gacha" }
 imphnen-entities = { version = "0.1.0", path = "../imphnen-entities" }
 imphnen-middleware = { version = "0.1.0", path = "../imphnen-middleware" }
+imphnen-cms = { version = "0.1.0", path = "../imphnen-cms" }
 axum.workspace = true
 serde.workspace = true
 serde_json.workspace = true
