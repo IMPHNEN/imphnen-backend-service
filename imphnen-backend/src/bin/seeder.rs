@@ -19,6 +19,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 	run_seed("seed_roles")?;
 	run_seed("seed_roles_permissions")?;
 	run_seed("seed_users")?;
+	run_seed("seed_events")?;
 
 	println!("\n✅ All seeding completed successfully.");
 	Ok(())

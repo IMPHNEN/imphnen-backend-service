@@ -6,6 +6,8 @@ use utoipa::{
 	Modify, OpenApi,
 };
 use imphnen_gacha::{gacha_claims, gacha_items, gacha_rolls, GachaClaimItemDto, GachaClaimRequestDto, GachaItemDto, GachaItemRequestDto, GachaRollItemDto, GachaRollRequestDto};
+use imphnen_cms::v1::landing::events::{events_controller, events_dto::{EventsDetailItemDto, EventsListItemDto}};
+
 
 #[derive(OpenApi)]
 #[openapi(
@@ -45,6 +47,11 @@ use imphnen_gacha::{gacha_claims, gacha_items, gacha_rolls, GachaClaimItemDto, G
      gacha_rolls::get_detail_gacha_roll,
      gacha_rolls::post_create_gacha_roll,
      gacha_rolls::post_execute_gacha_roll,
+	 events_controller::get_event_list,
+	 events_controller::get_event_by_id,
+	 events_controller::post_create_event,
+	 events_controller::patch_update_event,
+	 events_controller::delete_event,
     ),
     components(
         schemas(
@@ -83,7 +90,12 @@ use imphnen_gacha::{gacha_claims, gacha_items, gacha_rolls, GachaClaimItemDto, G
            ResponseListSuccessDto<Vec<UsersListItemDto>>,
            ResponseSuccessDto<UsersDetailItemDto>,
            ResponseListSuccessDto<Vec<PermissionsItemDto>>,
-           ResponseSuccessDto<PermissionsItemDto>
+           ResponseSuccessDto<PermissionsItemDto>,
+		   ResponseListSuccessDto<Vec<EventsListItemDto>>,
+		   ResponseSuccessDto<EventsDetailItemDto>,
+		   MessageResponseDto,
+		   MessageResponseDto,
+		   MessageResponseDto,
         )
     ),
     info(

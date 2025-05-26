@@ -12,6 +12,7 @@ pub enum ResourceEnum {
 	Roles,
 	Permissions,
 	RolesPermissions,
+	Events,
 }
 
 impl fmt::Display for ResourceEnum {
@@ -27,6 +28,7 @@ impl fmt::Display for ResourceEnum {
 			ResourceEnum::GachaClaims => "app_gacha_claims",
 			ResourceEnum::GachaRolls => "app_gacha_rolls",
 			ResourceEnum::GachaCredits => "app_gacha_credits",
+			ResourceEnum::Events => "app_events",
 		};
 		write!(f, "{}", str)
 	}

@@ -1,6 +1,7 @@
 use axum::{
 	Extension, Router, middleware::from_fn, response::Redirect, routing::get,
 };
+use imphnen_cms::v1::landing::events::events_public_routes;
 use imphnen_entities::{AppState, SurrealMemClient, SurrealWsClient};
 use imphnen_gacha::gacha_router;
 use imphnen_iam::{iam_protected_routes, iam_public_routes};
@@ -20,6 +21,7 @@ pub async fn gateway_service(
 	};
 
 	let public_routes = iam_public_routes();
+	let events_public_routes = events_public_routes();
 
 	let protected_routes = Router::new()
 		.merge(iam_protected_routes())
@@ -28,7 +30,7 @@ pub async fn gateway_service(
 
 	Router::new()
 		.route("/", get(Redirect::to("/docs")))
-		.nest("/v1", public_routes.merge(protected_routes))
+		.nest("/v1", public_routes.merge(protected_routes).merge(events_public_routes))
 		.merge(SwaggerUi::new("/docs").url("/openapi.json", docs_router()))
 		.layer(cors_middleware())
 		.layer(Extension(state))
