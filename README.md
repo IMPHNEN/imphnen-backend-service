@@ -98,7 +98,7 @@ For production deployment:
 2. **Run the Docker container**:
 
    ```sh
-   docker run -d --env-file .env -p 3000:3000 imphnen-backend
+   docker run --name imphnen-backend -d --env-file .env -p 3000:3000 imphnen-backend
    ```
 
    Adjust the port and environment variables as needed.
