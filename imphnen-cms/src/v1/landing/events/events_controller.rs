@@ -1,18 +1,21 @@
 use super::{
-    events_dto::{EventsCreateRequestDto, EventsDetailItemDto, EventsListItemDto, EventsUpdateRequestDto},
-    events_service::EventsService,
+	events_dto::{
+		EventsCreateRequestDto, EventsDetailItemDto, EventsListItemDto,
+		EventsUpdateRequestDto,
+	},
+	events_service::EventsService,
 };
-use imphnen_libs::{AppState, MetaRequestDto, ResponseListSuccessDto, ResponseSuccessDto, MessageResponseDto};
 use axum::extract::{Path, Query};
 use axum::response::IntoResponse;
 use axum::{Extension, Json};
+use imphnen_libs::{
+	AppState, MessageResponseDto, MetaRequestDto, ResponseListSuccessDto,
+	ResponseSuccessDto,
+};
 
 #[utoipa::path(
     get,
-    security(
-        ("Bearer" = [])
-    ),
-    path = "/v1/events",
+    path = "/v1/cms/landing/events",
     params(
         ("page" = Option<i64>, Query, description = "Page number"),
         ("per_page" = Option<i64>, Query, description = "Items per page"),
@@ -28,18 +31,15 @@ use axum::{Extension, Json};
     tag = "Events"
 )]
 pub async fn get_event_list(
-    Extension(state): Extension<AppState>,
-    Query(meta): Query<MetaRequestDto>,
+	Extension(state): Extension<AppState>,
+	Query(meta): Query<MetaRequestDto>,
 ) -> impl IntoResponse {
-    EventsService::get_event_list(&state, meta).await
+	EventsService::get_event_list(&state, meta).await
 }
 
 #[utoipa::path(
     get,
-    security(
-        ("Bearer" = [])
-    ),
-    path = "/v1/events/detail/{id}",
+    path = "/v1/cms/landing/events/detail/{id}",
     params(
         ("id" = String, Path, description = "Event ID")
     ),
@@ -49,10 +49,10 @@ pub async fn get_event_list(
     tag = "Events"
 )]
 pub async fn get_event_by_id(
-    Extension(state): Extension<AppState>,
-    Path(id): Path<String>,
+	Extension(state): Extension<AppState>,
+	Path(id): Path<String>,
 ) -> impl IntoResponse {
-    EventsService::get_event_by_id(&state, id).await
+	EventsService::get_event_by_id(&state, id).await
 }
 
 #[utoipa::path(
@@ -60,7 +60,7 @@ pub async fn get_event_by_id(
     security(
         ("Bearer" = [])
     ),
-    path = "/v1/events/create",
+    path = "/v1/cms/landing/events/create",
     request_body = EventsCreateRequestDto,
     responses(
         (status = 201, description = "Create new event", body = MessageResponseDto)
@@ -68,10 +68,10 @@ pub async fn get_event_by_id(
     tag = "Events"
 )]
 pub async fn post_create_event(
-    Extension(state): Extension<AppState>,
-    Json(payload): Json<EventsCreateRequestDto>,
+	Extension(state): Extension<AppState>,
+	Json(payload): Json<EventsCreateRequestDto>,
 ) -> impl IntoResponse {
-    EventsService::create_event(&state, payload).await
+	EventsService::create_event(&state, payload).await
 }
 
 #[utoipa::path(
@@ -79,7 +79,7 @@ pub async fn post_create_event(
     security(
         ("Bearer" = [])
     ),
-    path = "/v1/events/update/{id}",
+    path = "/v1/cms/landing/events/update/{id}",
     params(
         ("id" = String, Path, description = "Event ID")
     ),
@@ -90,11 +90,11 @@ pub async fn post_create_event(
     tag = "Events"
 )]
 pub async fn patch_update_event(
-    Extension(state): Extension<AppState>,
-    Path(id): Path<String>,
-    Json(payload): Json<EventsUpdateRequestDto>,
+	Extension(state): Extension<AppState>,
+	Path(id): Path<String>,
+	Json(payload): Json<EventsUpdateRequestDto>,
 ) -> impl IntoResponse {
-    EventsService::update_event(&state, id, payload).await
+	EventsService::update_event(&state, id, payload).await
 }
 
 #[utoipa::path(
@@ -102,7 +102,7 @@ pub async fn patch_update_event(
     security(
         ("Bearer" = [])
     ),
-    path = "/v1/events/delete/{id}",
+    path = "/v1/cms/landing/events/delete/{id}",
     params(
         ("id" = String, Path, description = "Event ID")
     ),
@@ -112,8 +112,8 @@ pub async fn patch_update_event(
     tag = "Events"
 )]
 pub async fn delete_event(
-    Extension(state): Extension<AppState>,
-    Path(id): Path<String>,
+	Extension(state): Extension<AppState>,
+	Path(id): Path<String>,
 ) -> impl IntoResponse {
-    EventsService::delete_event(&state, id).await
+	EventsService::delete_event(&state, id).await
 }

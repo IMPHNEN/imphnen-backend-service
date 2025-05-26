@@ -4,6 +4,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     build-essential \
     libssl-dev \
+    libssl1.1 \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
 

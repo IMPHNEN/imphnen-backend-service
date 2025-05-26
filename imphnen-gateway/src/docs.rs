@@ -6,7 +6,7 @@ use utoipa::{
 	Modify, OpenApi,
 };
 use imphnen_gacha::{gacha_claims, gacha_items, gacha_rolls, GachaClaimItemDto, GachaClaimRequestDto, GachaItemDto, GachaItemRequestDto, GachaRollItemDto, GachaRollRequestDto};
-use imphnen_cms::v1::landing::events::{events_controller, events_dto::{EventsDetailItemDto, EventsListItemDto}};
+use imphnen_cms::{events_controller, events_dto::{EventsDetailItemDto, EventsListItemDto}};
 
 
 #[derive(OpenApi)]

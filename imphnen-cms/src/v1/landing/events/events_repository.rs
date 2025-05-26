@@ -1,8 +1,7 @@
+use super::{events_dto::EventsQueryDto, events_schema::EventsSchema};
 use anyhow::{Result, bail};
 use imphnen_libs::{AppState, MetaRequestDto, ResourceEnum, ResponseListSuccessDto};
 use imphnen_utils::{DetailQueryBuilder, ListQueryBuilder, get_id, get_iso_date};
-
-use super::{events_dto::EventsQueryDto, events_schema::EventsSchema};
 
 pub struct EventsRepository<'a> {
 	state: &'a AppState,
@@ -13,7 +12,6 @@ impl<'a> EventsRepository<'a> {
 		Self { state }
 	}
 
-	// Get list of events with pagination and sorting by newest
 	pub async fn query_event_list(
 		&self,
 		meta: MetaRequestDto,
