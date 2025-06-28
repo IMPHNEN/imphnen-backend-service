@@ -6,7 +6,7 @@ use utoipa::{
 	Modify, OpenApi,
 };
 use imphnen_gacha::{gacha_claims, gacha_items, gacha_rolls, GachaClaimItemDto, GachaClaimRequestDto, GachaItemDto, GachaItemRequestDto, GachaRollItemDto, GachaRollRequestDto};
-use imphnen_cms::{events_controller, events_dto::{EventsDetailItemDto, EventsListItemDto}};
+use imphnen_cms::{events_controller, events_dto::{EventsDetailItemDto, EventsListItemDto}, testimonials_controller, testimonials_dto::{TestimonialsCreateRequestDto, TestimonialsDetailItemDto, TestimonialsListItemDto, TestimonialsUpdateRequestDto}};
 
 
 #[derive(OpenApi)]
@@ -52,6 +52,11 @@ use imphnen_cms::{events_controller, events_dto::{EventsDetailItemDto, EventsLis
 	 events_controller::post_create_event,
 	 events_controller::patch_update_event,
 	 events_controller::delete_event,
+	 testimonials_controller::get_testimonial_list,
+	 testimonials_controller::get_testimonial_by_id,
+	 testimonials_controller::post_create_testimonial,
+	 testimonials_controller::patch_update_testimonial,
+	 testimonials_controller::delete_testimonial,
     ),
     components(
         schemas(
@@ -93,8 +98,10 @@ use imphnen_cms::{events_controller, events_dto::{EventsDetailItemDto, EventsLis
            ResponseSuccessDto<PermissionsItemDto>,
 		   ResponseListSuccessDto<Vec<EventsListItemDto>>,
 		   ResponseSuccessDto<EventsDetailItemDto>,
-		   MessageResponseDto,
-		   MessageResponseDto,
+		   ResponseListSuccessDto<Vec<TestimonialsListItemDto>>,
+		   ResponseSuccessDto<TestimonialsDetailItemDto>,
+		   TestimonialsCreateRequestDto,
+		   TestimonialsUpdateRequestDto,
 		   MessageResponseDto,
         )
     ),

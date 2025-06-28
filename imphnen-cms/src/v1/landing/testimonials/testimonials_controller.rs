@@ -1,0 +1,125 @@
+use super::{
+	testimonials_dto::{
+		TestimonialsCreateRequestDto, TestimonialsDetailItemDto,
+		TestimonialsListItemDto, TestimonialsUpdateRequestDto,
+	},
+	testimonials_service::TestimonialsService,
+};
+use axum::extract::{Path, Query};
+use axum::response::IntoResponse;
+use axum::{Extension, Json};
+use imphnen_iam::UsersDetailQueryDto;
+use imphnen_libs::{
+	AppState, MessageResponseDto, MetaRequestDto, ResponseListSuccessDto,
+	ResponseSuccessDto,
+};
+
+#[utoipa::path(
+    get,
+    path = "/v1/cms/landing/testimonials",
+    params(
+        ("page" = Option<i64>, Query, description = "Page number"),
+        ("per_page" = Option<i64>, Query, description = "Items per page"),
+        ("search" = Option<String>, Query, description = "Search keyword"),
+        ("sort_by" = Option<String>, Query, description = "Sort by field"),
+        ("order" = Option<String>, Query, description = "Order ASC or DESC"),
+        ("filter" = Option<String>, Query, description = "Filter value"),
+        ("filter_by" = Option<String>, Query, description = "Field to filter by"),
+    ),
+    responses(
+        (status = 200, description = "Get testimonial list", body = ResponseListSuccessDto<Vec<TestimonialsListItemDto>>)
+    ),
+    tag = "Testimonials"
+)]
+pub async fn get_testimonial_list(
+	Extension(state): Extension<AppState>,
+	Query(meta): Query<MetaRequestDto>,
+) -> impl IntoResponse {
+	TestimonialsService::get_testimonial_list(&state, meta).await
+}
+
+#[utoipa::path(
+    get,
+    path = "/v1/cms/landing/testimonials/detail/{id}",
+    params(
+        ("id" = String, Path, description = "Testimonial ID")
+    ),
+    responses(
+        (status = 200, description = "Get testimonial by ID", body = ResponseSuccessDto<TestimonialsDetailItemDto>)
+    ),
+    tag = "Testimonials"
+)]
+pub async fn get_testimonial_by_id(
+	Extension(state): Extension<AppState>,
+	Path(id): Path<String>,
+) -> impl IntoResponse {
+	TestimonialsService::get_testimonial_by_id(&state, id).await
+}
+
+#[utoipa::path(
+    post,
+    security(
+        ("Bearer" = [])
+    ),
+    path = "/v1/cms/landing/testimonials/create",
+    request_body = TestimonialsCreateRequestDto,
+    responses(
+        (status = 201, description = "Create new testimonial", body = MessageResponseDto)
+    ),
+    tag = "Testimonials"
+)]
+pub async fn post_create_testimonial(
+	Extension(state): Extension<AppState>,
+	Extension(authenticated_user): Extension<UsersDetailQueryDto>,
+	Json(payload): Json<TestimonialsCreateRequestDto>,
+) -> impl IntoResponse {
+	println!("Authenticated User Now: {:?}", authenticated_user);
+	TestimonialsService::create_testimonial(&state, payload, &authenticated_user).await
+}
+
+#[utoipa::path(
+    patch,
+    security(
+        ("Bearer" = [])
+    ),
+    path = "/v1/cms/landing/testimonials/update/{id}",
+    params(
+        ("id" = String, Path, description = "Testimonial ID")
+    ),
+    request_body = TestimonialsUpdateRequestDto,
+    responses(
+        (status = 200, description = "Update testimonial", body = MessageResponseDto)
+    ),
+    tag = "Testimonials"
+)]
+pub async fn patch_update_testimonial(
+	Path(id): Path<String>,
+	Extension(state): Extension<AppState>,
+	Extension(authenticated_user): Extension<UsersDetailQueryDto>,
+	Json(payload): Json<TestimonialsUpdateRequestDto>,
+) -> impl IntoResponse {
+	TestimonialsService::update_testimonial(&state, id, payload, &authenticated_user)
+		.await
+}
+
+#[utoipa::path(
+    delete,
+    security(
+        ("Bearer" = [])
+    ),
+    path = "/v1/cms/landing/testimonials/delete/{id}",
+    params(
+        ("id" = String, Path, description = "Testimonial ID")
+    ),
+    responses(
+        (status = 200, description = "Soft delete testimonial", body = MessageResponseDto)
+    ),
+    tag = "Testimonials"
+)]
+pub async fn delete_testimonial(
+	Extension(state): Extension<AppState>,
+	Extension(authenticated_user): Extension<UsersDetailQueryDto>,
+	Path(id): Path<String>,
+) -> impl IntoResponse {
+	TestimonialsService::delete_testimonial(&state, id, &authenticated_user).await
+}

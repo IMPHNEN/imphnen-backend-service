@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+imphnen-iam = { version = "0.1.0", path = "../imphnen-iam" }
 imphnen-libs = { version = "0.1.0", path = "../imphnen-libs" }
 imphnen-utils = { version = "0.1.0", path = "../imphnen-utils" }
 imphnen-entities = { version = "0.1.0", path = "../imphnen-entities" }
