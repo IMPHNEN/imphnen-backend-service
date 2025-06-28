@@ -1,7 +1,10 @@
 use axum::{
 	Extension, Router, middleware::from_fn, response::Redirect, routing::get,
 };
-use imphnen_cms::{events_protected_routes, events_public_routes};
+use imphnen_cms::{
+	events_protected_routes, events_public_routes, testimonials_protected_routes,
+	testimonials_public_routes,
+};
 use imphnen_entities::{AppState, SurrealMemClient, SurrealWsClient};
 use imphnen_gacha::gacha_router;
 use imphnen_iam::{iam_protected_routes, iam_public_routes};
@@ -22,11 +25,13 @@ pub async fn gateway_service(
 
 	let public_routes = Router::new()
 		.merge(iam_public_routes())
+		.merge(testimonials_public_routes())
 		.merge(events_public_routes());
 
 	let protected_routes = Router::new()
 		.merge(iam_protected_routes())
 		.merge(events_protected_routes())
+		.merge(testimonials_protected_routes())
 		.merge(gacha_router())
 		.layer(from_fn(auth_middleware));
 
