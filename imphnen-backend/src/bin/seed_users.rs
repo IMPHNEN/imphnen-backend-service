@@ -1,12 +1,14 @@
 use imphnen_iam::UsersSchema;
+use imphnen_libs::enviroment::load_env;
 use imphnen_utils::{get_iso_date, hash_password, Env};
 use std::error::Error;
-use surrealdb::{engine::remote::ws::Ws, opt::auth::Root, sql::Thing, Surreal};
-
+use surrealdb::{opt::auth::Root, sql::Thing};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+	load_env();
 	let env = Env::new();
-	let db = Surreal::new::<Ws>(env.surrealdb_url).await?;
+	use surrealdb::engine::any;
+	let db = any::connect(&env.surrealdb_url).await?;
 	db.signin(Root {
 		username: &env.surrealdb_username,
 		password: &env.surrealdb_password,

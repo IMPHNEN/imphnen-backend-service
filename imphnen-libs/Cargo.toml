@@ -14,3 +14,5 @@ lettre.workspace = true
 chrono.workspace = true
 surrealdb.workspace = true
 jsonwebtoken.workspace = true
+dotenvy.workspace = true
+

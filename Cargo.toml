@@ -41,7 +41,7 @@ fancy-regex = "0.14.0"
 futures = "0.3.31"
 tower = "0.5.2"
 env_logger = "0.11.8"
-
+dotenvy = "0.15.7"
 [profile.release]
 lto = "fat"
 codegen-units = 1
