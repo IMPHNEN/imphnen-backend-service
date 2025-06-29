@@ -1,8 +1,9 @@
-use surrealdb::{engine::remote::ws::Client, method::Query};
+use surrealdb::method::Query;
+use surrealdb::engine::any;
 
 pub fn bind_filter_value(
-	query: Query<'_, Client>,
+	query: Query<'_, any::Any>,
 	val: String,
-) -> Query<'_, Client> {
+) -> Query<'_, any::Any> {
 	query.bind(("filter", val)) // langsung string aja, udah cukup
 }

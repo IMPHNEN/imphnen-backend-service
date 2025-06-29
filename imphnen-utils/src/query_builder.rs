@@ -1,7 +1,7 @@
 use imphnen_libs::MetaRequestDto;
-use surrealdb::engine::remote::ws::Client;
 use surrealdb::method::Query;
 use surrealdb::sql::Thing;
+use surrealdb::engine::any;
 
 pub struct ListQueryBuilder {
 	resource: String,
@@ -241,7 +241,7 @@ impl DetailQueryBuilder {
 		)
 	}
 
-	pub fn apply_bindings<'q>(&self, query: Query<'q, Client>) -> Query<'q, Client> {
+	pub fn apply_bindings<'q>(&self, query: Query<'q, any::Any>) -> Query<'q, any::Any> {
 		if let (Some(_), Some(value)) = (&self.where_field, &self.where_value) {
 			query.bind(("value", value.clone()))
 		} else {
