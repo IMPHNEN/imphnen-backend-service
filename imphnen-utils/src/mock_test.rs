@@ -1,13 +1,14 @@
 use crate::AppState;
-use surrealdb::{
-	Surreal,
-	engine::{local::Mem, remote::ws::Ws},
-	opt::auth::Root,
-};
+use imphnen_libs::enviroment::load_env;
+use surrealdb::engine::any;
+use surrealdb::{Surreal, engine::local::Mem, opt::auth::Root};
+use super::Env;
 
 pub async fn create_mock_app_state() -> AppState {
+	load_env();
+	let env = Env::new();
 	let db_mem = Surreal::new::<Mem>(()).await.unwrap();
-	let db_ws = Surreal::new::<Ws>("localhost:8000").await.unwrap();
+	let db_ws = any::connect(&env.surrealdb_url).await.unwrap();
 	db_mem.use_ns("test").use_db("test").await.unwrap();
 	db_ws
 		.signin(Root {

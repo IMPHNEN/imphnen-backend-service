@@ -1,15 +1,17 @@
-use crate::{Env, surrealdb_init_mem, surrealdb_init_ws};
+use crate::{load_env, surrealdb_init_mem, surrealdb_init_ws, Env};
 use axum::{Router, serve};
 use imphnen_entities::{SurrealMemClient, SurrealWsClient};
 use log::{debug, error, info};
 use std::{future::Future, net::SocketAddr};
 use tokio::net::TcpListener;
 
+
 pub async fn axum_init<F, Fut>(router_fn: F)
 where
 	F: FnOnce(SurrealWsClient, SurrealMemClient) -> Fut,
 	Fut: Future<Output = Router>,
 {
+	load_env();
 	let env = Env::new();
 	info!("Environment loaded with port: {}", env.port);
 

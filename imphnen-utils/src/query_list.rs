@@ -1,10 +1,11 @@
 use crate::{CountResult, MetaRequestDto, MetaResponseDto, ResponseListSuccessDto};
 use anyhow::Result;
 use serde::{Serialize, de::DeserializeOwned};
-use surrealdb::{Surreal, engine::remote::ws::Client};
+use surrealdb::Surreal;
+use surrealdb::engine::any;
 
 pub struct QueryListBuilder<'a> {
-	db: &'a Surreal<Client>,
+	db: &'a Surreal<any::Any>,
 	table: &'a str,
 	meta: &'a MetaRequestDto,
 	conditions: Vec<String>,
@@ -15,7 +16,7 @@ pub struct QueryListBuilder<'a> {
 
 impl<'a> QueryListBuilder<'a> {
 	pub fn new(
-		db: &'a Surreal<Client>,
+		db: &'a Surreal<any::Any>,
 		table: &'a str,
 		meta: &'a MetaRequestDto,
 	) -> Self {

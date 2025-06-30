@@ -1,17 +1,20 @@
 use super::Env;
-use crate::{SurrealMemClient, SurrealWsClient};
+use crate::SurrealMemClient;
 use surrealdb::engine::local::Mem;
-use surrealdb::engine::remote::ws::{Client, Ws};
+use surrealdb::engine::any;
 use surrealdb::opt::auth::Root;
 use surrealdb::{Result, Surreal};
+use crate::enviroment::load_env;
 
 pub mod resource;
 pub use resource::*;
 
-pub async fn surrealdb_init_ws() -> Result<SurrealWsClient> {
+pub async fn surrealdb_init_ws() -> Result<Surreal<any::Any>> {
+	load_env();
 	let env = Env::new();
-	let db = Surreal::<Client>::init();
-	db.connect::<Ws>(env.surrealdb_url.clone()).await?;
+	let db = any::connect(&env.surrealdb_url).await?;
+	
+
 	db.signin(Root {
 		username: &env.surrealdb_username,
 		password: &env.surrealdb_password,
