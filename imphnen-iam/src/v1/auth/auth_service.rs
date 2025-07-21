@@ -13,6 +13,7 @@ use crate::{
 };
 use axum::{http::StatusCode, response::Response};
 use surrealdb::Uuid;
+use tracing::error;
 
 pub struct AuthService;
 
@@ -49,7 +50,11 @@ impl AuthService {
 
 				let access_token = match encode_access_token(payload.email.clone()) {
 					Ok(token) => token,
-					Err(_) => {
+					Err(_e) => {
+						error!(
+							"Failed to generate access token for {}: {}",
+							payload.email, _e
+						);
 						return common_response(
 							StatusCode::INTERNAL_SERVER_ERROR,
 							"Failed to generate access token",
@@ -59,7 +64,11 @@ impl AuthService {
 
 				let refresh_token = match encode_refresh_token(payload.email.clone()) {
 					Ok(token) => token,
-					Err(_) => {
+					Err(_e) => {
+						error!(
+							"Failed to generate refresh token for {}: {}",
+							payload.email, _e
+						);
 						return common_response(
 							StatusCode::INTERNAL_SERVER_ERROR,
 							"Failed to generate refresh token",
@@ -77,13 +86,116 @@ impl AuthService {
 					},
 				};
 
-				if let Err(_err) = auth_repo.query_store_user(user).await {
-					return common_response(StatusCode::BAD_REQUEST, "User already login");
+				if let Err(err_store) = auth_repo.query_store_user(user.clone()).await {
+					error!(
+						"Failed to store user cache for {}: {}",
+						user.email, err_store
+					);
+					return common_response(
+						StatusCode::BAD_REQUEST,
+						"User already login or failed to cache",
+					);
 				}
-
 				success_response(response)
 			}
-			Err(err) => common_response(StatusCode::UNAUTHORIZED, &err.to_string()),
+			Err(err_find) => {
+				common_response(StatusCode::UNAUTHORIZED, &err_find.to_string())
+			}
+		}
+	}
+
+	pub async fn mutation_mentor_login(
+		payload: AuthLoginRequestDto,
+		state: &AppState,
+	) -> Response {
+		if let Err((status, message)) = validate_request(&payload) {
+			return common_response(status, &message);
+		}
+
+		let user_repo = UsersRepository::new(state);
+		let auth_repo = AuthRepository::new(state);
+
+		match user_repo.query_user_by_email(payload.email.clone()).await {
+			Ok(user) => {
+				let is_password_correct =
+					verify_password(&payload.password, &user.password).unwrap_or(false);
+
+				if !is_password_correct {
+					return common_response(
+						StatusCode::BAD_REQUEST,
+						"Email or password not correct",
+					);
+				}
+
+				if !user.is_active {
+					return common_response(
+						StatusCode::BAD_REQUEST,
+						"Account not active, please verify your email",
+					);
+				}
+
+				let user_detail = UsersDetailItemDto::from(&user);
+
+				if user_detail.role.name != RolesEnum::Mentor.to_string() {
+					return common_response(
+						StatusCode::FORBIDDEN,
+						"User does not have mentor privileges",
+					);
+				}
+
+				let access_token = match encode_access_token(payload.email.clone()) {
+					Ok(token) => token,
+					Err(_e) => {
+						error!(
+							"Failed to generate access token for {}: {}",
+							payload.email, _e
+						);
+						return common_response(
+							StatusCode::INTERNAL_SERVER_ERROR,
+							"Failed to generate access token",
+						);
+					}
+				};
+
+				let refresh_token = match encode_refresh_token(payload.email.clone()) {
+					Ok(token) => token,
+					Err(_e) => {
+						error!(
+							"Failed to generate refresh token for {}: {}",
+							payload.email, _e
+						);
+						return common_response(
+							StatusCode::INTERNAL_SERVER_ERROR,
+							"Failed to generate refresh token",
+						);
+					}
+				};
+
+				let response = ResponseSuccessDto {
+					data: AuthLoginResponsetDto {
+						user: UsersDetailItemDto::from(&user),
+						token: TokenDto {
+							access_token,
+							refresh_token,
+						},
+					},
+				};
+
+				if let Err(err_store) = auth_repo.query_store_user(user.clone()).await {
+					error!(
+						"Failed to store user cache for {}: {}",
+						user.email, err_store
+					);
+					return common_response(
+						StatusCode::BAD_REQUEST,
+						"User already login or failed to cache",
+					);
+				}
+				success_response(response)
+			}
+			Err(err_find) => {
+				common_response(StatusCode::UNAUTHORIZED, &err_find.to_string())
+			}
 		}
 	}
 
@@ -102,7 +214,10 @@ impl AuthService {
 			.await
 		{
 			Ok(role) => role,
-			Err(_) => return common_response(StatusCode::BAD_REQUEST, "Role Not Found"),
+			Err(_e) => {
+				error!("Failed to retrieve User role during registration: {}", _e);
+				return common_response(StatusCode::BAD_REQUEST, "Role Not Found");
+			}
 		};
 		if user_repo
 			.query_user_by_email(payload.email.clone())
@@ -113,7 +228,11 @@ impl AuthService {
 		}
 		let hashed_password = match hash_password(&payload.password) {
 			Ok(hash) => hash,
-			Err(_) => {
+			Err(_e) => {
+				error!(
+					"Failed to hash password during registration for {}: {}",
+					payload.email, _e
+				);
 				return common_response(
 					StatusCode::INTERNAL_SERVER_ERROR,
 					"Failed to hash password",
@@ -121,27 +240,34 @@ impl AuthService {
 			}
 		};
 		let new_user = AuthRegisterRequestDto {
-			email: payload.email,
+			email: payload.email.clone(),
 			password: hashed_password,
 			fullname: payload.fullname,
 			phone_number: payload.phone_number,
 		};
 		let otp = generate_otp::OtpManager::generate_otp();
-		match auth_repo
-			.query_store_otp(new_user.email.clone(), otp.clone())
-			.await
-		{
+		match auth_repo.query_store_otp(new_user.email.clone(), otp).await {
 			Ok(_) => {
-				let message = format!("your otp code is {}", otp);
-				if let Err(err) = send_email(&new_user.email, "OTP Verification", &message) {
+				let message = format!("your otp code is {otp}");
+				if let Err(err_send) =
+					send_email(&new_user.email, "OTP Verification", &message)
+				{
+					error!(
+						"Failed to send OTP email to {}: {}",
+						new_user.email, err_send
+					);
 					return common_response(
 						StatusCode::INTERNAL_SERVER_ERROR,
-						&err.to_string(),
+						&err_send.to_string(),
 					);
 				}
 			}
-			Err(err) => {
-				return common_response(StatusCode::INTERNAL_SERVER_ERROR, &err.to_string());
+			Err(err_store) => {
+				error!("Failed to store OTP for {}: {}", new_user.email, err_store);
+				return common_response(
+					StatusCode::INTERNAL_SERVER_ERROR,
+					&err_store.to_string(),
+				);
 			}
 		}
 		let role_thing = make_thing(&ResourceEnum::Roles.to_string(), &role.id);
@@ -159,13 +285,15 @@ impl AuthService {
 				created_at: get_iso_date(),
 				updated_at: get_iso_date(),
 				role: role_thing,
+				is_active: true,
 				..Default::default()
 			})
 			.await
 		{
 			Ok(msg) => common_response(StatusCode::CREATED, &msg),
-			Err(err) => {
-				common_response(StatusCode::INTERNAL_SERVER_ERROR, &err.to_string())
+			Err(err_create) => {
+				error!("Failed to create user {}: {}", new_user.email, err_create);
+				common_response(StatusCode::INTERNAL_SERVER_ERROR, &err_create.to_string())
 			}
 		}
 	}
@@ -188,13 +316,22 @@ impl AuthService {
 		let auth_repo = AuthRepository::new(state);
 		let _ = auth_repo.query_get_stored_otp(payload.email.clone()).await;
 		let otp = generate_otp::OtpManager::generate_otp();
-		let message = format!("Your OTP code is {}", otp);
+		let message = format!("Your OTP code is {otp}");
 		match auth_repo.query_store_otp(payload.email.clone(), otp).await {
 			Ok(_) => match send_email(&payload.email, "OTP Verification", &message) {
 				Ok(_) => common_response(StatusCode::OK, "OTP resent successfully"),
-				Err(err) => common_response(StatusCode::BAD_REQUEST, &err.to_string()),
+				Err(err_send) => {
+					error!(
+						"Failed to send OTP email to {}: {}",
+						payload.email, err_send
+					);
+					common_response(StatusCode::BAD_REQUEST, &err_send.to_string())
+				}
 			},
-			Err(err) => common_response(StatusCode::BAD_REQUEST, &err.to_string()),
+			Err(err_store) => {
+				error!("Failed to store OTP for {}: {}", payload.email, err_store);
+				common_response(StatusCode::BAD_REQUEST, &err_store.to_string())
+			}
 		}
 	}
 
@@ -206,13 +343,14 @@ impl AuthService {
 		}
 		let email = match decode_refresh_token(&payload.refresh_token) {
 			Ok(token) => token.claims.sub,
-			Err(_) => {
+			Err(_e) => {
 				return common_response(StatusCode::UNAUTHORIZED, "Invalid refresh token");
 			}
 		};
 		let access_token = match encode_access_token(email.clone()) {
 			Ok(token) => token,
-			Err(_) => {
+			Err(_e) => {
+				error!("Failed to generate access token for {}: {}", email, _e);
 				return common_response(
 					StatusCode::INTERNAL_SERVER_ERROR,
 					"Failed to generate access token",
@@ -221,7 +359,8 @@ impl AuthService {
 		};
 		let refresh_token = match encode_refresh_token(email.clone()) {
 			Ok(token) => token,
-			Err(_) => {
+			Err(_e) => {
+				error!("Failed to generate refresh token for {}: {}", email, _e);
 				return common_response(
 					StatusCode::INTERNAL_SERVER_ERROR,
 					"Failed to generate refresh token",
@@ -248,16 +387,27 @@ impl AuthService {
 		let user_result = user_repo.query_user_by_email(payload.email.clone()).await;
 		let user = match user_result {
 			Ok(user) => user,
-			Err(err) if err.to_string().contains("User not found") => {
+			Err(err_find) if err_find.to_string().contains("User not found") => {
 				return common_response(StatusCode::BAD_REQUEST, "User not found");
 			}
-			Err(err) => {
-				return common_response(StatusCode::INTERNAL_SERVER_ERROR, &err.to_string());
+			Err(err_other) => {
+				error!(
+					"Error finding user for forgot password {}: {}",
+					payload.email, err_other
+				);
+				return common_response(
+					StatusCode::INTERNAL_SERVER_ERROR,
+					&err_other.to_string(),
+				);
 			}
 		};
-		let token = match encode_reset_password_token(user.email) {
+		let token = match encode_reset_password_token(user.email.clone()) {
 			Ok(token) => token,
-			Err(_) => {
+			Err(_e) => {
+				error!(
+					"Failed to generate reset password token for {}: {}",
+					user.email, _e
+				);
 				return common_response(
 					StatusCode::INTERNAL_SERVER_ERROR,
 					"Failed to generate access token",
@@ -267,12 +417,17 @@ impl AuthService {
 		let env = Env::new();
 		let fe_url = env.fe_url;
 		let message = format!(
-			"You have requested a password reset. Please click the link below to continue: {}/auth/reset-password?token={}",
-			fe_url, token
+			"You have requested a password reset. Please click the link below to continue: {fe_url}/auth/reset-password?token={token}"
 		);
 		match send_email(&payload.email, "Reset Password Request", &message) {
 			Ok(_) => common_response(StatusCode::OK, "Reset Password request send"),
-			Err(err) => common_response(StatusCode::BAD_REQUEST, &err.to_string()),
+			Err(err_send) => {
+				error!(
+					"Failed to send reset password email to {}: {}",
+					payload.email, err_send
+				);
+				common_response(StatusCode::BAD_REQUEST, &err_send.to_string())
+			}
 		}
 	}
 
@@ -288,33 +443,38 @@ impl AuthService {
 		let email = payload.email.clone();
 		let user = match user_repo.query_user_by_email(email.clone()).await {
 			Ok(user) if !user.is_deleted => user,
-			_ => return common_response(StatusCode::NOT_FOUND, "User not found"),
+			_ => {
+				return common_response(StatusCode::NOT_FOUND, "User not found");
+			}
 		};
 		let patch = UsersSchema {
 			id: user.id.clone(),
 			is_active: true,
-			..UsersSchema::from(user)
+			..UsersSchema::from(user.clone())
 		};
 		match auth_repo.query_get_stored_otp(email.clone()).await {
 			Ok(stored_otp) => match stored_otp == payload.otp {
 				true => match user_repo.query_update_user(patch).await {
-					Ok(_) => match auth_repo.query_delete_stored_otp(email).await {
+					Ok(_) => match auth_repo.query_delete_stored_otp(email.clone()).await {
 						Ok(_) => common_response(StatusCode::OK, "Email verified successfully"),
-						Err(e) => {
-							common_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string())
+						Err(e_del) => {
+							error!("Failed to delete OTP for {}: {}", email, e_del);
+							common_response(StatusCode::INTERNAL_SERVER_ERROR, &e_del.to_string())
 						}
 					},
-					Err(err) => common_response(StatusCode::BAD_REQUEST, &err.to_string()),
+					Err(err_update) => {
+						common_response(StatusCode::BAD_REQUEST, &err_update.to_string())
+					}
 				},
-				false => match auth_repo.query_delete_stored_otp(email).await {
+				false => match auth_repo.query_delete_stored_otp(email.clone()).await {
 					Ok(_) => common_response(StatusCode::BAD_REQUEST, "Failed to verify OTP"),
-					Err(e) => common_response(
+					Err(e_del_mismatch) => common_response(
 						StatusCode::INTERNAL_SERVER_ERROR,
-						&format!("Failed to delete OTP: {}", e),
+						&format!("Failed to delete OTP: {e_del_mismatch}"),
 					),
 				},
 			},
-			Err(err) => common_response(StatusCode::BAD_REQUEST, &err.to_string()),
+			Err(err_get) => common_response(StatusCode::BAD_REQUEST, &err_get.to_string()),
 		}
 	}
 
@@ -327,14 +487,15 @@ impl AuthService {
 		}
 		let repo = UsersRepository::new(state);
 		let email = match extract_email_token(payload.token.clone()) {
-			Some(email) => email,
+			Some(token) => token,
 			None => {
 				return common_response(StatusCode::BAD_REQUEST, "Invalid or missing token");
 			}
 		};
 		let password = match hash_password(&payload.password) {
 			Ok(p) => p,
-			Err(_) => {
+			Err(_e) => {
+				error!("Failed to hash new password for {}: {}", email, _e);
 				return common_response(
 					StatusCode::INTERNAL_SERVER_ERROR,
 					"Failed to hash password",
@@ -343,7 +504,9 @@ impl AuthService {
 		};
 		let user = match repo.query_user_by_email(email.clone()).await {
 			Ok(user) if !user.is_deleted => user,
-			_ => return common_response(StatusCode::NOT_FOUND, "User not found"),
+			_ => {
+				return common_response(StatusCode::NOT_FOUND, "User not found");
+			}
 		};
 		let patch = UsersSchema {
 			id: user.id.clone(),
@@ -352,7 +515,7 @@ impl AuthService {
 		};
 		match repo.query_update_user(patch).await {
 			Ok(msg) => common_response(StatusCode::OK, &msg),
-			Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
+			Err(_e) => common_response(StatusCode::BAD_REQUEST, &_e.to_string()),
 		}
 	}
 }

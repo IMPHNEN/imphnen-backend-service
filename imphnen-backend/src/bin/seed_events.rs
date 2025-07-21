@@ -1,9 +1,9 @@
 use imphnen_cms::v1::landing::events::events_schema::EventsSchema;
+use imphnen_libs::enviroment::load_env;
 use imphnen_utils::{get_iso_date, Env};
 use std::error::Error;
 use surrealdb::engine::any;
-use surrealdb::{opt::auth::Root, sql::Thing};
-use imphnen_libs::enviroment::load_env;
+use surrealdb::{opt::auth::Root, sql::Thing, Uuid}; // Added Uuid
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
 	load_env();
@@ -20,7 +20,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 	let events = vec![
 		(
-			"e1a2b3c4-5d6e-7f8g-9h0i-1j2k3l4m5n6o",
 			"Tech Conference 2025",
 			"Annual technology conference featuring the latest innovations in software development, AI, and cloud computing.",
 			"https://techconf2025.example.com",
@@ -31,7 +30,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			"2025-06-17T18:00:00Z",
 		),
 		(
-			"f2b3c4d5-6e7f-8g9h-0i1j-2k3l4m5n6o7p",
 			"Online Web Development Workshop",
 			"Comprehensive workshop covering modern web development frameworks including React, Vue, and Angular.",
 			"https://webdev-workshop.example.com",
@@ -42,7 +40,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			"2025-07-10T17:00:00Z",
 		),
 		(
-			"g3c4d5e6-7f8g-9h0i-1j2k-3l4m5n6o7p8q",
 			"Startup Pitch Competition",
 			"Exciting competition where emerging startups present their innovative ideas to a panel of expert judges and investors.",
 			"https://startup-pitch.example.com",
@@ -53,7 +50,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			"2025-08-05T16:00:00Z",
 		),
 		(
-			"h4d5e6f7-8g9h-0i1j-2k3l-4m5n6o7p8q9r",
 			"Digital Marketing Masterclass",
 			"Learn advanced digital marketing strategies, social media optimization, and data-driven marketing techniques.",
 			"https://digital-marketing.example.com",
@@ -65,9 +61,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		),
 	];
 
-	for (id, name, description, detail_link, price, location, is_online, start_date, end_date) in events {
+	for (
+		name,
+		description,
+		detail_link,
+		price,
+		location,
+		is_online,
+		start_date,
+		end_date,
+	) in events
+	{
+        let uuid = Uuid::new_v4().to_string(); // Generate new UUID
 		let event = EventsSchema {
-			id: Thing::from(("app_events", id)),
+			id: Thing::from(("app_events", uuid.as_str())), // Use generated UUID
 			name: name.into(),
 			description: description.into(),
 			detail_link: detail_link.into(),
@@ -81,11 +88,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			updated_at: get_iso_date(),
 		};
 
-		db.create::<Option<EventsSchema>>(("app_events", id))
+		db.create::<Option<EventsSchema>>(("app_events", uuid.as_str())) // Use generated UUID
 			.content(event)
 			.await?;
 
-		println!("✅ Inserted event: {} ({})", name, if is_online { "Online" } else { "In-person" });
+		println!(
+			"✅ Inserted event: {} ({})",
+			name,
+			if is_online { "Online" } else { "In-person" }
+		);
 	}
 
 	println!("✅ All Events seeded");

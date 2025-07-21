@@ -11,7 +11,7 @@ use super::testimonials_dto::{
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TestimonialsSchema {
 	pub id: Thing,
-	pub user: Thing, // Link to app_users table
+	pub user: Thing,
 	pub role: String,
 	pub content: String,
 	pub is_deleted: bool,
@@ -28,7 +28,7 @@ impl Default for TestimonialsSchema {
 			),
 			user: make_thing(
 				&ResourceEnum::Users.to_string(),
-				&Uuid::new_v4().to_string(), // Placeholder, will be replaced by actual user ID
+				&Uuid::new_v4().to_string(),
 			),
 			role: String::new(),
 			content: String::new(),

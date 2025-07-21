@@ -73,7 +73,6 @@ pub async fn post_create_testimonial(
 	Extension(authenticated_user): Extension<UsersDetailQueryDto>,
 	Json(payload): Json<TestimonialsCreateRequestDto>,
 ) -> impl IntoResponse {
-	println!("Authenticated User Now: {:?}", authenticated_user);
 	TestimonialsService::create_testimonial(&state, payload, &authenticated_user).await
 }
 

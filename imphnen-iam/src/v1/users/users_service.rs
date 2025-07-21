@@ -6,12 +6,15 @@ use crate::{
 	AppState, MetaRequestDto, ResponseListSuccessDto, UsersRepository, UsersSchema,
 };
 use crate::{
-	ResourceEnum, ResponseSuccessDto, common_response, extract_email, make_thing,
-	success_list_response, success_response, validate_request,
+	ResponseSuccessDto, common_response, extract_email, success_list_response,
+	success_response, validate_request,
 };
 use axum::http::HeaderMap;
 use axum::{http::StatusCode, response::Response};
-use imphnen_libs::{hash_password, verify_password};
+use imphnen_libs::{ResourceEnum, hash_password, verify_password};
+use imphnen_utils::make_thing;
+use uuid::Uuid;
+
 
 pub struct UsersService;
 
@@ -31,8 +34,12 @@ impl UsersService {
 	}
 
 	pub async fn get_user_by_id(state: &AppState, id: String) -> Response {
+		if Uuid::parse_str(&id).is_err() {
+            return common_response(StatusCode::BAD_REQUEST, "Invalid User ID format");
+        }
 		let repo = UsersRepository::new(state);
-		match repo.query_user_by_id(id).await {
+		let thing_id = make_thing(&ResourceEnum::Users.to_string(), &id);
+		match repo.query_user_by_id(&thing_id).await {
 			Ok(user) if !user.is_deleted => success_response(ResponseSuccessDto {
 				data: UsersDetailItemDto::from(&user),
 			}),
@@ -84,6 +91,9 @@ impl UsersService {
 		id: String,
 		user: UsersUpdateRequestDto,
 	) -> Response {
+		if Uuid::parse_str(&id).is_err() {
+            return common_response(StatusCode::BAD_REQUEST, "Invalid User ID format");
+        }
 		let repo = UsersRepository::new(state);
 		if let Err((status, message)) = validate_request(&user) {
 			return common_response(status, &message);
@@ -124,9 +134,12 @@ impl UsersService {
 		id: String,
 		payload: UsersActiveInactiveRequestDto,
 	) -> Response {
+		if Uuid::parse_str(&id).is_err() {
+            return common_response(StatusCode::BAD_REQUEST, "Invalid User ID format");
+        }
 		let repo = UsersRepository::new(state);
 		let thing_id = make_thing(&ResourceEnum::Users.to_string(), &id);
-		match repo.query_user_by_id(thing_id.id.to_raw()).await {
+		match repo.query_user_by_id(&thing_id).await {
 			Ok(user) if !user.is_deleted => {
 				let patch = UsersSchema {
 					id: user.id.clone(),
@@ -186,9 +199,28 @@ impl UsersService {
 		}
 	}
 
-	pub async fn delete_user(state: &AppState, id: String) -> Response {
+	pub async fn get_user_by_mentor_id(
+		state: &AppState,
+		mentor_id: String,
+	) -> Response {
 		let repo = UsersRepository::new(state);
-		if repo.query_user_by_id(id.clone()).await.is_err() {
+		let thing_id = make_thing(&ResourceEnum::Mentors.to_string(), &mentor_id);
+		match repo.query_user_by_id(&thing_id).await {
+			Ok(user) if !user.is_deleted => success_response(ResponseSuccessDto {
+				data: UsersDetailItemDto::from(&user),
+			}),
+			Ok(_) => common_response(StatusCode::NOT_FOUND, "User not found"),
+			Err(e) => common_response(StatusCode::NOT_FOUND, &e.to_string()),
+		}
+	}
+
+	pub async fn delete_user(state: &AppState, id: String) -> Response {
+		if Uuid::parse_str(&id).is_err() {
+            return common_response(StatusCode::BAD_REQUEST, "Invalid User ID format");
+        }
+		let repo = UsersRepository::new(state);
+		let thing_id = make_thing(&ResourceEnum::Users.to_string(), &id);
+		if repo.query_user_by_id(&thing_id).await.is_err() {
 			return common_response(StatusCode::BAD_REQUEST, "User not found");
 		}
 		match repo.query_delete_user(id).await {

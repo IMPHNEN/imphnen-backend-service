@@ -48,6 +48,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		PermissionsEnum::ReadDetailGachaRolls,
 		PermissionsEnum::CreateGachaRolls,
 		PermissionsEnum::ExecuteGachaRolls,
+		PermissionsEnum::ReadListMentors,
+		PermissionsEnum::ReadDetailMentors,
+		PermissionsEnum::RegisterMentors,
+		PermissionsEnum::ReadOwnMentorProfile,
+		PermissionsEnum::UpdateOwnMentorProfile,
+		PermissionsEnum::ReadOwnMentorStatus,
+		PermissionsEnum::VerifyMentors,
+		PermissionsEnum::DeleteMentors,
 	] {
 		db.query("CREATE type::thing('app_permissions', $id) CONTENT $data")
 			.bind(("id", permission.id()))
@@ -61,9 +69,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
 				}),
 			))
 			.await?;
-		println!("✅ Inserted: {}", permission.to_string());
+		println!("✅ Inserted: {permission}");
 	}
 
 	println!("✅ All Permissions seeded");
+
 	Ok(())
 }

@@ -1,19 +1,22 @@
 use crate::{
-	create_mock_app_state,
+	get_iso_date, // Import the new setup function and get_iso_date
 	permissions::{PermissionsRepository, PermissionsSchema},
+	setup_all_test_environment,
 };
 use chrono::Utc;
 
 fn create_dummy_permission(name: &str) -> PermissionsSchema {
 	PermissionsSchema {
 		name: name.to_string(),
+		created_at: Some(get_iso_date()), // Ensure created_at is always set
+		updated_at: Some(get_iso_date()), // Ensure updated_at is always set
 		..Default::default()
 	}
 }
 
 #[tokio::test]
 async fn test_create_permission_should_succeed() {
-	let state = create_mock_app_state().await;
+	let state = setup_all_test_environment().await; // Use the new setup function
 	let repo = PermissionsRepository::new(&state);
 	let permission = create_dummy_permission("Test Permission");
 	let result = repo.query_create_permission(permission).await;
@@ -22,7 +25,7 @@ async fn test_create_permission_should_succeed() {
 
 #[tokio::test]
 async fn test_query_permission_list_should_return_data() {
-	let state = create_mock_app_state().await;
+	let state = setup_all_test_environment().await; // Use the new setup function
 	let repo = PermissionsRepository::new(&state);
 
 	let _ = repo
@@ -45,7 +48,7 @@ async fn test_query_permission_list_should_return_data() {
 
 #[tokio::test]
 async fn test_query_permission_by_id_should_succeed() {
-	let state = create_mock_app_state().await;
+	let state = setup_all_test_environment().await; // Use the new setup function
 	let repo = PermissionsRepository::new(&state);
 	let permission = create_dummy_permission("Detail");
 	let _ = repo.query_create_permission(permission.clone()).await;
@@ -56,7 +59,7 @@ async fn test_query_permission_by_id_should_succeed() {
 
 #[tokio::test]
 async fn test_update_permission_should_succeed() {
-	let state = create_mock_app_state().await;
+	let state = setup_all_test_environment().await; // Use the new setup function
 	let repo = PermissionsRepository::new(&state);
 	let mut permission = create_dummy_permission("Update This");
 	let _ = repo.query_create_permission(permission.clone()).await;
@@ -68,7 +71,7 @@ async fn test_update_permission_should_succeed() {
 
 #[tokio::test]
 async fn test_delete_permission_should_succeed() {
-	let state = create_mock_app_state().await;
+	let state = setup_all_test_environment().await; // Use the new setup function
 	let repo = PermissionsRepository::new(&state);
 	let permission = create_dummy_permission("To Be Deleted");
 	let _ = repo.query_create_permission(permission.clone()).await;
@@ -79,33 +82,64 @@ async fn test_delete_permission_should_succeed() {
 
 #[tokio::test]
 async fn test_delete_permission_should_fail_if_already_deleted() {
-	let state = create_mock_app_state().await;
+	let state = setup_all_test_environment().await; // Use the new setup function
 	let repo = PermissionsRepository::new(&state);
 	let permission = create_dummy_permission("Delete Twice");
 	let _ = repo.query_create_permission(permission.clone()).await;
 	let id = permission.id.id.to_raw();
-	let _ = repo.query_delete_permission(id.clone()).await;
-	let second = repo.query_delete_permission(id).await;
-	assert!(second.is_err(), "Should fail on second delete");
+	let delete_result = repo.query_delete_permission(id.clone()).await;
+	assert!(
+		delete_result.is_ok(),
+		"Initial delete failed: {:?}",
+		delete_result.err()
+	);
+	let second_delete_result = repo.query_delete_permission(id).await;
+	assert!(
+		second_delete_result.is_err(),
+		"Should fail on second delete"
+	);
+	if let Some(err) = second_delete_result.err() {
+		assert!(
+			err.to_string().contains("Permission not found"),
+			"Expected 'Permission not found' error, got: {err}"
+		);
+	}
 }
 
 #[tokio::test]
 async fn test_update_permission_should_fail_if_deleted() {
-	let state = create_mock_app_state().await;
+	let state = setup_all_test_environment().await; // Use the new setup function
 	let repo = PermissionsRepository::new(&state);
 	let mut permission = create_dummy_permission("To Be Updated Then Deleted");
 	let _ = repo.query_create_permission(permission.clone()).await;
 	let id = permission.id.id.to_raw();
-	let _ = repo.query_delete_permission(id.clone()).await;
+	let delete_result = repo.query_delete_permission(id.clone()).await;
+	assert!(
+		delete_result.is_ok(),
+		"Initial delete failed: {:?}",
+		delete_result.err()
+	);
 	permission.name = "Try Update".into();
 	let result = repo.query_update_permission(permission).await;
 	assert!(result.is_err(), "Update on deleted should fail");
+	if let Some(err) = result.err() {
+		assert!(
+			err.to_string().contains("Permission not found"),
+			"Expected 'Permission not found' error, got: {err}"
+		);
+	}
 }
 
 #[tokio::test]
 async fn test_query_permission_by_id_should_fail_if_not_found() {
-	let state = create_mock_app_state().await;
+	let state = setup_all_test_environment().await; // Use the new setup function
 	let repo = PermissionsRepository::new(&state);
 	let result = repo.query_permission_by_id("non-existent-id".into()).await;
 	assert!(result.is_err(), "Expected error for not found id");
+	if let Some(err) = result.err() {
+		assert!(
+			err.to_string().contains("Permission not found"),
+			"Expected 'Permission not found' error, got: {err}"
+		);
+	}
 }

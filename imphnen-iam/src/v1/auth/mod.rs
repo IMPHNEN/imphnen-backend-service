@@ -15,6 +15,7 @@ pub fn auth_router() -> Router {
 	Router::new()
 		.route("/forgot", post(auth_controller::post_forgot_password))
 		.route("/login", post(auth_controller::post_login))
+		.route("/login-mentor", post(auth_controller::post_login_mentor))
 		.route("/new-password", post(auth_controller::post_new_password))
 		.route("/refresh", post(auth_controller::post_refresh_token))
 		.route("/register", post(auth_controller::post_register))

@@ -1,16 +1,29 @@
 [package]
 name = "tests"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-imphnen-iam = { version = "0.1.0", path = "../imphnen-iam" }
-imphnen-libs = { version = "0.1.0", path = "../imphnen-libs" }
-imphnen-utils = { version = "0.1.0", path = "../imphnen-utils" }
-imphnen-entities = { version = "0.1.0", path = "../imphnen-entities" }
-axum.workspace = true
-axum-test.workspace = true
-chrono.workspace = true
-surrealdb.workspace = true
-tokio.workspace = true
+tokio.workspace = true 
+imphnen-iam.workspace = true
+imphnen-dimentorin.workspace = true
+imphnen-entities.workspace = true
+imphnen-libs.workspace = true
+imphnen-utils.workspace = true
+http-body-util.workspace = true 
+hyper.workspace = true 
+hyper-util.workspace = true 
 serde_json.workspace = true
+dotenvy.workspace = true
+tower.workspace = true 
+tracing.workspace = true 
+surrealdb.workspace = true 
+serde.workspace = true
+strum.workspace = true 
+uuid.workspace = true 
+rand.workspace = true 
+async-trait.workspace = true 
+chrono.workspace = true 
+axum.workspace = true

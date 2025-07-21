@@ -1,7 +1,12 @@
 use super::AuthOtpSchema;
-use crate::{AppState, ResourceEnum, UsersDetailQueryDto, make_thing};
+use super::UserCacheSchema;
+use crate::{
+	AppState, PermissionsQueryDto, ResourceEnum, RolesDetailQueryDto,
+	UsersDetailQueryDto,
+};
 use anyhow::{Result, anyhow, bail};
 use chrono::{Duration, Utc};
+use surrealdb::sql::Thing;
 
 pub struct AuthRepository<'a> {
 	pub state: &'a AppState,
@@ -18,20 +23,26 @@ impl<'a> AuthRepository<'a> {
 		}
 		let table = ResourceEnum::UsersCache.to_string();
 		let user_id = user.email.clone();
-		let id = make_thing(&table, &user_id);
-		let _ = self
+		let permissions: Vec<String> =
+			user.role.permissions.into_iter().map(|p| p.name).collect();
+		let user_cache = UserCacheSchema {
+			email: user_id.clone(),
+			permissions,
+		};
+
+		let _record: Option<UserCacheSchema> = self
 			.state
 			.surrealdb_mem
-			.delete::<Option<UsersDetailQueryDto>>((table.clone(), user_id.clone()))
+			.delete::<Option<UserCacheSchema>>((table.clone(), user_id.clone()))
 			.await?;
-		let mut user_to_store = user.clone();
-		user_to_store.id = id.clone();
-		let record: Option<UsersDetailQueryDto> = self
+
+		let record: Option<UserCacheSchema> = self
 			.state
 			.surrealdb_mem
 			.create((table, user_id))
-			.content(user_to_store)
+			.content(user_cache)
 			.await?;
+
 		match record {
 			Some(_) => Ok("Success store user data".to_string()),
 			None => bail!("Failed store user data"),
@@ -42,13 +53,54 @@ impl<'a> AuthRepository<'a> {
 		&self,
 		email: String,
 	) -> Result<UsersDetailQueryDto> {
-		let user: Option<UsersDetailQueryDto> = self
+		let user_cache: Option<UserCacheSchema> = self
 			.state
 			.surrealdb_mem
-			.select((ResourceEnum::UsersCache.to_string(), email))
+			.select((ResourceEnum::UsersCache.to_string(), email.clone()))
 			.await?;
-		match user {
-			Some(u) => Ok(u),
+
+		match user_cache {
+			Some(cache) => {
+				let permissions_query_dto: Vec<PermissionsQueryDto> = cache
+					.permissions
+					.into_iter()
+					.map(|name| PermissionsQueryDto {
+						id: Thing::from((
+							"app_permissions".to_string(),
+							surrealdb::sql::Id::rand(),
+						)),
+						name,
+						created_at: None,
+						updated_at: None,
+					})
+					.collect();
+
+				let role_detail_query_dto = RolesDetailQueryDto {
+					id: Thing::from(("app_roles".to_string(), surrealdb::sql::Id::rand())),
+					name: "CachedRole".to_string(),
+					permissions: permissions_query_dto,
+					is_deleted: false,
+					created_at: None,
+					updated_at: None,
+				};
+
+				Ok(UsersDetailQueryDto {
+					id: Thing::from(("app_users".to_string(), email.clone())),
+					fullname: "Cached User".to_string(),
+					email: cache.email,
+					avatar: None,
+					phone_number: String::new(),
+					is_active: true,
+					is_deleted: false,
+					gender: None,
+					birthdate: None,
+					password: String::new(),
+					role: role_detail_query_dto,
+					created_at: String::new(),
+					updated_at: String::new(),
+					mentor_id: None,
+				})
+			}
 			None => bail!("No stored user data found"),
 		}
 	}
@@ -59,7 +111,6 @@ impl<'a> AuthRepository<'a> {
 			.surrealdb_mem
 			.delete((ResourceEnum::UsersCache.to_string(), email))
 			.await?;
-		dbg!(record.clone());
 		match record {
 			Some(_) => Ok("Success delete stored user".to_string()),
 			None => bail!("Failed delete stored user"),

@@ -2,9 +2,15 @@ use super::{UsersDetailQueryDto, UsersListItemDto, UsersListQueryDto, UsersSchem
 use crate::{
 	AppState, MetaRequestDto, ResourceEnum, ResponseListSuccessDto, get_id, make_thing,
 };
+use surrealdb::sql::Thing;
 use anyhow::{Result, bail};
 use imphnen_utils::{DetailQueryBuilder, QueryListBuilder};
+use serde_json;
+use std::time::Instant;
 use surrealdb::{Surreal, engine::remote::ws::Client};
+
+
+
 
 pub struct UsersRepository<'a> {
 	state: &'a AppState,
@@ -30,10 +36,12 @@ impl<'a> UsersRepository<'a> {
 		Self { state }
 	}
 
+	
 	pub async fn query_user_list(
 		&self,
 		meta: MetaRequestDto,
 	) -> Result<ResponseListSuccessDto<Vec<UsersListItemDto>>> {
+		let now = Instant::now();
 		let result: ResponseListSuccessDto<Vec<UsersListQueryDto>> =
 			QueryListBuilder::new(
 				&self.state.surrealdb_ws,
@@ -46,6 +54,14 @@ impl<'a> UsersRepository<'a> {
 			.fetch_fields(vec!["role", "role.permissions"])
 			.build()
 			.await?;
+		let elapsed = now.elapsed();
+
+		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
+			== "development"
+		{
+			println!("Query 'query_user_list' took: {elapsed:.2?}");
+		}
+
 		let data = result
 			.data
 			.into_iter()
@@ -57,70 +73,103 @@ impl<'a> UsersRepository<'a> {
 		})
 	}
 
+	
 	pub async fn query_user_by_email(
 		&self,
 		email: String,
 	) -> Result<UsersDetailQueryDto> {
+		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
 		let builder = DetailQueryBuilder::new(ResourceEnum::Users.to_string())
-			.with_where("email")
-			.where_value(email.clone())
+			.with_where("email", Some(email.clone()))
 			.with_select_fields(vec!["*"])
 			.with_fetch("role")
 			.with_fetch("role.permissions");
 		let sql = builder.build();
 		let user_opt: Option<UsersDetailQueryDto> =
 			builder.apply_bindings(db.query(sql)).await?.take(0)?;
+		let elapsed = now.elapsed();
+
+		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
+			== "development"
+		{
+			println!("Query 'query_user_by_email' took: {elapsed:.2?}");
+		}
+
 		let Some(user) = user_opt else {
 			bail!("User not found");
 		};
 		if user.is_deleted {
 			bail!("User not found");
 		}
-		if user.role.is_deleted {
+		if user.role.updated_at.is_none() || user.role.is_deleted {
 			bail!("User not found");
 		}
 		Ok(UsersDetailQueryDto::from(&user))
 	}
 
-	pub async fn query_user_by_id(&self, id: String) -> Result<UsersDetailQueryDto> {
+	
+
+
+	pub async fn query_user_by_id(&self, id: &Thing) -> Result<UsersDetailQueryDto> {
+		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
 		let builder = DetailQueryBuilder::new(ResourceEnum::Users.to_string())
-			.with_id(&id)
+			.with_id(&id.id.to_raw())
 			.with_select_fields(vec!["*"])
 			.with_fetch("role")
 			.with_fetch("role.permissions");
 		let sql = builder.build();
 		let result: Option<UsersDetailQueryDto> =
 			builder.apply_bindings(db.query(sql)).await?.take(0)?;
+		let elapsed = now.elapsed();
+
+		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
+			== "development"
+		{
+			println!("Query 'query_user_by_id' took: {elapsed:.2?}");
+		}
+
 		let Some(user) = result else {
-			bail!("User not found");
+			bail!("User not found in database");
 		};
 		if user.is_deleted {
 			bail!("User not found");
 		}
 		if user.role.is_deleted {
-			bail!("User not found");
+			bail!("User's role has been deleted");
 		}
 		Ok(UsersDetailQueryDto::from(&user))
 	}
 
+	
 	pub async fn query_create_user(&self, data: UsersSchema) -> Result<String> {
+		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
 		let record: Option<UsersSchema> = db
 			.create(ResourceEnum::Users.to_string())
 			.content(data)
 			.await?;
+		let elapsed = now.elapsed();
+
+		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
+			== "development"
+		{
+			println!("Query 'query_create_user' took: {elapsed:.2?}");
+		}
+
 		match record {
 			Some(_) => Ok("Success create user".into()),
 			None => bail!("Failed to create user"),
 		}
 	}
 
+	
 	pub async fn query_update_user(&self, data: UsersSchema) -> Result<String> {
+		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
 		let record_key = get_id(&data.id)?;
-		let existing = self.query_user_by_id(data.id.id.to_raw()).await?;
+		let existing = self.query_user_by_id(&data.id).await?;
 		if existing.is_deleted {
 			bail!("User already deleted");
 		}
@@ -136,15 +185,25 @@ impl<'a> UsersRepository<'a> {
 			..data.clone()
 		};
 		let record: Option<UsersSchema> = db.update(record_key).merge(merged).await?;
+		let elapsed = now.elapsed();
+
+		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
+			== "development"
+		{
+			println!("Query 'query_update_user' took: {elapsed:.2?}");
+		}
+
 		match record {
 			Some(_) => Ok("Success update user".into()),
 			None => bail!("Failed to update user"),
 		}
 	}
 
+	
 	pub async fn query_delete_user(&self, id: String) -> Result<String> {
+		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
-		let user = self.query_user_by_id(id).await?;
+		let user = self.query_user_by_id(&make_thing(&ResourceEnum::Users.to_string(), &id)).await?;
 		if user.is_deleted {
 			bail!("User not found");
 		}
@@ -153,9 +212,18 @@ impl<'a> UsersRepository<'a> {
 			.update(record_key)
 			.merge(serde_json::json!({ "is_deleted": true }))
 			.await?;
+		let elapsed = now.elapsed();
+
+		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
+			== "development"
+		{
+			println!("Query 'query_delete_user' took: {elapsed:.2?}");
+		}
+
 		match record {
 			Some(_) => Ok("Success delete user".into()),
 			None => bail!("Failed to delete user"),
 		}
 	}
 }
+

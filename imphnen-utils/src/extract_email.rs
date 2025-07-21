@@ -1,24 +1,13 @@
 use crate::decode_access_token;
-use axum::http::{header::AUTHORIZATION, HeaderMap};
+use axum::http::{HeaderMap, header::AUTHORIZATION};
 
 pub fn extract_email(headers: &HeaderMap) -> Option<String> {
-	println!("📥 Received headers: {:?}", headers);
-
 	let auth_header = headers.get(AUTHORIZATION)?.to_str().ok()?;
-	println!("🔍 Authorization Header: {}", auth_header);
-
 	let token = auth_header.strip_prefix("Bearer ")?;
-	println!("🧪 Token: {}", token);
 
 	match decode_access_token(token) {
-		Ok(data) => {
-			println!("✅ Token claims: {:?}", data.claims);
-			Some(data.claims.sub)
-		}
-		Err(e) => {
-			eprintln!("❌ Failed to decode token: {}", e);
-			None
-		}
+		Ok(data) => Some(data.claims.sub),
+		Err(_e) => None,
 	}
 }
 

@@ -91,3 +91,32 @@ pub async fn post_execute_gacha_roll(
 		Err(response) => response,
 	}
 }
+
+#[utoipa::path(
+    delete,
+    path = "/v1/gacha/rolls/delete/{id}",
+    security(
+        ("Bearer" = [])
+    ),
+    params(("id" = String, Path, description = "Gacha Roll ID")),
+    responses(
+        (status = 200, description = "Delete Gacha Roll (soft delete)", body = MessageResponseDto)
+    ),
+    tag = "Gacha"
+)]
+pub async fn delete_gacha_roll(
+	headers: HeaderMap,
+	Extension(state): Extension<AppState>,
+	Path(id): Path<String>,
+) -> impl IntoResponse {
+	match permissions_guard(
+		&headers,
+		state.clone(),
+		vec![PermissionsEnum::DeleteGachaRolls],
+	)
+	.await
+	{
+		Ok(_) => GachaRollService::soft_delete_gacha_roll(&state, id).await,
+		Err(response) => response,
+	}
+}

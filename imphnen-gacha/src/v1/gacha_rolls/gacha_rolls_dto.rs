@@ -29,7 +29,7 @@ impl GachaRollItemDto {
 		Self {
 			id: dto.id.id.to_raw(),
 			item: GachaItemDto::from(dto.item.clone()),
-			weight: dto.weight.clone(),
+			weight: dto.weight,
 			quantity: dto.quantity,
 			is_deleted: dto.is_deleted,
 			created_at: dto.created_at.clone(),

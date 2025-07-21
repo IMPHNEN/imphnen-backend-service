@@ -1,6 +1,8 @@
 use std::fmt;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+use strum_macros::EnumIter;
+
+#[derive(Debug, Clone, PartialEq, Eq, EnumIter)]
 pub enum PermissionsEnum {
 	ReadListUsers,
 	ReadDetailUsers,
@@ -28,6 +30,16 @@ pub enum PermissionsEnum {
 	ReadDetailGachaRolls,
 	CreateGachaRolls,
 	ExecuteGachaRolls,
+	DeleteGachaRolls,
+	ReadListMentors,
+	ReadDetailMentors,
+	RegisterMentors,
+	ReadOwnMentorProfile,
+	UpdateOwnMentorProfile,
+	ReadOwnMentorStatus,
+	UpdateMentors,
+	VerifyMentors,
+	DeleteMentors,
 }
 
 impl fmt::Display for PermissionsEnum {
@@ -59,8 +71,18 @@ impl fmt::Display for PermissionsEnum {
 			PermissionsEnum::ReadDetailGachaRolls => "Read Detail Gacha Rolls",
 			PermissionsEnum::CreateGachaRolls => "Create Gacha Rolls",
 			PermissionsEnum::ExecuteGachaRolls => "Execute Gacha Rolls",
+			PermissionsEnum::DeleteGachaRolls => "Delete Gacha Rolls",
+			PermissionsEnum::ReadListMentors => "Read List Mentors",
+			PermissionsEnum::ReadDetailMentors => "Read Detail Mentors",
+			PermissionsEnum::RegisterMentors => "Register Mentors",
+			PermissionsEnum::ReadOwnMentorProfile => "Read Own Mentor Profile",
+			PermissionsEnum::UpdateOwnMentorProfile => "Update Own Mentor Profile",
+			PermissionsEnum::ReadOwnMentorStatus => "Read Own Mentor Status",
+			PermissionsEnum::UpdateMentors => "Update Mentors",
+			PermissionsEnum::VerifyMentors => "Verify Mentors",
+			PermissionsEnum::DeleteMentors => "Delete Mentors",
 		};
-		write!(f, "{}", permission_str)
+		write!(f, "{permission_str}")
 	}
 }
 
@@ -101,6 +123,20 @@ impl PermissionsEnum {
 			}
 			PermissionsEnum::CreateGachaRolls => "18e36c63-fcb7-4877-b911-c5aa611e878f",
 			PermissionsEnum::ExecuteGachaRolls => "14c6a1cd-5c63-4643-89b5-b1a5f9920cc0",
+			PermissionsEnum::DeleteGachaRolls => "12345678-ABCD-EFAB-CDEF-0123456789AB",
+			PermissionsEnum::ReadListMentors => "a1b2c3d4-5e6f-7890-abcd-ef1234567890",
+			PermissionsEnum::ReadDetailMentors => "b2c3d4e5-6f78-9012-bcde-f23456789012",
+			PermissionsEnum::RegisterMentors => "c3d4e5f6-7890-1234-cdef-345678901234",
+			PermissionsEnum::ReadOwnMentorProfile => {
+				"d4e5f6a7-8901-2345-def0-456789012345"
+			}
+			PermissionsEnum::UpdateOwnMentorProfile => {
+				"e5f6a7b8-9012-3456-ef01-567890123456"
+			}
+			PermissionsEnum::ReadOwnMentorStatus => "f6a7b8c9-0123-4567-f012-678901234567",
+			PermissionsEnum::UpdateMentors => "a7b8c9d0-1234-5678-0123-789012345678",
+			PermissionsEnum::VerifyMentors => "b8c9d0e1-2345-6789-1234-890123456789",
+			PermissionsEnum::DeleteMentors => "c9d0e1f2-3456-7890-2345-901234567890",
 		}
 	}
 }

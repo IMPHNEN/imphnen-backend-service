@@ -11,6 +11,5 @@ pub fn get_id(thing: &Thing) -> Result<(&str, &str)> {
 }
 
 pub fn extract_id(thing: &Thing) -> String {
-	let id = thing.id.to_raw();
-	id
+	thing.id.to_raw()
 }
