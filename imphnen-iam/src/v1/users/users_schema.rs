@@ -1,5 +1,6 @@
 use super::{UsersCreateRequestDto, UsersDetailQueryDto, UsersUpdateRequestDto};
 use imphnen_libs::{ResourceEnum, hash_password};
+use imphnen_utils::extract_id;
 use imphnen_utils::{get_iso_date, make_thing};
 use serde::{Deserialize, Serialize};
 use surrealdb::{Uuid, sql::Thing};
@@ -10,11 +11,16 @@ pub struct UsersSchema {
 	pub fullname: String,
 	pub email: String,
 	pub password: String,
+	#[serde(skip_serializing_if = "Option::is_none")]
 	pub avatar: Option<String>,
 	pub phone_number: String,
 	pub is_active: bool,
 	pub is_deleted: bool,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub mentor_id: Option<Thing>,
+	#[serde(skip_serializing_if = "Option::is_none")]
 	pub gender: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none")]
 	pub birthdate: Option<String>,
 	pub role: Thing,
 	pub created_at: String,
@@ -35,6 +41,10 @@ impl Default for UsersSchema {
 			phone_number: String::new(),
 			is_active: false,
 			is_deleted: false,
+			mentor_id: Some(make_thing(
+				&ResourceEnum::Users.to_string(),
+				&Uuid::new_v4().to_string(),
+			)),
 			gender: None,
 			birthdate: None,
 			role: make_thing(
@@ -57,12 +67,18 @@ impl UsersSchema {
 			phone_number: dto.phone_number,
 			is_active: dto.is_active,
 			is_deleted: dto.is_deleted,
+			mentor_id: Some(dto.mentor_id.unwrap_or_else(|| {
+				make_thing(
+					&ResourceEnum::Users.to_string(),
+					&Uuid::new_v4().to_string(),
+				)
+			})),
 			gender: dto.gender,
 			birthdate: dto.birthdate,
 			password: dto.password,
 			created_at: dto.created_at,
 			updated_at: dto.updated_at,
-			role: make_thing(&ResourceEnum::Roles.to_string(), &dto.role.id.id.to_raw()),
+			role: make_thing(&ResourceEnum::Roles.to_string(), &extract_id(&dto.role.id)),
 		}
 	}
 
@@ -95,6 +111,10 @@ impl UsersSchema {
 			password,
 			phone_number: user.phone_number,
 			is_active: false,
+			mentor_id: Some(make_thing(
+				&ResourceEnum::Users.to_string(),
+				&Uuid::new_v4().to_string(),
+			)),
 			gender: None,
 			birthdate: None,
 			avatar: None,
@@ -111,5 +131,17 @@ impl UsersSchema {
 			id: dto.id.clone(),
 			..Self::from(dto)
 		}
+	}
+
+	pub fn update_mentor_id(mut self, mentor_id: Option<String>) -> Self {
+		self.mentor_id = match mentor_id {
+			Some(id) => Some(make_thing(&ResourceEnum::Users.to_string(), &id)),
+			None => Some(make_thing(
+				&ResourceEnum::Users.to_string(),
+				&Uuid::new_v4().to_string(),
+			)),
+		};
+		self.updated_at = get_iso_date();
+		self
 	}
 }

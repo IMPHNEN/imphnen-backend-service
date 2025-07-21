@@ -1,7 +1,8 @@
 use imphnen_libs::MetaRequestDto;
+use serde_json::{Map, Value};
+use surrealdb::engine::any;
 use surrealdb::method::Query;
 use surrealdb::sql::Thing;
-use surrealdb::engine::any;
 
 pub struct ListQueryBuilder {
 	resource: String,
@@ -57,8 +58,7 @@ impl ListQueryBuilder {
 		if let Some(search) = search {
 			if !search.is_empty() {
 				self.conditions.push(format!(
-					"string::contains(string::lowercase({} ?? ''), string::lowercase($search))",
-					field
+					"string::contains(string::lowercase({field} ?? ''), string::lowercase($search))"
 				));
 			}
 		}
@@ -69,8 +69,7 @@ impl ListQueryBuilder {
 		if let (Some(f), Some(v)) = (field, value) {
 			if !v.is_empty() {
 				self.conditions.push(format!(
-					"string::contains(string::join('', [{}]), $filter)",
-					f
+					"string::contains(string::join('', [{f}]), $filter)"
 				));
 			}
 		}
@@ -111,7 +110,7 @@ impl ListQueryBuilder {
 
 		let order_clause = if let Some(field) = self.order_by {
 			let ord = self.order.unwrap_or_else(|| "ASC".into());
-			format!("ORDER BY {} {}", field, ord)
+			format!("ORDER BY {field} {ord}")
 		} else {
 			String::new()
 		};
@@ -145,16 +144,26 @@ impl ListQueryBuilder {
 			fetch_clause
 		)
 	}
+
+	pub fn build_count(self) -> String {
+		let where_clause = if !self.conditions.is_empty() {
+			format!("WHERE {}", self.conditions.join(" AND "))
+		} else {
+			String::new()
+		};
+
+		format!("SELECT count() FROM {} {}", self.resource, where_clause)
+	}
 }
 
 pub struct DetailQueryBuilder {
 	resource: String,
 	id: Option<String>,
 	thing: Option<String>,
-	where_field: Option<String>,
-	where_value: Option<String>,
 	select_fields: Vec<String>,
 	fetch_fields: Vec<String>,
+	conditions: Vec<String>,
+	bindings: Map<String, Value>,
 }
 
 impl DetailQueryBuilder {
@@ -163,40 +172,59 @@ impl DetailQueryBuilder {
 			resource: resource.into(),
 			id: None,
 			thing: None,
-			where_field: None,
-			where_value: None,
 			select_fields: vec![],
 			fetch_fields: vec![],
+			conditions: vec![],
+			bindings: Map::new(),
 		}
 	}
 
 	pub fn with_id(mut self, id: impl Into<String>) -> Self {
-		if self.where_field.is_some() || self.thing.is_some() {
-			panic!("Cannot use with_id() after with_where() or with_thing()");
+		if self.thing.is_some() || !self.conditions.is_empty() {
+			panic!(
+				"Cannot use with_id() after with_thing() or with_where()/with_condition()"
+			);
 		}
 		self.id = Some(id.into());
 		self
 	}
 
 	pub fn with_thing(mut self, thing: &Thing) -> Self {
-		if self.id.is_some() || self.where_field.is_some() {
-			panic!("Cannot use with_thing() after with_id() or with_where()");
+		if self.id.is_some() || !self.conditions.is_empty() {
+			panic!(
+				"Cannot use with_thing() after with_id() or with_where()/with_condition()"
+			);
 		}
-		self.thing = Some(thing.to_string()); // app_users:uuid
-		self.resource = thing.tb.clone(); // update resource dari thing
+		self.thing = Some(thing.to_string());
+		self.resource = thing.tb.clone();
 		self
 	}
 
-	pub fn with_where(mut self, field: impl Into<String>) -> Self {
+	// Modified with_where method
+	pub fn with_where(
+		mut self,
+		field: impl Into<String>,
+		value: Option<impl Into<String>>,
+	) -> Self {
 		if self.id.is_some() || self.thing.is_some() {
 			panic!("Cannot use with_where() after with_id() or with_thing()");
 		}
-		self.where_field = Some(field.into());
+		let field_str = field.into();
+		if let Some(val) = value {
+			// Using a distinct binding key to avoid conflicts
+			self.conditions.push(format!("{field_str} = $value_where"));
+			self
+				.bindings
+				.insert("value_where".to_string(), Value::String(val.into()));
+		} else {
+			// If no value, assume it's a direct condition string (e.g., "is_active = true")
+			self.conditions.push(field_str);
+		}
 		self
 	}
 
-	pub fn where_value(mut self, value: impl Into<String>) -> Self {
-		self.where_value = Some(value.into());
+	pub fn with_condition(mut self, condition: &str) -> Self {
+		self.conditions.push(condition.to_string());
 		self
 	}
 
@@ -220,32 +248,41 @@ impl DetailQueryBuilder {
 		let fetch_clause = if self.fetch_fields.is_empty() {
 			String::new()
 		} else {
-			format!("FETCH {}", self.fetch_fields.join(", "))
+			format!("FETCH {}", self.fetch_fields.join(", ")) // Fixed: Changed self.fetch to self.fetch_fields
 		};
 
-		let from_clause = if let Some(thing) = &self.thing {
+		// Determine the base FROM clause
+		let mut from_clause_base = if let Some(thing) = &self.thing {
 			thing.to_string()
-		} else if let Some(id) = &self.id {
-			format!("{}:⟨{}⟩", self.resource, id)
-		} else if let (Some(field), Some(_)) = (&self.where_field, &self.where_value) {
-			format!("{} WHERE {} = $value", self.resource, field)
+		} else if let Some(id_val) = &self.id {
+			format!("{}:⟨{}⟩", self.resource, id_val)
 		} else {
-			panic!(
-				"You must set one of with_id(), with_thing(), or with_where()+where_value()"
-			);
+			self.resource.clone() // Start with resource name for WHERE queries
 		};
 
-		format!(
-			"SELECT {} FROM {} {}",
-			select_clause, from_clause, fetch_clause
-		)
+		// Add WHERE clause based on accumulated conditions
+		if !self.conditions.is_empty() {
+			// This logic needs to be careful: if `from_clause_base` already contains `WHERE` (e.g. from `id` lookup),
+			// then `conditions` should append with `AND`. But for `DetailQueryBuilder`, only one `WHERE` style is expected.
+			// The panic conditions in `with_id`, `with_thing`, `with_where` should prevent logical conflicts.
+			from_clause_base = format!(
+				"{} WHERE {}",
+				from_clause_base,
+				self.conditions.join(" AND ")
+			);
+		}
+
+		format!("SELECT {select_clause} FROM {from_clause_base} {fetch_clause}")
 	}
 
-	pub fn apply_bindings<'q>(&self, query: Query<'q, any::Any>) -> Query<'q, any::Any> {
-		if let (Some(_), Some(value)) = (&self.where_field, &self.where_value) {
-			query.bind(("value", value.clone()))
-		} else {
-			query
+	// Modified apply_bindings to clone both key and value
+	pub fn apply_bindings<'q>(
+		&self,
+		mut query: Query<'q, any::Any>,
+	) -> Query<'q, any::Any> {
+		for (key, val) in &self.bindings {
+			query = query.bind((key.clone(), val.clone())); // Clone both key and value
 		}
+		query
 	}
 }

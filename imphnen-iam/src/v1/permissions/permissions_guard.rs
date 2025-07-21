@@ -1,5 +1,5 @@
 use super::PermissionsEnum;
-use crate::{common_response, extract_email, AppState, AuthRepository};
+use crate::{AppState, AuthRepository, common_response, extract_email};
 use axum::{
 	http::{HeaderMap, StatusCode},
 	response::Response,
@@ -29,14 +29,16 @@ pub async fn permissions_guard(
 	let role = raw_user.role;
 	let role_permissions: Vec<String> =
 		role.permissions.into_iter().map(|perm| perm.name).collect();
-	let has_all_permissions = required_permissions
-		.iter()
-		.all(|required| role_permissions.contains(&required.to_string()));
-	if !has_all_permissions {
-		return Err(common_response(
-			StatusCode::FORBIDDEN,
-			"You don't have the required permissions",
-		));
+
+	for required in &required_permissions {
+		let required_str = required.to_string();
+		if !role_permissions.contains(&required_str) {
+			eprintln!("  MISSING REQUIRED PERMISSION: {required_str}");
+			return Err(common_response(
+				StatusCode::FORBIDDEN,
+				"You don't have the required permissions",
+			));
+		}
 	}
 	Ok(())
 }

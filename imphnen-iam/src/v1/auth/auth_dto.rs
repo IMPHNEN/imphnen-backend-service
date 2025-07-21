@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::{Validate, ValidationError};
 
-fn validate_password_complexity(password: &str) -> Result<(), ValidationError> {
+pub fn validate_password_complexity(password: &str) -> Result<(), ValidationError> {
 	let has_uppercase = password.chars().any(|c| c.is_ascii_uppercase());
 	let has_lowercase = password.chars().any(|c| c.is_ascii_lowercase());
 	let has_digit = password.chars().any(|c| c.is_ascii_digit());
@@ -116,4 +116,9 @@ pub struct AuthSetNewPasswordRequestDto {
 		message = "Password must include uppercase, lowercase, number, and special character"
 	))]
 	pub password: String,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct UserCacheSchema {
+	pub email: String,
+	pub permissions: Vec<String>,
 }

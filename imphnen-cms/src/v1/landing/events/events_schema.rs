@@ -1,10 +1,12 @@
 use imphnen_libs::ResourceEnum;
+use imphnen_utils::{get_iso_date, make_thing};
+use serde::{Deserialize, Serialize};
 use surrealdb::Uuid;
 use surrealdb::sql::Thing;
-use serde::{Deserialize, Serialize};
-use imphnen_utils::{get_iso_date, make_thing};
 
-use super::events_dto::{EventsCreateRequestDto, EventsQueryDto, EventsUpdateRequestDto};
+use super::events_dto::{
+	EventsCreateRequestDto, EventsQueryDto, EventsUpdateRequestDto,
+};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EventsSchema {

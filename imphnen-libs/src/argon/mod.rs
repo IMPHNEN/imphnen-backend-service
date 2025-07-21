@@ -1,9 +1,9 @@
 use argon2::{
-	password_hash::{
-		rand_core::OsRng, Error, PasswordHash, PasswordHasher, PasswordVerifier,
-		SaltString,
-	},
 	Argon2,
+	password_hash::{
+		Error, PasswordHash, PasswordHasher, PasswordVerifier, SaltString,
+		rand_core::OsRng,
+	},
 };
 
 pub fn hash_password(password: &str) -> Result<String, Error> {

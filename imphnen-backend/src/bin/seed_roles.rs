@@ -1,9 +1,9 @@
+use imphnen_libs::enviroment::load_env;
 use imphnen_utils::{get_iso_date, Env};
 use serde_json::json;
 use std::error::Error;
-use surrealdb::opt::auth::Root;
-use imphnen_libs::enviroment::load_env;
 use surrealdb::engine::any;
+use surrealdb::opt::auth::Root;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
 	load_env();
@@ -49,9 +49,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			None,
 			Some("2025-02-22T15:38:39.868306+00"),
 		),
+		(
+			"3b9f8c4e-6a2d-4f8a-9a12-2d6f8b3c4e5a",
+			"Mentor",
+			None,
+			Some("2025-07-06T10:00:00.000000+00"),
+		),
 	];
 
 	for (id, name, _created_at, _updated_at) in roles {
+		db.query("DELETE type::thing('app_roles', $id)")
+			.bind(("id", id))
+			.await?;
 		db.query("CREATE type::thing('app_roles', $id) CONTENT $data")
 			.bind(("id", id))
 			.bind((
@@ -65,7 +74,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 				}),
 			))
 			.await?;
-		println!("✅ Inserted role: {}", name);
+		println!("✅ Inserted role: {name}");
 	}
 	println!("✅ All Roles seeded");
 	Ok(())

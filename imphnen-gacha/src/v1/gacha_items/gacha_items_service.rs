@@ -45,7 +45,12 @@ impl GachaItemService {
 			return common_response(status, &message);
 		}
 		let repo = GachaItemRepository::new(state);
-		let schema = GachaItemSchema::from(payload);
+		let schema = GachaItemSchema {
+			id: make_thing(&ResourceEnum::GachaItems.to_string(), &payload.name), // Fixed: Use payload.name or some other identifier
+			name: payload.name,
+			image_url: payload.image_url,
+			..Default::default()
+		};
 		match repo.query_create_gacha_item(schema).await {
 			Ok(msg) => common_response(StatusCode::CREATED, &msg),
 			Err(e) => common_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),

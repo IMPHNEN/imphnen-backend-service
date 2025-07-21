@@ -4,12 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-imphnen-libs = { version = "0.1.0", path = "../imphnen-libs" }
-imphnen-utils = { version = "0.1.0", path = "../imphnen-utils" }
-imphnen-gateway = { version = "0.1.0", path = "../imphnen-gateway" }
-imphnen-entities = { version = "0.1.0", path = "../imphnen-entities" }
-imphnen-iam = { version = "0.1.0", path = "../imphnen-iam" }
-imphnen-cms = { version = "0.1.0", path = "../imphnen-cms" }
+imphnen-libs.workspace = true
+imphnen-utils.workspace = true
+imphnen-gateway.workspace = true
+imphnen-entities.workspace = true
+imphnen-iam.workspace = true
+imphnen-cms.workspace = true
+imphnen-dimentorin.workspace = true
 axum.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -26,3 +27,9 @@ anyhow.workspace = true
 tower-http.workspace = true
 utoipa-swagger-ui.workspace = true
 env_logger.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+uuid.workspace=true
+tokio-tungstenite.workspace = true
+url.workspace = true
+futures-util.workspace = true

@@ -2,7 +2,7 @@ use super::Env;
 use axum::http::StatusCode;
 use chrono::{Duration, TimeDelta, Utc};
 use jsonwebtoken::{
-	decode, encode, DecodingKey, EncodingKey, Header, TokenData, Validation,
+	DecodingKey, EncodingKey, Header, TokenData, Validation, decode, encode,
 };
 use serde::{Deserialize, Serialize};
 
@@ -51,7 +51,7 @@ pub fn decode_access_token(
 	let env = Env::new();
 	let secret: String = env.access_token_secret;
 	let result: Result<TokenData<Claims>, StatusCode> = decode(
-		&jwt_token,
+		jwt_token,
 		&DecodingKey::from_secret(secret.as_ref()),
 		&Validation::default(),
 	)
@@ -81,7 +81,7 @@ pub fn decode_refresh_token(
 	let env = Env::new();
 	let secret: String = env.refresh_token_secret;
 	let result: Result<TokenData<Claims>, StatusCode> = decode(
-		&jwt_token,
+		jwt_token,
 		&DecodingKey::from_secret(secret.as_ref()),
 		&Validation::default(),
 	)

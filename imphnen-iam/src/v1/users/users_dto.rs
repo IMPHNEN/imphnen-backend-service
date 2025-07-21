@@ -1,13 +1,13 @@
 use crate::{RolesDetailItemDto, RolesDetailQueryDto};
 use lazy_static::lazy_static;
-use regex::Regex;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::Thing;
 use utoipa::ToSchema;
 use validator::Validate;
 
 lazy_static! {
-	static ref PASSWORD_REGEX: Regex = Regex::new(r"^[A-Za-z\d@$!%*?&]{8,}$").unwrap();
+	static ref PASSWORD_REGEX: regex::Regex =
+		regex::Regex::new(r"^[A-Za-z\d@$!%*?&]{8,}$").unwrap();
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
@@ -34,7 +34,7 @@ pub struct UsersCreateRequestDto {
 		message = "Password must have at least 8 characters"
 	))]
 	#[validate(regex(
-		path = "PASSWORD_REGEX",
+		path = "*PASSWORD_REGEX",
 		message = "Password must include uppercase, lowercase, number, and special character"
 	))]
 	pub password: String,
@@ -62,6 +62,7 @@ pub struct UsersUpdateRequestDto {
 		min = 8,
 		message = "Password must have at least 8 characters"
 	))]
+	pub password: String,
 	#[validate(length(min = 2, message = "Fullname at least have 2 character"))]
 	pub fullname: String,
 	#[validate(length(
@@ -103,7 +104,7 @@ impl UsersDetailItemDto {
 			email: dto.email.clone(),
 			avatar: dto.avatar.clone(),
 			phone_number: dto.phone_number.clone(),
-			is_active: dto.is_active.clone(),
+			is_active: dto.is_active,
 			gender: dto.gender.clone(),
 			birthdate: dto.birthdate.clone(),
 			created_at: dto.created_at.clone(),
@@ -169,24 +170,47 @@ pub struct UsersDetailQueryDto {
 	pub role: RolesDetailQueryDto,
 	pub created_at: String,
 	pub updated_at: String,
+	pub mentor_id: Option<Thing>,
 }
 
 impl UsersDetailQueryDto {
 	pub fn from(&self) -> Self {
 		Self {
 			id: self.id.clone(),
-			role: RolesDetailQueryDto::from(self.role.clone()),
+			role: self.role.clone(),
 			fullname: self.fullname.clone(),
 			email: self.email.clone(),
 			avatar: self.avatar.clone(),
 			phone_number: self.phone_number.clone(),
 			is_active: self.is_active,
+			mentor_id: self.mentor_id.clone(),
 			gender: self.gender.clone(),
 			is_deleted: self.is_deleted,
 			password: self.password.clone(),
 			birthdate: self.birthdate.clone(),
 			created_at: self.created_at.clone(),
 			updated_at: self.updated_at.clone(),
+		}
+	}
+}
+
+impl From<&UsersDetailItemDto> for UsersDetailQueryDto {
+	fn from(dto: &UsersDetailItemDto) -> Self {
+		Self {
+			id: crate::make_thing(&imphnen_libs::ResourceEnum::Users.to_string(), &dto.id),
+			fullname: dto.fullname.clone(),
+			email: dto.email.clone(),
+			avatar: dto.avatar.clone(),
+			phone_number: dto.phone_number.clone(),
+			is_active: dto.is_active,
+			is_deleted: false,
+			gender: dto.gender.clone(),
+			birthdate: dto.birthdate.clone(),
+			password: String::new(),
+			role: RolesDetailQueryDto::default(),
+			created_at: dto.created_at.clone(),
+			updated_at: dto.updated_at.clone(),
+			mentor_id: None,
 		}
 	}
 }

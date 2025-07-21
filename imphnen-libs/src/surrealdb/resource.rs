@@ -14,6 +14,7 @@ pub enum ResourceEnum {
 	RolesPermissions,
 	Events,
 	Testimonials,
+	Mentors,
 }
 
 impl fmt::Display for ResourceEnum {
@@ -31,7 +32,8 @@ impl fmt::Display for ResourceEnum {
 			ResourceEnum::GachaCredits => "app_gacha_credits",
 			ResourceEnum::Events => "app_events",
 			ResourceEnum::Testimonials => "app_testimonials",
+			ResourceEnum::Mentors => "app_mentors",
 		};
-		write!(f, "{}", str)
+		write!(f, "{str}")
 	}
 }

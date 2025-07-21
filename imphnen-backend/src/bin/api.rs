@@ -1,4 +1,3 @@
-use env_logger;
 use imphnen_gateway::gateway_service;
 use imphnen_libs::axum_init;
 

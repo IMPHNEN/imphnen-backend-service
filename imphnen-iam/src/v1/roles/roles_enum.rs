@@ -5,6 +5,7 @@ pub enum RolesEnum {
 	Admin,
 	User,
 	Staff,
+	Mentor, // Added Mentor role
 }
 
 impl fmt::Display for RolesEnum {
@@ -13,7 +14,8 @@ impl fmt::Display for RolesEnum {
 			RolesEnum::Admin => "Admin",
 			RolesEnum::User => "User",
 			RolesEnum::Staff => "Staff",
+			RolesEnum::Mentor => "Mentor", // Added Mentor role
 		};
-		write!(f, "{}", roles_str)
+		write!(f, "{roles_str}")
 	}
 }

@@ -2,9 +2,9 @@ use super::{
 	AuthLoginRequestDto, AuthRefreshTokenRequestDto, AuthRegisterRequestDto,
 	AuthResendOtpRequestDto, AuthService, AuthVerifyEmailRequestDto,
 };
-use crate::{v1::AuthLoginResponsetDto, AppState};
+use crate::{AppState, v1::AuthLoginResponsetDto};
 use crate::{AuthNewPasswordRequestDto, MessageResponseDto, ResponseSuccessDto};
-use axum::{response::IntoResponse, Extension, Json};
+use axum::{Extension, Json, response::IntoResponse};
 
 #[utoipa::path(
     post,
@@ -21,6 +21,24 @@ pub async fn post_login(
 	Json(payload): Json<AuthLoginRequestDto>,
 ) -> impl IntoResponse {
 	AuthService::mutation_login(payload, &state).await
+}
+
+#[utoipa::path(
+    post,
+    path = "/v1/auth/login-mentor",
+    request_body = AuthLoginRequestDto,
+    responses(
+        (status = 200, description = "Mentor login successful", body = ResponseSuccessDto<AuthLoginResponsetDto>),
+        (status = 401, description = "Mentor login failed", body = MessageResponseDto),
+        (status = 403, description = "Forbidden - Not a mentor", body = MessageResponseDto)
+    ),
+    tag = "Authentication"
+)]
+pub async fn post_login_mentor(
+	Extension(state): Extension<AppState>,
+	Json(payload): Json<AuthLoginRequestDto>,
+) -> impl IntoResponse {
+	AuthService::mutation_mentor_login(payload, &state).await
 }
 
 #[utoipa::path(

@@ -34,7 +34,7 @@ pub struct TestimonialsUpdateRequestDto {
 pub struct TestimonialsListItemDto {
 	pub id: String,
 	pub user_id: String,
-	pub user_fullname: String, // Assuming we'll fetch user's full name
+	pub user_fullname: String,
 	pub role: String,
 	pub content: String,
 	pub created_at: String,
@@ -45,7 +45,7 @@ pub struct TestimonialsListItemDto {
 pub struct TestimonialsDetailItemDto {
 	pub id: String,
 	pub user_id: String,
-	pub user_fullname: String, // Assuming we'll fetch user's full name
+	pub user_fullname: String,
 	pub role: String,
 	pub content: String,
 	pub created_at: String,
@@ -55,7 +55,7 @@ pub struct TestimonialsDetailItemDto {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TestimonialsQueryDto {
 	pub id: Thing,
-	pub user: UsersSchema, // Change from Thing to UsersSchema
+	pub user: UsersSchema,
 	pub role: String,
 	pub content: String,
 	pub is_deleted: bool,
@@ -68,7 +68,7 @@ impl TestimonialsQueryDto {
 		TestimonialsListItemDto {
 			id: self.id.id.to_raw(),
 			user_id: self.user.id.id.to_raw(),
-			user_fullname: self.user.fullname, // Extract fullname from UsersSchema
+			user_fullname: self.user.fullname,
 			role: self.role,
 			content: self.content,
 			created_at: self.created_at,

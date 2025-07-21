@@ -63,4 +63,12 @@ impl GachaRollService {
 			Err(e) => common_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
 		}
 	}
+
+	pub async fn soft_delete_gacha_roll(state: &AppState, id: String) -> Response {
+		let repo = GachaRollRepository::new(state);
+		match repo.query_soft_delete_gacha_roll(id).await {
+			Ok(msg) => common_response(StatusCode::OK, &msg),
+			Err(e) => common_response(StatusCode::NOT_FOUND, &e.to_string()),
+		}
+	}
 }

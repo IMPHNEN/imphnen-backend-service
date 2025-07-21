@@ -64,3 +64,16 @@ pub struct RolesDetailQueryDto {
 	pub created_at: Option<String>,
 	pub updated_at: Option<String>,
 }
+
+impl Default for RolesDetailQueryDto {
+	fn default() -> Self {
+		Self {
+			id: Thing::from(("".to_string(), surrealdb::sql::Id::Number(0))),
+			name: String::new(),
+			permissions: Vec::new(),
+			is_deleted: false,
+			created_at: None,
+			updated_at: None,
+		}
+	}
+}

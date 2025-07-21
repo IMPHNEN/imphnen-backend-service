@@ -29,13 +29,7 @@ pub fn send_email(
 		.credentials(smtp_credentials)
 		.build();
 	match mailer.send(&email) {
-		Ok(_) => {
-			println!("Email sent successfully to {}", to);
-			Ok(())
-		}
-		Err(e) => {
-			println!("Failed to send email: {}", e);
-			Err(Box::new(e))
-		}
+		Ok(_) => Ok(()),
+		Err(e) => Err(Box::new(e)),
 	}
 }

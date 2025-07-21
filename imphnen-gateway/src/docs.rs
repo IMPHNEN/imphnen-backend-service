@@ -1,18 +1,44 @@
+use imphnen_cms::{
+	events_controller,
+	events_dto::{EventsDetailItemDto, EventsListItemDto},
+	testimonials_controller,
+	testimonials_dto::{
+		TestimonialsCreateRequestDto, TestimonialsDetailItemDto,
+		TestimonialsListItemDto, TestimonialsUpdateRequestDto,
+	},
+};
+use imphnen_dimentorin::v1::mentors::{
+	mentors_controller,
+	mentors_dto::{
+		IdentityAndVerification, MentorDetailResponseDto, MentorListResponseDto,
+		MentorRegisterFromTokenRequestDto, MentorRegisterResponseDto,
+		MentorUpdateRequestDto, MentorUserRegisterRequestDto, MentorVerifyRequestDto,
+		MentoringLogistics, MentoringRate, ProfessionalProfile,
+	},
+};
+use imphnen_gacha::{
+	GachaClaimItemDto, GachaClaimRequestDto, GachaItemDto, GachaItemRequestDto,
+	GachaRollItemDto, GachaRollRequestDto, gacha_claims, gacha_items, gacha_rolls,
+};
 use imphnen_iam::{
-auth, permissions, roles, users, AuthLoginRequestDto, AuthLoginResponsetDto, AuthNewPasswordRequestDto, AuthRefreshTokenRequestDto, AuthResendOtpRequestDto, AuthVerifyEmailRequestDto, MessageResponseDto, MetaRequestDto, MetaResponseDto, PermissionsItemDto, PermissionsRequestDto, ResponseListSuccessDto, ResponseSuccessDto, RolesDetailItemDto, RolesListItemDto, RolesRequestCreateDto, RolesRequestUpdateDto, TokenDto, UsersCreateRequestDto, UsersDetailItemDto, UsersListItemDto, UsersUpdateRequestDto
+	AuthLoginRequestDto, AuthLoginResponsetDto, AuthNewPasswordRequestDto,
+	AuthRefreshTokenRequestDto, AuthResendOtpRequestDto, AuthVerifyEmailRequestDto,
+	MessageResponseDto, MetaRequestDto, MetaResponseDto, PermissionsItemDto,
+	PermissionsRequestDto, ResponseListSuccessDto, ResponseSuccessDto,
+	RolesDetailItemDto, RolesListItemDto, RolesRequestCreateDto,
+	RolesRequestUpdateDto, TokenDto, UsersCreateRequestDto, UsersDetailItemDto,
+	UsersListItemDto, UsersUpdateRequestDto, auth, permissions, roles, users,
 };
 use utoipa::{
-	openapi::security::{Http, HttpAuthScheme, SecurityScheme},
 	Modify, OpenApi,
+	openapi::security::{Http, HttpAuthScheme, SecurityScheme},
 };
-use imphnen_gacha::{gacha_claims, gacha_items, gacha_rolls, GachaClaimItemDto, GachaClaimRequestDto, GachaItemDto, GachaItemRequestDto, GachaRollItemDto, GachaRollRequestDto};
-use imphnen_cms::{events_controller, events_dto::{EventsDetailItemDto, EventsListItemDto}, testimonials_controller, testimonials_dto::{TestimonialsCreateRequestDto, TestimonialsDetailItemDto, TestimonialsListItemDto, TestimonialsUpdateRequestDto}};
-
 
 #[derive(OpenApi)]
 #[openapi(
     paths(
      auth::auth_controller::post_login,
+     auth::auth_controller::post_login_mentor,
      auth::auth_controller::post_register,
      auth::auth_controller::post_verify_email,
      auth::auth_controller::post_resend_otp,
@@ -47,16 +73,25 @@ use imphnen_cms::{events_controller, events_dto::{EventsDetailItemDto, EventsLis
      gacha_rolls::get_detail_gacha_roll,
      gacha_rolls::post_create_gacha_roll,
      gacha_rolls::post_execute_gacha_roll,
-	 events_controller::get_event_list,
-	 events_controller::get_event_by_id,
-	 events_controller::post_create_event,
-	 events_controller::patch_update_event,
-	 events_controller::delete_event,
-	 testimonials_controller::get_testimonial_list,
-	 testimonials_controller::get_testimonial_by_id,
-	 testimonials_controller::post_create_testimonial,
-	 testimonials_controller::patch_update_testimonial,
-	 testimonials_controller::delete_testimonial,
+     events_controller::get_event_list,
+     events_controller::get_event_by_id,
+     events_controller::post_create_event,
+     events_controller::patch_update_event,
+     events_controller::delete_event,
+     testimonials_controller::get_testimonial_list,
+     testimonials_controller::get_testimonial_by_id,
+     testimonials_controller::post_create_testimonial,
+     testimonials_controller::patch_update_testimonial,
+     testimonials_controller::delete_testimonial,
+     mentors_controller::get_mentor_list,
+     mentors_controller::get_mentor_by_id,
+     mentors_controller::post_register_mentor,
+     mentors_controller::get_mentor_me,
+     mentors_controller::put_update_mentor_me,
+     mentors_controller::get_mentor_status,
+     mentors_controller::put_update_mentor,
+     mentors_controller::put_verify_mentor,
+     mentors_controller::delete_mentor,
     ),
     components(
         schemas(
@@ -71,7 +106,7 @@ use imphnen_cms::{events_controller, events_dto::{EventsDetailItemDto, EventsLis
            AuthRefreshTokenRequestDto,
            ResponseSuccessDto<TokenDto>,
            RolesListItemDto,
-           RolesRequestCreateDto, 
+           RolesRequestCreateDto,
            RolesRequestUpdateDto,
            PermissionsRequestDto,
            PermissionsItemDto,
@@ -96,13 +131,26 @@ use imphnen_cms::{events_controller, events_dto::{EventsDetailItemDto, EventsLis
            ResponseSuccessDto<UsersDetailItemDto>,
            ResponseListSuccessDto<Vec<PermissionsItemDto>>,
            ResponseSuccessDto<PermissionsItemDto>,
-		   ResponseListSuccessDto<Vec<EventsListItemDto>>,
-		   ResponseSuccessDto<EventsDetailItemDto>,
-		   ResponseListSuccessDto<Vec<TestimonialsListItemDto>>,
-		   ResponseSuccessDto<TestimonialsDetailItemDto>,
-		   TestimonialsCreateRequestDto,
-		   TestimonialsUpdateRequestDto,
-		   MessageResponseDto,
+           ResponseListSuccessDto<Vec<EventsListItemDto>>,
+           ResponseSuccessDto<EventsDetailItemDto>,
+           ResponseListSuccessDto<Vec<TestimonialsListItemDto>>,
+           ResponseSuccessDto<TestimonialsDetailItemDto>,
+           TestimonialsCreateRequestDto,
+           TestimonialsUpdateRequestDto,
+           MentorUserRegisterRequestDto,
+           MentorRegisterFromTokenRequestDto,
+           MentorRegisterResponseDto,
+           MentorListResponseDto,
+           MentorDetailResponseDto,
+           MentorUpdateRequestDto,
+           MentorVerifyRequestDto,
+           IdentityAndVerification,
+           ProfessionalProfile,
+           MentoringLogistics,
+           MentoringRate,
+           ResponseListSuccessDto<Vec<MentorListResponseDto>>,
+           ResponseSuccessDto<MentorDetailResponseDto>,
+           ResponseSuccessDto<MentorRegisterResponseDto>,
         )
     ),
     info(
@@ -121,6 +169,14 @@ use imphnen_cms::{events_controller, events_dto::{EventsDetailItemDto, EventsLis
     modifiers(&SecurityAddon),
     tags(
         (name = "Authentication", description = "List of Authentication Endpoints"),
+        (name = "Users", description = "User Management Endpoints"),
+        (name = "Roles", description = "Role Management Endpoints"),
+        (name = "Permissions", description = "Permission Management Endpoints"),
+        (name = "Events", description = "Event Management Endpoints"),
+        (name = "Testimonials", description = "Testimonial Management Endpoints"),
+        (name = "Mentors", description = "Mentor Management Endpoints"),
+        (name = "Mentors - Admin", description = "Mentor Admin Management Endpoints (Admin Access Required)"),
+        (name = "Gacha", description = "Gacha System Endpoints"),
     )
 )]
 

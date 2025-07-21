@@ -2,6 +2,7 @@ use imphnen_iam::UsersSchema;
 use imphnen_libs::enviroment::load_env;
 use imphnen_utils::{get_iso_date, hash_password, Env};
 use std::error::Error;
+
 use surrealdb::{opt::auth::Root, sql::Thing};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -40,6 +41,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	];
 
 	for (id, email, fullname, role_id) in users {
+		db.query("DELETE type::thing('app_users', $id)")
+			.bind(("id", id))
+			.await?;
+
 		let user = UsersSchema {
 			id: Thing::from(("app_users", id)),
 			fullname: fullname.into(),
@@ -49,6 +54,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			phone_number: "081234567890".into(),
 			is_active: true,
 			is_deleted: false,
+			mentor_id: None,
 			gender: None,
 			birthdate: None,
 			role: Thing::from(("app_roles", role_id)),
@@ -60,7 +66,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			.content(user)
 			.await?;
 
-		println!("✅ Inserted user: {} ({})", fullname, email);
+		println!("✅ Inserted user: {fullname} ({email})");
 	}
 
 	println!("✅ All Users seeded");
