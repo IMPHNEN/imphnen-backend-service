@@ -29,6 +29,17 @@ pub struct Env {
     pub minio_secret_key: String,
 }
 
+/// Helper to get env var with warning if not set.
+fn get_env_with_warning(key: &str, default: &str) -> String {
+    match env::var(key) {
+        Ok(val) => val,
+        Err(_) => {
+            warn!("Environment variable '{}' is not set. Using default: '{}'", key, default);
+            default.to_string()
+        }
+    }
+}
+
 /// Loads environment variables from .env and system, only once.
 pub static ENV: Lazy<Env> = Lazy::new(|| {
     // Try to load .env file, log a warning if not found, proceed regardless.
@@ -41,164 +52,27 @@ pub static ENV: Lazy<Env> = Lazy::new(|| {
     }
 
     Env {
-        port: match env::var("PORT") {
-            Ok(val) => val.parse().unwrap_or(3000),
-            Err(_) => {
-                warn!("Environment variable PORT not set, using default 3000.");
-                3000
-            }
-        },
-
-        rust_env: match env::var("RUST_ENV") {
-            Ok(val) => val,
-            Err(_) => {
-                warn!("Environment variable RUST_ENV not set, using default 'development'.");
-                "development".to_string()
-            }
-        },
-
-        access_token_secret: match env::var("ACCESS_TOKEN_SECRET") {
-            Ok(val) => val,
-            Err(_) => {
-                warn!("Environment variable ACCESS_TOKEN_SECRET not set, using default.");
-                "default_access_secret".to_string()
-            }
-        },
-
-        refresh_token_secret: match env::var("REFRESH_TOKEN_SECRET") {
-            Ok(val) => val,
-            Err(_) => {
-                warn!("Environment variable REFRESH_TOKEN_SECRET not set, using default.");
-                "default_refresh_secret".to_string()
-            }
-        },
-
-        surrealdb_url: match env::var("SURREALDB_URL") {
-            Ok(val) => val,
-            Err(_) => {
-                warn!("Environment variable SURREALDB_URL not set, using default 'http://localhost:8000'.");
-                "http://localhost:8000".to_string()
-            }
-        },
-
-        surrealdb_username: match env::var("SURREALDB_USERNAME") {
-            Ok(val) => val,
-            Err(_) => {
-                warn!("Environment variable SURREALDB_USERNAME not set, using default 'root'.");
-                "root".to_string()
-            }
-        },
-
-        surrealdb_password: match env::var("SURREALDB_PASSWORD") {
-            Ok(val) => val,
-            Err(_) => {
-                warn!("Environment variable SURREALDB_PASSWORD not set, using default 'password'.");
-                "password".to_string()
-            }
-        },
-
-        surrealdb_namespace: match env::var("SURREALDB_NAMESPACE") {
-            Ok(val) => val,
-            Err(_) => {
-                warn!("Environment variable SURREALDB_NAMESPACE not set, using default 'namespace'.");
-                "namespace".to_string()
-            }
-        },
-
-        surrealdb_dbname: match env::var("SURREALDB_DBNAME") {
-            Ok(val) => val,
-            Err(_) => {
-                warn!("Environment variable SURREALDB_DBNAME not set, using default 'database'.");
-                "database".to_string()
-            }
-        },
-
-        surrealdb_url_ws: match env::var("SURREALDB_URL_WS") {
-            Ok(val) => val,
-            Err(_) => {
-                warn!("Environment variable SURREALDB_URL_WS not set, using default 'ws://localhost:8000/rpc'.");
-                "ws://localhost:8000/rpc".to_string()
-            }
-        },
-
-        smtp_email: match env::var("SMTP_EMAIL") {
-            Ok(val) => val,
-            Err(_) => {
-                warn!("Environment variable SMTP_EMAIL not set, using default 'no-reply@example.com'.");
-                "no-reply@example.com".to_string()
-            }
-        },
-
-        smtp_password: match env::var("SMTP_PASSWORD") {
-            Ok(val) => val,
-            Err(_) => {
-                warn!("Environment variable SMTP_PASSWORD not set, using default.");
-                "default_smtp_password".to_string()
-            }
-        },
-
-        smtp_name: match env::var("SMTP_NAME") {
-            Ok(val) => val,
-            Err(_) => {
-                warn!("Environment variable SMTP_NAME not set, using default 'MyApp SMTP'.");
-                "MyApp SMTP".to_string()
-            }
-        },
-
-        smtp_host: match env::var("SMTP_HOST") {
-            Ok(val) => val,
-            Err(_) => {
-                warn!("Environment variable SMTP_HOST not set, using default 'smtp.gmail.com'.");
-                "smtp.gmail.com".to_string()
-            }
-        },
-
-        redisdb_url: match env::var("REDISDB_URL") {
-            Ok(val) => val,
-            Err(_) => {
-                warn!("Environment variable REDISDB_URL not set, using default 'localhost'.");
-                "localhost".to_string()
-            }
-        },
-
-        fe_url: match env::var("FE_URL") {
-            Ok(val) => val,
-            Err(_) => {
-                warn!("Environment variable FE_URL not set, using default 'http://localhost'.");
-                "http://localhost".to_string()
-            }
-        },
-
-        minio_endpoint: match env::var("MINIO_ENDPOINT") {
-            Ok(val) => val,
-            Err(_) => {
-                warn!("Environment variable MINIO_ENDPOINT not set, using default 'http://localhost:9000'.");
-                "http://localhost:9000".to_string()
-            }
-        },
-
-        minio_bucket_name: match env::var("MINIO_BUCKET_NAME") {
-            Ok(val) => val,
-            Err(_) => {
-                warn!("Environment variable MINIO_BUCKET_NAME not set, using default 'default_bucket'.");
-                "default_bucket".to_string()
-            }
-        },
-
-        minio_access_key: match env::var("MINIO_ACCESS_KEY") {
-            Ok(val) => val,
-            Err(_) => {
-                warn!("Environment variable MINIO_ACCESS_KEY not set, using default 'minio_access'.");
-                "minio_access".to_string()
-            }
-        },
-
-        minio_secret_key: match env::var("MINIO_SECRET_KEY") {
-            Ok(val) => val,
-            Err(_) => {
-                warn!("Environment variable MINIO_SECRET_KEY not set, using default 'minio_secret'.");
-                "minio_secret".to_string()
-            }
-        },
+        port: get_env_with_warning("PORT", "3000")
+            .parse()
+            .unwrap_or(3000),
+        access_token_secret: get_env_with_warning("ACCESS_TOKEN_SECRET", "default_access_secret"),
+        refresh_token_secret: get_env_with_warning("REFRESH_TOKEN_SECRET", "default_refresh_secret"),
+        surrealdb_url: get_env_with_warning("SURREALDB_URL", "http://localhost:8000"),
+        surrealdb_username: get_env_with_warning("SURREALDB_USERNAME", "root"),
+        surrealdb_password: get_env_with_warning("SURREALDB_PASSWORD", "password"),
+        surrealdb_namespace: get_env_with_warning("SURREALDB_NAMESPACE", "namespace"),
+        surrealdb_dbname: get_env_with_warning("SURREALDB_DBNAME", "database"),
+        smtp_email: get_env_with_warning("SMTP_EMAIL", "no-reply@example.com"),
+        smtp_password: get_env_with_warning("SMTP_PASSWORD", "default_smtp_password"),
+        smtp_name: get_env_with_warning("SMTP_NAME", "MyApp SMTP"),
+        smtp_host: get_env_with_warning("SMTP_HOST", "smtp.gmail.com"),
+        redisdb_url: get_env_with_warning("REDISDB_URL", "localhost"),
+        fe_url: get_env_with_warning("FE_URL", "http://localhost"),
+        rust_env: get_env_with_warning("RUST_ENV", "development"),
+        minio_endpoint: get_env_with_warning("MINIO_ENDPOINT", "http://localhost:9000"),
+        minio_bucket_name: get_env_with_warning("MINIO_BUCKET_NAME", "default_bucket"),
+        minio_access_key: get_env_with_warning("MINIO_ACCESS_KEY", "minio_access"),
+        minio_secret_key: get_env_with_warning("MINIO_SECRET_KEY", "minio_secret"),
+        surrealdb_url_ws: String::new(),
     }
 });
