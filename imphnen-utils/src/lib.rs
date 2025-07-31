@@ -1,3 +1,4 @@
+mod logger;
 pub mod bind_filter;
 pub mod extract_email;
 pub mod generate_date;
@@ -10,6 +11,7 @@ pub mod response_format;
 pub mod serde_helpers;
 pub mod validator;
 
+pub use logger::init_logger;
 pub use bind_filter::*;
 pub use extract_email::*;
 pub use generate_date::*;
