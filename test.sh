@@ -163,7 +163,7 @@ test_server_connection() {
 
 clear_database() {
   write_test_log "INFO" "Membersihkan database via WebSocket..."
-  if ! cargo run --bin clear_db_test --release; then
+  if ! RUST_LOG=debug cargo run --bin clear_db_test --release; then
     write_test_log "ERROR" "Gagal membersihkan database."
     exit 1
   fi
@@ -776,7 +776,7 @@ if [ "$START_SERVER" = true ]; then
     exit 1
   fi
   printf "${YELLOW}Memulai server backend...${NC}\n"
-  cargo run --bin api &
+  RUST_LOG=debug cargo run --bin api &
   SERVER_PID=$!
   
   printf "${YELLOW}Menunggu server siap...${NC}\n"
@@ -803,7 +803,7 @@ fi
 clear_database
 
 printf "\n${CYAN}=== Menjalankan Seeders ===${NC}\n"
-if ! cargo run --bin seeder; then
+if ! RUST_LOG=debug cargo run --bin seeder; then
   write_test_log "ERROR" "Gagal menjalankan seeder roles permissions."
   exit 1
 fi

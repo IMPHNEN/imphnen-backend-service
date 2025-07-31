@@ -1,4 +1,4 @@
-mod logger;
+pub mod logger;
 pub mod bind_filter;
 pub mod extract_email;
 pub mod generate_date;
