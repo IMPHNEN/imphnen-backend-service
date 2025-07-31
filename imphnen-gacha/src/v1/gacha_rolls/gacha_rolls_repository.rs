@@ -10,6 +10,7 @@ use rand_distr::weighted::WeightedIndex;
 use serde_json::{Map, Value};
 use std::time::Instant;
 use tracing::instrument;
+use tracing::info;
 
 pub struct GachaRollRepository<'a> {
 	state: &'a AppState,
@@ -33,6 +34,7 @@ impl<'a> GachaRollRepository<'a> {
 			.with_select_fields(vec!["*"])
 			.with_fetch("item");
 		let sql = builder.build();
+		info!(query = %sql, "Executing SurrealDB query");
 		let result: Option<GachaRollQueryDto> =
 			builder.apply_bindings(db.query(sql)).await?.take(0)?;
 		let elapsed = now.elapsed();
@@ -54,6 +56,7 @@ impl<'a> GachaRollRepository<'a> {
 	) -> Result<String> {
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
+		info!(query = "CREATE", "Executing SurrealDB create operation for GachaRolls");
 		let record: Option<GachaRollSchema> = db
 			.create(ResourceEnum::GachaRolls.to_string())
 			.content(data)
@@ -77,6 +80,7 @@ impl<'a> GachaRollRepository<'a> {
 		let table_name = ResourceEnum::GachaRolls.to_string();
 		let sql =
 			format!("SELECT * FROM {table_name} WHERE is_deleted = false FETCH item");
+		info!(query = %sql, "Executing SurrealDB query");
 		let result: Vec<GachaRollQueryDto> = db.query(sql).await?.take(0)?;
 		let elapsed = now.elapsed();
 		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
@@ -87,6 +91,7 @@ impl<'a> GachaRollRepository<'a> {
 		Ok(result)
 	}
 
+	#[instrument]
 	pub fn roll_once(rolls: &[GachaRollQueryDto]) -> Option<GachaRollQueryDto> {
 		let filtered: Vec<_> = rolls
 			.iter()
@@ -120,6 +125,7 @@ impl<'a> GachaRollRepository<'a> {
 		patch.insert("is_deleted".to_string(), Value::Bool(true));
 		patch.insert("updated_at".to_string(), Value::String(get_iso_date()));
 
+		info!(query = "UPDATE", record_key = ?record_key, "Executing SurrealDB update operation for GachaRolls");
 		let record: Option<GachaRollSchema> = db.update(record_key).merge(patch).await?;
 		let elapsed = now.elapsed();
 		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())

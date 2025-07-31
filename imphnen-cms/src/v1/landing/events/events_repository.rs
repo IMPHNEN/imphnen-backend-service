@@ -4,6 +4,7 @@ use imphnen_libs::{AppState, MetaRequestDto, ResourceEnum, ResponseListSuccessDt
 use imphnen_utils::{DetailQueryBuilder, ListQueryBuilder, get_id, get_iso_date};
 use std::time::Instant;
 use tracing::instrument;
+use tracing::info;
 
 pub struct EventsRepository<'a> {
 	state: &'a AppState,
@@ -25,6 +26,7 @@ impl<'a> EventsRepository<'a> {
 			.with_pagination(meta.page, Some(10))
 			.with_sorting(meta.sort_by.as_deref(), meta.order.as_deref())
 			.build();
+		info!(query = %query, "Executing SurrealDB query");
 		let res: Vec<EventsQueryDto> =
 			self.state.surrealdb_ws.query(query).await?.take(0)?;
 		let elapsed = now.elapsed();
@@ -48,6 +50,7 @@ impl<'a> EventsRepository<'a> {
 			.with_id(&id)
 			.with_select_fields(vec!["*"]);
 		let sql = builder.build();
+		info!(query = %sql, "Executing SurrealDB query");
 		let result: Option<EventsQueryDto> =
 			builder.apply_bindings(db.query(sql)).await?.take(0)?;
 		let elapsed = now.elapsed();
@@ -72,6 +75,8 @@ impl<'a> EventsRepository<'a> {
 	pub async fn query_create_event(&self, data: EventsSchema) -> Result<String> {
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
+		let query_str = format!("CREATE {} CONTENT ...", ResourceEnum::Events.to_string());
+		info!(query = %query_str, "Executing SurrealDB query");
 		let record: Option<EventsSchema> = db
 			.create(ResourceEnum::Events.to_string())
 			.content(data)
@@ -106,6 +111,8 @@ impl<'a> EventsRepository<'a> {
 		};
 
 		let record_key = get_id(&merged.id)?;
+		let query_str = format!("UPDATE {:?} MERGE ...", record_key);
+		info!(query = %query_str, "Executing SurrealDB query");
 		let record: Option<EventsSchema> = db.update(record_key).merge(merged).await?;
 		let elapsed = now.elapsed();
 		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
@@ -130,6 +137,8 @@ impl<'a> EventsRepository<'a> {
 		}
 
 		let record_key = get_id(&event.id)?;
+		let query_str = format!("UPDATE {:?} MERGE {{ is_deleted: true }}", record_key);
+		info!(query = %query_str, "Executing SurrealDB query");
 		let record: Option<EventsSchema> = db
 			.update(record_key)
 			.merge(serde_json::json!({ "is_deleted": true }))

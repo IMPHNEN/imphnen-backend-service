@@ -3,7 +3,7 @@ use crate::{AppState, ResourceEnum};
 use anyhow::{Result, bail};
 use imphnen_iam::DetailQueryBuilder;
 use std::time::Instant;
-use tracing::instrument;
+use tracing::{instrument, info};
 
 pub struct GachaClaimRepository<'a> {
 	state: &'a AppState,
@@ -27,6 +27,7 @@ impl<'a> GachaClaimRepository<'a> {
 			.with_fetch("item")
 			.with_fetch("user");
 		let sql = builder.build();
+		info!(query = %sql, "Executing SurrealDB query");
 		let result: Option<GachaClaimQueryDto> =
 			builder.apply_bindings(db.query(sql)).await?.take(0)?;
 		let elapsed = now.elapsed();
@@ -48,6 +49,11 @@ impl<'a> GachaClaimRepository<'a> {
 	) -> Result<String> {
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
+		info!(
+			resource = %ResourceEnum::GachaClaims.to_string(),
+			content = ?data,
+			"Executing SurrealDB create query"
+		);
 		let record: Option<GachaClaimSchema> = db
 			.create(ResourceEnum::GachaClaims.to_string())
 			.content(data)

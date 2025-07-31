@@ -9,6 +9,7 @@ use imphnen_utils::get_iso_date;
 use serde_json::{Map, Value};
 use std::time::Instant;
 use tracing::instrument;
+use tracing::info;
 
 pub struct GachaItemRepository<'a> {
 	state: &'a AppState,
@@ -25,6 +26,11 @@ impl<'a> GachaItemRepository<'a> {
 		meta: MetaRequestDto,
 	) -> Result<ResponseListSuccessDto<Vec<GachaItemDto>>> {
 		let now = Instant::now();
+		let surreal_query = format!(
+			"SELECT * FROM {} WHERE is_deleted = false AND name LIKE ?",
+			ResourceEnum::GachaItems.to_string()
+		);
+		info!(query = %surreal_query, "Executing SurrealDB query");
 		let raw_result: ResponseListSuccessDto<Vec<GachaItemSchema>> =
 			QueryListBuilder::new(
 				&self.state.surrealdb_ws,
@@ -57,6 +63,8 @@ impl<'a> GachaItemRepository<'a> {
 	pub async fn query_gacha_item_by_id(&self, id: String) -> Result<GachaItemSchema> {
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
+		let surreal_query = format!("SELECT * FROM {} WHERE id = '{}'", ResourceEnum::GachaItems.to_string(), id);
+		info!(query = %surreal_query, "Executing SurrealDB query");
 		let result: Option<GachaItemSchema> = db
 			.select((ResourceEnum::GachaItems.to_string(), id.clone()))
 			.await?;
@@ -79,6 +87,8 @@ impl<'a> GachaItemRepository<'a> {
 	) -> Result<String> {
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
+		let surreal_query = format!("CREATE {} CONTENT ...", ResourceEnum::GachaItems.to_string());
+		info!(query = %surreal_query, "Executing SurrealDB query");
 		let record: Option<GachaItemSchema> = db
 			.create(ResourceEnum::GachaItems.to_string())
 			.content(data)
@@ -111,6 +121,8 @@ impl<'a> GachaItemRepository<'a> {
 			created_at: existing.created_at,
 			..data.clone()
 		};
+		let surreal_query = format!("UPDATE {:?} MERGE ...", record_key);
+		info!(query = %surreal_query, "Executing SurrealDB query");
 		let record: Option<GachaItemSchema> =
 			db.update(record_key).merge(merged).await?;
 		let elapsed = now.elapsed();
@@ -139,6 +151,8 @@ impl<'a> GachaItemRepository<'a> {
 		patch.insert("is_deleted".to_string(), Value::Bool(true));
 		patch.insert("updated_at".to_string(), Value::String(get_iso_date()));
 
+		let surreal_query = format!("UPDATE {:?} MERGE ...", record_key);
+		info!(query = %surreal_query, "Executing SurrealDB query");
 		let record: Option<GachaItemSchema> = db.update(record_key).merge(patch).await?;
 		let elapsed = now.elapsed();
 		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())

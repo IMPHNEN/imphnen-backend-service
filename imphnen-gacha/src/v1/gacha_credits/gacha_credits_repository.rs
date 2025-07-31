@@ -4,7 +4,7 @@ use anyhow::{Result, bail};
 use imphnen_iam::make_thing;
 use std::time::Instant;
 use surrealdb::Uuid;
-use tracing::instrument;
+use tracing::{instrument, info};
 
 pub struct GachaCreditRepository<'a> {
 	state: &'a AppState,
@@ -27,6 +27,7 @@ impl<'a> GachaCreditRepository<'a> {
 			ResourceEnum::GachaCredits,
 			ResourceEnum::Users
 		);
+		info!(query = %sql, "Executing SurrealDB query");
 		let result: Vec<GachaCreditSchema> =
 			db.query(sql).bind(("user_id", user_id)).await?.take(0)?;
 		let elapsed = now.elapsed();
@@ -66,6 +67,7 @@ impl<'a> GachaCreditRepository<'a> {
 			bail!("No extra roll credits remaining");
 		}
 		credit.available_rolls -= 1;
+		info!(operation = "update", table = %ResourceEnum::GachaCredits.to_string(), id = %credit.id.id.to_raw(), "Executing SurrealDB update for consume_credit");
 		let _: Option<GachaCreditSchema> = db
 			.update((
 				&ResourceEnum::GachaCredits.to_string(),
@@ -91,6 +93,7 @@ impl<'a> GachaCreditRepository<'a> {
 		let db = &self.state.surrealdb_ws;
 		if let Some(mut credit) = self.query_by_user_id(payload.user_id.clone()).await? {
 			credit.available_rolls += payload.amount;
+			info!(operation = "update", table = %ResourceEnum::GachaCredits.to_string(), id = %credit.id.id.to_raw(), "Executing SurrealDB update for add_credit");
 			let _: Option<GachaCreditSchema> = db
 				.update((
 					&ResourceEnum::GachaCredits.to_string(),
@@ -108,6 +111,7 @@ impl<'a> GachaCreditRepository<'a> {
 				available_rolls: payload.amount,
 				..Default::default()
 			};
+			info!(operation = "create", table = %ResourceEnum::GachaCredits.to_string(), "Executing SurrealDB create for add_credit");
 			let _: Option<GachaCreditSchema> = db
 				.create(ResourceEnum::GachaCredits.to_string())
 				.content(data)

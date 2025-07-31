@@ -7,6 +7,7 @@ use imphnen_utils::{DetailQueryBuilder, ListQueryBuilder, get_id, get_iso_date};
 use serde_json;
 use std::time::Instant;
 use tracing::instrument;
+use tracing::info;
 
 pub struct TestimonialsRepository<'a> {
 	state: &'a AppState,
@@ -28,6 +29,7 @@ impl<'a> TestimonialsRepository<'a> {
 			.with_pagination(meta.page, Some(10))
 			.with_sorting(meta.sort_by.as_deref(), meta.order.as_deref())
 			.build();
+		info!(query = %query, "Executing SurrealDB query");
 		let res: Vec<TestimonialsQueryDto> =
 			self.state.surrealdb_ws.query(query).await?.take(0)?;
 		let elapsed = now.elapsed();
@@ -55,6 +57,7 @@ impl<'a> TestimonialsRepository<'a> {
 			.with_condition("is_deleted = false")
 			.with_select_fields(vec!["*", "user.* as user"]);
 		let sql = builder.build();
+		info!(query = %sql, "Executing SurrealDB query");
 		let result: Option<TestimonialsQueryDto> =
 			builder.apply_bindings(db.query(sql)).await?.take(0)?;
 		let elapsed = now.elapsed();
@@ -82,6 +85,11 @@ impl<'a> TestimonialsRepository<'a> {
 	) -> Result<String> {
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
+		info!(
+			resource = %ResourceEnum::Testimonials.to_string(),
+			payload = ?data,
+			"Executing SurrealDB create"
+		);
 		let record: Option<TestimonialsSchema> = db
 			.create(ResourceEnum::Testimonials.to_string())
 			.content(data)
@@ -120,6 +128,11 @@ impl<'a> TestimonialsRepository<'a> {
 		};
 
 		let record_key = get_id(&merged.id)?;
+		info!(
+			record_key = ?record_key,
+			payload = ?merged,
+			"Executing SurrealDB update"
+		);
 		let record: Option<TestimonialsSchema> =
 			db.update(record_key).merge(merged).await?;
 		let elapsed = now.elapsed();
@@ -145,6 +158,10 @@ impl<'a> TestimonialsRepository<'a> {
 		}
 
 		let record_key = get_id(&testimonial.id)?;
+		info!(
+			record_key = ?record_key,
+			"Executing SurrealDB soft delete"
+		);
 		let record: Option<TestimonialsSchema> = db
 			.update(record_key)
 			.merge(serde_json::json!({ "is_deleted": true }))
