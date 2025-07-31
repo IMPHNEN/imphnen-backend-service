@@ -59,7 +59,7 @@ pub static ENV: Lazy<Env> = Lazy::new(|| {
         refresh_token_secret: get_env_with_warning("REFRESH_TOKEN_SECRET", "default_refresh_secret"),
         surrealdb_url: get_env_with_warning("SURREALDB_URL", "http://localhost:8000"),
         surrealdb_username: get_env_with_warning("SURREALDB_USERNAME", "root"),
-        surrealdb_password: get_env_with_warning("SURREALDB_PASSWORD", "password"),
+        surrealdb_password: get_env_with_warning("SURREALDB_PASSWORD", "root"),
         surrealdb_namespace: get_env_with_warning("SURREALDB_NAMESPACE", "namespace"),
         surrealdb_dbname: get_env_with_warning("SURREALDB_DBNAME", "database"),
         smtp_email: get_env_with_warning("SMTP_EMAIL", "no-reply@example.com"),
