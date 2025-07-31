@@ -4,7 +4,7 @@ use super::{
 	AuthResendOtpRequestDto, AuthVerifyEmailRequestDto, TokenDto,
 };
 use crate::{
-	AppState, Env, ResourceEnum, ResponseSuccessDto, RolesEnum, RolesRepository,
+	AppState, ResourceEnum, ResponseSuccessDto, RolesEnum, RolesRepository,
 	UsersDetailItemDto, UsersRepository, UsersSchema, common_response,
 	decode_refresh_token, encode_access_token, encode_refresh_token,
 	encode_reset_password_token, extract_email_token, generate_otp, get_iso_date,
@@ -414,8 +414,8 @@ impl AuthService {
 				);
 			}
 		};
-		let env = Env::new();
-		let fe_url = env.fe_url;
+		let env = &crate::enviroment::ENV;
+		let fe_url = env.fe_url.clone();
 		let message = format!(
 			"You have requested a password reset. Please click the link below to continue: {fe_url}/auth/reset-password?token={token}"
 		);

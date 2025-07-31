@@ -1,4 +1,4 @@
-use super::Env;
+use crate::enviroment::ENV;
 use axum::http::StatusCode;
 use chrono::{Duration, TimeDelta, Utc};
 use jsonwebtoken::{
@@ -14,8 +14,8 @@ pub struct Claims {
 }
 
 pub fn encode_access_token(sub: String) -> Result<String, StatusCode> {
-	let env = Env::new();
-	let secret: String = env.access_token_secret;
+	let env = &ENV;
+	let secret: String = env.access_token_secret.clone();
 	let now = Utc::now();
 	let expire: TimeDelta = Duration::minutes(15);
 	let exp: usize = (now + expire).timestamp() as usize;
@@ -30,8 +30,8 @@ pub fn encode_access_token(sub: String) -> Result<String, StatusCode> {
 }
 
 pub fn encode_reset_password_token(sub: String) -> Result<String, StatusCode> {
-	let env = Env::new();
-	let secret: String = env.access_token_secret;
+	let env = &ENV;
+	let secret: String = env.access_token_secret.clone();
 	let now = Utc::now();
 	let expire: TimeDelta = Duration::minutes(5);
 	let exp: usize = (now + expire).timestamp() as usize;
@@ -48,8 +48,8 @@ pub fn encode_reset_password_token(sub: String) -> Result<String, StatusCode> {
 pub fn decode_access_token(
 	jwt_token: &str,
 ) -> Result<TokenData<Claims>, StatusCode> {
-	let env = Env::new();
-	let secret: String = env.access_token_secret;
+	let env = &ENV;
+	let secret: String = env.access_token_secret.clone();
 	let result: Result<TokenData<Claims>, StatusCode> = decode(
 		jwt_token,
 		&DecodingKey::from_secret(secret.as_ref()),
@@ -60,8 +60,8 @@ pub fn decode_access_token(
 }
 
 pub fn encode_refresh_token(sub: String) -> Result<String, StatusCode> {
-	let env = Env::new();
-	let secret: String = env.refresh_token_secret;
+	let env = &ENV;
+	let secret: String = env.refresh_token_secret.clone();
 	let now = Utc::now();
 	let expire: TimeDelta = Duration::days(1);
 	let exp: usize = (now + expire).timestamp() as usize;
@@ -78,8 +78,8 @@ pub fn encode_refresh_token(sub: String) -> Result<String, StatusCode> {
 pub fn decode_refresh_token(
 	jwt_token: &str,
 ) -> Result<TokenData<Claims>, StatusCode> {
-	let env = Env::new();
-	let secret: String = env.refresh_token_secret;
+	let env = &ENV;
+	let secret: String = env.refresh_token_secret.clone();
 	let result: Result<TokenData<Claims>, StatusCode> = decode(
 		jwt_token,
 		&DecodingKey::from_secret(secret.as_ref()),

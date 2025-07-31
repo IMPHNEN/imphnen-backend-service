@@ -1,6 +1,5 @@
-use super::Env;
+use crate::enviroment::ENV;
 use crate::SurrealMemClient;
-use crate::enviroment::load_env;
 use surrealdb::engine::any;
 use surrealdb::engine::local::Mem;
 use surrealdb::opt::auth::Root;
@@ -10,8 +9,7 @@ pub mod resource;
 pub use resource::*;
 
 pub async fn surrealdb_init_ws() -> Result<Surreal<any::Any>> {
-	load_env();
-	let env = Env::new();
+	let env = &ENV;
 	let db = any::connect(&env.surrealdb_url).await?;
 
 	db.signin(Root {
@@ -26,7 +24,7 @@ pub async fn surrealdb_init_ws() -> Result<Surreal<any::Any>> {
 }
 
 pub async fn surrealdb_init_mem() -> Result<SurrealMemClient> {
-	let env = Env::new();
+	let env = &ENV;
 	let db = Surreal::new::<Mem>(()).await?;
 	db.use_ns(&env.surrealdb_namespace)
 		.use_db(&env.surrealdb_dbname)

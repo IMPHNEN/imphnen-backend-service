@@ -1,21 +1,20 @@
 use imphnen_cms::v1::landing::events::events_schema::EventsSchema;
-use imphnen_libs::enviroment::load_env;
-use imphnen_utils::{get_iso_date, Env};
+use imphnen_utils::{get_iso_date};
 use std::error::Error;
 use surrealdb::engine::any;
 use surrealdb::{opt::auth::Root, sql::Thing, Uuid}; // Added Uuid
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-	load_env();
-	let env = Env::new();
+	let env = &imphnen_libs::enviroment::ENV;
 	let db = any::connect(&env.surrealdb_url).await?;
 	db.signin(Root {
 		username: &env.surrealdb_username,
 		password: &env.surrealdb_password,
 	})
 	.await?;
-	db.use_ns(env.surrealdb_namespace)
-		.use_db(env.surrealdb_dbname)
+	db.use_ns(env.surrealdb_namespace.clone())
+		.use_db(env.surrealdb_dbname.clone())
 		.await?;
 
 	let events = vec![

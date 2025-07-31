@@ -1,6 +1,5 @@
 use imphnen_iam::PermissionsEnum;
-use imphnen_libs::enviroment::load_env;
-use imphnen_utils::{get_iso_date, Env};
+use imphnen_utils::{get_iso_date};
 use serde_json::json;
 use std::error::Error;
 use surrealdb::engine::any;
@@ -8,17 +7,15 @@ use surrealdb::opt::auth::Root;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-	load_env();
-
-	let env = Env::new();
+	let env = &imphnen_libs::enviroment::ENV;
 	let db = any::connect(&env.surrealdb_url).await?;
 	db.signin(Root {
 		username: &env.surrealdb_username,
 		password: &env.surrealdb_password,
 	})
 	.await?;
-	db.use_ns(env.surrealdb_namespace)
-		.use_db(env.surrealdb_dbname)
+	db.use_ns(env.surrealdb_namespace.clone())
+		.use_db(env.surrealdb_dbname.clone())
 		.await?;
 
 	for permission in [

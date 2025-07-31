@@ -2124,6 +2124,7 @@ dependencies = [
  "jsonwebtoken",
  "lettre",
  "log",
+ "once_cell",
  "serde",
  "surrealdb",
  "tokio",

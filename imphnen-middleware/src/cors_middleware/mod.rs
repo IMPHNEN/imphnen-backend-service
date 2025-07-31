@@ -1,9 +1,9 @@
 use axum::http::{HeaderValue, Method, header};
-use imphnen_libs::Env;
+use imphnen_libs::enviroment::ENV;
 use tower_http::cors::CorsLayer;
 
 pub fn cors_middleware() -> CorsLayer {
-	let env = Env::new();
+	let env = &ENV;
 	let cors_origins = match env.rust_env.as_str() {
 		"development" => vec!["http://localhost:3000"],
 		"production" => {

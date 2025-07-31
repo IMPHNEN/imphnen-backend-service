@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 imphnen-entities.workspace = true
+once_cell = "1"
 log.workspace = true
 axum.workspace = true
 tokio.workspace = true

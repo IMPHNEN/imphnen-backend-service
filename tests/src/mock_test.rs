@@ -1,7 +1,7 @@
+// Restore only the necessary imports to fix unresolved function errors
 use crate::{get_iso_date, hash_password};
 use imphnen_entities::AppState;
 use imphnen_iam::{PermissionsEnum, UsersSchema};
-use imphnen_libs::enviroment::load_env;
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 use surrealdb::engine::{any, local};
@@ -29,22 +29,14 @@ struct RoleSeedData {
 }
 
 pub async fn create_mock_app_state() -> AppState {
-	load_env();
-	 
-
 	 
 	let db_ws = any::connect("ws://127.00.1:8000/rpc").await.unwrap();
 	 
-
-	 
 	let db_mem = Surreal::new::<local::Mem>(()).await.unwrap();
 	 
-
 	let unique_id = Uuid::new_v4().to_string();
 	let ns = format!("test_ns_{unique_id}");
 	let db = format!("test_db_{unique_id}");
-	 
-
 	 
 	db_ws
 		.signin(Root {
@@ -54,11 +46,8 @@ pub async fn create_mock_app_state() -> AppState {
 		.await
 		.unwrap();
 	 
-
-	 
 	db_ws.use_ns(&ns).use_db(&db).await.unwrap();
 	 
-
 	AppState {
 		surrealdb_ws: db_ws,
 		surrealdb_mem: db_mem,
@@ -183,6 +172,7 @@ pub async fn seed_users_for_test(
 }
 
 pub async fn setup_all_test_environment() -> AppState {
+debug!("Setting up all test environment in setup_all_test_environment()");
 	let app_state = create_mock_app_state().await;
 	app_state
 		.surrealdb_mem

@@ -1,13 +1,11 @@
 use imphnen_iam::UsersSchema;
-use imphnen_libs::enviroment::load_env;
-use imphnen_utils::{get_iso_date, hash_password, Env};
+use imphnen_utils::{get_iso_date, hash_password};
 use std::error::Error;
 
 use surrealdb::{opt::auth::Root, sql::Thing};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-	load_env();
-	let env = Env::new();
+	let env = &imphnen_libs::enviroment::ENV;
 	use surrealdb::engine::any;
 	let db = any::connect(&env.surrealdb_url).await?;
 	db.signin(Root {
@@ -15,8 +13,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		password: &env.surrealdb_password,
 	})
 	.await?;
-	db.use_ns(env.surrealdb_namespace)
-		.use_db(env.surrealdb_dbname)
+	db.use_ns(env.surrealdb_namespace.clone())
+		.use_db(env.surrealdb_dbname.clone())
 		.await?;
 
 	let users = vec![
