@@ -15,10 +15,49 @@ use axum::{http::StatusCode, response::Response};
 use surrealdb::Uuid;
 use tracing::error;
 
+use async_trait::async_trait;
+
+#[async_trait]
+pub trait AuthServiceTrait: Send + Sync + 'static {
+    async fn mutation_login(
+        payload: AuthLoginRequestDto,
+        state: &AppState,
+    ) -> Response;
+    async fn mutation_mentor_login(
+        payload: AuthLoginRequestDto,
+        state: &AppState,
+    ) -> Response;
+    async fn mutation_register(
+        payload: AuthRegisterRequestDto,
+        state: &AppState,
+    ) -> Response;
+    async fn mutation_resend_otp(
+        payload: AuthResendOtpRequestDto,
+        state: &AppState,
+    ) -> Response;
+    async fn mutation_refresh_token(
+        payload: AuthRefreshTokenRequestDto,
+    ) -> Response;
+    async fn mutation_forgot_password(
+        payload: AuthResendOtpRequestDto,
+        state: &AppState,
+    ) -> Response;
+    async fn mutation_verify_email(
+        payload: AuthVerifyEmailRequestDto,
+        state: &AppState,
+    ) -> Response;
+    async fn mutation_new_password(
+        payload: AuthNewPasswordRequestDto,
+        state: &AppState,
+    ) -> Response;
+}
+
+#[derive(Clone)] // Added Clone derive
 pub struct AuthService;
 
-impl AuthService {
-	pub async fn mutation_login(
+#[async_trait]
+impl AuthServiceTrait for AuthService {
+	async fn mutation_login(
 		payload: AuthLoginRequestDto,
 		state: &AppState,
 	) -> Response {
@@ -104,7 +143,7 @@ impl AuthService {
 		}
 	}
 
-	pub async fn mutation_mentor_login(
+	async fn mutation_mentor_login(
 		payload: AuthLoginRequestDto,
 		state: &AppState,
 	) -> Response {
@@ -199,7 +238,7 @@ impl AuthService {
 		}
 	}
 
-	pub async fn mutation_register(
+	async fn mutation_register(
 		payload: AuthRegisterRequestDto,
 		state: &AppState,
 	) -> Response {
@@ -298,7 +337,7 @@ impl AuthService {
 		}
 	}
 
-	pub async fn mutation_resend_otp(
+	async fn mutation_resend_otp(
 		payload: AuthResendOtpRequestDto,
 		state: &AppState,
 	) -> Response {
@@ -335,7 +374,7 @@ impl AuthService {
 		}
 	}
 
-	pub async fn mutation_refresh_token(
+	async fn mutation_refresh_token(
 		payload: AuthRefreshTokenRequestDto,
 	) -> Response {
 		if let Err((status, message)) = validate_request(&payload) {
@@ -376,7 +415,7 @@ impl AuthService {
 		success_response(response)
 	}
 
-	pub async fn mutation_forgot_password(
+	async fn mutation_forgot_password(
 		payload: AuthResendOtpRequestDto,
 		state: &AppState,
 	) -> Response {
@@ -431,7 +470,7 @@ impl AuthService {
 		}
 	}
 
-	pub async fn mutation_verify_email(
+	async fn mutation_verify_email(
 		payload: AuthVerifyEmailRequestDto,
 		state: &AppState,
 	) -> Response {
@@ -478,7 +517,7 @@ impl AuthService {
 		}
 	}
 
-	pub async fn mutation_new_password(
+	async fn mutation_new_password(
 		payload: AuthNewPasswordRequestDto,
 		state: &AppState,
 	) -> Response {

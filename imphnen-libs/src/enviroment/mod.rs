@@ -27,6 +27,10 @@ pub struct Env {
     pub minio_bucket_name: String,
     pub minio_access_key: String,
     pub minio_secret_key: String,
+    // Google OAuth 2.1
+    pub google_client_id: String,
+    pub google_client_secret: String,
+    pub google_redirect_url: String,
 }
 
 /// Helper to get env var with warning if not set.
@@ -74,5 +78,9 @@ pub static ENV: Lazy<Env> = Lazy::new(|| {
         minio_access_key: get_env_with_warning("MINIO_ACCESS_KEY", "minio_access"),
         minio_secret_key: get_env_with_warning("MINIO_SECRET_KEY", "minio_secret"),
         surrealdb_url_ws: String::new(),
+        // Google OAuth 2.1
+        google_client_id: get_env_with_warning("GOOGLE_CLIENT_ID", "default_google_client_id"),
+        google_client_secret: get_env_with_warning("GOOGLE_CLIENT_SECRET", "default_google_client_secret"),
+        google_redirect_url: get_env_with_warning("GOOGLE_REDIRECT_URL", "http://localhost:8000/api/v1/auth/google/callback"),
     }
 });

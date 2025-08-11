@@ -6,10 +6,13 @@ edition = "2024"
 [dependencies]
 imphnen-libs.workspace = true
 imphnen-utils.workspace = true
+async-trait = "0.1"
 imphnen-entities.workspace = true
 axum.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+oauth2 = "4.4.2"
+reqwest = { version = "0.11", features = ["json"] }
 utoipa.workspace = true
 lazy_static.workspace = true
 regex.workspace = true
@@ -31,4 +34,6 @@ uuid.workspace = true
 
 [dev-dependencies]
 dotenvy.workspace = true
+tokio-test = "0.4.2"
+mockall = "0.12.1"
 http-body-util.workspace = true

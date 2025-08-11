@@ -86,5 +86,9 @@ pub fn decode_refresh_token(
 		&Validation::default(),
 	)
 	.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR);
-	result
+	result // Explicitly return result
+}
+
+pub fn generate_jwt(user_id: &str) -> Result<String, StatusCode> {
+    encode_access_token(user_id.to_string())
 }

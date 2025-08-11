@@ -8,4 +8,5 @@ axum.workspace = true
 serde.workspace = true
 utoipa.workspace = true
 surrealdb.workspace = true
+anyhow.workspace = true
 thiserror.workspace = true

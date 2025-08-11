@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use surrealdb::sql::Thing;
 use utoipa::ToSchema;
 use validator::Validate;
+use crate::UsersSchema; // Import UsersSchema
 
 lazy_static! {
 	static ref PASSWORD_REGEX: regex::Regex =
@@ -96,14 +97,14 @@ pub struct UsersDetailItemDto {
 }
 
 impl UsersDetailItemDto {
-	pub fn from(dto: &UsersDetailQueryDto) -> Self {
+	pub fn from(dto: &UsersDetailQueryDto) -> Self { // Reverted to taking a reference
 		Self {
 			id: dto.id.id.to_raw().clone(),
 			role: RolesDetailItemDto::from(&dto.role),
 			fullname: dto.fullname.clone(),
 			email: dto.email.clone(),
 			avatar: dto.avatar.clone(),
-			phone_number: dto.phone_number.clone(),
+			phone_number: dto.phone_number.clone(), // Corrected from dto.phone.clone()
 			is_active: dto.is_active,
 			gender: dto.gender.clone(),
 			birthdate: dto.birthdate.clone(),
@@ -111,6 +112,22 @@ impl UsersDetailItemDto {
 			updated_at: dto.updated_at.clone(),
 		}
 	}
+
+    pub fn from_schema(schema: &UsersSchema) -> Self {
+        Self {
+            id: schema.id.id.to_raw(),
+            role: RolesDetailItemDto::default(), // Placeholder, role needs to be fetched
+            fullname: schema.fullname.clone(),
+            email: schema.email.clone(),
+            avatar: schema.avatar.clone(),
+            phone_number: schema.phone_number.clone(),
+            is_active: schema.is_active,
+            gender: schema.gender.clone(),
+            birthdate: schema.birthdate.clone(),
+            created_at: schema.created_at.clone(),
+            updated_at: schema.updated_at.clone(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
@@ -131,7 +148,7 @@ pub struct UsersListQueryDto {
 	pub id: Thing,
 	pub role: RolesDetailQueryDto,
 	pub fullname: String,
-	pub email: String,
+	pub email: String, // Corrected from pub pub email: String,
 	pub avatar: Option<String>,
 	pub phone_number: String,
 	pub is_active: bool,

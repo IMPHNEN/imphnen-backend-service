@@ -1,9 +1,9 @@
-use crate::{AppState, MetaRequestDto, v1::users_service::UsersService};
+use crate::{AppState, MetaRequestDto};
 use crate::{
 	MessageResponseDto, PermissionsEnum, ResponseListSuccessDto, ResponseSuccessDto,
 	UsersCreateRequestDto, UsersDetailItemDto, permissions_guard,
 };
-use axum::extract::{Path, Query};
+use axum::extract::{Path}; // Removed Query
 use axum::http::HeaderMap;
 use axum::response::IntoResponse;
 use axum::{Extension, Json};
@@ -11,6 +11,7 @@ use axum::{Extension, Json};
 use super::{
 	UsersActiveInactiveRequestDto, UsersListItemDto, UsersUpdateRequestDto,
 };
+use crate::v1::users::users_service::{UsersServiceTrait, UsersService};
 
 #[utoipa::path(
 	get,
@@ -35,7 +36,7 @@ use super::{
 pub async fn get_user_list(
 	headers: HeaderMap,
 	Extension(state): Extension<AppState>,
-	Query(meta): Query<MetaRequestDto>,
+	Json(meta): Json<MetaRequestDto>,
 ) -> impl IntoResponse {
 	match permissions_guard(
 		&headers,
@@ -178,7 +179,7 @@ pub async fn put_update_user_me(
 	Json(payload): Json<UsersUpdateRequestDto>,
 ) -> impl IntoResponse {
 	match permissions_guard(&headers, state.clone(), vec![]).await {
-		Ok(_) => UsersService::update_user_me(&state, headers, payload).await,
+		Ok(_) => UsersService::update_user_me(headers, &state, payload).await,
 		Err(response) => response,
 	}
 }

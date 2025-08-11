@@ -14,12 +14,33 @@ use axum::{http::StatusCode, response::Response};
 use imphnen_libs::{ResourceEnum, hash_password, verify_password};
 use imphnen_utils::make_thing;
 use uuid::Uuid;
+use anyhow::Result;
+use async_trait::async_trait;
+use crate::v1::users::users_dto::{UsersDetailItemDto as UserDto, UsersCreateRequestDto as CreateUserDto, UsersDetailQueryDto};
 
+#[async_trait]
+pub trait UsersServiceTrait: Send + Sync + 'static {
+    async fn get_user_list(state: &AppState, meta: MetaRequestDto) -> Response;
+    async fn get_user_by_id(state: &AppState, id: String) -> Response;
+    async fn get_user_me(headers: HeaderMap, state: &AppState) -> Response;
+    async fn create_user(state: &AppState, new_user: UsersCreateRequestDto) -> Response;
+    async fn update_user(state: &AppState, id: String, user: UsersUpdateRequestDto) -> Response;
+    async fn update_user_me(headers: HeaderMap, state: &AppState, user: UsersUpdateRequestDto) -> Response;
+    async fn set_user_active_status(state: &AppState, id: String, payload: UsersActiveInactiveRequestDto) -> Response;
+    async fn update_user_password(state: &AppState, email: String, payload: UsersSetNewPasswordRequestDto) -> Response;
+    async fn get_user_by_mentor_id(state: &AppState, mentor_id: String) -> Response;
+    async fn delete_user(state: &AppState, id: String) -> Response;
 
+    async fn get_user_by_email(&self, email: &str) -> Result<Option<UserDto>>;
+    async fn create_user_by_dto(&self, new_user: CreateUserDto) -> Result<UserDto>;
+}
+
+#[derive(Clone)]
 pub struct UsersService;
 
-impl UsersService {
-	pub async fn get_user_list(state: &AppState, meta: MetaRequestDto) -> Response {
+#[async_trait]
+impl UsersServiceTrait for UsersService {
+	async fn get_user_list(state: &AppState, meta: MetaRequestDto) -> Response {
 		let repo = UsersRepository::new(state);
 		match repo.query_user_list(meta).await {
 			Ok(data) => {
@@ -33,7 +54,7 @@ impl UsersService {
 		}
 	}
 
-	pub async fn get_user_by_id(state: &AppState, id: String) -> Response {
+	async fn get_user_by_id(state: &AppState, id: String) -> Response {
 		if Uuid::parse_str(&id).is_err() {
             return common_response(StatusCode::BAD_REQUEST, "Invalid User ID format");
         }
@@ -41,14 +62,14 @@ impl UsersService {
 		let thing_id = make_thing(&ResourceEnum::Users.to_string(), &id);
 		match repo.query_user_by_id(&thing_id).await {
 			Ok(user) if !user.is_deleted => success_response(ResponseSuccessDto {
-				data: UsersDetailItemDto::from(&user),
+				data: UserDto::from(&user), // Corrected to use UserDto::from by reference
 			}),
 			Ok(_) => common_response(StatusCode::NOT_FOUND, "User not found"),
 			Err(e) => common_response(StatusCode::NOT_FOUND, &e.to_string()),
 		}
 	}
 
-	pub async fn get_user_me(headers: HeaderMap, state: &AppState) -> Response {
+	async fn get_user_me(headers: HeaderMap, state: &AppState) -> Response {
 		let repo = UsersRepository::new(state);
 		let email = match extract_email(&headers) {
 			Some(email) => email,
@@ -56,14 +77,14 @@ impl UsersService {
 		};
 		match repo.query_user_by_email(email).await {
 			Ok(user) if !user.is_deleted => success_response(ResponseSuccessDto {
-				data: UsersDetailItemDto::from(&user),
+				data: UserDto::from(&user), // Corrected to use UserDto::from by reference
 			}),
 			Ok(_) => common_response(StatusCode::NOT_FOUND, "User not found"),
 			Err(e) => common_response(StatusCode::NOT_FOUND, &e.to_string()),
 		}
 	}
 
-	pub async fn create_user(
+	async fn create_user(
 		state: &AppState,
 		new_user: UsersCreateRequestDto,
 	) -> Response {
@@ -86,7 +107,7 @@ impl UsersService {
 		}
 	}
 
-	pub async fn update_user(
+	async fn update_user(
 		state: &AppState,
 		id: String,
 		user: UsersUpdateRequestDto,
@@ -105,9 +126,9 @@ impl UsersService {
 		}
 	}
 
-	pub async fn update_user_me(
-		state: &AppState,
+	async fn update_user_me(
 		headers: HeaderMap,
+		state: &AppState,
 		user: UsersUpdateRequestDto,
 	) -> Response {
 		let repo = UsersRepository::new(state);
@@ -129,7 +150,7 @@ impl UsersService {
 		}
 	}
 
-	pub async fn set_user_active_status(
+	async fn set_user_active_status(
 		state: &AppState,
 		id: String,
 		payload: UsersActiveInactiveRequestDto,
@@ -156,7 +177,7 @@ impl UsersService {
 		}
 	}
 
-	pub async fn update_user_password(
+	async fn update_user_password(
 		state: &AppState,
 		email: String,
 		payload: UsersSetNewPasswordRequestDto,
@@ -199,7 +220,7 @@ impl UsersService {
 		}
 	}
 
-	pub async fn get_user_by_mentor_id(
+	async fn get_user_by_mentor_id(
 		state: &AppState,
 		mentor_id: String,
 	) -> Response {
@@ -207,14 +228,14 @@ impl UsersService {
 		let thing_id = make_thing(&ResourceEnum::Mentors.to_string(), &mentor_id);
 		match repo.query_user_by_id(&thing_id).await {
 			Ok(user) if !user.is_deleted => success_response(ResponseSuccessDto {
-				data: UsersDetailItemDto::from(&user),
+				data: UserDto::from(&user), // Corrected to use UserDto::from by reference
 			}),
 			Ok(_) => common_response(StatusCode::NOT_FOUND, "User not found"),
 			Err(e) => common_response(StatusCode::NOT_FOUND, &e.to_string()),
 		}
 	}
 
-	pub async fn delete_user(state: &AppState, id: String) -> Response {
+	async fn delete_user(state: &AppState, id: String) -> Response {
 		if Uuid::parse_str(&id).is_err() {
             return common_response(StatusCode::BAD_REQUEST, "Invalid User ID format");
         }
@@ -228,4 +249,43 @@ impl UsersService {
 			Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
 		}
 	}
+
+    async fn get_user_by_email(&self, email: &str) -> Result<Option<UserDto>> {
+        let state = AppState {
+            surrealdb_ws: todo!(),
+            surrealdb_mem: todo!(),
+        };
+        let repo = UsersRepository::new(&state);
+        let user = repo.query_user_by_email(email.to_string()).await;
+        match user {
+            Ok(u) => Ok(Some(UserDto::from(&u))), // Corrected to use UserDto::from by reference
+            Err(e) if e.to_string().contains("User not found") => Ok(None),
+            Err(e) => Err(anyhow::anyhow!(e.to_string())),
+        }
+    }
+
+    async fn create_user_by_dto(&self, new_user: CreateUserDto) -> Result<UserDto> {
+        let state = AppState {
+            surrealdb_ws: todo!(),
+            surrealdb_mem: todo!(),
+        };
+        let repo = UsersRepository::new(&state);
+        let user_schema = UsersSchema {
+            email: new_user.email,
+            password: new_user.password, // No unwrap_or_default needed
+            fullname: new_user.fullname,
+            phone_number: new_user.phone_number, // No unwrap_or_default needed
+            is_active: new_user.is_active, // No unwrap_or needed
+            role: make_thing(&ResourceEnum::Roles.to_string(), &new_user.role_id),
+            ..Default::default()
+        };
+        match repo.query_create_user(user_schema).await {
+            Ok(msg) => { // msg is String, not UsersDetailQueryDto
+                // Re-fetch the created user to get the full UsersDetailQueryDto
+                let created_user = repo.query_user_by_email(new_user.email.clone()).await?; // Cloned email
+                Ok(UserDto::from(&created_user)) // Corrected to use UserDto::from by reference
+            },
+            Err(e) => Err(anyhow::anyhow!(e.to_string())),
+        }
+    }
 }

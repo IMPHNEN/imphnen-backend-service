@@ -28,7 +28,7 @@ pub struct RolesListItemDto {
 	pub updated_at: Option<String>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Default)] // Added Default derive
 pub struct RolesDetailItemDto {
 	pub id: String,
 	pub name: String,

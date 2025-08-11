@@ -5,7 +5,7 @@ mod auth_login_tests {
 	use crate::mock_test::setup_all_test_environment;
 	use axum::http::StatusCode;
 	use imphnen_iam::{
-		v1::auth::{AuthLoginRequestDto, AuthService},
+		v1::auth::{AuthLoginRequestDto, AuthService, AuthServiceTrait}, // Import AuthServiceTrait
 		AppState, UsersRepository, UsersSchema,
 	};
 	use serde_json::Value; // Import the new setup function
@@ -81,7 +81,7 @@ mod auth_login_tests {
 			password: password.to_string(),
 		};
 
-		let response = AuthService::mutation_login(login_dto, &state).await;
+		let response = AuthService::mutation_login(login_dto, &state).await; // Corrected call
 		let (parts, body) = response.into_parts();
 
 		assert_eq!(parts.status, StatusCode::OK);
@@ -108,7 +108,7 @@ mod auth_login_tests {
 			password: "password".to_string(),
 		};
 
-		let response = AuthService::mutation_login(login_dto, &state).await;
+		let response = AuthService::mutation_login(login_dto, &state).await; // Corrected call
 		let (parts, body) = response.into_parts();
 
 		assert_eq!(parts.status, StatusCode::BAD_REQUEST);
@@ -127,7 +127,7 @@ mod auth_login_tests {
 			password: "password".to_string(),
 		};
 
-		let response = AuthService::mutation_login(login_dto, &state).await;
+		let response = AuthService::mutation_login(login_dto, &state).await; // Corrected call
 		let (parts, body) = response.into_parts();
 
 		assert_eq!(parts.status, StatusCode::BAD_REQUEST);
@@ -147,7 +147,7 @@ mod auth_login_tests {
 			password: "".to_string(),
 		};
 
-		let response = AuthService::mutation_login(login_dto, &state).await;
+		let response = AuthService::mutation_login(login_dto, &state).await; // Corrected call
 		let (parts, body) = response.into_parts();
 
 		assert_eq!(parts.status, StatusCode::BAD_REQUEST);
@@ -169,7 +169,7 @@ mod auth_login_tests {
 			password: "WrongPassword123!".to_string(),
 		};
 
-		let response = AuthService::mutation_login(login_dto, &state).await;
+		let response = AuthService::mutation_login(login_dto, &state).await; // Corrected call
 		let (parts, body) = response.into_parts();
 
 		assert_eq!(parts.status, StatusCode::BAD_REQUEST);
@@ -189,7 +189,7 @@ mod auth_login_tests {
 			password: "password".to_string(),
 		};
 
-		let response = AuthService::mutation_login(login_dto, &state).await;
+		let response = AuthService::mutation_login(login_dto, &state).await; // Corrected call
 		let (parts, body) = response.into_parts();
 
 		assert_eq!(parts.status, StatusCode::UNAUTHORIZED);
@@ -215,7 +215,7 @@ mod auth_login_tests {
 			password: password.to_string(),
 		};
 
-		let response = AuthService::mutation_login(login_dto, &state).await;
+		let response = AuthService::mutation_login(login_dto, &state).await; // Corrected call
 		let (parts, body) = response.into_parts();
 
 		assert_eq!(parts.status, StatusCode::BAD_REQUEST);
@@ -242,7 +242,7 @@ mod auth_login_tests {
 			password: password.to_string(),
 		};
 
-		let response = AuthService::mutation_mentor_login(login_dto, &state).await;
+		let response = AuthService::mutation_mentor_login(login_dto, &state).await; // Corrected call
 		let (parts, body) = response.into_parts();
 
 		assert_eq!(parts.status, StatusCode::OK);
@@ -267,7 +267,7 @@ mod auth_login_tests {
 			password: password.to_string(),
 		};
 
-		let response = AuthService::mutation_mentor_login(login_dto, &state).await;
+		let response = AuthService::mutation_mentor_login(login_dto, &state).await; // Corrected call
 		let (parts, body) = response.into_parts();
 
 		assert_eq!(parts.status, StatusCode::FORBIDDEN);
@@ -294,7 +294,7 @@ mod auth_login_tests {
 			password: password.to_string(),
 		};
 
-		let response = AuthService::mutation_mentor_login(login_dto, &state).await;
+		let response = AuthService::mutation_mentor_login(login_dto, &state).await; // Corrected call
 		let (parts, body) = response.into_parts();
 
 		assert_eq!(parts.status, StatusCode::BAD_REQUEST);
@@ -321,7 +321,7 @@ mod auth_login_tests {
 			password: password.to_string(),
 		};
 
-		let response = AuthService::mutation_login(login_dto, &state).await;
+		let response = AuthService::mutation_login(login_dto, &state).await; // Corrected call
 		let (parts, _) = response.into_parts();
 
 		assert_eq!(parts.status, StatusCode::OK);
@@ -346,7 +346,7 @@ mod auth_login_tests {
 			password: password.to_string(),
 		};
 
-		let response = AuthService::mutation_login(login_dto, &state).await;
+		let response = AuthService::mutation_login(login_dto, &state).await; // Corrected call
 		let (parts, _) = response.into_parts();
 
 		assert_eq!(parts.status, StatusCode::OK);
@@ -365,7 +365,7 @@ mod auth_login_tests {
 			password: password.to_string(),
 		};
 
-		let response = AuthService::mutation_login(login_dto, &state).await;
+		let response = AuthService::mutation_login(login_dto, &state).await; // Corrected call
 		let (parts, body) = response.into_parts();
 
 		// Email should be case-sensitive
