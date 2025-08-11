@@ -8,7 +8,8 @@ use serde::{Deserialize, Serialize};
 use oauth2::url::Url;
 
 use imphnen_entities::error_dto::error::Error;
-use imphnen_libs::{jsonwebtoken::generate_jwt, enviroment::ENV};
+use imphnen_libs::{jsonwebtoken::{encode_access_token, encode_refresh_token}, enviroment::Env};
+use crate::v1::auth::{AuthLoginResponsetDto, TokenDto};
 use crate::v1::auth::auth_service::AuthServiceTrait;
 use crate::v1::users::users_dto::{UsersCreateRequestDto, UsersDetailItemDto};
 use crate::v1::users::users_service::UsersServiceTrait;
@@ -24,25 +25,21 @@ pub struct AuthRequest {
 #[async_trait]
 pub trait GoogleOauthService<A: AuthServiceTrait + Send + Sync + 'static, U: UsersServiceTrait + Send + Sync + 'static>: Send + Sync + 'static {
     // Removed new() from trait
-    fn with_services(auth_service: A, users_service: U) -> Self;
+    fn with_services(auth_service: A, users_service: U, env: &'static Env) -> Self;
     fn google_oauth_client(&self) -> BasicClient;
     fn generate_auth_url(&self) -> (Url, CsrfToken);
-    async fn google_oauth_callback(&self, auth_request: AuthRequest) -> Result<String, Error>;
+    async fn google_oauth_callback(&self, auth_request: AuthRequest) -> Result<AuthLoginResponsetDto, Error>;
 }
 
 #[derive(Clone)]
 pub struct GoogleOauthServiceImpl<A: AuthServiceTrait, U: UsersServiceTrait> {
     auth_service: A,
     users_service: U,
+    env: &'static Env,
 }
 
 impl GoogleOauthServiceImpl<crate::v1::auth::auth_service::AuthService, crate::v1::users::users_service::UsersService> {
-    pub fn new() -> Self {
-        GoogleOauthServiceImpl {
-            auth_service: crate::v1::auth::auth_service::AuthService {},
-            users_service: crate::v1::users::users_service::UsersService {},
-        }
-    }
+    // Removed the `new()` method as it will be replaced by `with_services`
 }
 
 #[async_trait]
@@ -51,16 +48,17 @@ where
     A: AuthServiceTrait + Send + Sync + 'static,
     U: UsersServiceTrait + Send + Sync + 'static,
 {
-    fn with_services(auth_service: A, users_service: U) -> Self {
+    fn with_services(auth_service: A, users_service: U, env: &'static Env) -> Self {
         Self {
             auth_service,
             users_service,
+            env,
         }
     }
 
     fn google_oauth_client(&self) -> BasicClient {
-        let google_client_id = ClientId::new(ENV.google_client_id.clone());
-        let google_client_secret = ClientSecret::new(ENV.google_client_secret.clone());
+        let google_client_id = ClientId::new(self.env.google_client_id.clone());
+        let google_client_secret = ClientSecret::new(self.env.google_client_secret.clone());
         let auth_url = AuthUrl::new("https://accounts.google.com/o/oauth2/v2/auth".to_string())
             .expect("Invalid authorization endpoint URL");
         let token_url = TokenUrl::new("https://oauth2.googleapis.com/token".to_string())
@@ -73,7 +71,7 @@ where
             Some(token_url),
         )
         .set_redirect_uri(
-            RedirectUrl::new(ENV.google_redirect_url.clone())
+            RedirectUrl::new(self.env.google_redirect_url.clone())
                 .expect("Invalid redirect URL"),
         )
     }
@@ -90,7 +88,7 @@ where
             .url()
     }
 
-    async fn google_oauth_callback(&self, auth_request: AuthRequest) -> Result<String, Error> {
+    async fn google_oauth_callback(&self, auth_request: AuthRequest) -> Result<AuthLoginResponsetDto, Error> {
         let client = self.google_oauth_client();
 
         let token_response = client
@@ -131,7 +129,18 @@ where
             }
         };
 
-        let token = generate_jwt(&user.id.to_string())?;
-        Ok(token)
+        let access_token = encode_access_token(user.email.clone())
+            .map_err(|e| Error::Db(format!("Failed to generate access token: {}", e)))?;
+        let refresh_token = encode_refresh_token(user.email.clone())
+            .map_err(|e| Error::Db(format!("Failed to generate refresh token: {}", e)))?;
+
+        let response = AuthLoginResponsetDto {
+            user: user.clone(), // Cloned the user to satisfy potential ownership issues
+            token: TokenDto {
+                access_token,
+                refresh_token,
+            },
+        };
+        Ok(response)
     }
 }

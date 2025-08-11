@@ -11,20 +11,22 @@ mod tests {
     use mockall::mock;
     use serde_json::json;
 
+    use imphnen_iam::v1::auth::{AuthLoginResponsetDto, TokenDto};
     use imphnen_iam::v1::auth::google::google_oauth_controller::GoogleOauthController;
     use imphnen_iam::v1::auth::google::google_oauth_service::{AuthRequest, GoogleOauthService, GoogleOauthServiceImpl};
-    use imphnen_iam::v1::users::users_dto::{UserDto, CreateUserDto};
+    use imphnen_iam::v1::users::users_dto::{UsersDetailItemDto, UsersCreateRequestDto}; // Corrected: removed UserDto alias, used UsersCreateRequestDto
     use imphnen_entities::error_dto::ErrorResponse;
     use imphnen_libs::jsonwebtoken::generate_jwt;
+    use imphnen_libs::enviroment::{ENV, Env}; // Import ENV and Env
 
     mock! {
         pub GoogleOauthServiceMock {}
         impl GoogleOauthService for GoogleOauthServiceMock {
             fn new() -> Self;
-            fn with_services(auth_service: crate::v1::auth::auth_service::AuthService, users_service: crate::v1::users::users_service::UsersService) -> Self;
+            fn with_services(auth_service: crate::v1::auth::auth_service::AuthService, users_service: crate::v1::users::users_service::UsersService, env: &'static Env) -> Self; // Updated signature
             fn google_oauth_client(&self) -> oauth2::basic::BasicClient;
             fn generate_auth_url(&self) -> (url::Url, oauth2::CsrfToken);
-            async fn google_oauth_callback(&self, auth_request: AuthRequest) -> anyhow::Result<String, ErrorResponse>;
+            async fn google_oauth_callback(&self, auth_request: AuthRequest) -> anyhow::Result<AuthLoginResponsetDto, ErrorResponse>;
         }
     }
 
@@ -55,8 +57,8 @@ mod tests {
             async fn update_user_password(state: &crate::AppState, email: String, payload: crate::v1::users::UsersSetNewPasswordRequestDto) -> axum::response::Response;
             async fn get_user_by_mentor_id(state: &crate::AppState, mentor_id: String) -> axum::response::Response;
             async fn delete_user(state: &crate::AppState, id: String) -> axum::response::Response;
-            async fn get_user_by_email(&self, email: &str) -> anyhow::Result<Option<UserDto>>;
-            async fn create_user_by_dto(&self, new_user: CreateUserDto) -> anyhow::Result<UserDto>;
+            async fn get_user_by_email(&self, email: &str) -> anyhow::Result<Option<UsersDetailItemDto>>; // Updated return type
+            async fn create_user_by_dto(&self, new_user: UsersCreateRequestDto) -> anyhow::Result<UsersDetailItemDto>; // Updated return type
         }
     }
 
@@ -70,7 +72,13 @@ mod tests {
 
     #[tokio::test]
     async fn google_login_redirects_to_google_auth_url() {
-        let app = setup_app_with_mocked_google_oauth_service(GoogleOauthServiceImpl::new()).await;
+        let app = setup_app_with_mocked_google_oauth_service(
+            GoogleOauthServiceImpl::with_services(
+                AuthServiceMock::new(),
+                UsersServiceMock::new(),
+                &ENV, // Pass ENV
+            )
+        ).await;
 
         let request = Request::builder()
             .uri("/google/login")
@@ -95,40 +103,74 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn google_callback_new_user_creates_user_and_returns_jwt() {
+    async fn google_callback_new_user_creates_user_and_returns_login_response() {
         let mut mock_google_oauth_service = MockGoogleOauthServiceMock::new();
-        let mut mock_users_service = MockUsersServiceMock::new();
+        let mut mock_users_service = UsersServiceMock::new(); // Changed from MockUsersServiceMock to UsersServiceMock
 
-        let expected_jwt = generate_jwt("test_user_id").unwrap();
         let user_email = "new.user@example.com".to_string();
+        let expected_access_token = generate_jwt("test_user_id").unwrap();
+        let expected_refresh_token = generate_jwt("test_user_id").unwrap();
+
+        let expected_response_dto = AuthLoginResponsetDto {
+            token: TokenDto {
+                access_token: expected_access_token.clone(),
+                refresh_token: expected_refresh_token.clone(),
+            },
+            user: UsersDetailItemDto {
+                id: "test_user_id".to_string(),
+                email: user_email.clone(),
+                fullname: "Test User".to_string(), // Updated field
+                phone_number: "1234567890".to_string(), // Updated field
+                is_active: true,
+                gender: None, // Added field
+                birthdate: None, // Added field
+                created_at: chrono::Utc::now().to_rfc3339(),
+                updated_at: chrono::Utc::now().to_rfc3339(),
+                role: imphnen_iam::v1::roles::roles_dto::RolesDetailItemDto {
+                    id: "default_role_id".to_string(),
+                    name: "User".to_string(),
+                    permissions: vec![],
+                    created_at: chrono::Utc::now().to_rfc3339(),
+                    updated_at: chrono::Utc::now().to_rfc3339(),
+                },
+            },
+        };
 
         mock_google_oauth_service.expect_google_oauth_callback()
             .with(eq(AuthRequest { code: "some_code".to_string(), state: "some_state".to_string() }))
-            .returning(move |_| Ok(expected_jwt.clone()));
+            .returning(move |_| Ok(expected_response_dto.clone()));
 
         mock_users_service.expect_get_user_by_email()
             .with(eq(user_email.clone()))
             .returning(|_| Ok(None)); // Simulate no existing user
-
+        
         mock_users_service.expect_create_user_by_dto()
             .returning(|create_user_dto| {
-                Ok(UserDto {
+                Ok(UsersDetailItemDto { // Changed to UsersDetailItemDto
                     id: "test_user_id".to_string(),
                     email: create_user_dto.email,
-                    username: create_user_dto.username,
-                    first_name: create_user_dto.first_name,
-                    last_name: create_user_dto.last_name,
+                    fullname: create_user_dto.fullname, // Updated field
+                    phone_number: create_user_dto.phone_number, // Updated field
                     is_active: create_user_dto.is_active,
-                    is_email_verified: create_user_dto.is_email_verified,
+                    gender: None, // Added field
+                    birthdate: None, // Added field
                     created_at: chrono::Utc::now().to_rfc3339(),
                     updated_at: chrono::Utc::now().to_rfc3339(),
+                    role: imphnen_iam::v1::roles::roles_dto::RolesDetailItemDto {
+                        id: "default_role_id".to_string(),
+                        name: "User".to_string(),
+                        permissions: vec![],
+                        created_at: chrono::Utc::now().to_rfc3339(),
+                        updated_at: chrono::Utc::now().to_rfc3339(),
+                    },
                 })
             });
 
         let app = setup_app_with_mocked_google_oauth_service(
             GoogleOauthServiceImpl::with_services(
-                AuthServiceMock::new(), // Not directly used by google_oauth_callback logic, but required by trait
+                AuthServiceMock::new(),
                 mock_users_service,
+                &ENV, // Pass ENV here
             )
         ).await;
 
@@ -141,35 +183,72 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::OK);
         let body = response.into_body().collect().await.unwrap().to_bytes();
-        let json_body: serde_json::Value = serde_json::from_slice(&body).unwrap();
-        assert_eq!(json_body["token"], expected_jwt);
+        let json_body: AuthLoginResponsetDto = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json_body.token.access_token, expected_access_token);
+        assert_eq!(json_body.token.refresh_token, expected_refresh_token);
+        assert_eq!(json_body.user.email, user_email);
     }
 
     #[tokio::test]
-    async fn google_callback_existing_user_returns_jwt() {
+    async fn google_callback_existing_user_returns_login_response() {
         let mut mock_google_oauth_service = MockGoogleOauthServiceMock::new();
-        let mut mock_users_service = MockUsersServiceMock::new();
+        let mut mock_users_service = UsersServiceMock::new(); // Changed from MockUsersServiceMock to UsersServiceMock
 
-        let expected_jwt = generate_jwt("existing_user_id").unwrap();
         let user_email = "existing.user@example.com".to_string();
+        let expected_access_token = generate_jwt("existing_user_id").unwrap();
+        let expected_refresh_token = generate_jwt("existing_user_id").unwrap();
+
+        let existing_user_dto = UsersDetailItemDto { // Changed from UserDto to UsersDetailItemDto
+            id: "existing_user_id".to_string(),
+            email: user_email.clone(),
+            fullname: "Existing User".to_string(), // Updated field
+            phone_number: "0987654321".to_string(), // Updated field
+            is_active: true,
+            gender: None, // Added field
+            birthdate: None, // Added field
+            created_at: chrono::Utc::now().to_rfc3339(),
+            updated_at: chrono::Utc::now().to_rfc3339(),
+            role: imphnen_iam::v1::roles::roles_dto::RolesDetailItemDto {
+                id: "default_role_id".to_string(),
+                name: "User".to_string(),
+                permissions: vec![],
+                created_at: chrono::Utc::now().to_rfc3339(),
+                updated_at: chrono::Utc::now().to_rfc3339(),
+            },
+        };
+
+        let expected_response_dto = AuthLoginResponsetDto {
+            token: TokenDto {
+                access_token: expected_access_token.clone(),
+                refresh_token: expected_refresh_token.clone(),
+            },
+            user: existing_user_dto.clone(), // Cloned
+        };
 
         mock_google_oauth_service.expect_google_oauth_callback()
             .with(eq(AuthRequest { code: "some_code".to_string(), state: "some_state".to_string() }))
-            .returning(move |_| Ok(expected_jwt.clone()));
+            .returning(move |_| Ok(expected_response_dto.clone()));
 
         mock_users_service.expect_get_user_by_email()
             .with(eq(user_email.clone()))
-            .returning(|_| {
-                Ok(Some(UserDto {
+            .returning(move |_| {
+                Ok(Some(UsersDetailItemDto { // Changed to UsersDetailItemDto
                     id: "existing_user_id".to_string(),
                     email: user_email.clone(),
-                    username: Some("existinguser".to_string()),
-                    first_name: Some("Existing".to_string()),
-                    last_name: Some("User".to_string()),
-                    is_active: Some(true),
-                    is_email_verified: Some(true),
+                    fullname: "Existing User".to_string(), // Updated field
+                    phone_number: "0987654321".to_string(), // Updated field
+                    is_active: true,
+                    gender: None, // Added field
+                    birthdate: None, // Added field
                     created_at: chrono::Utc::now().to_rfc3339(),
                     updated_at: chrono::Utc::now().to_rfc3339(),
+                    role: imphnen_iam::v1::roles::roles_dto::RolesDetailItemDto {
+                        id: "default_role_id".to_string(),
+                        name: "User".to_string(),
+                        permissions: vec![],
+                        created_at: chrono::Utc::now().to_rfc3339(),
+                        updated_at: chrono::Utc::now().to_rfc3339(),
+                    },
                 }))
             }); // Simulate existing user
 
@@ -178,8 +257,9 @@ mod tests {
 
         let app = setup_app_with_mocked_google_oauth_service(
             GoogleOauthServiceImpl::with_services(
-                AuthServiceMock::new(), // Not directly used by google_oauth_callback logic, but required by trait
+                AuthServiceMock::new(),
                 mock_users_service,
+                &ENV, // Pass ENV here
             )
         ).await;
 
@@ -192,7 +272,9 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::OK);
         let body = response.into_body().collect().await.unwrap().to_bytes();
-        let json_body: serde_json::Value = serde_json::from_slice(&body).unwrap();
-        assert_eq!(json_body["token"], expected_jwt);
+        let json_body: AuthLoginResponsetDto = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json_body.token.access_token, expected_access_token);
+        assert_eq!(json_body.token.refresh_token, expected_refresh_token);
+        assert_eq!(json_body.user.email, user_email);
     }
 }
