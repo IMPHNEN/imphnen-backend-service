@@ -9,7 +9,7 @@ use oauth2::url::Url;
 
 use imphnen_entities::error_dto::error::Error;
 use imphnen_libs::{jsonwebtoken::{encode_access_token, encode_refresh_token}, enviroment::Env};
-use crate::v1::auth::{AuthLoginResponsetDto, TokenDto};
+use crate::v1::auth::TokenDto;
 use crate::v1::auth::auth_service::AuthServiceTrait;
 use crate::v1::users::users_dto::{UsersCreateRequestDto, UsersDetailItemDto};
 use crate::v1::users::users_service::UsersServiceTrait;
@@ -28,14 +28,15 @@ pub trait GoogleOauthService<A: AuthServiceTrait + Send + Sync + 'static, U: Use
     fn with_services(auth_service: A, users_service: U, env: &'static Env) -> Self;
     fn google_oauth_client(&self) -> BasicClient;
     fn generate_auth_url(&self) -> (Url, CsrfToken);
-    async fn google_oauth_callback(&self, auth_request: AuthRequest) -> Result<AuthLoginResponsetDto, Error>;
+    async fn google_oauth_callback(&self, auth_request: AuthRequest) -> Result<(UsersDetailItemDto, TokenDto), Error>; // Changed return type
 }
 
 #[derive(Clone)]
 pub struct GoogleOauthServiceImpl<A: AuthServiceTrait, U: UsersServiceTrait> {
-    auth_service: A,
     users_service: U,
     env: &'static Env,
+    #[allow(dead_code)]
+    auth_service: A,
 }
 
 impl GoogleOauthServiceImpl<crate::v1::auth::auth_service::AuthService, crate::v1::users::users_service::UsersService> {
@@ -88,7 +89,7 @@ where
             .url()
     }
 
-    async fn google_oauth_callback(&self, auth_request: AuthRequest) -> Result<AuthLoginResponsetDto, Error> {
+    async fn google_oauth_callback(&self, auth_request: AuthRequest) -> Result<(UsersDetailItemDto, TokenDto), Error> {
         let client = self.google_oauth_client();
 
         let token_response = client
@@ -134,13 +135,11 @@ where
         let refresh_token = encode_refresh_token(user.email.clone())
             .map_err(|e| Error::Db(format!("Failed to generate refresh token: {}", e)))?;
 
-        let response = AuthLoginResponsetDto {
-            user: user.clone(), // Cloned the user to satisfy potential ownership issues
-            token: TokenDto {
-                access_token,
-                refresh_token,
-            },
+        let token_dto = TokenDto {
+            access_token,
+            refresh_token,
         };
-        Ok(response)
+
+        Ok((user, token_dto))
     }
 }

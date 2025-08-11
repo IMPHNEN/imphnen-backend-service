@@ -1,18 +1,15 @@
 use axum::{
     extract::{Query, State},
-    response::{IntoResponse, Redirect},
+    response::Redirect,
     routing::get,
     Json, Router,
 };
-use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use std::sync::Arc;
 use imphnen_libs::enviroment::ENV; // Import ENV
 
 use crate::v1::auth::google::google_oauth_service::{AuthRequest, GoogleOauthService, GoogleOauthServiceImpl};
-use crate::v1::auth::auth_service::AuthServiceTrait;
-use crate::v1::users::users_service::UsersServiceTrait;
 use imphnen_entities::error_dto::error::Error;
 use crate::v1::auth::AuthLoginResponsetDto;
 
@@ -74,8 +71,12 @@ where
     }
 
     pub async fn google_oauth_callback(&self, auth_request: AuthRequest) -> Result<Json<AuthLoginResponsetDto>, Error> {
-        let response = self.google_oauth_service.google_oauth_callback(auth_request).await?;
-        Ok(Json(response))
+        let (user, token) = self.google_oauth_service.google_oauth_callback(auth_request).await?;
+        let auth_response = AuthLoginResponsetDto {
+            user,
+            token,
+        };
+        Ok(Json(auth_response))
     }
 }
 

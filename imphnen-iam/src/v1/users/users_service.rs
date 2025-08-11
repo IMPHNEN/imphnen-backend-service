@@ -1,5 +1,5 @@
 use super::{
-	UsersActiveInactiveRequestDto, UsersCreateRequestDto, UsersDetailItemDto,
+	UsersActiveInactiveRequestDto, UsersCreateRequestDto,
 	UsersSetNewPasswordRequestDto, UsersUpdateRequestDto,
 };
 use crate::{
@@ -11,12 +11,12 @@ use crate::{
 };
 use axum::http::HeaderMap;
 use axum::{http::StatusCode, response::Response};
-use imphnen_libs::{ResourceEnum, hash_password, verify_password};
+use imphnen_libs::{ResourceEnum, hash_password, verify_password, surrealdb_init_ws, surrealdb_init_mem};
 use imphnen_utils::make_thing;
 use uuid::Uuid;
 use anyhow::Result;
 use async_trait::async_trait;
-use crate::v1::users::users_dto::{UsersDetailItemDto as UserDto, UsersCreateRequestDto as CreateUserDto, UsersDetailQueryDto};
+use crate::v1::users::users_dto::{UsersDetailItemDto as UserDto, UsersCreateRequestDto as CreateUserDto};
 
 #[async_trait]
 pub trait UsersServiceTrait: Send + Sync + 'static {
@@ -250,10 +250,16 @@ impl UsersServiceTrait for UsersService {
 		}
 	}
 
+    #[allow(unused_variables)]
     async fn get_user_by_email(&self, email: &str) -> Result<Option<UserDto>> {
+        let surrealdb_ws = surrealdb_init_ws().await
+            .map_err(|e| anyhow::anyhow!("Failed to initialize websocket database: {}", e))?;
+        let surrealdb_mem = surrealdb_init_mem().await
+            .map_err(|e| anyhow::anyhow!("Failed to initialize memory database: {}", e))?;
+        
         let state = AppState {
-            surrealdb_ws: todo!(),
-            surrealdb_mem: todo!(),
+            surrealdb_ws,
+            surrealdb_mem,
         };
         let repo = UsersRepository::new(&state);
         let user = repo.query_user_by_email(email.to_string()).await;
@@ -264,12 +270,19 @@ impl UsersServiceTrait for UsersService {
         }
     }
 
+    #[allow(unused_variables)]
     async fn create_user_by_dto(&self, new_user: CreateUserDto) -> Result<UserDto> {
+        let surrealdb_ws = surrealdb_init_ws().await
+            .map_err(|e| anyhow::anyhow!("Failed to initialize websocket database: {}", e))?;
+        let surrealdb_mem = surrealdb_init_mem().await
+            .map_err(|e| anyhow::anyhow!("Failed to initialize memory database: {}", e))?;
+        
         let state = AppState {
-            surrealdb_ws: todo!(),
-            surrealdb_mem: todo!(),
+            surrealdb_ws,
+            surrealdb_mem,
         };
         let repo = UsersRepository::new(&state);
+        let email_clone = new_user.email.clone(); // Store email before moving new_user
         let user_schema = UsersSchema {
             email: new_user.email,
             password: new_user.password, // No unwrap_or_default needed
@@ -280,9 +293,9 @@ impl UsersServiceTrait for UsersService {
             ..Default::default()
         };
         match repo.query_create_user(user_schema).await {
-            Ok(msg) => { // msg is String, not UsersDetailQueryDto
+            Ok(_msg) => { // msg is String, not UsersDetailQueryDto
                 // Re-fetch the created user to get the full UsersDetailQueryDto
-                let created_user = repo.query_user_by_email(new_user.email.clone()).await?; // Cloned email
+                let created_user = repo.query_user_by_email(email_clone).await?; // Use cloned email
                 Ok(UserDto::from(&created_user)) // Corrected to use UserDto::from by reference
             },
             Err(e) => Err(anyhow::anyhow!(e.to_string())),

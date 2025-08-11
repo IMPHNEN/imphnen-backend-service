@@ -26,7 +26,7 @@ mod tests {
             fn with_services(auth_service: crate::v1::auth::auth_service::AuthService, users_service: crate::v1::users::users_service::UsersService, env: &'static Env) -> Self; // Updated signature
             fn google_oauth_client(&self) -> oauth2::basic::BasicClient;
             fn generate_auth_url(&self) -> (url::Url, oauth2::CsrfToken);
-            async fn google_oauth_callback(&self, auth_request: AuthRequest) -> anyhow::Result<AuthLoginResponsetDto, ErrorResponse>;
+            async fn google_oauth_callback(&self, auth_request: AuthRequest) -> anyhow::Result<String, ErrorResponse>;
         }
     }
 
