@@ -13,6 +13,10 @@ pub mod error {
         Anyhow(#[from] anyhow::Error),
         #[error("HTTP status code error: {0}")]
         StatusCode(StatusCode),
+        #[error("authentication error: {0}")]
+        Auth(String),
+        #[error("validation error: {0}")]
+        Validation(String),
 	}
 
 	impl IntoResponse for Error {
@@ -27,6 +31,14 @@ pub mod error {
                     format!("Internal server error: {detail}"),
                 ),
                 Error::StatusCode(s) => (s, format!("HTTP error: {}", s)),
+                Error::Auth(detail) => (
+                    StatusCode::UNAUTHORIZED,
+                    format!("Authentication error: {detail}"),
+                ),
+                Error::Validation(detail) => (
+                    StatusCode::BAD_REQUEST,
+                    format!("Validation error: {detail}"),
+                ),
 			};
 			(status, Json(error_message)).into_response()
 		}
