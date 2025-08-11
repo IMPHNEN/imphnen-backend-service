@@ -88,8 +88,6 @@ pub fn validate_csrf_token(token: &str, secret: &str, max_age_seconds: u64) -> R
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::thread::sleep;
-    use std::time::Duration;
 
     #[test]
     fn test_csrf_token_generation_and_validation() {
