@@ -36,7 +36,7 @@ use crate::v1::users::users_service::{UsersServiceTrait, UsersService};
 pub async fn get_user_list(
 	headers: HeaderMap,
 	Extension(state): Extension<AppState>,
-	Json(meta): Json<MetaRequestDto>,
+	axum::extract::Query(meta): axum::extract::Query<MetaRequestDto>,
 ) -> impl IntoResponse {
 	match permissions_guard(
 		&headers,
