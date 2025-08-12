@@ -61,10 +61,7 @@ impl Default for UsersSchema {
 			phone_for_verification: None,
 			is_active: false,
 			is_deleted: false,
-			mentor_id: Some(make_thing(
-				&ResourceEnum::Users.to_string(),
-				&Uuid::new_v4().to_string(),
-			)),
+			mentor_id: None, // Regular users should not have a mentor_id by default
 			gender: None,
 			birthdate: None,
 			domicile: None,
@@ -96,12 +93,7 @@ impl UsersSchema {
 			phone_for_verification: dto.phone_for_verification,
 			is_active: dto.is_active,
 			is_deleted: dto.is_deleted,
-			mentor_id: Some(dto.mentor_id.unwrap_or_else(|| {
-				make_thing(
-					&ResourceEnum::Users.to_string(),
-					&Uuid::new_v4().to_string(),
-				)
-			})),
+			mentor_id: dto.mentor_id, // Use the actual mentor_id from the DTO, could be None
 			gender: dto.gender,
 			birthdate: dto.birthdate,
 			domicile: dto.domicile,
@@ -158,10 +150,7 @@ impl UsersSchema {
 			phone_number: user.phone_number,
 			phone_for_verification: None,
 			is_active: false,
-			mentor_id: Some(make_thing(
-				&ResourceEnum::Users.to_string(),
-				&Uuid::new_v4().to_string(),
-			)),
+			mentor_id: None, // Regular users should not have a mentor_id by default
 			gender: None,
 			birthdate: None,
 			domicile: None,
@@ -190,10 +179,7 @@ impl UsersSchema {
 	pub fn update_mentor_id(mut self, mentor_id: Option<String>) -> Self {
 		self.mentor_id = match mentor_id {
 			Some(id) => Some(make_thing(&ResourceEnum::Users.to_string(), &id)),
-			None => Some(make_thing(
-				&ResourceEnum::Users.to_string(),
-				&Uuid::new_v4().to_string(),
-			)),
+			None => None, // Set to None if no mentor_id provided
 		};
 		self.updated_at = get_iso_date();
 		self
