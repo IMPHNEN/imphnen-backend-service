@@ -29,8 +29,6 @@ pub struct UsersSchema {
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub domicile: Option<String>,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	pub identity_document_url: Option<String>,
-	#[serde(skip_serializing_if = "Option::is_none")]
 	pub bio: Option<String>,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub last_education: Option<String>,
@@ -70,7 +68,6 @@ impl Default for UsersSchema {
 			gender: None,
 			birthdate: None,
 			domicile: None,
-			identity_document_url: None,
 			bio: None,
 			last_education: None,
 			linkedin_url: None,
@@ -108,7 +105,6 @@ impl UsersSchema {
 			gender: dto.gender,
 			birthdate: dto.birthdate,
 			domicile: dto.domicile,
-			identity_document_url: dto.identity_document_url,
 			bio: dto.bio,
 			last_education: dto.last_education,
 			linkedin_url: dto.linkedin_url,
@@ -134,7 +130,6 @@ impl UsersSchema {
 			gender: user.gender,
 			birthdate: user.birthdate,
 			domicile: user.domicile,
-			identity_document_url: user.identity_document_url,
 			bio: user.bio,
 			last_education: user.last_education,
 			linkedin_url: user.linkedin_url,
@@ -170,7 +165,6 @@ impl UsersSchema {
 			gender: None,
 			birthdate: None,
 			domicile: None,
-			identity_document_url: None,
 			bio: None,
 			last_education: None,
 			linkedin_url: None,

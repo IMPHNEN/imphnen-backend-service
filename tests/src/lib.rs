@@ -31,7 +31,6 @@ pub fn create_test_user(
 		gender: None,
 		birthdate: None,
 		domicile: None,
-		identity_document_url: None,
 		bio: None,
 		last_education: None,
 		linkedin_url: None,

@@ -26,7 +26,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		.await?;
 
 	use surrealdb::sql::Thing;
-	db.query("CREATE type::thing('app_users', $id) SET fullname = $fullname, email = $email, password = $password, avatar = $avatar, phone_number = $phone_number, is_active = $is_active, is_deleted = $is_deleted, mentor_id = $mentor_id, gender = $gender, birthdate = $birthdate, role = $role, created_at = $created_at, updated_at = $updated_at")
+	db.query("CREATE type::thing('app_users', $id) SET fullname = $fullname, email = $email, password = $password, avatar = $avatar, phone_number = $phone_number, is_active = $is_active, is_deleted = $is_deleted, mentor_id = $mentor_id, gender = $gender, birthdate = $birthdate, role = $role, legal_name = $legal_name, domicile = $domicile, identity_document_url = $identity_document_url, phone_for_verification = $phone_for_verification, bio = $bio, last_education = $last_education, linkedin_url = $linkedin_url, github_url = $github_url, cv_url = $cv_url, portfolio_url = $portfolio_url, created_at = $created_at, updated_at = $updated_at")
 	   .bind(("id", "e6f78d23-83bf-5c2b-bcd4-001345678901"))
 	   .bind(("fullname", "Mentor User"))
 	   .bind(("email", "mentor@example.com"))
@@ -39,20 +39,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	   .bind(("gender", "male"))
 	   .bind(("birthdate", "1990-05-15"))
 	   .bind(("role", Thing::from(("app_roles", "3b9f8c4e-6a2d-4f8a-9a12-2d6f8b3c4e5a"))))
+	   .bind(("legal_name", "Mentor User"))
+	   .bind(("domicile", "Jakarta, Indonesia"))
+	   // .bind(("identity_document_url", "https://example.com/ktp.jpg"))
+	   .bind(("phone_for_verification", "081234567890"))
+	   .bind(("bio", "Saya adalah mentor backend Rust dengan pengalaman 5 tahun dalam pengembangan aplikasi backend yang scalable dan performant."))
+	   .bind(("last_education", "S1 Teknik Informatika"))
+	   .bind(("linkedin_url", "https://linkedin.com/in/mentor"))
+	   .bind(("github_url", "https://github.com/mentor"))
+	   .bind(("cv_url", Option::<String>::None))
+	   .bind(("portfolio_url", Option::<String>::None))
 	   .bind(("created_at", get_iso_date()))
 	   .bind(("updated_at", get_iso_date()))
 	   .await?;
 
-	db.query("CREATE type::thing('app_mentors', $id) SET user_id = $user_id, legal_name = $legal_name, identity_document_url = $identity_document_url, phone_for_verification = $phone_for_verification, bio = $bio, linkedin_url = $linkedin_url, github_url = $github_url, cv_url = $cv_url, industries = $industries, expertise = $expertise, languages = $languages, current_company = $current_company, current_role = $current_role, years_of_experience = $years_of_experience, topics_of_interest = $topics_of_interest, preferred_mentee_level = $preferred_mentee_level, preferred_mentoring_formats = $preferred_mentoring_formats, availability_commitment = $availability_commitment, mentoring_rate = $mentoring_rate, status = $status, is_deleted = $is_deleted, created_at = $created_at, updated_at = $updated_at, email = $email")
+	db.query("CREATE type::thing('app_mentors', $id) SET user_id = $user_id, industries = $industries, expertise = $expertise, languages = $languages, current_company = $current_company, current_role = $current_role, years_of_experience = $years_of_experience, topics_of_interest = $topics_of_interest, preferred_mentee_level = $preferred_mentee_level, preferred_mentoring_formats = $preferred_mentoring_formats, availability_commitment = $availability_commitment, mentoring_rate = $mentoring_rate, status = $status, is_deleted = $is_deleted, created_at = $created_at, updated_at = $updated_at")
 	   .bind(("id", "e6f78d23-83bf-5c2b-bcd4-001345678901"))
 	   .bind(("user_id", Thing::from(("app_users", "e6f78d23-83bf-5c2b-bcd4-001345678901"))))
-	   .bind(("legal_name", "Mentor User"))
-	   .bind(("identity_document_url", "https://example.com/ktp.jpg"))
-	   .bind(("phone_for_verification", "081234567890"))
-	   .bind(("bio", "Saya adalah mentor backend Rust dengan pengalaman 5 tahun dalam pengembangan aplikasi backend yang scalable dan performant."))
-	   .bind(("linkedin_url", "https://linkedin.com/in/mentor"))
-	   .bind(("github_url", "https://github.com/mentor"))
-	   .bind(("cv_url", Option::<String>::None))
 	   .bind(("industries", vec!["Software", "Education"]))
 	   .bind(("expertise", vec!["Rust", "Microservices"]))
 	   .bind(("languages", vec!["Indonesian", "English"]))
@@ -72,7 +75,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	   .bind(("is_deleted", false))
 	   .bind(("created_at", get_iso_date()))
 	   .bind(("updated_at", get_iso_date()))
-       .bind(("email", "mentor@example.com"))
 	   .await?;
 	println!("Mentor created successfully!");
 	println!("Updating user with mentor_id...");

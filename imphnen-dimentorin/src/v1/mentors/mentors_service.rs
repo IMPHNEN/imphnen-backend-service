@@ -60,6 +60,18 @@ impl MentorsService {
 
 			user_schema.fullname = dto.fullname.clone();
 			user_schema.phone_number = dto.phone_number.clone();
+			// Update personal data from identity_and_verification
+			user_schema.legal_name = Some(dto.identity_and_verification.legal_name.clone());
+			user_schema.gender = dto.identity_and_verification.gender.clone();
+			user_schema.domicile = dto.identity_and_verification.domicile.clone();
+			user_schema.phone_for_verification = Some(dto.identity_and_verification.phone_for_verification.clone());
+			// Update personal data from professional_profile
+			user_schema.bio = Some(dto.professional_profile.bio.clone());
+			user_schema.last_education = dto.professional_profile.last_education.clone();
+			user_schema.linkedin_url = dto.professional_profile.linkedin_url.clone();
+			user_schema.github_url = dto.professional_profile.github_url.clone();
+			user_schema.cv_url = dto.professional_profile.cv_url.clone();
+			user_schema.portfolio_url = dto.professional_profile.portfolio_url.clone();
 			user_schema.updated_at = imphnen_utils::get_iso_date();
 
 			let hashed_password = match imphnen_utils::hash_password(&dto.password) {
@@ -135,6 +147,18 @@ impl MentorsService {
 				fullname: dto.fullname.clone(),
 				password: hashed_password,
 				phone_number: dto.phone_number.clone(),
+				// Store personal data from identity_and_verification in user
+				legal_name: Some(dto.identity_and_verification.legal_name.clone()),
+				gender: dto.identity_and_verification.gender.clone(),
+				domicile: dto.identity_and_verification.domicile.clone(),
+				phone_for_verification: Some(dto.identity_and_verification.phone_for_verification.clone()),
+				// Store personal data from professional_profile in user
+				bio: Some(dto.professional_profile.bio.clone()),
+				last_education: dto.professional_profile.last_education.clone(),
+				linkedin_url: dto.professional_profile.linkedin_url.clone(),
+				github_url: dto.professional_profile.github_url.clone(),
+				cv_url: dto.professional_profile.cv_url.clone(),
+				portfolio_url: dto.professional_profile.portfolio_url.clone(),
 				created_at: imphnen_utils::get_iso_date(),
 				updated_at: imphnen_utils::get_iso_date(),
 				role: imphnen_utils::make_thing(
@@ -187,11 +211,9 @@ impl MentorsService {
 		}
 
 		let mentor_schema = MentorSchema::create(
-			dto.identity_and_verification,
 			dto.professional_profile,
 			dto.mentoring_logistics,
 			user_id.to_raw(),
-			final_user_email.clone(),
 		);
 
 		match mentor_repo.query_create_mentor(mentor_schema.clone()).await {
@@ -233,16 +255,27 @@ impl MentorsService {
 
 	pub async fn get_mentor_list(state: &AppState, meta: MetaRequestDto) -> Response {
 		let repo = MentorsRepository::new(state);
+		let user_repo = UsersRepository::new(state);
+		
 		match repo.query_mentor_list(meta).await {
 			Ok(result) => {
-				let data: Vec<MentorListResponseDto> = result
-					.data
-					.into_iter()
-					.map(MentorDetailQueryDto::from)
-					.map(MentorListResponseDto::from)
-					.collect();
+				let mut mentor_list_data: Vec<MentorListResponseDto> = Vec::new();
+				
+				for mentor_with_user in result.data {
+					let mentor_dto = MentorDetailQueryDto::from(mentor_with_user);
+					let mut list_item = MentorListResponseDto::from(mentor_dto.clone());
+					
+					// Get user data to populate personal fields
+					if let Ok(user) = user_repo.query_user_by_id(&mentor_dto.user_id).await {
+						list_item.fullname = Some(user.fullname);
+						list_item.email = Some(user.email);
+					}
+					
+					mentor_list_data.push(list_item);
+				}
+				
 				success_list_response(ResponseListSuccessDto {
-					data,
+					data: mentor_list_data,
 					meta: result.meta,
 				})
 			}
@@ -251,12 +284,56 @@ impl MentorsService {
 	}
 
 	pub async fn get_mentor_by_id(state: &AppState, id: &str) -> Response {
-		let repo = MentorsRepository::new(state);
+		let mentor_repo = MentorsRepository::new(state);
+		let user_repo = UsersRepository::new(state);
 		let thing_id = Thing::from((ResourceEnum::Mentors.to_string().as_str(), id));
-		match repo.query_mentor_by_id(&thing_id, false).await {
+		
+		match mentor_repo.query_mentor_by_id(&thing_id, false).await {
 			Ok(mentor) => {
-				let dto = MentorDetailResponseDto::from(MentorDetailQueryDto::from(mentor));
-				success_response(ResponseSuccessDto { data: dto })
+				// Get user data separately
+				let user_result = user_repo.query_user_by_id(&mentor.user_id).await;
+				match user_result {
+					Ok(user) => {
+						// Combine mentor and user data
+						let dto = MentorDetailResponseDto {
+							id: mentor.id.to_raw(),
+							user_id: mentor.user_id.to_raw(),
+							// Personal data from user
+							fullname: Some(user.fullname),
+							email: Some(user.email),
+							legal_name: user.legal_name,
+							gender: user.gender,
+							domicile: user.domicile,
+							phone_for_verification: user.phone_for_verification,
+							bio: user.bio,
+							last_education: user.last_education,
+							linkedin_url: user.linkedin_url,
+							github_url: user.github_url,
+							cv_url: user.cv_url,
+							portfolio_url: user.portfolio_url,
+							// Professional data from mentor
+							industries: mentor.industries,
+							expertise: mentor.expertise,
+							languages: mentor.languages,
+							current_company: mentor.current_company,
+							current_role: mentor.current_role,
+							years_of_experience: mentor.years_of_experience,
+							topics_of_interest: mentor.topics_of_interest,
+							preferred_mentee_level: mentor.preferred_mentee_level,
+							preferred_mentoring_formats: mentor.preferred_mentoring_formats,
+							availability_commitment: mentor.availability_commitment,
+							mentoring_rate: mentor.mentoring_rate,
+							status: mentor.status,
+							created_at: mentor.created_at,
+							updated_at: mentor.updated_at,
+						};
+						success_response(ResponseSuccessDto { data: dto })
+					}
+					Err(_e) => {
+						error!("Failed to get user data for mentor {}: {}", id, _e);
+						common_response(StatusCode::INTERNAL_SERVER_ERROR, "Failed to get mentor user data")
+					}
+				}
 			}
 			Err(_e) => common_response(StatusCode::NOT_FOUND, &_e.to_string()),
 		}

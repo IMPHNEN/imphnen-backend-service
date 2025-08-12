@@ -28,19 +28,11 @@ impl<'a> MentorsRepository<'a> {
 		let db = &self.state.surrealdb_ws;
 		let mentors_table = ResourceEnum::Mentors.to_string();
 		let builder = QueryListBuilder::new(db, &mentors_table, &meta)
-			.search_field("legal_name")
+			.search_field("user_id.legal_name") // Search in user data instead
 			.select_fields(vec![
 				"id",
 				"user_id",
-				"user_id.fullname as fullname",
-				"email",
-				"legal_name",
-				"identity_document_url",
-				"phone_for_verification",
-				"bio",
-				"linkedin_url",
-				"github_url",
-				"cv_url",
+				// Personal data comes from user relation, not mentor table
 				"industries",
 				"expertise",
 				"languages",
@@ -80,19 +72,11 @@ impl<'a> MentorsRepository<'a> {
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
 		let mut builder = DetailQueryBuilder::new(ResourceEnum::Mentors.to_string())
-			.with_where("email", Some(email.clone()))
+			.with_where("user_id.email", Some(email.clone())) // Search in user table
 			.with_select_fields(vec![
 				"id",
 				"user_id",
-				"user_id.fullname as fullname",
-				"email",
-				"legal_name",
-				"identity_document_url",
-				"phone_for_verification",
-				"bio",
-				"linkedin_url",
-				"github_url",
-				"cv_url",
+				// Personal data comes from user relation, not mentor table
 				"industries",
 				"expertise",
 				"languages",
@@ -143,15 +127,7 @@ impl<'a> MentorsRepository<'a> {
 			.with_select_fields(vec![
 				"id",
 				"user_id",
-				"user_id.fullname as fullname",
-				"email",
-				"legal_name",
-				"identity_document_url",
-				"phone_for_verification",
-				"bio",
-				"linkedin_url",
-				"github_url",
-				"cv_url",
+				// Personal data comes from user relation, not mentor table
 				"industries",
 				"expertise",
 				"languages",

@@ -161,7 +161,6 @@ pub async fn seed_users_for_test(
 			gender: None,
 			birthdate: None,
 			domicile: None,
-			identity_document_url: None,
 			bio: None,
 			last_education: None,
 			linkedin_url: None,
