@@ -22,6 +22,7 @@ use super::google_oauth_dto::GoogleUser;
 pub struct AuthRequest {
     pub code: String,
     pub state: String,
+    pub redirect_uri: Option<String>,
 }
 
 impl AuthRequest {
@@ -172,23 +173,62 @@ where
         let pkce_verifier = auth_request.validate_csrf_state_and_get_pkce_verifier(&self.env.access_token_secret)?;
         
         info!("Starting Google OAuth callback process");
+        info!("Redirect URI used: {:?}", auth_request.redirect_uri);
+        info!("PKCE verifier extracted: {}", pkce_verifier.secret());
         
-        // Use the default client for the callback
-        let client = self.google_oauth_client(None);
+        // Use the SAME redirect URI that was used for auth URL generation
+        // This is crucial for OAuth security and consistency
+        let client = self.google_oauth_client(auth_request.redirect_uri.clone());
+        
+        // Debug the OAuth client configuration
+        let effective_redirect_uri = auth_request.redirect_uri.as_ref().unwrap_or(&self.env.google_redirect_url);
+        info!("Effective redirect URI for OAuth client: {}", effective_redirect_uri);
+        info!("Google Client ID: {}", self.env.google_client_id);
+
+        info!("Attempting to exchange authorization code with Google");
+        info!("Using PKCE verifier for secure exchange");
+        info!("Authorization code length: {}", auth_request.code.len());
 
         let token_response = client
-            .exchange_code(oauth2::AuthorizationCode::new(auth_request.code))
+            .exchange_code(oauth2::AuthorizationCode::new(auth_request.code.clone()))
             .set_pkce_verifier(pkce_verifier)
             .request_async(oauth2::reqwest::async_http_client)
             .await
             .map_err(|e| {
-                error!("Failed to exchange OAuth code: {}", e);
-                Error::Auth("Failed to exchange authorization code".to_string())
+                error!("Failed to exchange OAuth code with Google: {}", e);
+                error!("OAuth code was: {}", auth_request.code);
+                error!("Redirect URI was: {:?}", auth_request.redirect_uri);
+                
+                // Debug OAuth client configuration
+                error!("Google Client ID: {}", self.env.google_client_id);
+                error!("OAuth client redirect URI configured: {}", 
+                    auth_request.redirect_uri.as_ref().unwrap_or(&self.env.google_redirect_url));
+                
+                // Try to extract more details from the error
+                match &e {
+                    oauth2::RequestTokenError::ServerResponse(response) => {
+                        error!("Google OAuth Server Response Error: {:?}", response);
+                    },
+                    oauth2::RequestTokenError::Request(req_err) => {
+                        error!("Google OAuth Request Error: {:?}", req_err);
+                    },
+                    oauth2::RequestTokenError::Parse(parse_err, response_body) => {
+                        error!("Google OAuth Parse Error: {:?}", parse_err);
+                        error!("Response body: {:?}", response_body);
+                    },
+                    oauth2::RequestTokenError::Other(other) => {
+                        error!("Google OAuth Other Error: {:?}", other);
+                    },
+                }
+                
+                Error::Auth("Authentication error: Failed to exchange authorization code".to_string())
             })?;
 
-        // Note: This part has an issue with parsing Google's token response
-        // Google returns the actual access token, not a JSON with our custom format
+        info!("Successfully exchanged authorization code for access token");
+
+        // Extract access token from Google's response
         let access_token = token_response.access_token().secret();
+        info!("Obtained access token from Google, fetching user info...");
 
         let client = reqwest::Client::new();
         let user_info_url = "https://www.googleapis.com/oauth2/v2/userinfo";
