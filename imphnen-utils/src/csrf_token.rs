@@ -191,8 +191,14 @@ mod tests {
         let secret = "test_secret";
         let token = generate_csrf_token(secret).unwrap();
         
-        // Should fail with 0 max age
-        assert!(validate_csrf_token(&token, secret, 0).is_err());
+        // Add a 2 second delay to ensure the token expires when max_age is 1 second
+        std::thread::sleep(std::time::Duration::from_secs(2));
+        
+        // Should fail with 1 second max age (token is now 2 seconds old)
+        assert!(validate_csrf_token(&token, secret, 1).is_err());
+        
+        // Should still work with a large max age
+        assert!(validate_csrf_token(&token, secret, 300).is_ok());
     }
     
     #[test]

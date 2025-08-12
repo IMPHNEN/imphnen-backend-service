@@ -51,6 +51,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		PermissionsEnum::ReadOwnMentorProfile,
 		PermissionsEnum::UpdateOwnMentorProfile,
 		PermissionsEnum::ReadOwnMentorStatus,
+		PermissionsEnum::UpdateMentors,
 		PermissionsEnum::VerifyMentors,
 		PermissionsEnum::DeleteMentors,
 	] {

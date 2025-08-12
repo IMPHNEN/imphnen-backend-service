@@ -16,6 +16,7 @@ use imphnen_utils::make_thing;
 use uuid::Uuid;
 use anyhow::Result;
 use async_trait::async_trait;
+use tracing::info;
 use crate::v1::users::users_dto::{UsersDetailItemDto as UserDto, UsersCreateRequestDto as CreateUserDto};
 
 #[async_trait]
@@ -33,6 +34,7 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
 
     async fn get_user_by_email(&self, email: &str) -> Result<Option<UserDto>>;
     async fn create_user_by_dto(&self, new_user: CreateUserDto) -> Result<UserDto>;
+    async fn update_user_avatar(&self, email: &str, avatar_url: Option<String>) -> Result<()>;
 }
 
 #[derive(Clone)]
@@ -299,6 +301,36 @@ impl UsersServiceTrait for UsersService {
                 Ok(UserDto::from(&created_user)) // Corrected to use UserDto::from by reference
             },
             Err(e) => Err(anyhow::anyhow!(e.to_string())),
+        }
+    }
+
+    async fn update_user_avatar(&self, email: &str, avatar_url: Option<String>) -> Result<()> {
+        let surrealdb_ws = surrealdb_init_ws().await
+            .map_err(|e| anyhow::anyhow!("Failed to initialize websocket database: {}", e))?;
+        let surrealdb_mem = surrealdb_init_mem().await
+            .map_err(|e| anyhow::anyhow!("Failed to initialize memory database: {}", e))?;
+        
+        let state = AppState {
+            surrealdb_ws,
+            surrealdb_mem,
+        };
+        let repo = UsersRepository::new(&state);
+        
+        // Get the existing user
+        let mut user = repo.query_user_by_email(email.to_string()).await
+            .map_err(|e| anyhow::anyhow!("Failed to get user: {}", e))?;
+        
+        // Update the avatar
+        user.avatar = avatar_url;
+        
+        // Convert to schema and update
+        let user_schema = UsersSchema::from(user);
+        match repo.query_update_user(user_schema).await {
+            Ok(_) => {
+                info!("Successfully updated avatar for user: {}", email);
+                Ok(())
+            },
+            Err(e) => Err(anyhow::anyhow!("Failed to update user avatar: {}", e)),
         }
     }
 }

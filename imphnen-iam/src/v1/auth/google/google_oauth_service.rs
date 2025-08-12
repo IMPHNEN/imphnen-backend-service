@@ -215,9 +215,15 @@ where
                 // Update avatar if user doesn't have one and Google provides one
                 if user.avatar.is_none() && google_user.picture.is_some() {
                     info!("Updating avatar for existing user: {}", google_user.email);
-                    // Note: We would need to implement an update_user_avatar method in the user service
-                    // For now, we'll just log this
-                    info!("Avatar would be updated to: {:?}", google_user.picture);
+                    match self.users_service.update_user_avatar(&google_user.email, google_user.picture.clone()).await {
+                        Ok(_) => {
+                            info!("Successfully updated avatar for user: {}", google_user.email);
+                            user.avatar = google_user.picture.clone();
+                        },
+                        Err(e) => {
+                            error!("Failed to update avatar for user {}: {:?}", google_user.email, e);
+                        }
+                    }
                 }
                 
                 user
