@@ -42,8 +42,10 @@ The Google OAuth integration allows users to authenticate using their Google acc
 ```bash
 GOOGLE_CLIENT_ID="your_google_client_id"
 GOOGLE_CLIENT_SECRET="your_google_client_secret"
-GOOGLE_REDIRECT_URL="http://127.0.0.1:8080/api/v1/auth/google/callback"
+GOOGLE_REDIRECT_URL="https://your-backend-url.com/api/v1/auth/google/callback"
 ```
+
+> Ganti `your-backend-url.com` dengan URL backend Anda yang sebenarnya.
 
 ### Role Assignment Strategy
 
@@ -74,16 +76,16 @@ The integration requests minimal required scopes:
 ### 1. Initiate OAuth Flow
 **GET** `/api/v1/auth/google/login`
 
-Redirects user to Google OAuth authorization URL with:
+Redirects user to Google OAuth authorization URL dengan:
 - PKCE code challenge
 - Signed CSRF state token
 - Required scopes
 
-**Response:** HTTP 302 redirect to Google OAuth
+**Response:** HTTP 302 redirect ke Google OAuth
 
 **Example:**
 ```bash
-curl -v http://127.0.0.1:8080/api/v1/auth/google/login
+curl -v https://your-backend-url.com/api/v1/auth/google/login
 ```
 
 ### 2. OAuth Callback
@@ -130,8 +132,7 @@ Handles the OAuth callback from Google.
 
 **Example:**
 ```bash
-# This would typically be called by Google's redirect
-curl -v "http://127.0.0.1:8080/api/v1/auth/google/callback?code=AUTH_CODE&state=CSRF_STATE"
+curl -v "https://your-backend-url.com/api/v1/auth/google/callback?code=AUTH_CODE&state=CSRF_STATE"
 ```
 
 ## Flow Description
@@ -320,3 +321,73 @@ Each role includes associated permissions that control user access within the ap
 - User creation/update logic
 
 **Note**: Ensure the redirect URL in Google Console matches exactly the `GOOGLE_REDIRECT_URL` environment variable.
+
+---
+
+## Contoh Implementasi Frontend (React)
+
+Berikut contoh sederhana implementasi login Google di React menggunakan window.location untuk redirect ke backend:
+
+```jsx
+// src/components/GoogleLoginButton.jsx
+import React from 'react';
+
+const GOOGLE_AUTH_URL = 'https://your-backend-url.com/api/v1/auth/google/login';
+
+function GoogleLoginButton() {
+   const handleLogin = () => {
+      window.location.href = GOOGLE_AUTH_URL;
+   };
+
+   return (
+      <button onClick={handleLogin}>
+         Login with Google
+      </button>
+   );
+}
+
+export default GoogleLoginButton;
+```
+
+> Pastikan URL pada `GOOGLE_AUTH_URL` sesuai dengan endpoint backend Anda.
+
+Setelah login berhasil, backend akan mengarahkan kembali ke frontend sesuai pengaturan `GOOGLE_REDIRECT_URL`.
+
+Untuk implementasi lebih lanjut, Anda bisa menggunakan library seperti `react-google-login` atau `@react-oauth/google` jika ingin autentikasi langsung di frontend, namun untuk skenario ini, login dialihkan ke backend.
+
+---
+
+### Contoh Login Google dengan Popup di React
+
+Berikut contoh login Google menggunakan popup agar user tetap di halaman utama:
+
+```jsx
+// src/components/GoogleLoginPopup.jsx
+import React from 'react';
+
+const GOOGLE_AUTH_URL = 'https://your-backend-url.com/api/v1/auth/google/login';
+
+function GoogleLoginPopup({ onSuccess }) {
+   const handleLogin = () => {
+      const popup = window.open(GOOGLE_AUTH_URL, 'google-oauth', 'width=500,height=600');
+      const timer = setInterval(() => {
+         if (popup.closed) {
+            clearInterval(timer);
+            if (onSuccess) onSuccess();
+         }
+      }, 500);
+   };
+
+   return (
+      <button onClick={handleLogin}>
+         Login with Google (Popup)
+      </button>
+   );
+}
+
+export default GoogleLoginPopup;
+```
+
+> Setelah user login di popup dan backend redirect ke frontend, Anda bisa trigger refresh data user atau reload halaman.
+
+Untuk komunikasi lebih advance antara popup dan parent, gunakan `window.postMessage` untuk mengirim data dari backend ke frontend setelah login berhasil.

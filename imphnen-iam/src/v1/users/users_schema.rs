@@ -117,7 +117,7 @@ impl UsersSchema {
 			)),
 			gender: None,
 			birthdate: None,
-			avatar: None,
+			avatar: user.avatar,
 			is_deleted: false,
 			role: make_thing(&ResourceEnum::Roles.to_string(), &user.role_id),
 			created_at: get_iso_date(),

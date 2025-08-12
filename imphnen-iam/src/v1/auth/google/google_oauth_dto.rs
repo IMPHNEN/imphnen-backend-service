@@ -4,12 +4,13 @@ use serde::{Deserialize, Serialize};
 pub struct GoogleUser {
     pub id: String,
     pub email: String,
+    #[serde(default)]
     pub verified_email: bool,
-    pub name: String,
-    pub given_name: String,
-    pub family_name: String,
-    pub picture: String,
-    pub locale: String,
+    pub name: Option<String>,
+    pub given_name: Option<String>,
+    pub family_name: Option<String>,
+    pub picture: Option<String>,
+    pub locale: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

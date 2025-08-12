@@ -50,6 +50,7 @@ pub struct UsersCreateRequestDto {
 	pub phone_number: String,
 	pub is_active: bool,
 	pub role_id: String,
+	pub avatar: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Validate)]
