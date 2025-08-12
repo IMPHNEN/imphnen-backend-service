@@ -46,7 +46,7 @@ where
     pub fn get_routes(&self) -> Router {
         Router::new()
             .route(
-                "/google/login",
+                "/login",
                 get(
                     move |State(controller): State<Arc<Self>>| async move {
                         controller.google_oauth_login().await
@@ -54,7 +54,7 @@ where
                 ),
             )
             .route(
-                "/google/callback",
+                "/callback",
                 get(
                     move |State(controller): State<Arc<Self>>, Query(auth_request): Query<AuthRequest>| async move {
                         let controller = Arc::clone(&controller);
