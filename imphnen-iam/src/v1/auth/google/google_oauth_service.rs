@@ -89,8 +89,8 @@ async fn get_default_role_id(_env: &Env) -> Result<String, Error> {
 pub trait GoogleOauthService<A: AuthServiceTrait + Send + Sync + 'static, U: UsersServiceTrait + Send + Sync + 'static>: Send + Sync + 'static {
     // Removed new() from trait
     fn with_services(auth_service: A, users_service: U, env: &'static Env) -> Self;
-    fn google_oauth_client(&self) -> BasicClient;
-    fn generate_auth_url(&self) -> (Url, CsrfToken);
+    fn google_oauth_client(&self, custom_redirect_uri: Option<String>) -> BasicClient;
+    fn generate_auth_url(&self, custom_redirect_uri: Option<String>) -> (Url, CsrfToken);
     async fn google_oauth_callback(&self, auth_request: AuthRequest, app_state: &AppState) -> Result<(UsersDetailItemDto, TokenDto), Error>; // Changed return type
 }
 
@@ -103,7 +103,11 @@ pub struct GoogleOauthServiceImpl<A: AuthServiceTrait, U: UsersServiceTrait> {
 }
 
 impl GoogleOauthServiceImpl<crate::v1::auth::auth_service::AuthService, crate::v1::users::users_service::UsersService> {
-    // Removed the `new()` method as it will be replaced by `with_services`
+    /// Generate Google OAuth authorization URL
+    pub fn get_auth_url(&self, custom_redirect_uri: Option<String>) -> String {
+        let (auth_url, _csrf_token) = self.generate_auth_url(custom_redirect_uri);
+        auth_url.to_string()
+    }
 }
 
 #[async_trait]
@@ -120,13 +124,15 @@ where
         }
     }
 
-    fn google_oauth_client(&self) -> BasicClient {
+    fn google_oauth_client(&self, custom_redirect_uri: Option<String>) -> BasicClient {
         let google_client_id = ClientId::new(self.env.google_client_id.clone());
         let google_client_secret = ClientSecret::new(self.env.google_client_secret.clone());
         let auth_url = AuthUrl::new("https://accounts.google.com/o/oauth2/v2/auth".to_string())
             .expect("Invalid authorization endpoint URL");
         let token_url = TokenUrl::new("https://oauth2.googleapis.com/token".to_string())
             .expect("Invalid token endpoint URL");
+
+        let redirect_uri = custom_redirect_uri.unwrap_or_else(|| self.env.google_redirect_url.clone());
 
         BasicClient::new(
             google_client_id,
@@ -135,13 +141,13 @@ where
             Some(token_url),
         )
         .set_redirect_uri(
-            RedirectUrl::new(self.env.google_redirect_url.clone())
+            RedirectUrl::new(redirect_uri)
                 .expect("Invalid redirect URL"),
         )
     }
 
-    fn generate_auth_url(&self) -> (Url, CsrfToken) {
-        let client = self.google_oauth_client();
+    fn generate_auth_url(&self, custom_redirect_uri: Option<String>) -> (Url, CsrfToken) {
+        let client = self.google_oauth_client(custom_redirect_uri);
         let (pkce_code_challenge, pkce_code_verifier) = PkceCodeChallenge::new_random_sha256();
 
         // Generate a signed CSRF token with PKCE verifier for stateless validation
@@ -167,7 +173,8 @@ where
         
         info!("Starting Google OAuth callback process");
         
-        let client = self.google_oauth_client();
+        // Use the default client for the callback
+        let client = self.google_oauth_client(None);
 
         let token_response = client
             .exchange_code(oauth2::AuthorizationCode::new(auth_request.code))

@@ -19,6 +19,11 @@ pub struct GoogleAuthUrlResponse {
     pub authorize_url: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GoogleLoginRequest {
+    pub redirect_uri: Option<String>,
+}
+
 pub struct GoogleOauthController<T> {
     google_oauth_service: T,
 }
@@ -49,8 +54,8 @@ where
             .route(
                 "/login",
                 get(
-                    move |State(controller): State<Arc<Self>>| async move {
-                        controller.google_oauth_login().await
+                    move |State(controller): State<Arc<Self>>, Query(params): Query<GoogleLoginRequest>| async move {
+                        controller.google_oauth_login(params).await
                     },
                 ),
             )
@@ -66,8 +71,8 @@ where
             .with_state(Arc::new(self.clone()))
     }
 
-    pub async fn google_oauth_login(&self) -> Result<Redirect, Error> {
-        let (authorize_url, _csrf_state) = self.google_oauth_service.generate_auth_url();
+    pub async fn google_oauth_login(&self, params: GoogleLoginRequest) -> Result<Redirect, Error> {
+        let (authorize_url, _csrf_state) = self.google_oauth_service.generate_auth_url(params.redirect_uri);
         Ok(Redirect::to(authorize_url.as_str()))
     }
 
