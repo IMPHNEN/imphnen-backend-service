@@ -309,6 +309,7 @@ impl UsersServiceTrait for UsersService {
             fullname: new_user.fullname,
             phone_number: new_user.phone_number, // No unwrap_or_default needed
             is_active: new_user.is_active, // No unwrap_or needed
+            avatar: new_user.avatar, // Copy avatar from DTO
             role: make_thing(&ResourceEnum::Roles.to_string(), &new_user.role_id),
             ..Default::default()
         };
