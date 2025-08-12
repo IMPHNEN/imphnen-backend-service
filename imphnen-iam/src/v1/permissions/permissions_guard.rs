@@ -1,5 +1,5 @@
 use super::PermissionsEnum;
-use crate::{AppState, AuthRepository, common_response, extract_email};
+use crate::{AppState, AuthRepository, common_response, extract_email, extract_email_async};
 use axum::{
 	http::{HeaderMap, StatusCode},
 	response::Response,
@@ -11,12 +11,24 @@ pub async fn permissions_guard(
 	required_permissions: Vec<PermissionsEnum>,
 ) -> Result<(), Response> {
 	let auth_repo = AuthRepository::new(&state);
-	let email = extract_email(headers).ok_or_else(|| {
-		common_response(
-			StatusCode::UNAUTHORIZED,
-			"Invalid or missing authorization token",
-		)
-	})?;
+	
+	// Try synchronous email extraction first (for internal JWT tokens)
+	let email = match extract_email(headers) {
+		Some(email) => email,
+		None => {
+			// If sync extraction fails, try async (for Google tokens)
+			match extract_email_async(headers).await {
+				Some(email) => email,
+				None => {
+					return Err(common_response(
+						StatusCode::UNAUTHORIZED,
+						"Invalid or missing authorization token",
+					));
+				}
+			}
+		}
+	};
+	
 	let raw_user = auth_repo
 		.query_get_stored_user(email.clone())
 		.await

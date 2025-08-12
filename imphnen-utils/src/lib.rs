@@ -14,7 +14,7 @@ pub mod csrf_token;
 
 pub use logger::init_logger;
 pub use bind_filter::*;
-pub use extract_email::*;
+pub use extract_email::{extract_email, extract_email_async, extract_email_token, extract_email_token_async};
 pub use generate_date::*;
 pub use generate_otp::*;
 pub use get_id::*;

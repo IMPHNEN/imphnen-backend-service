@@ -6,7 +6,7 @@ use crate::{
 	AppState, MetaRequestDto, ResponseListSuccessDto, UsersRepository, UsersSchema,
 };
 use crate::{
-	ResponseSuccessDto, common_response, extract_email, success_list_response,
+	ResponseSuccessDto, common_response, extract_email, extract_email_async, success_list_response,
 	success_response, validate_request,
 };
 use axum::http::HeaderMap;
@@ -73,10 +73,19 @@ impl UsersServiceTrait for UsersService {
 
 	async fn get_user_me(headers: HeaderMap, state: &AppState) -> Response {
 		let repo = UsersRepository::new(state);
+		
+		// Try synchronous email extraction first (for internal JWT tokens)
 		let email = match extract_email(&headers) {
 			Some(email) => email,
-			None => return common_response(StatusCode::UNAUTHORIZED, "Invalid token"),
+			None => {
+				// If sync extraction fails, try async (for Google tokens)
+				match extract_email_async(&headers).await {
+					Some(email) => email,
+					None => return common_response(StatusCode::UNAUTHORIZED, "Invalid token"),
+				}
+			}
 		};
+		
 		match repo.query_user_by_email(email).await {
 			Ok(user) if !user.is_deleted => success_response(ResponseSuccessDto {
 				data: UserDto::from(&user), // Corrected to use UserDto::from by reference
@@ -134,10 +143,19 @@ impl UsersServiceTrait for UsersService {
 		user: UsersUpdateRequestDto,
 	) -> Response {
 		let repo = UsersRepository::new(state);
+		
+		// Try synchronous email extraction first (for internal JWT tokens)
 		let email = match extract_email(&headers) {
 			Some(email) => email,
-			None => return common_response(StatusCode::UNAUTHORIZED, "Unauthorized"),
+			None => {
+				// If sync extraction fails, try async (for Google tokens)
+				match extract_email_async(&headers).await {
+					Some(email) => email,
+					None => return common_response(StatusCode::UNAUTHORIZED, "Unauthorized"),
+				}
+			}
 		};
+		
 		let user_data = match repo.query_user_by_email(email.clone()).await {
 			Ok(user) => user,
 			Err(_) => return common_response(StatusCode::NOT_FOUND, "User not found"),

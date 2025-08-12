@@ -4,7 +4,7 @@ use axum::{
 };
 use imphnen_iam::{UsersDetailQueryDto, UsersRepository};
 use imphnen_libs::AppState;
-use imphnen_utils::{common_response, extract_email};
+use imphnen_utils::{common_response, extract_email, extract_email_async};
 use std::convert::Infallible;
 
 pub async fn auth_middleware(
@@ -13,15 +13,24 @@ pub async fn auth_middleware(
 	next: Next,
 ) -> Result<Response, Infallible> {
 	let headers = req.headers();
+	
+	// Try synchronous email extraction first (for internal JWT tokens)
 	let email = match extract_email(headers) {
 		Some(email) => email,
 		None => {
-			return Ok(common_response(
-				StatusCode::UNAUTHORIZED,
-				"Invalid or expired token",
-			));
+			// If sync extraction fails, try async (for Google tokens)
+			match extract_email_async(headers).await {
+				Some(email) => email,
+				None => {
+					return Ok(common_response(
+						StatusCode::UNAUTHORIZED,
+						"Invalid or expired token",
+					));
+				}
+			}
 		}
 	};
+	
 	let repository = UsersRepository::new(&state);
 	let user: Option<UsersDetailQueryDto> =
 		match repository.query_user_by_email(email).await {

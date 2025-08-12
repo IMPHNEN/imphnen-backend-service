@@ -2,7 +2,7 @@ use axum::{
     extract::{Query, State},
     response::Redirect,
     routing::get,
-    Json, Router,
+    Json, Router, Extension,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -12,6 +12,7 @@ use imphnen_libs::enviroment::ENV; // Import ENV
 use crate::v1::auth::google::google_oauth_service::{AuthRequest, GoogleOauthService, GoogleOauthServiceImpl};
 use imphnen_entities::error_dto::error::Error;
 use crate::v1::auth::AuthLoginResponsetDto;
+use crate::AppState;
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct GoogleAuthUrlResponse {
@@ -56,9 +57,9 @@ where
             .route(
                 "/callback",
                 get(
-                    move |State(controller): State<Arc<Self>>, Query(auth_request): Query<AuthRequest>| async move {
+                    move |State(controller): State<Arc<Self>>, Extension(app_state): Extension<AppState>, Query(auth_request): Query<AuthRequest>| async move {
                         let controller = Arc::clone(&controller);
-                        controller.google_oauth_callback(auth_request).await
+                        controller.google_oauth_callback(auth_request, &app_state).await
                     },
                 ),
             )
@@ -70,8 +71,8 @@ where
         Ok(Redirect::to(authorize_url.as_str()))
     }
 
-    pub async fn google_oauth_callback(&self, auth_request: AuthRequest) -> Result<Json<AuthLoginResponsetDto>, Error> {
-        let (user, token) = self.google_oauth_service.google_oauth_callback(auth_request).await?;
+    pub async fn google_oauth_callback(&self, auth_request: AuthRequest, app_state: &AppState) -> Result<Json<AuthLoginResponsetDto>, Error> {
+        let (user, token) = self.google_oauth_service.google_oauth_callback(auth_request, app_state).await?;
         let auth_response = AuthLoginResponsetDto {
             user,
             token,
