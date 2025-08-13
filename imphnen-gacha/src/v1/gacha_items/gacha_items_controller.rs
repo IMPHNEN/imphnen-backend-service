@@ -1,5 +1,5 @@
 use crate::{
-	AppState, GachaItemDto, GachaItemRequestDto, GachaItemService, MessageResponseDto,
+	AppState, GachaItemDto, GachaItemRequestDto, GachaItemUpdateRequestDto, GachaItemService, MessageResponseDto,
 	MetaRequestDto, ResponseListSuccessDto, ResponseSuccessDto,
 };
 use axum::{
@@ -111,7 +111,7 @@ pub async fn post_create_gacha_item(
     security(
         ("Bearer" = [])
     ),
-    request_body = GachaItemRequestDto,
+    request_body = GachaItemUpdateRequestDto,
     responses(
         (status = 200, description = "Update gacha item", body = MessageResponseDto)
     ),
@@ -121,7 +121,7 @@ pub async fn put_update_gacha_item(
 	headers: HeaderMap,
 	Extension(state): Extension<AppState>,
 	Path(id): Path<String>,
-	Json(payload): Json<GachaItemRequestDto>,
+	Json(payload): Json<GachaItemUpdateRequestDto>,
 ) -> impl IntoResponse {
 	match permissions_guard(
 		&headers,

@@ -12,6 +12,24 @@ lazy_static! {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+pub struct ExperienceDto {
+	pub id: String,
+	pub company: String,
+	pub position: String,
+	pub duration: String,
+	pub period: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+pub struct EducationDto {
+	pub id: String,
+	pub institution: String,
+	pub degree: String,
+	pub field: String,
+	pub period: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct UsersActiveInactiveRequestDto {
 	pub is_active: bool,
 }
@@ -59,43 +77,74 @@ pub struct UsersUpdateRequestDto {
 		length(min = 1, message = "Email cannot be empty"),
 		email(message = "Email not valid")
 	)]
-	pub email: String,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub email: Option<String>,
 	#[validate(length(
 		min = 8,
 		message = "Password must have at least 8 characters"
 	))]
-	pub password: String,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub password: Option<String>,
 	#[validate(length(min = 2, message = "Fullname at least have 2 character"))]
-	pub fullname: String,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub fullname: Option<String>,
 	#[validate(length(min = 2, message = "Legal name at least have 2 character"))]
+	#[serde(skip_serializing_if = "Option::is_none")]
 	pub legal_name: Option<String>,
 	#[validate(length(
 		min = 10,
 		message = "Phone number at least have 10 character"
 	))]
-	pub phone_number: String,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub phone_number: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none")]
 	pub phone_for_verification: Option<String>,
-	pub is_active: bool,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub is_active: Option<bool>,
 	#[validate(length(min = 1, message = "Gender is required"))]
+	#[serde(skip_serializing_if = "Option::is_none")]
 	pub gender: Option<String>,
 	#[validate(length(min = 1, message = "Birthdate is required"))]
+	#[serde(skip_serializing_if = "Option::is_none")]
 	pub birthdate: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none")]
 	pub domicile: Option<String>,
-	#[validate(url(message = "Invalid identity document URL"))]
 	#[validate(length(min = 50, message = "Bio must be at least 50 characters"))]
+	#[serde(skip_serializing_if = "Option::is_none")]
 	pub bio: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none")]
 	pub last_education: Option<String>,
 	#[validate(url(message = "Invalid LinkedIn URL"))]
+	#[serde(skip_serializing_if = "Option::is_none")]
 	pub linkedin_url: Option<String>,
 	#[validate(url(message = "Invalid GitHub URL"))]
+	#[serde(skip_serializing_if = "Option::is_none")]
 	pub github_url: Option<String>,
 	#[validate(url(message = "Invalid CV URL"))]
+	#[serde(skip_serializing_if = "Option::is_none")]
 	pub cv_url: Option<String>,
 	#[validate(url(message = "Invalid portfolio URL"))]
+	#[serde(skip_serializing_if = "Option::is_none")]
 	pub portfolio_url: Option<String>,
+	#[validate(url(message = "Invalid website URL"))]
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub website_url: Option<String>,
+	#[validate(url(message = "Invalid Twitter URL"))]
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub twitter_url: Option<String>,
 	#[validate(length(min = 1, message = "Avatar is required"))]
+	#[serde(skip_serializing_if = "Option::is_none")]
 	pub avatar: Option<String>,
-	pub role_id: String,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub role_id: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub location: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub skills: Option<Vec<String>>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub experience: Option<Vec<ExperienceDto>>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub education: Option<Vec<EducationDto>>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
@@ -118,6 +167,12 @@ pub struct UsersDetailItemDto {
 	pub github_url: Option<String>,
 	pub cv_url: Option<String>,
 	pub portfolio_url: Option<String>,
+	pub website_url: Option<String>,
+	pub twitter_url: Option<String>,
+	pub location: Option<String>,
+	pub skills: Option<Vec<String>>,
+	pub experience: Option<Vec<ExperienceDto>>,
+	pub education: Option<Vec<EducationDto>>,
 	pub created_at: String,
 	pub updated_at: String,
 }
@@ -143,6 +198,12 @@ impl UsersDetailItemDto {
 			github_url: dto.github_url.clone(),
 			cv_url: dto.cv_url.clone(),
 			portfolio_url: dto.portfolio_url.clone(),
+			website_url: dto.website_url.clone(),
+			twitter_url: dto.twitter_url.clone(),
+			location: dto.location.clone(),
+			skills: dto.skills.clone(),
+			experience: dto.experience.clone(),
+			education: dto.education.clone(),
 			created_at: dto.created_at.clone(),
 			updated_at: dto.updated_at.clone(),
 		}
@@ -168,6 +229,12 @@ impl UsersDetailItemDto {
             github_url: schema.github_url.clone(),
             cv_url: schema.cv_url.clone(),
             portfolio_url: schema.portfolio_url.clone(),
+            website_url: schema.website_url.clone(),
+            twitter_url: schema.twitter_url.clone(),
+            location: schema.location.clone(),
+            skills: schema.skills.clone(),
+            experience: schema.experience.clone(),
+            education: schema.education.clone(),
             created_at: schema.created_at.clone(),
             updated_at: schema.updated_at.clone(),
         }
@@ -236,6 +303,12 @@ pub struct UsersDetailQueryDto {
 	pub github_url: Option<String>,
 	pub cv_url: Option<String>,
 	pub portfolio_url: Option<String>,
+	pub website_url: Option<String>,
+	pub twitter_url: Option<String>,
+	pub location: Option<String>,
+	pub skills: Option<Vec<String>>,
+	pub experience: Option<Vec<ExperienceDto>>,
+	pub education: Option<Vec<EducationDto>>,
 	pub password: String,
 	pub role: RolesDetailQueryDto,
 	pub created_at: String,
@@ -264,6 +337,12 @@ impl UsersDetailQueryDto {
 			github_url: self.github_url.clone(),
 			cv_url: self.cv_url.clone(),
 			portfolio_url: self.portfolio_url.clone(),
+			website_url: self.website_url.clone(),
+			twitter_url: self.twitter_url.clone(),
+			location: self.location.clone(),
+			skills: self.skills.clone(),
+			experience: self.experience.clone(),
+			education: self.education.clone(),
 			is_deleted: self.is_deleted,
 			password: self.password.clone(),
 			birthdate: self.birthdate.clone(),
@@ -294,6 +373,12 @@ impl From<&UsersDetailItemDto> for UsersDetailQueryDto {
 			github_url: dto.github_url.clone(),
 			cv_url: dto.cv_url.clone(),
 			portfolio_url: dto.portfolio_url.clone(),
+			website_url: dto.website_url.clone(),
+			twitter_url: dto.twitter_url.clone(),
+			location: dto.location.clone(),
+			skills: dto.skills.clone(),
+			experience: dto.experience.clone(),
+			education: dto.education.clone(),
 			password: String::new(),
 			role: RolesDetailQueryDto::default(),
 			created_at: dto.created_at.clone(),

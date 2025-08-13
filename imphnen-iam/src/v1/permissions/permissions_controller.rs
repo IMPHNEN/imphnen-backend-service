@@ -8,7 +8,7 @@ use crate::{
 	AppState, MessageResponseDto, MetaRequestDto, ResponseListSuccessDto,
 	ResponseSuccessDto,
 	v1::{
-		permissions_dto::{PermissionsItemDto, PermissionsRequestDto},
+		permissions_dto::{PermissionsItemDto, PermissionsRequestDto, PermissionsUpdateRequestDto},
 		permissions_service::PermissionsService,
 	},
 };
@@ -116,7 +116,7 @@ pub async fn post_create_permission(
         ("Bearer" = [])
     ),
 	path = "/v1/permissions/update/{id}",
-	request_body = PermissionsRequestDto,
+	request_body = PermissionsUpdateRequestDto,
 	responses(
 		(status = 200, description = "Update permission", body = MessageResponseDto)
 	),
@@ -126,7 +126,7 @@ pub async fn put_update_permission(
 	headers: axum::http::HeaderMap,
 	Extension(state): Extension<AppState>,
 	Path(id): Path<String>,
-	Json(payload): Json<PermissionsRequestDto>,
+	Json(payload): Json<PermissionsUpdateRequestDto>,
 ) -> impl IntoResponse {
 	match permissions_guard(
 		&headers,

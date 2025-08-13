@@ -43,4 +43,8 @@ impl GachaItemSchema {
 			..Default::default()
 		}
 	}
+
+	pub fn from_existing(existing: GachaItemSchema) -> Self {
+		existing
+	}
 }

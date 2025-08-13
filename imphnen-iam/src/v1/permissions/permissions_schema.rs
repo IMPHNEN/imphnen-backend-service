@@ -2,7 +2,7 @@ use crate::{ResourceEnum, make_thing};
 use serde::{Deserialize, Serialize};
 use surrealdb::{Uuid, sql::Thing};
 
-use super::PermissionsItemDto;
+use super::{PermissionsItemDto, PermissionsQueryDto};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PermissionsSchema {
@@ -35,6 +35,16 @@ impl PermissionsSchema {
 			name: self.name.clone(),
 			created_at: self.created_at.clone(),
 			updated_at: self.updated_at.clone(),
+		}
+	}
+
+	pub fn from(dto: PermissionsQueryDto) -> Self {
+		Self {
+			id: dto.id,
+			name: dto.name,
+			is_deleted: false,
+			created_at: dto.created_at,
+			updated_at: dto.updated_at,
 		}
 	}
 }

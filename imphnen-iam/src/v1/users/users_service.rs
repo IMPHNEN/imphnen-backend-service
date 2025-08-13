@@ -130,7 +130,15 @@ impl UsersServiceTrait for UsersService {
 		if let Err((status, message)) = validate_request(&user) {
 			return common_response(status, &message);
 		}
-		let updated_user = UsersSchema::update(user, id);
+		
+		// Get current user data first
+		let thing_id = make_thing(&ResourceEnum::Users.to_string(), &id);
+		let current_user = match repo.query_user_by_id(&thing_id).await {
+			Ok(user) => user,
+			Err(_) => return common_response(StatusCode::NOT_FOUND, "User not found"),
+		};
+		
+		let updated_user = UsersSchema::partial_update(current_user, user);
 		match repo.query_update_user(updated_user).await {
 			Ok(msg) => common_response(StatusCode::OK, &msg),
 			Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
@@ -160,10 +168,12 @@ impl UsersServiceTrait for UsersService {
 			Ok(user) => user,
 			Err(_) => return common_response(StatusCode::NOT_FOUND, "User not found"),
 		};
+		
 		if let Err((status, message)) = validate_request(&user) {
 			return common_response(status, &message);
 		}
-		let updated_user = UsersSchema::update(user, user_data.id.id.to_raw());
+		
+		let updated_user = UsersSchema::partial_update(user_data, user);
 		match repo.query_update_user(updated_user).await {
 			Ok(msg) => common_response(StatusCode::OK, &msg),
 			Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),

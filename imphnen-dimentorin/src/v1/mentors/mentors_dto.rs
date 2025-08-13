@@ -114,6 +114,7 @@ pub struct MentorUpdateRequestDto {
 	#[validate(url(message = "Invalid CV URL"))]
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub cv_url: Option<String>,
+	#[validate(url(message = "Invalid portfolio URL"))]
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub portfolio_url: Option<String>,
 	#[validate(length(min = 1, message = "At least 1 industry required"))]
