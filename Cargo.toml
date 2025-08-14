@@ -53,6 +53,7 @@ base64 = "0.22.1"
 sha2 = "0.10.8"
 hyper = "1.6.0"
 hyper-util = "0.1.0"
+minio = "0.1.0"
 
 async-trait = "0.1.77"
 tokio-test = "0.4.3"
@@ -63,7 +64,7 @@ tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 tokio-tungstenite = "0.23"
 url = "2.5"
 futures-util = "0.3"
-
+http = "0.2"
 tests = { path = "./tests" }
 imphnen-iam = { path = "./imphnen-iam" }
 imphnen-cms = { path = "./imphnen-cms" }

@@ -71,6 +71,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			skills: Some(vec!["JavaScript".into(), "React".into(), "Node.js".into()]),
 			experience: None,
 			education: None,
+			career_status: Some("Senior Developer".into()),
 			role: Thing::from(("app_roles", role_id)),
 			created_at: get_iso_date(),
 			updated_at: get_iso_date(),

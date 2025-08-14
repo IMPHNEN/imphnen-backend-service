@@ -10,7 +10,7 @@ use crate::{
 	success_response, validate_request,
 };
 use axum::http::HeaderMap;
-use axum::{http::StatusCode, response::Response};
+use axum::{http::StatusCode, response::Response, extract::Multipart};
 use imphnen_libs::{ResourceEnum, hash_password, verify_password, surrealdb_init_ws, surrealdb_init_mem};
 use imphnen_utils::make_thing;
 use uuid::Uuid;
@@ -18,6 +18,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use tracing::info;
 use crate::v1::users::users_dto::{UsersDetailItemDto as UserDto, UsersCreateRequestDto as CreateUserDto};
+use serde_json::json;
 
 #[async_trait]
 pub trait UsersServiceTrait: Send + Sync + 'static {
@@ -35,6 +36,7 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
     async fn get_user_by_email(&self, email: &str) -> Result<Option<UserDto>>;
     async fn create_user_by_dto(&self, new_user: CreateUserDto) -> Result<UserDto>;
     async fn update_user_avatar(&self, email: &str, avatar_url: Option<String>) -> Result<()>;
+    async fn upload_file(state: &AppState, user_id: String, multipart: Multipart) -> Response;
 }
 
 #[derive(Clone)]
@@ -361,5 +363,44 @@ impl UsersServiceTrait for UsersService {
             },
             Err(e) => Err(anyhow::anyhow!("Failed to update user avatar: {}", e)),
         }
+    }
+
+    async fn upload_file(_state: &AppState, _user_id: String, mut multipart: Multipart) -> Response {
+        // Temporary implementation without MinIO to fix compilation
+        // Process multipart form
+        while let Some(field) = multipart.next_field().await.unwrap_or(None) {
+            let name = field.name().unwrap_or("").to_string();
+            let filename = field.file_name().map(|s| s.to_string()).unwrap_or_else(|| "unnamed".to_string());
+            let content_type = field.content_type().map(|s| s.to_string()).unwrap_or_else(|| "application/octet-stream".to_string());
+            
+            // Get file data
+            let data = match field.bytes().await {
+                Ok(bytes) => bytes,
+                Err(_) => {
+                    return common_response(
+                        StatusCode::BAD_REQUEST,
+                        "Failed to read file data",
+                    );
+                }
+            };
+            
+            // For now, just return basic file info
+            let response_data = json!({
+                "field_name": name,
+                "filename": filename,
+                "content_type": content_type,
+                "size": data.len(),
+                "message": "File received successfully (MinIO upload will be implemented later)"
+            });
+            
+            return success_response(ResponseSuccessDto {
+                data: response_data,
+            });
+        }
+        
+        common_response(
+            StatusCode::BAD_REQUEST,
+            "No file provided",
+        )
     }
 }

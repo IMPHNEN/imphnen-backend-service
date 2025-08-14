@@ -52,6 +52,8 @@ pub struct UsersSchema {
 	pub experience: Option<Vec<ExperienceDto>>,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub education: Option<Vec<EducationDto>>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub career_status: Option<String>,
 	pub role: Thing,
 	pub created_at: String,
 	pub updated_at: String,
@@ -89,6 +91,7 @@ impl Default for UsersSchema {
 			skills: None,
 			experience: None,
 			education: None,
+			career_status: None,
 			role: make_thing(
 				&ResourceEnum::Roles.to_string(),
 				"5713cb37-dc02-4e87-8048-d7a41d352059",
@@ -127,6 +130,7 @@ impl UsersSchema {
 			skills: dto.skills,
 			experience: dto.experience,
 			education: dto.education,
+			career_status: dto.career_status,
 			password: dto.password,
 			created_at: dto.created_at,
 			updated_at: dto.updated_at,
@@ -219,6 +223,9 @@ impl UsersSchema {
 		if let Some(education) = user.education {
 			schema.education = Some(education);
 		}
+		if let Some(career_status) = user.career_status {
+			schema.career_status = Some(career_status);
+		}
 		if let Some(avatar) = user.avatar {
 			schema.avatar = Some(avatar);
 		}
@@ -256,6 +263,7 @@ impl UsersSchema {
 			skills: None,
 			experience: None,
 			education: None,
+			career_status: None,
 			avatar: user.avatar,
 			is_deleted: false,
 			role: make_thing(&ResourceEnum::Roles.to_string(), &user.role_id),

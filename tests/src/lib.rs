@@ -43,6 +43,7 @@ pub fn create_test_user(
 		skills: None,
 		experience: None,
 		education: None,
+		career_status: None,
 		role: make_thing("app_roles", role_id),
 		created_at: get_iso_date(),
 		updated_at: get_iso_date(),

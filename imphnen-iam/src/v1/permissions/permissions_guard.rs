@@ -1,5 +1,5 @@
 use super::PermissionsEnum;
-use crate::{AppState, AuthRepository, common_response, extract_email, extract_email_async};
+use crate::{AppState, AuthRepository, common_response, extract_email, extract_email_async, UsersDetailQueryDto};
 use axum::{
 	http::{HeaderMap, StatusCode},
 	response::Response,
@@ -9,7 +9,7 @@ pub async fn permissions_guard(
 	headers: &HeaderMap,
 	state: AppState,
 	required_permissions: Vec<PermissionsEnum>,
-) -> Result<(), Response> {
+) -> Result<UsersDetailQueryDto, Response> {
 	let auth_repo = AuthRepository::new(&state);
 	
 	// Try synchronous email extraction first (for internal JWT tokens)
@@ -38,9 +38,8 @@ pub async fn permissions_guard(
 				"User session expired or not found",
 			)
 		})?;
-	let role = raw_user.role;
 	let role_permissions: Vec<String> =
-		role.permissions.into_iter().map(|perm| perm.name).collect();
+		raw_user.role.permissions.iter().map(|perm| perm.name.clone()).collect();
 
 	for required in &required_permissions {
 		let required_str = required.to_string();
@@ -52,5 +51,5 @@ pub async fn permissions_guard(
 			));
 		}
 	}
-	Ok(())
+	Ok(raw_user)
 }

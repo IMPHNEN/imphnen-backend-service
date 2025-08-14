@@ -145,6 +145,8 @@ pub struct UsersUpdateRequestDto {
 	pub experience: Option<Vec<ExperienceDto>>,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub education: Option<Vec<EducationDto>>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub career_status: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
@@ -173,6 +175,7 @@ pub struct UsersDetailItemDto {
 	pub skills: Option<Vec<String>>,
 	pub experience: Option<Vec<ExperienceDto>>,
 	pub education: Option<Vec<EducationDto>>,
+	pub career_status: Option<String>,
 	pub created_at: String,
 	pub updated_at: String,
 }
@@ -204,6 +207,7 @@ impl UsersDetailItemDto {
 			skills: dto.skills.clone(),
 			experience: dto.experience.clone(),
 			education: dto.education.clone(),
+			career_status: dto.career_status.clone(),
 			created_at: dto.created_at.clone(),
 			updated_at: dto.updated_at.clone(),
 		}
@@ -235,6 +239,7 @@ impl UsersDetailItemDto {
             skills: schema.skills.clone(),
             experience: schema.experience.clone(),
             education: schema.education.clone(),
+            career_status: schema.career_status.clone(),
             created_at: schema.created_at.clone(),
             updated_at: schema.updated_at.clone(),
         }
@@ -309,6 +314,7 @@ pub struct UsersDetailQueryDto {
 	pub skills: Option<Vec<String>>,
 	pub experience: Option<Vec<ExperienceDto>>,
 	pub education: Option<Vec<EducationDto>>,
+	pub career_status: Option<String>,
 	pub password: String,
 	pub role: RolesDetailQueryDto,
 	pub created_at: String,
@@ -343,6 +349,7 @@ impl UsersDetailQueryDto {
 			skills: self.skills.clone(),
 			experience: self.experience.clone(),
 			education: self.education.clone(),
+			career_status: self.career_status.clone(),
 			is_deleted: self.is_deleted,
 			password: self.password.clone(),
 			birthdate: self.birthdate.clone(),
@@ -379,6 +386,7 @@ impl From<&UsersDetailItemDto> for UsersDetailQueryDto {
 			skills: dto.skills.clone(),
 			experience: dto.experience.clone(),
 			education: dto.education.clone(),
+			career_status: dto.career_status.clone(),
 			password: String::new(),
 			role: RolesDetailQueryDto::default(),
 			created_at: dto.created_at.clone(),
