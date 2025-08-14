@@ -27,6 +27,8 @@ pub struct Env {
     pub minio_bucket_name: String,
     pub minio_access_key: String,
     pub minio_secret_key: String,
+    pub minio_region: String,
+    pub minio_secure: bool,
     // Google OAuth 2.1
     pub google_client_id: String,
     pub google_client_secret: String,
@@ -74,9 +76,13 @@ pub static ENV: Lazy<Env> = Lazy::new(|| {
         fe_url: get_env_with_warning("FE_URL", "http://localhost"),
         rust_env: get_env_with_warning("RUST_ENV", "development"),
         minio_endpoint: get_env_with_warning("MINIO_ENDPOINT", "http://localhost:9000"),
-        minio_bucket_name: get_env_with_warning("MINIO_BUCKET_NAME", "default_bucket"),
+        minio_bucket_name: get_env_with_warning("MINIO_BUCKET_NAME", "imphnen-uploads"),
         minio_access_key: get_env_with_warning("MINIO_ACCESS_KEY", "minio_access"),
         minio_secret_key: get_env_with_warning("MINIO_SECRET_KEY", "minio_secret"),
+        minio_region: get_env_with_warning("MINIO_REGION", "us-east-1"),
+        minio_secure: get_env_with_warning("MINIO_SECURE", "false")
+            .parse()
+            .unwrap_or(false),
         surrealdb_url_ws: String::new(),
         // Google OAuth 2.1
         google_client_id: get_env_with_warning("GOOGLE_CLIENT_ID", "default_google_client_id"),

@@ -7,11 +7,21 @@ use axum::extract::{Path, Multipart};
 use axum::http::HeaderMap;
 use axum::response::IntoResponse;
 use axum::{Extension, Json};
+use utoipa::ToSchema;
+use serde::{Deserialize, Serialize};
 
 use super::{
 	UsersActiveInactiveRequestDto, UsersListItemDto, UsersUpdateRequestDto,
 };
 use crate::v1::users::users_service::{UsersServiceTrait, UsersService};
+
+#[derive(Serialize, Deserialize, ToSchema)]
+#[schema(description = "File upload form data for multipart/form-data")]
+pub struct FileUploadSchema {
+    /// Binary file data to upload
+    #[schema(format = "binary")]
+    pub file: String,
+}
 
 #[utoipa::path(
 	get,
@@ -254,7 +264,11 @@ pub async fn delete_user(
         ("Bearer" = [])
     ),
 	path = "/v1/users/upload",
-	request_body(content = String, description = "Upload file", content_type = "multipart/form-data"),
+	request_body(
+		content = FileUploadSchema,
+		description = "Upload file with multipart form data. Only 'file' field is required - file type will be detected automatically from the uploaded file.",
+		content_type = "multipart/form-data"
+	),
 	responses(
 		(status = 200, description = "Upload file successfully", body = ResponseSuccessDto<serde_json::Value>),
 		(status = 400, description = "Bad request"),

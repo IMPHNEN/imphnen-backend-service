@@ -11,7 +11,7 @@ use crate::{
 };
 use axum::http::HeaderMap;
 use axum::{http::StatusCode, response::Response, extract::Multipart};
-use imphnen_libs::{ResourceEnum, hash_password, verify_password, surrealdb_init_ws, surrealdb_init_mem};
+use imphnen_libs::{ResourceEnum, hash_password, verify_password, surrealdb_init_ws, surrealdb_init_mem, MinioConfig, FileType, decode_base64_file, extract_content_type_from_data_url, create_minio_service_from_config};
 use imphnen_utils::make_thing;
 use uuid::Uuid;
 use anyhow::Result;
@@ -41,6 +41,9 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
 
 #[derive(Clone)]
 pub struct UsersService;
+
+impl UsersService {
+}
 
 #[async_trait]
 impl UsersServiceTrait for UsersService {
@@ -365,42 +368,200 @@ impl UsersServiceTrait for UsersService {
         }
     }
 
-    async fn upload_file(_state: &AppState, _user_id: String, mut multipart: Multipart) -> Response {
-        // Temporary implementation without MinIO to fix compilation
+    async fn upload_file(state: &AppState, user_id: String, mut multipart: Multipart) -> Response {
+        // Initialize MinIO configuration
+        let minio_config = match MinioConfig::from_env() {
+            Ok(config) => config,
+            Err(e) => {
+                log::error!("Failed to load MinIO config: {}", e);
+                return common_response(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "MinIO configuration error",
+                );
+            }
+        };
+
+        // Store bucket name before minio_config is moved
+        let bucket_name = minio_config.bucket_name.clone();
+
+        // Initialize MinIO service
+        let minio_service = match create_minio_service_from_config(minio_config).await {
+            Ok(service) => service,
+            Err(e) => {
+                log::error!("Failed to initialize MinIO service: {}", e);
+                return common_response(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "MinIO service initialization error",
+                );
+            }
+        };
+
+        // Extract email from user_id (which contains email in SurrealDB format)
+        let user_email = user_id
+            .replace("app_users:", "")
+            .replace("⟨", "")
+            .replace("⟩", "");
+            
+        // Get actual user data from database to get real user ID
+        let repo = UsersRepository::new(state);
+        let (actual_user_id, user_email) = match repo.query_user_by_email(user_email.clone()).await {
+            Ok(user) => {
+                // Extract the actual ID from the user record
+                let actual_id = user.id.id.to_raw();
+                (actual_id, user.email)
+            }
+            Err(_) => {
+                return common_response(
+                    StatusCode::NOT_FOUND,
+                    "User not found",
+                );
+            }
+        };
+
+        let mut file_data: Option<Vec<u8>> = None;
+        let mut filename: Option<String> = None;
+        let mut content_type: Option<String> = None;
+
         // Process multipart form
         while let Some(field) = multipart.next_field().await.unwrap_or(None) {
             let name = field.name().unwrap_or("").to_string();
-            let filename = field.file_name().map(|s| s.to_string()).unwrap_or_else(|| "unnamed".to_string());
-            let content_type = field.content_type().map(|s| s.to_string()).unwrap_or_else(|| "application/octet-stream".to_string());
             
-            // Get file data
-            let data = match field.bytes().await {
-                Ok(bytes) => bytes,
-                Err(_) => {
-                    return common_response(
-                        StatusCode::BAD_REQUEST,
-                        "Failed to read file data",
-                    );
+            match name.as_str() {
+                "file" => {
+                    filename = field.file_name().map(|s| s.to_string());
+                    content_type = field.content_type().map(|s| s.to_string());
+                    
+                    match field.bytes().await {
+                        Ok(bytes) => file_data = Some(bytes.to_vec()),
+                        Err(e) => {
+                            log::error!("Failed to read file data: {}", e);
+                            return common_response(
+                                StatusCode::BAD_REQUEST,
+                                "Failed to read file data",
+                            );
+                        }
+                    }
                 }
-            };
-            
-            // For now, just return basic file info
-            let response_data = json!({
-                "field_name": name,
-                "filename": filename,
-                "content_type": content_type,
-                "size": data.len(),
-                "message": "File received successfully (MinIO upload will be implemented later)"
-            });
-            
-            return success_response(ResponseSuccessDto {
-                data: response_data,
-            });
+                "base64_data" => {
+                    // Handle base64 data from frontend
+                    let base64_str = field.text().await.unwrap_or_default();
+                    if !base64_str.is_empty() {
+                        match decode_base64_file(&base64_str) {
+                            Ok(decoded_data) => {
+                                file_data = Some(decoded_data);
+                                // Extract content type from data URL if present
+                                if let Some(detected_type) = extract_content_type_from_data_url(&base64_str) {
+                                    content_type = Some(detected_type);
+                                }
+                            }
+                            Err(e) => {
+                                log::error!("Failed to decode base64 data: {}", e);
+                                return common_response(
+                                    StatusCode::BAD_REQUEST,
+                                    "Invalid base64 data",
+                                );
+                            }
+                        }
+                    }
+                }
+                "filename" => {
+                    filename = Some(field.text().await.unwrap_or_default());
+                }
+                "content_type" => {
+                    content_type = Some(field.text().await.unwrap_or_default());
+                }
+                _ => {
+                    // Skip unknown fields
+                }
+            }
         }
+
+        // Validate required fields
+        let file_data = match file_data {
+            Some(data) => data,
+            None => {
+                return common_response(
+                    StatusCode::BAD_REQUEST,
+                    "file data is required",
+                );
+            }
+        };
+
+        let filename = filename.unwrap_or_else(|| "unnamed_file".to_string());
+        let content_type = content_type.unwrap_or_else(|| "application/octet-stream".to_string());
+
+        // Auto-detect file type based on content type and filename
+        let file_type = FileType::from_content_type(&content_type);
+        let file_type = if matches!(file_type, FileType::Unknown) {
+            FileType::from_filename(&filename)
+        } else {
+            file_type
+        };
+
+        // Validate file type is supported
+        if matches!(file_type, FileType::Unknown) {
+            return common_response(
+                StatusCode::BAD_REQUEST,
+                "Unsupported file type. Supported types: JPEG, PNG, WEBP, GIF, PDF, DOC, DOCX",
+            );
+        }
+
+        // Validate file type matches content type
+        if !file_type.allowed_types().contains(&content_type.as_str()) {
+            return common_response(
+                StatusCode::BAD_REQUEST,
+                &format!("File type '{}' does not match content type '{:?}'", content_type, file_type),
+            );
+        }
+
+        // Validate file size
+        if file_data.len() > file_type.max_size() {
+            return common_response(
+                StatusCode::BAD_REQUEST,
+                &format!("File too large. Maximum size for {:?} is {} bytes", 
+                    file_type, file_type.max_size()),
+            );
+        }
+
+        // Create secure upload path with user ID (sanitized for filesystem)
+        let sanitized_user_id = user_email
+            .replace("%", "")
+            .replace(":", "_")
+            .replace("@", "_at_")
+            .replace(".", "_");
         
-        common_response(
-            StatusCode::BAD_REQUEST,
-            "No file provided",
-        )
+        let folder = format!("{}/{}", file_type.as_folder(), sanitized_user_id);
+
+        // Upload file to MinIO
+        match minio_service.upload_file(&file_data, &content_type, &folder, &filename).await {
+            Ok(object_path) => {
+                // Create permanent URL (no expiration)
+                let permanent_url = format!("https://cdn.asepharyana.tech/{}/{}", 
+                    bucket_name, object_path);
+
+                let response_data = json!({
+                    "filename": filename,
+                    "original_filename": filename,
+                    "uploaded_path": object_path,
+                    "url": permanent_url,
+                    "size": file_data.len(),
+                    "content_type": content_type,
+                    "file_type": format!("{:?}", file_type).to_lowercase(),
+                    "user_id": actual_user_id,
+                    "email": user_email
+                });
+
+                success_response(ResponseSuccessDto {
+                    data: response_data,
+                })
+            }
+            Err(e) => {
+                log::error!("Failed to upload file: {}", e);
+                common_response(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    &format!("Upload failed: {}", e),
+                )
+            }
+        }
     }
 }
