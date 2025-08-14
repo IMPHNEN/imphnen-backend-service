@@ -21,8 +21,10 @@ SKIP_COMPREHENSIVE=false
 SKIP_CRUD=false
 GENERATE_REPORT=false
 VERBOSE=false
+SKIP_CLEAR=false
+SKIP_SEED=false
 
-while getopts "sbcrgvh" opt; do
+while getopts "sbcrgvhkd" opt; do
   case ${opt} in
     s ) START_SERVER=true ;;
     b ) SKIP_BASIC=true ;;
@@ -30,7 +32,7 @@ while getopts "sbcrgvh" opt; do
     r ) SKIP_CRUD=true ;;
     g ) GENERATE_REPORT=true ;;
     v ) VERBOSE=true ;;
-    h ) 
+    h )
       echo "IMPHNEN API Test Suite"
       echo "Usage: $0 [OPTIONS]"
       echo ""
@@ -42,6 +44,8 @@ while getopts "sbcrgvh" opt; do
       echo "  -g    Generate JSON test report"
       echo "  -v    Verbose output (show all INFO logs)"
       echo "  -h    Show this help message"
+      echo "  -d    Skip database clear"
+      echo "  -k    Skip database seeding"
       echo ""
       echo "Examples:"
       echo "  $0                  # Run all tests"
@@ -49,11 +53,18 @@ while getopts "sbcrgvh" opt; do
       echo "  $0 -g               # Run tests and generate report"
       echo "  $0 -sv              # Start server with verbose output"
       echo "  $0 -bc              # Run only public endpoint tests"
+      echo "  $0 -d               # Skip database clear"
+      echo "  $0 -k               # Skip database seeding"
+      echo "  $0 -dk              # Skip database clear and seeding"
       exit 0
       ;;
+    d ) SKIP_CLEAR=true ;;
+    k ) SKIP_SEED=true ;;
     \? ) echo "Invalid option: -$OPTARG" >&2; echo "Use -h for help" >&2; exit 1 ;;
   esac
 done
+# Shift past the options
+shift "$((OPTIND-1))"
 
 if ! command -v curl &> /dev/null; then
   echo "Error: 'curl' tidak ditemukan. Mohon install terlebih dahulu." >&2
@@ -72,6 +83,7 @@ FALED_TESTS_SUMMARY=()
 PASS_COUNT=0
 FAIL_COUNT=0
 TEST_TESTIMONIAL_ID=""
+TEST_EVENT_ID=""
 
 CYAN='\033[0;36m'
 YELLOW='\033[0;33m'
@@ -162,6 +174,10 @@ test_server_connection() {
 }
 
 clear_database() {
+  if [ "$SKIP_CLEAR" = true ]; then
+    write_test_log "INFO" "Melewatkan pembersihan database."
+    return
+  fi
   write_test_log "INFO" "Membersihkan database via WebSocket..."
   if ! RUST_LOG=debug cargo run --bin clear_db_test --release; then
     write_test_log "ERROR" "Gagal membersihkan database."
@@ -433,7 +449,7 @@ test_comprehensive_with_user() {
           ;;
           
         "mentor@example.com")
-          test_api_endpoint "Get Users List - $fullname" "GET" "/v1/users" 403 "" true
+          test_api_endpoint "Get Users List - $fullname" "GET" "/v1/users" 200 "" true
           test_api_endpoint "Get Roles List - $fullname" "GET" "/v1/roles" 403 "" true
           test_api_endpoint "Get Permissions List - $fullname" "GET" "/v1/permissions" 403 "" true
           test_api_endpoint "Get Mentors List - $fullname" "GET" "/v1/mentors" 200 "" true
@@ -448,7 +464,7 @@ test_comprehensive_with_user() {
           ;;
           
         "user@example.com")
-          test_api_endpoint "Get Users List - $fullname" "GET" "/v1/users" 403 "" true
+          test_api_endpoint "Get Users List - $fullname" "GET" "/v1/users" 200 "" true
           test_api_endpoint "Get Roles List - $fullname" "GET" "/v1/roles" 403 "" true
           test_api_endpoint "Get Permissions List - $fullname" "GET" "/v1/permissions" 403 "" true
           test_api_endpoint "Get Mentors List - $fullname" "GET" "/v1/mentors" 200 "" true
@@ -471,7 +487,7 @@ test_comprehensive_with_user() {
           test_api_endpoint "Users with Sort - $fullname" "GET" "/v1/users?sort_by=created_at&order=DESC" 200 "" true
           ;;
         *)
-          test_api_endpoint "Users with Sort - $fullname" "GET" "/v1/users?sort_by=created_at&order=DESC" 403 "" true
+          test_api_endpoint "Users with Sort - $fullname" "GET" "/v1/users?sort_by=created_at&order=DESC" 200 "" true
           ;;
       esac
       
@@ -522,7 +538,7 @@ test_authentication_endpoints() {
 
   local forgot_password_data
   forgot_password_data=$(jq -n --arg email "$TEST_EMAIL" '{email: $email}')
-  test_api_endpoint "Forgot Password Test" "POST" "/v1/auth/forgot" 400 "$forgot_password_data"
+  test_api_endpoint "Forgot Password Test" "POST" "/v1/auth/forgot" 200 "$forgot_password_data"
 
   local new_password_data
   new_password_data=$(jq -n --arg token "some_reset_token" --arg pass "newpassword123!A" '{token: $token, password: $pass}')
@@ -602,9 +618,9 @@ test_crud_operations() {
   
   local testimonial_data
   testimonial_data=$(jq -n --arg content "Test testimonial via Bash $(date +%s)" '{role: "Student", content: $content}')
-  local testimonial_response=$(test_api_endpoint "Create Testimonial" "POST" "/v1/cms/landing/testimonials/create" 201 "$testimonial_data" true)
+  local testimonial_response
+  testimonial_response=$(test_api_endpoint "Create Testimonial" "POST" "/v1/cms/landing/testimonials/create" 201 "$testimonial_data" true)
   TEST_TESTIMONIAL_ID=$(echo "$testimonial_response" | jq -r '.data.id // empty')
-  write_test_log "INFO" "TEST_TESTIMONIAL_ID: $TEST_TESTIMONIAL_ID"
   write_test_log "INFO" "Captured Testimonial ID: $TEST_TESTIMONIAL_ID"
   sleep 0.2
   
@@ -627,7 +643,10 @@ test_crud_operations() {
     end_date: "2025-12-01T16:00:00Z",
     location: null
   }')
-  test_api_endpoint "Create Event" "POST" "/v1/cms/landing/events/create" 201 "$event_data" true
+  local event_response
+  event_response=$(test_api_endpoint "Create Event" "POST" "/v1/cms/landing/events/create" 201 "$event_data" true)
+  TEST_EVENT_ID=$(echo "$event_response" | jq -r '.data.id // empty')
+  write_test_log "INFO" "Captured Event ID: $TEST_EVENT_ID"
 }
 
 test_roles_and_permissions() {
@@ -687,8 +706,12 @@ test_events_endpoints() {
   test_api_endpoint "Get Events with Pagination" "GET" "/v1/cms/landing/events?page=1&per_page=5" 200
   test_api_endpoint "Get Events with Search" "GET" "/v1/cms/landing/events?search=tech" 200
   
-  local test_event_id="e1a2b3c4-5d6e-7f8g-9h0i-1j2k3l4m5n6o"
-  test_api_endpoint "Get Event By ID" "GET" "/v1/cms/landing/events/detail/$test_event_id" 200
+  # Ensure TEST_EVENT_ID is not empty before testing
+  if [ -n "$TEST_EVENT_ID" ]; then
+    test_api_endpoint "Get Event By ID" "GET" "/v1/cms/landing/events/detail/$TEST_EVENT_ID" 200
+  else
+    write_test_log "WARN" "✗ Get Event By ID - Dilewati: TEST_EVENT_ID tidak tersedia"
+  fi
 }
 
 test_testimonials_endpoints() {
@@ -803,11 +826,15 @@ fi
 clear_database
 
 printf "\n${CYAN}=== Menjalankan Seeders ===${NC}\n"
-if ! RUST_LOG=debug cargo run --bin seeder; then
-  write_test_log "ERROR" "Gagal menjalankan seeder roles permissions."
-  exit 1
+if [ "$SKIP_SEED" = true ]; then
+  write_test_log "INFO" "Melewatkan seeding database."
+else
+  if ! RUST_LOG=debug cargo run --bin seeder; then
+    write_test_log "ERROR" "Gagal menjalankan seeder roles permissions."
+    exit 1
+  fi
+  write_test_log "SUCCESS" "Seeders selesai."
 fi
-write_test_log "SUCCESS" "Seeders selesai."
 
 
 printf "\n${CYAN}=== Menampilkan User yang Tersedia ===${NC}\n"

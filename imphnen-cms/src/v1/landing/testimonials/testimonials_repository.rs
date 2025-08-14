@@ -82,7 +82,7 @@ impl<'a> TestimonialsRepository<'a> {
 	pub async fn query_create_testimonial(
 		&self,
 		data: TestimonialsSchema,
-	) -> Result<String> {
+	) -> Result<TestimonialsSchema> { // Change return type from String to TestimonialsSchema
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
 		info!(
@@ -102,7 +102,7 @@ impl<'a> TestimonialsRepository<'a> {
 		}
 
 		match record {
-			Some(_) => Ok("Success create testimonial".into()),
+			Some(created_testimonial) => Ok(created_testimonial), // Return the created testimonial
 			None => bail!("Failed to create testimonial"),
 		}
 	}

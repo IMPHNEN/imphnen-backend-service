@@ -65,6 +65,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		(
 			"3b9f8c4e-6a2d-4f8a-9a12-2d6f8b3c4e5a",
 			vec![
+				PermissionsEnum::ReadListUsers, // Added ReadListUsers permission
 				PermissionsEnum::ReadOwnMentorProfile,
 				PermissionsEnum::UpdateOwnMentorProfile,
 				PermissionsEnum::ReadOwnMentorStatus,

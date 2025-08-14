@@ -1,6 +1,7 @@
 use super::{
 	UsersActiveInactiveRequestDto, UsersCreateRequestDto,
 	UsersSetNewPasswordRequestDto, UsersUpdateRequestDto,
+    users_dto::UsersDetailQueryDto, // Add this line
 };
 use crate::{
 	AppState, MetaRequestDto, ResponseListSuccessDto, UsersRepository, UsersSchema,
@@ -31,22 +32,27 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
     async fn update_user_password(state: &AppState, email: String, payload: UsersSetNewPasswordRequestDto) -> Response;
     async fn get_user_by_mentor_id(state: &AppState, mentor_id: String) -> Response;
     async fn delete_user(state: &AppState, id: String) -> Response;
-
-    async fn get_user_by_email(&self, email: &str, state: &AppState) -> Result<Option<UserDto>>;
-    async fn create_user_by_dto(&self, new_user: CreateUserDto, state: &AppState) -> Result<UserDto>;
-    async fn update_user_avatar(&self, email: &str, avatar_url: Option<String>, state: &AppState) -> Result<()>;
-    async fn upload_file(state: &AppState, user_id: String, multipart: Multipart) -> Response;
-}
-
-#[derive(Clone)]
-pub struct UsersService;
-
-impl UsersService {
-}
-
-#[async_trait]
-impl UsersServiceTrait for UsersService {
-	async fn get_user_list(state: &AppState, meta: MetaRequestDto) -> Response {
+    async fn get_user_by_id_internal(&self, id: &surrealdb::sql::Thing, state: &AppState) -> Result<UsersDetailQueryDto>;
+ 
+     async fn get_user_by_email(&self, email: &str, state: &AppState) -> Result<Option<UserDto>>;
+     async fn create_user_by_dto(&self, new_user: CreateUserDto, state: &AppState) -> Result<UserDto>;
+     async fn update_user_avatar(&self, email: &str, avatar_url: Option<String>, state: &AppState) -> Result<()>;
+     async fn upload_file(state: &AppState, user_id: String, multipart: Multipart) -> Response;
+ }
+ 
+ #[derive(Clone)]
+  pub struct UsersService;
+  
+  impl UsersService {
+  }
+  
+  #[async_trait]
+  impl UsersServiceTrait for UsersService {
+     async fn get_user_by_id_internal(&self, id: &surrealdb::sql::Thing, state: &AppState) -> Result<UsersDetailQueryDto> {
+         let repo = crate::UsersRepository::new(state);
+         repo.query_user_by_id(id).await
+     }
+  	async fn get_user_list(state: &AppState, meta: MetaRequestDto) -> Response {
 		let repo = UsersRepository::new(state);
 		match repo.query_user_list(meta).await {
 			Ok(data) => {

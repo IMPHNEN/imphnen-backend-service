@@ -368,6 +368,7 @@ mod tests {
         let auth_request = AuthRequest {
             code: "4/0-ARAA6EeEKN8rlQ_Dh5XAAA_dCpKFwKa3-Jl9cO7I".to_string(),
             state: "valid_state".to_string(),
+            redirect_uri: None,
         };
         
         let result = auth_request.validate();
@@ -379,6 +380,7 @@ mod tests {
         let auth_request = AuthRequest {
             code: "authorization/code/with/slashes".to_string(),
             state: "valid_state".to_string(),
+            redirect_uri: None,
         };
         
         let result = auth_request.validate();
@@ -390,6 +392,7 @@ mod tests {
         let auth_request = AuthRequest {
             code: "authorization+code+with+plus".to_string(),
             state: "valid_state".to_string(),
+            redirect_uri: None,
         };
         
         let result = auth_request.validate();
@@ -401,6 +404,7 @@ mod tests {
         let auth_request = AuthRequest {
             code: "authorization=code=with=equals=".to_string(),
             state: "valid_state".to_string(),
+            redirect_uri: None,
         };
         
         let result = auth_request.validate();
@@ -412,6 +416,7 @@ mod tests {
         let auth_request = AuthRequest {
             code: "authorization@code#with$invalid%chars".to_string(),
             state: "valid_state".to_string(),
+            redirect_uri: None,
         };
         
         let result = auth_request.validate();
@@ -423,6 +428,7 @@ mod tests {
         let auth_request = AuthRequest {
             code: "".to_string(),
             state: "valid_state".to_string(),
+            redirect_uri: None,
         };
         
         let result = auth_request.validate();
@@ -441,6 +447,7 @@ mod tests {
         let auth_request = AuthRequest {
             code: "test_code".to_string(),
             state: token,
+            redirect_uri: None,
         };
         
         // Validate and extract PKCE verifier
@@ -459,6 +466,7 @@ mod tests {
         let auth_request = AuthRequest {
             code: "test_code".to_string(),
             state: token,
+            redirect_uri: None,
         };
         
         // Legacy validation should still work
