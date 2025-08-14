@@ -173,6 +173,7 @@ pub async fn seed_users_for_test(
 			skills: None,
 			experience: None,
 			education: None,
+			career_status: None,
 			role: Thing::from(("app_roles", role_id)),
 			created_at: get_iso_date(),
 			updated_at: get_iso_date(),

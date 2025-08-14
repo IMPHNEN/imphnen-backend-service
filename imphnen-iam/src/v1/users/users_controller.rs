@@ -3,7 +3,7 @@ use crate::{
 	MessageResponseDto, PermissionsEnum, ResponseListSuccessDto, ResponseSuccessDto,
 	UsersCreateRequestDto, UsersDetailItemDto, permissions_guard,
 };
-use axum::extract::{Path}; // Removed Query
+use axum::extract::{Path, Multipart};
 use axum::http::HeaderMap;
 use axum::response::IntoResponse;
 use axum::{Extension, Json};
@@ -72,7 +72,7 @@ pub async fn get_user_by_id(
 	match permissions_guard(
 		&headers,
 		state.clone(),
-		vec![PermissionsEnum::ReadDetailUsers],
+		vec![PermissionsEnum::ReadListUsers],
 	)
 	.await
 	{
@@ -110,7 +110,7 @@ pub async fn get_user_me(
 	path = "/v1/users/create",
 	request_body = UsersCreateRequestDto,
 	responses(
-		(status = 201, description = "Create new user", body = MessageResponseDto)
+		(status = 200, description = "Create new user", body = ResponseSuccessDto<UsersDetailItemDto>)
 	),
 	tag = "Users"
 )]
@@ -137,9 +137,12 @@ pub async fn post_create_user(
         ("Bearer" = [])
     ),
 	path = "/v1/users/update/{id}",
+	params(
+		("id" = String, Path, description = "User ID")
+	),
 	request_body = UsersUpdateRequestDto,
 	responses(
-		(status = 200, description = "Update user", body = MessageResponseDto)
+		(status = 200, description = "Update user", body = ResponseSuccessDto<UsersDetailItemDto>)
 	),
 	tag = "Users"
 )]
@@ -169,7 +172,7 @@ pub async fn put_update_user(
 	path = "/v1/users/update/me",
 	request_body = UsersUpdateRequestDto,
 	responses(
-		(status = 200, description = "Update user me", body = MessageResponseDto)
+		(status = 200, description = "Update current user", body = ResponseSuccessDto<UsersDetailItemDto>)
 	),
 	tag = "Users"
 )]
@@ -190,9 +193,12 @@ pub async fn put_update_user_me(
         ("Bearer" = [])
     ),
 	path = "/v1/users/activate/{id}",
+	params(
+		("id" = String, Path, description = "User ID")
+	),
 	request_body = UsersActiveInactiveRequestDto,
 	responses(
-		(status = 200, description = "Set user active/inactive", body = MessageResponseDto)
+		(status = 200, description = "Set user active status", body = MessageResponseDto)
 	),
 	tag = "Users"
 )]
@@ -238,6 +244,45 @@ pub async fn delete_user(
 	.await
 	{
 		Ok(_) => UsersService::delete_user(&state, id).await,
+		Err(response) => response,
+	}
+}
+
+#[utoipa::path(
+	post,
+	security(
+        ("Bearer" = [])
+    ),
+	path = "/v1/users/upload",
+	request_body(content = String, description = "Upload file", content_type = "multipart/form-data"),
+	responses(
+		(status = 200, description = "Upload file successfully", body = ResponseSuccessDto<serde_json::Value>),
+		(status = 400, description = "Bad request"),
+		(status = 401, description = "Unauthorized"),
+		(status = 500, description = "Internal server error")
+	),
+	tag = "Users"
+)]
+pub async fn upload_file(
+	headers: HeaderMap,
+	Extension(state): Extension<AppState>,
+	multipart: Multipart,
+) -> impl IntoResponse {
+	// Check authentication first
+	match permissions_guard(
+		&headers,
+		state.clone(),
+		vec![], // No specific permission needed, just authentication
+	)
+	.await
+	{
+		Ok(user) => {
+			// Extract user ID from user data
+			let user_id = user.id.to_string();
+			
+			// Process upload - don't use match here since it returns Response directly
+			UsersService::upload_file(&state, user_id, multipart).await
+		},
 		Err(response) => response,
 	}
 }

@@ -25,4 +25,5 @@ pub fn users_router() -> Router {
 		.route("/detail/{id}", get(get_user_by_id))
 		.route("/update/{id}", put(put_update_user))
 		.route("/update/me", put(put_update_user_me))
+		.route("/upload", post(upload_file))
 }

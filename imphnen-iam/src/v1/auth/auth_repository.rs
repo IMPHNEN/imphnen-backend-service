@@ -116,6 +116,7 @@ impl<'a> AuthRepository<'a> {
 					skills: None,
 					experience: None,
 					education: None,
+					career_status: None,
 					password: String::new(),
 					role: role_detail_query_dto,
 					created_at: String::new(),
