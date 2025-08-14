@@ -6,16 +6,7 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 use crate::enviroment::ENV;
 
-// CATATAN: Pastikan untuk menambahkan dependensi ini ke `Cargo.toml` Anda:
-// reqwest = { version = "0.11", features = ["json"] }
-// anyhow = "1.0"
-// uuid = { version = "1.3", features = ["v4"] }
-// base64 = "0.21"
-// log = "0.4"
-// chrono = "0.4"
-// sha2 = "0.10"
-// hmac = "0.12"
-// hex = "0.4"
+
 
 // --- Struct Konfigurasi MinIO ---
 #[derive(Debug, Clone)]
@@ -82,6 +73,121 @@ impl MinioService {
             client: reqwest::Client::new(),
         };
         Ok(service)
+    }
+
+    /// Mengunggah file biner ke MinIO dengan deduplication berdasarkan hash.
+    pub async fn upload_file_with_deduplication(
+        &self,
+        file_data: &[u8],
+        content_type: &str,
+        folder: &str,
+        original_filename: &str,
+    ) -> Result<String> {
+        Self::validate_file_type(content_type, file_data)?;
+
+        // Calculate file hash
+        let mut hasher = Sha256::new();
+        hasher.update(file_data);
+        let file_hash = format!("{:x}", hasher.finalize());
+        let short_hash = &file_hash[..16]; // Use first 16 characters for filename
+
+        // Check if file with same hash already exists
+        if let Some(existing_file) = self.check_file_exists_by_hash(folder, short_hash).await? {
+            log::info!("File with same content already exists: {}", existing_file);
+            return Ok(existing_file);
+        }
+
+        let file_extension = Self::get_file_extension(original_filename);
+        let unique_filename = format!("{}/{}-{}.{}", folder, short_hash, Uuid::new_v4(), file_extension);
+        let object_name = &unique_filename;
+
+        // Extract host from endpoint (remove protocol)
+        let host = self.endpoint
+            .trim_start_matches("https://")
+            .trim_start_matches("http://");
+        
+        let url = format!("https://{}/{}/{}", host, self.bucket_name, object_name);
+
+        // Debug logging
+        log::debug!("MinIO Endpoint config: {}", self.endpoint);
+        log::debug!("MinIO Region config: {}", self.region);
+        log::debug!("Upload URL: {}", url);
+        log::debug!("Object name: {}", object_name);
+        log::debug!("File hash: {}", short_hash);
+
+        let now = Utc::now();
+        let amz_date = now.format("%Y%m%dT%H%M%SZ").to_string();
+        let date_stamp = now.format("%Y%m%d").to_string();
+
+        // Use UNSIGNED-PAYLOAD for simpler signature
+        let payload_hash = "UNSIGNED-PAYLOAD".to_string();
+
+        let canonical_headers = format!(
+            "host:{}\nx-amz-content-sha256:{}\nx-amz-date:{}\n",
+            host, payload_hash, amz_date
+        );
+        let signed_headers = "host;x-amz-content-sha256;x-amz-date";
+        
+        // For path-style, canonical URI should be /bucket/object
+        let canonical_uri = format!("/{}/{}", self.bucket_name, object_name);
+        let canonical_request = format!(
+            "PUT\n{}\n\n{}\n{}\n{}",
+            canonical_uri, canonical_headers, signed_headers, payload_hash
+        );
+
+        log::debug!("Canonical request:\n{}", canonical_request);
+
+        let scope = format!("{}/{}/s3/aws4_request", date_stamp, self.region);
+        let string_to_sign = format!(
+            "AWS4-HMAC-SHA256\n{}\n{}\n{}",
+            amz_date,
+            scope,
+            hex::encode(Sha256::digest(canonical_request.as_bytes()))
+        );
+
+        log::debug!("Scope: {}", scope);
+        log::debug!("String to sign:\n{}", string_to_sign);
+
+        let signing_key = self.get_signature_key(&date_stamp)?;
+        let mut mac = Hmac::<Sha256>::new_from_slice(&signing_key)?;
+        mac.update(string_to_sign.as_bytes());
+        let signature = hex::encode(mac.finalize().into_bytes());
+
+        log::debug!("Generated signature: {}", signature);
+
+        let auth_header = format!(
+            "AWS4-HMAC-SHA256 Credential={}/{}, SignedHeaders={}, Signature={}",
+            self.access_key, scope, signed_headers, signature
+        );
+
+        // 5) Send request: Content-Type included but NOT signed
+        let response = self
+            .client
+            .put(&url)
+            .header("x-amz-date", &amz_date)
+            .header("x-amz-content-sha256", &payload_hash)
+            .header("Authorization", &auth_header)
+            .header("Content-Type", content_type)
+            // Don't set Host header manually - let reqwest handle it
+            // Add headers for reverse proxy support (not signed)
+            .header("X-Forwarded-Proto", "https")
+            .header("X-Forwarded-Host", host)
+            .body(file_data.to_vec())
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_body = response.text().await?;
+            bail!(
+                "Gagal mengunggah file ke MinIO. Status: {}. Pesan: {}",
+                status,
+                error_body
+            );
+        }
+
+        log::info!("Unggahan berhasil: {} byte ke {}", file_data.len(), unique_filename);
+        Ok(unique_filename)
     }
 
     /// Mengunggah file biner ke MinIO.
@@ -261,6 +367,81 @@ impl MinioService {
         );
 
         Ok(url)
+    }
+
+    /// Mengecek apakah file dengan hash tertentu sudah ada di bucket
+    pub async fn check_file_exists_by_hash(&self, folder: &str, file_hash: &str) -> Result<Option<String>> {
+        // Extract host from endpoint (remove protocol)
+        let host = self.endpoint
+            .trim_start_matches("https://")
+            .trim_start_matches("http://");
+            
+        let url = format!("https://{}/{}?list-type=2&prefix={}", host, self.bucket_name, folder);
+
+        let now = Utc::now();
+        let amz_date = now.format("%Y%m%dT%H%M%SZ").to_string();
+        let date_stamp = now.format("%Y%m%d").to_string();
+        let payload_hash = hex::encode(Sha256::digest(b""));
+
+        let canonical_query_string = format!("list-type=2&prefix={}", urlencoding::encode(folder));
+        let canonical_headers = format!("host:{}\nx-amz-content-sha256:{}\nx-amz-date:{}\n", host, payload_hash, amz_date);
+        let signed_headers = "host;x-amz-content-sha256;x-amz-date";
+        let canonical_request = format!(
+            "GET\n/{}\n{}\n{}\n{}\n{}",
+            self.bucket_name, canonical_query_string, canonical_headers, signed_headers, payload_hash
+        );
+
+        let scope = format!("{}/{}/s3/aws4_request", date_stamp, self.region);
+        let string_to_sign = format!(
+            "AWS4-HMAC-SHA256\n{}\n{}\n{}",
+            amz_date,
+            scope,
+            hex::encode(Sha256::digest(canonical_request.as_bytes()))
+        );
+
+        let signing_key = self.get_signature_key(&date_stamp)?;
+        let mut mac = Hmac::<Sha256>::new_from_slice(&signing_key)?;
+        mac.update(string_to_sign.as_bytes());
+        let signature = hex::encode(mac.finalize().into_bytes());
+
+        let auth_header = format!(
+            "AWS4-HMAC-SHA256 Credential={}/{}, SignedHeaders={}, Signature={}",
+            self.access_key, scope, signed_headers, signature
+        );
+
+        let response = self
+            .client
+            .get(&url)
+            .header("x-amz-date", &amz_date)
+            .header("x-amz-content-sha256", &payload_hash)
+            .header("Authorization", &auth_header)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Ok(None);
+        }
+
+        let body = response.text().await?;
+        
+        // Simple XML parsing to find files with matching hash
+        // Look for any file that contains the hash in its name
+        if body.contains(file_hash) {
+            // Extract the full file path from XML response
+            // This is a simplified approach - in production you might want proper XML parsing
+            for line in body.lines() {
+                if line.contains("<Key>") && line.contains(file_hash) {
+                    if let Some(start) = line.find("<Key>") {
+                        if let Some(end) = line.find("</Key>") {
+                            let file_path = &line[start + 5..end];
+                            return Ok(Some(file_path.to_string()));
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(None)
     }
     
     /// Menghapus file dari MinIO.

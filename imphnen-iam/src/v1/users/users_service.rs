@@ -532,8 +532,8 @@ impl UsersServiceTrait for UsersService {
         
         let folder = format!("{}/{}", file_type.as_folder(), sanitized_user_id);
 
-        // Upload file to MinIO
-        match minio_service.upload_file(&file_data, &content_type, &folder, &filename).await {
+        // Upload file to MinIO with deduplication
+        match minio_service.upload_file_with_deduplication(&file_data, &content_type, &folder, &filename).await {
             Ok(object_path) => {
                 // Create permanent URL (no expiration)
                 let permanent_url = format!("https://cdn.asepharyana.tech/{}/{}", 
