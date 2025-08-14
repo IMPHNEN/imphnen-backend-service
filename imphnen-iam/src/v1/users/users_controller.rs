@@ -82,7 +82,7 @@ pub async fn get_user_by_id(
 	match permissions_guard(
 		&headers,
 		state.clone(),
-		vec![PermissionsEnum::ReadListUsers],
+		vec![PermissionsEnum::ReadDetailUsers],
 	)
 	.await
 	{

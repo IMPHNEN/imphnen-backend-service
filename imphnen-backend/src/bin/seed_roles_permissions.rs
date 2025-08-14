@@ -74,6 +74,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			vec![
 				PermissionsEnum::ReadListGachaItems,
 				PermissionsEnum::ReadDetailGachaItems,
+				PermissionsEnum::ReadListUsers,
+				PermissionsEnum::ReadDetailUsers,,
 				PermissionsEnum::CreateGachaClaims,
 				PermissionsEnum::ReadDetailGachaClaims,
 				PermissionsEnum::ReadDetailGachaRolls,

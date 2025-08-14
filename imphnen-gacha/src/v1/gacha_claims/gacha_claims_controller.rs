@@ -27,7 +27,7 @@ pub async fn get_detail_gacha_claim(
 	match permissions_guard(
 		&headers,
 		state.clone(),
-		vec![PermissionsEnum::CreateGachaClaims],
+		vec![PermissionsEnum::ReadDetailGachaClaims],
 	)
 	.await
 	{
