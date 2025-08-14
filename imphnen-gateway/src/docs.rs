@@ -53,6 +53,7 @@ use utoipa::{
      users::users_controller::get_user_by_id,
      users::users_controller::get_user_me,
      users::users_controller::get_user_list,
+     users::users_controller::upload_file,
      roles::roles_controller::get_role_list,
      roles::roles_controller::get_role_by_id,
      roles::roles_controller::post_create_role,
