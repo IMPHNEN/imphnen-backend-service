@@ -15,6 +15,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	db.use_ns(env.surrealdb_namespace.clone())
 		.use_db(env.surrealdb_dbname.clone())
 		.await?;
+    db.query("DEFINE INDEX user_email_index ON TABLE users COLUMNS email UNIQUE;")
+        .await?;
+    println!("✅ Index 'user_email_index' defined on table 'users' for column 'email'.");
 
 	let roles_permissions = vec![
 		(
@@ -75,7 +78,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 				PermissionsEnum::ReadListGachaItems,
 				PermissionsEnum::ReadDetailGachaItems,
 				PermissionsEnum::ReadListUsers,
-				PermissionsEnum::ReadDetailUsers,,
+				PermissionsEnum::ReadDetailUsers,
 				PermissionsEnum::CreateGachaClaims,
 				PermissionsEnum::ReadDetailGachaClaims,
 				PermissionsEnum::ReadDetailGachaRolls,

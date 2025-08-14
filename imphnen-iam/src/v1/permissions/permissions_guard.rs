@@ -1,49 +1,41 @@
 use super::PermissionsEnum;
-use crate::{AppState, AuthRepository, common_response, extract_email, extract_email_async, UsersDetailQueryDto};
+use crate::{AppState, common_response, decode_access_token, UsersDetailQueryDto, UsersRepository};
 use axum::{
 	http::{HeaderMap, StatusCode},
-	response::Response,
+	response::Response, Extension,
 };
+use axum_extra::headers::{authorization::Bearer, Authorization, HeaderMapExt};
+use imphnen_utils::make_thing;
 
 pub async fn permissions_guard(
-	headers: &HeaderMap,
-	state: AppState,
+	headers: HeaderMap,
+	Extension(state): Extension<AppState>,
 	required_permissions: Vec<PermissionsEnum>,
-) -> Result<UsersDetailQueryDto, Response> {
-	let auth_repo = AuthRepository::new(&state);
-	
-	// Try synchronous email extraction first (for internal JWT tokens)
-	let email = match extract_email(headers) {
-		Some(email) => email,
-		None => {
-			// If sync extraction fails, try async (for Google tokens)
-			match extract_email_async(headers).await {
-				Some(email) => email,
-				None => {
-					return Err(common_response(
-						StatusCode::UNAUTHORIZED,
-						"Invalid or missing authorization token",
-					));
-				}
-			}
-		}
-	};
-	
-	let raw_user = auth_repo
-		.query_get_stored_user(email.clone())
-		.await
+) -> Result<(UsersDetailQueryDto, AppState), Response> {
+	let auth_header = headers
+		.typed_get::<Authorization<Bearer>>()
+		.ok_or_else(|| {
+			common_response(
+				StatusCode::UNAUTHORIZED,
+				"Invalid or missing authorization token",
+			)
+		})?;
+
+	let token = auth_header.token();
+
+	let claims = decode_access_token(token)
 		.map_err(|_| {
 			common_response(
 				StatusCode::UNAUTHORIZED,
-				"User session expired or not found",
+				"Invalid or expired token",
 			)
-		})?;
-	let role_permissions: Vec<String> =
-		raw_user.role.permissions.iter().map(|perm| perm.name.clone()).collect();
+		})?
+		.claims;
 
+	// Use permissions from JWT for the check
 	for required in &required_permissions {
 		let required_str = required.to_string();
-		if !role_permissions.contains(&required_str) {
+		if !claims.permissions.contains(&required_str) {
 			eprintln!("  MISSING REQUIRED PERMISSION: {required_str}");
 			return Err(common_response(
 				StatusCode::FORBIDDEN,
@@ -51,5 +43,18 @@ pub async fn permissions_guard(
 			));
 		}
 	}
-	Ok(raw_user)
+
+	// Fetch full user details from the database using user_id from JWT
+	let user_repo = UsersRepository::new(&state);
+	let user_id_thing = make_thing("app_users", &claims.user_id);
+	let raw_user = user_repo.query_user_by_id(&user_id_thing)
+		.await
+		.map_err(|_| {
+			common_response(
+				StatusCode::INTERNAL_SERVER_ERROR, // Changed to internal server error as user ID should be valid from JWT
+				"Failed to retrieve user details",
+			)
+		})?;
+	
+	Ok((raw_user, state))
 }

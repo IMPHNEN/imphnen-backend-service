@@ -31,6 +31,7 @@ log.workspace = true
 once_cell.workspace = true
 tracing.workspace = true
 uuid.workspace = true
+axum-extra.workspace = true
 
 [dev-dependencies]
 dotenvy.workspace = true

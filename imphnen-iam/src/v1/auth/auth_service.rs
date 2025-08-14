@@ -9,7 +9,7 @@ use crate::{
 	decode_refresh_token, encode_access_token, encode_refresh_token,
 	encode_reset_password_token, extract_email_token, generate_otp, get_iso_date,
 	hash_password, make_thing, send_email, success_response, validate_request,
-	verify_password,
+	verify_password, surrealdb_init_ws, surrealdb_init_mem,
 };
 use axum::{http::StatusCode, response::Response};
 use surrealdb::Uuid;
@@ -87,7 +87,8 @@ impl AuthServiceTrait for AuthService {
 					);
 				}
 
-				let access_token = match encode_access_token(payload.email.clone()) {
+				let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
+let access_token = match encode_access_token(payload.email.clone(), user.id.id.to_raw(), permissions) {
 					Ok(token) => token,
 					Err(_e) => {
 						error!(
@@ -101,7 +102,8 @@ impl AuthServiceTrait for AuthService {
 					}
 				};
 
-				let refresh_token = match encode_refresh_token(payload.email.clone()) {
+				let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
+let refresh_token = match encode_refresh_token(payload.email.clone(), user.id.id.to_raw(), permissions) {
 					Ok(token) => token,
 					Err(_e) => {
 						error!(
@@ -182,7 +184,8 @@ impl AuthServiceTrait for AuthService {
 					);
 				}
 
-				let access_token = match encode_access_token(payload.email.clone()) {
+				let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
+let access_token = match encode_access_token(payload.email.clone(), user.id.id.to_raw(), permissions) {
 					Ok(token) => token,
 					Err(_e) => {
 						error!(
@@ -196,7 +199,8 @@ impl AuthServiceTrait for AuthService {
 					}
 				};
 
-				let refresh_token = match encode_refresh_token(payload.email.clone()) {
+				let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
+let refresh_token = match encode_refresh_token(payload.email.clone(), user.id.id.to_raw(), permissions) {
 					Ok(token) => token,
 					Err(_e) => {
 						error!(
@@ -374,32 +378,54 @@ impl AuthServiceTrait for AuthService {
 		}
 	}
 
-	async fn mutation_refresh_token(
-		payload: AuthRefreshTokenRequestDto,
-	) -> Response {
+	async fn mutation_refresh_token(payload: AuthRefreshTokenRequestDto) -> Response {
 		if let Err((status, message)) = validate_request(&payload) {
 			return common_response(status, &message);
 		}
-		let email = match decode_refresh_token(&payload.refresh_token) {
-			Ok(token) => token.claims.sub,
+		
+		let surrealdb_ws = match surrealdb_init_ws().await {
+	           Ok(db) => db,
+	           Err(e) => {
+	               error!("Failed to initialize websocket database: {}", e);
+	               return common_response(StatusCode::INTERNAL_SERVER_ERROR, "Database initialization error");
+	           }
+	       };
+	       let surrealdb_mem = match surrealdb_init_mem().await {
+	           Ok(db) => db,
+	           Err(e) => {
+	               error!("Failed to initialize memory database: {}", e);
+	               return common_response(StatusCode::INTERNAL_SERVER_ERROR, "Database initialization error");
+	           }
+	       };
+		let state = AppState { surrealdb_ws, surrealdb_mem };
+		let user_repo = UsersRepository::new(&state);
+		let user = match decode_refresh_token(&payload.refresh_token) {
+			Ok(token_data) => {
+				match user_repo.query_user_by_email(token_data.claims.sub.clone()).await {
+					Ok(user) => user,
+					Err(_) => return common_response(StatusCode::UNAUTHORIZED, "User not found"),
+				}
+			},
 			Err(_e) => {
 				return common_response(StatusCode::UNAUTHORIZED, "Invalid refresh token");
 			}
 		};
-		let access_token = match encode_access_token(email.clone()) {
+
+		let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
+		let access_token = match encode_access_token(user.email.clone(), user.id.id.to_raw(), permissions.clone()) {
 			Ok(token) => token,
 			Err(_e) => {
-				error!("Failed to generate access token for {}: {}", email, _e);
+				error!("Failed to generate access token for {}: {}", user.email, _e);
 				return common_response(
 					StatusCode::INTERNAL_SERVER_ERROR,
 					"Failed to generate access token",
 				);
 			}
 		};
-		let refresh_token = match encode_refresh_token(email.clone()) {
+		let refresh_token = match encode_refresh_token(user.email.clone(), user.id.id.to_raw(), permissions) {
 			Ok(token) => token,
 			Err(_e) => {
-				error!("Failed to generate refresh token for {}: {}", email, _e);
+				error!("Failed to generate refresh token for {}: {}", user.email, _e);
 				return common_response(
 					StatusCode::INTERNAL_SERVER_ERROR,
 					"Failed to generate refresh token",
@@ -440,7 +466,8 @@ impl AuthServiceTrait for AuthService {
 				);
 			}
 		};
-		let token = match encode_reset_password_token(user.email.clone()) {
+		let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
+let token = match encode_reset_password_token(user.email.clone(), user.id.id.to_raw(), permissions) {
 			Ok(token) => token,
 			Err(_e) => {
 				error!(
@@ -525,32 +552,31 @@ impl AuthServiceTrait for AuthService {
 			return common_response(status, &message);
 		}
 		let repo = UsersRepository::new(state);
+		let user_repo = UsersRepository::new(state);
 		let email = match extract_email_token(payload.token.clone()) {
-			Some(token) => token,
+			Some(email) => email,
 			None => {
 				return common_response(StatusCode::BAD_REQUEST, "Invalid or missing token");
 			}
 		};
+		let user = match user_repo.query_user_by_email(email).await {
+			Ok(user) => user,
+			Err(_) => return common_response(StatusCode::BAD_REQUEST, "User not found"),
+		};
 		let password = match hash_password(&payload.password) {
 			Ok(p) => p,
 			Err(_e) => {
-				error!("Failed to hash new password for {}: {}", email, _e);
+				error!("Failed to hash new password for {}: {}", user.email, _e);
 				return common_response(
 					StatusCode::INTERNAL_SERVER_ERROR,
 					"Failed to hash password",
 				);
 			}
 		};
-		let user = match repo.query_user_by_email(email.clone()).await {
-			Ok(user) if !user.is_deleted => user,
-			_ => {
-				return common_response(StatusCode::NOT_FOUND, "User not found");
-			}
-		};
 		let patch = UsersSchema {
 			id: user.id.clone(),
 			password,
-			..Default::default()
+			..UsersSchema::from(user.clone())
 		};
 		match repo.query_update_user(patch).await {
 			Ok(msg) => common_response(StatusCode::OK, &msg),

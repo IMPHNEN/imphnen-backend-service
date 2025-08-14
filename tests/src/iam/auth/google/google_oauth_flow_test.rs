@@ -108,8 +108,8 @@ mod tests {
         let mut mock_users_service = UsersServiceMock::new(); // Changed from MockUsersServiceMock to UsersServiceMock
 
         let user_email = "new.user@example.com".to_string();
-        let expected_access_token = generate_jwt("test_user_id").unwrap();
-        let expected_refresh_token = generate_jwt("test_user_id").unwrap();
+        let expected_access_token = generate_jwt(&user_email, "test_user_id", vec![]).unwrap();
+        let expected_refresh_token = generate_jwt(&user_email, "test_user_id", vec![]).unwrap();
 
         let expected_response_dto = AuthLoginResponsetDto {
             token: TokenDto {
@@ -195,8 +195,8 @@ mod tests {
         let mut mock_users_service = UsersServiceMock::new(); // Changed from MockUsersServiceMock to UsersServiceMock
 
         let user_email = "existing.user@example.com".to_string();
-        let expected_access_token = generate_jwt("existing_user_id").unwrap();
-        let expected_refresh_token = generate_jwt("existing_user_id").unwrap();
+        let expected_access_token = generate_jwt(&user_email, "existing_user_id", vec![]).unwrap();
+        let expected_refresh_token = generate_jwt(&user_email, "existing_user_id", vec![]).unwrap();
 
         let existing_user_dto = UsersDetailItemDto { // Changed from UserDto to UsersDetailItemDto
             id: "existing_user_id".to_string(),

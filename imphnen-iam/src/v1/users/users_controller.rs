@@ -49,30 +49,30 @@ pub async fn get_user_list(
 	axum::extract::Query(meta): axum::extract::Query<MetaRequestDto>,
 ) -> impl IntoResponse {
 	match permissions_guard(
-		&headers,
-		state.clone(),
+		headers,
+		Extension(state),
 		vec![PermissionsEnum::ReadListUsers],
 	)
 	.await
 	{
-		Ok(_) => UsersService::get_user_list(&state, meta).await,
+		Ok((_user, state)) => UsersService::get_user_list(&state, meta).await,
 		Err(response) => response,
 	}
 }
 
 #[utoipa::path(
-	get,
-	security(
-        ("Bearer" = [])
-    ),
-	path = "/v1/users/detail/{id}",
-	params(
-		("id" = String, Path, description = "User ID")
-	),
-	responses(
-		(status = 200, description = "Get user by ID", body = ResponseSuccessDto<UsersDetailItemDto>)
-	),
-	tag = "Users"
+get,
+security(
+       ("Bearer" = [])
+   ),
+path = "/v1/users/detail/{id}",
+params(
+	("id" = String, Path, description = "User ID")
+),
+responses(
+	(status = 200, description = "Get user by ID", body = ResponseSuccessDto<UsersDetailItemDto>)
+),
+tag = "Users"
 )]
 pub async fn get_user_by_id(
 	headers: HeaderMap,
@@ -80,34 +80,34 @@ pub async fn get_user_by_id(
 	Path(id): Path<String>,
 ) -> impl IntoResponse {
 	match permissions_guard(
-		&headers,
-		state.clone(),
+		headers,
+		Extension(state),
 		vec![PermissionsEnum::ReadDetailUsers],
 	)
 	.await
 	{
-		Ok(_) => UsersService::get_user_by_id(&state, id).await,
+		Ok((_user, state)) => UsersService::get_user_by_id(&state, id).await,
 		Err(response) => response,
 	}
 }
 
 #[utoipa::path(
-	get,
-	security(
-        ("Bearer" = [])
-    ),
-	path = "/v1/users/me",
-	responses(
-		(status = 200, description = "Get user by ID", body = ResponseSuccessDto<UsersDetailItemDto>)
-	),
-	tag = "Users"
+get,
+security(
+       ("Bearer" = [])
+   ),
+path = "/v1/users/me",
+responses(
+	(status = 200, description = "Get user by ID", body = ResponseSuccessDto<UsersDetailItemDto>)
+),
+tag = "Users"
 )]
 pub async fn get_user_me(
-	Extension(state): Extension<AppState>,
 	headers: HeaderMap,
+	Extension(state): Extension<AppState>,
 ) -> impl IntoResponse {
-	match permissions_guard(&headers, state.clone(), vec![]).await {
-		Ok(_) => UsersService::get_user_me(headers, &state).await,
+	match permissions_guard(headers, Extension(state), vec![]).await {
+		Ok((user, state)) => UsersService::get_user_me(user, &state).await,
 		Err(response) => response,
 	}
 }
@@ -130,13 +130,13 @@ pub async fn post_create_user(
 	Json(payload): Json<UsersCreateRequestDto>,
 ) -> impl IntoResponse {
 	match permissions_guard(
-		&headers,
-		state.clone(),
+		headers,
+		Extension(state),
 		vec![PermissionsEnum::CreateUsers],
 	)
 	.await
 	{
-		Ok(_) => UsersService::create_user(&state, payload).await,
+		Ok((_user, state)) => UsersService::create_user(&state, payload).await,
 		Err(response) => response,
 	}
 }
@@ -163,13 +163,13 @@ pub async fn put_update_user(
 	Json(payload): Json<UsersUpdateRequestDto>,
 ) -> impl IntoResponse {
 	match permissions_guard(
-		&headers,
-		state.clone(),
+		headers,
+		Extension(state),
 		vec![PermissionsEnum::UpdateUsers],
 	)
 	.await
 	{
-		Ok(_) => UsersService::update_user(&state, id, payload).await,
+		Ok((_user, state)) => UsersService::update_user(&state, id, payload).await,
 		Err(response) => response,
 	}
 }
@@ -191,8 +191,8 @@ pub async fn put_update_user_me(
 	Extension(state): Extension<AppState>,
 	Json(payload): Json<UsersUpdateRequestDto>,
 ) -> impl IntoResponse {
-	match permissions_guard(&headers, state.clone(), vec![]).await {
-		Ok(_) => UsersService::update_user_me(headers, &state, payload).await,
+	match permissions_guard(headers.clone(), Extension(state), vec![]).await {
+		Ok((_user, state)) => UsersService::update_user_me(headers, &state, payload).await,
 		Err(response) => response,
 	}
 }
@@ -219,13 +219,13 @@ pub async fn patch_user_active_status(
 	Json(payload): Json<UsersActiveInactiveRequestDto>,
 ) -> impl IntoResponse {
 	match permissions_guard(
-		&headers,
-		state.clone(),
+		headers,
+		Extension(state),
 		vec![PermissionsEnum::ActivateUsers],
 	)
 	.await
 	{
-		Ok(_) => UsersService::set_user_active_status(&state, id, payload).await,
+		Ok((_user, state)) => UsersService::set_user_active_status(&state, id, payload).await,
 		Err(response) => response,
 	}
 }
@@ -247,13 +247,13 @@ pub async fn delete_user(
 	Path(id): Path<String>,
 ) -> impl IntoResponse {
 	match permissions_guard(
-		&headers,
-		state.clone(),
+		headers,
+		Extension(state),
 		vec![PermissionsEnum::DeleteUsers],
 	)
 	.await
 	{
-		Ok(_) => UsersService::delete_user(&state, id).await,
+		Ok((_user, state)) => UsersService::delete_user(&state, id).await,
 		Err(response) => response,
 	}
 }
@@ -284,15 +284,15 @@ pub async fn upload_file(
 ) -> impl IntoResponse {
 	// Check authentication first
 	match permissions_guard(
-		&headers,
-		state.clone(),
+		headers,
+		Extension(state),
 		vec![], // No specific permission needed, just authentication
 	)
 	.await
 	{
-		Ok(user) => {
+		Ok((user, state)) => {
 			// Extract user ID from user data
-			let user_id = user.id.to_string();
+			let user_id = user.id.id.to_string(); // Use user.id.id to get the actual ID
 			
 			// Process upload - don't use match here since it returns Response directly
 			UsersService::upload_file(&state, user_id, multipart).await

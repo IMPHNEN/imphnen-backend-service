@@ -25,13 +25,13 @@ pub async fn get_detail_gacha_claim(
 	Path(id): Path<String>,
 ) -> impl IntoResponse {
 	match permissions_guard(
-		&headers,
-		state.clone(),
+		headers,
+		Extension(state),
 		vec![PermissionsEnum::ReadDetailGachaClaims],
 	)
 	.await
 	{
-		Ok(_) => GachaClaimService::get_gacha_claim_by_id(&state, id).await,
+		Ok((_user, state)) => GachaClaimService::get_gacha_claim_by_id(&state, id).await,
 		Err(response) => response,
 	}
 }
@@ -54,13 +54,13 @@ pub async fn post_create_gacha_claim(
 	Json(payload): Json<GachaClaimRequestDto>,
 ) -> impl IntoResponse {
 	match permissions_guard(
-		&headers,
-		state.clone(),
+		headers,
+		Extension(state),
 		vec![PermissionsEnum::CreateGachaClaims],
 	)
 	.await
 	{
-		Ok(_) => GachaClaimService::create_gacha_claim(&state, payload).await,
+		Ok((_user, state)) => GachaClaimService::create_gacha_claim(&state, payload).await,
 		Err(response) => response,
 	}
 }

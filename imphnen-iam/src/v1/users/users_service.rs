@@ -7,7 +7,7 @@ use crate::{
 };
 use crate::{
 	ResponseSuccessDto, common_response, extract_email, extract_email_async, success_list_response,
-	success_response, validate_request,
+	success_response, validate_request, UsersDetailQueryDto,
 };
 use axum::http::HeaderMap;
 use axum::{http::StatusCode, response::Response, extract::Multipart};
@@ -24,7 +24,7 @@ use serde_json::json;
 pub trait UsersServiceTrait: Send + Sync + 'static {
     async fn get_user_list(state: &AppState, meta: MetaRequestDto) -> Response;
     async fn get_user_by_id(state: &AppState, id: String) -> Response;
-    async fn get_user_me(headers: HeaderMap, state: &AppState) -> Response;
+    async fn get_user_me(user: UsersDetailQueryDto, state: &AppState) -> Response;
     async fn create_user(state: &AppState, new_user: UsersCreateRequestDto) -> Response;
     async fn update_user(state: &AppState, id: String, user: UsersUpdateRequestDto) -> Response;
     async fn update_user_me(headers: HeaderMap, state: &AppState, user: UsersUpdateRequestDto) -> Response;
@@ -76,28 +76,11 @@ impl UsersServiceTrait for UsersService {
 		}
 	}
 
-	async fn get_user_me(headers: HeaderMap, state: &AppState) -> Response {
-		let repo = UsersRepository::new(state);
-		
-		// Try synchronous email extraction first (for internal JWT tokens)
-		let email = match extract_email(&headers) {
-			Some(email) => email,
-			None => {
-				// If sync extraction fails, try async (for Google tokens)
-				match extract_email_async(&headers).await {
-					Some(email) => email,
-					None => return common_response(StatusCode::UNAUTHORIZED, "Invalid token"),
-				}
-			}
-		};
-		
-		match repo.query_user_by_email(email).await {
-			Ok(user) if !user.is_deleted => success_response(ResponseSuccessDto {
-				data: UserDto::from(&user), // Corrected to use UserDto::from by reference
-			}),
-			Ok(_) => common_response(StatusCode::NOT_FOUND, "User not found"),
-			Err(e) => common_response(StatusCode::NOT_FOUND, &e.to_string()),
-		}
+	async fn get_user_me(user: UsersDetailQueryDto, _state: &AppState) -> Response {
+		// User data is already provided by the permissions_guard
+		success_response(ResponseSuccessDto {
+			data: UserDto::from(&user),
+		})
 	}
 
 	async fn create_user(
