@@ -47,7 +47,7 @@ pub async fn get_permission_list(
 	)
 	.await
 	{
-		Ok((_user, state)) => PermissionsService::get_permission_list(&state, meta).await,
+		Ok((_claims, state)) => PermissionsService::get_permission_list(&state, meta).await,
 		Err(response) => response,
 	}
 }
@@ -76,7 +76,7 @@ pub async fn get_permission_by_id(
 	)
 	.await
 	{
-		Ok((_user, state)) => PermissionsService::get_permission_by_id(&state, id).await,
+		Ok((_claims, state)) => PermissionsService::get_permission_by_id(&state, id).await,
 		Err(response) => response,
 	}
 }
@@ -105,7 +105,7 @@ pub async fn post_create_permission(
 	)
 	.await
 	{
-		Ok((_user, state)) => PermissionsService::create_role(&state, payload).await,
+		Ok((_claims, state)) => PermissionsService::create_role(&state, payload).await,
 		Err(response) => response,
 	}
 }
@@ -135,7 +135,7 @@ pub async fn put_update_permission(
 	)
 	.await
 	{
-		Ok((_user, state)) => PermissionsService::update_permission(&state, payload, id).await,
+		Ok((_claims, state)) => PermissionsService::update_permission(&state, payload, id).await,
 		Err(response) => response,
 	}
 }
@@ -163,7 +163,7 @@ pub async fn delete_permission(
 	)
 	.await
 	{
-		Ok((_user, state)) => PermissionsService::delete_permission(&state, id).await,
+		Ok((_claims, state)) => PermissionsService::delete_permission(&state, id).await,
 		Err(response) => response,
 	}
 }

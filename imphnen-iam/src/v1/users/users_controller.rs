@@ -55,7 +55,7 @@ pub async fn get_user_list(
 	)
 	.await
 	{
-		Ok((_user, state)) => UsersService::get_user_list(&state, meta).await,
+		Ok((_claims, state)) => UsersService::get_user_list(&state, meta).await,
 		Err(response) => response,
 	}
 }
@@ -86,7 +86,7 @@ pub async fn get_user_by_id(
 	)
 	.await
 	{
-		Ok((_user, state)) => UsersService::get_user_by_id(&state, id).await,
+		Ok((_claims, state)) => UsersService::get_user_by_id(&state, id).await,
 		Err(response) => response,
 	}
 }
@@ -107,7 +107,7 @@ pub async fn get_user_me(
 	Extension(state): Extension<AppState>,
 ) -> impl IntoResponse {
 	match permissions_guard(headers, Extension(state), vec![]).await {
-		Ok((user, state)) => UsersService::get_user_me(user, &state).await,
+		Ok((claims, state)) => UsersService::get_user_me(claims, &state).await,
 		Err(response) => response,
 	}
 }
@@ -136,7 +136,7 @@ pub async fn post_create_user(
 	)
 	.await
 	{
-		Ok((_user, state)) => UsersService::create_user(&state, payload).await,
+		Ok((_claims, state)) => UsersService::create_user(&state, payload).await,
 		Err(response) => response,
 	}
 }
@@ -169,7 +169,7 @@ pub async fn put_update_user(
 	)
 	.await
 	{
-		Ok((_user, state)) => UsersService::update_user(&state, id, payload).await,
+		Ok((_claims, state)) => UsersService::update_user(&state, id, payload).await,
 		Err(response) => response,
 	}
 }
@@ -192,7 +192,7 @@ pub async fn put_update_user_me(
 	Json(payload): Json<UsersUpdateRequestDto>,
 ) -> impl IntoResponse {
 	match permissions_guard(headers.clone(), Extension(state), vec![]).await {
-		Ok((_user, state)) => UsersService::update_user_me(headers, &state, payload).await,
+		Ok((claims, state)) => UsersService::update_user_me(claims, &state, payload).await,
 		Err(response) => response,
 	}
 }
@@ -225,7 +225,7 @@ pub async fn patch_user_active_status(
 	)
 	.await
 	{
-		Ok((_user, state)) => UsersService::set_user_active_status(&state, id, payload).await,
+		Ok((_claims, state)) => UsersService::set_user_active_status(&state, id, payload).await,
 		Err(response) => response,
 	}
 }
@@ -253,7 +253,7 @@ pub async fn delete_user(
 	)
 	.await
 	{
-		Ok((_user, state)) => UsersService::delete_user(&state, id).await,
+		Ok((_claims, state)) => UsersService::delete_user(&state, id).await,
 		Err(response) => response,
 	}
 }
@@ -290,9 +290,9 @@ pub async fn upload_file(
 	)
 	.await
 	{
-		Ok((user, state)) => {
+		Ok((claims, state)) => {
 			// Extract user ID from user data
-			let user_id = user.id.id.to_string(); // Use user.id.id to get the actual ID
+			let user_id = claims.user_id.clone(); // Use claims.user_id directly
 			
 			// Process upload - don't use match here since it returns Response directly
 			UsersService::upload_file(&state, user_id, multipart).await

@@ -1,17 +1,17 @@
 use super::PermissionsEnum;
-use crate::{AppState, common_response, decode_access_token, UsersDetailQueryDto, UsersRepository};
+use crate::{AppState, common_response, decode_access_token};
 use axum::{
 	http::{HeaderMap, StatusCode},
 	response::Response, Extension,
 };
 use axum_extra::headers::{authorization::Bearer, Authorization, HeaderMapExt};
-use imphnen_utils::make_thing;
+// Removed imphnen_utils::make_thing as it's no longer needed here
 
 pub async fn permissions_guard(
 	headers: HeaderMap,
 	Extension(state): Extension<AppState>,
 	required_permissions: Vec<PermissionsEnum>,
-) -> Result<(UsersDetailQueryDto, AppState), Response> {
+) -> Result<(imphnen_libs::jsonwebtoken::Claims, AppState), Response> {
 	let auth_header = headers
 		.typed_get::<Authorization<Bearer>>()
 		.ok_or_else(|| {
@@ -44,17 +44,5 @@ pub async fn permissions_guard(
 		}
 	}
 
-	// Fetch full user details from the database using user_id from JWT
-	let user_repo = UsersRepository::new(&state);
-	let user_id_thing = make_thing("app_users", &claims.user_id);
-	let raw_user = user_repo.query_user_by_id(&user_id_thing)
-		.await
-		.map_err(|_| {
-			common_response(
-				StatusCode::INTERNAL_SERVER_ERROR, // Changed to internal server error as user ID should be valid from JWT
-				"Failed to retrieve user details",
-			)
-		})?;
-	
-	Ok((raw_user, state))
+	Ok((claims, state))
 }

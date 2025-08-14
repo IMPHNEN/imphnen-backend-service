@@ -9,7 +9,7 @@ use crate::{
 	decode_refresh_token, encode_access_token, encode_refresh_token,
 	encode_reset_password_token, extract_email_token, generate_otp, get_iso_date,
 	hash_password, make_thing, send_email, success_response, validate_request,
-	verify_password, surrealdb_init_ws, surrealdb_init_mem,
+	verify_password,
 };
 use axum::{http::StatusCode, response::Response};
 use surrealdb::Uuid;
@@ -37,6 +37,7 @@ pub trait AuthServiceTrait: Send + Sync + 'static {
     ) -> Response;
     async fn mutation_refresh_token(
         payload: AuthRefreshTokenRequestDto,
+        state: &AppState,
     ) -> Response;
     async fn mutation_forgot_password(
         payload: AuthResendOtpRequestDto,
@@ -88,7 +89,7 @@ impl AuthServiceTrait for AuthService {
 				}
 
 				let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
-let access_token = match encode_access_token(payload.email.clone(), user.id.id.to_raw(), permissions) {
+let access_token = match encode_access_token(payload.email.clone(), user.id.id.to_raw(), permissions.clone()) {
 					Ok(token) => token,
 					Err(_e) => {
 						error!(
@@ -185,7 +186,7 @@ let refresh_token = match encode_refresh_token(payload.email.clone(), user.id.id
 				}
 
 				let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
-let access_token = match encode_access_token(payload.email.clone(), user.id.id.to_raw(), permissions) {
+let access_token = match encode_access_token(payload.email.clone(), user.id.id.to_raw(), permissions.clone()) {
 					Ok(token) => token,
 					Err(_e) => {
 						error!(
@@ -328,7 +329,7 @@ let refresh_token = match encode_refresh_token(payload.email.clone(), user.id.id
 				created_at: get_iso_date(),
 				updated_at: get_iso_date(),
 				role: role_thing,
-				is_active: true,
+				is_active: false,
 				..Default::default()
 			})
 			.await
@@ -378,27 +379,15 @@ let refresh_token = match encode_refresh_token(payload.email.clone(), user.id.id
 		}
 	}
 
-	async fn mutation_refresh_token(payload: AuthRefreshTokenRequestDto) -> Response {
+	async fn mutation_refresh_token(
+		payload: AuthRefreshTokenRequestDto,
+		state: &AppState,
+	) -> Response {
 		if let Err((status, message)) = validate_request(&payload) {
 			return common_response(status, &message);
 		}
 		
-		let surrealdb_ws = match surrealdb_init_ws().await {
-	           Ok(db) => db,
-	           Err(e) => {
-	               error!("Failed to initialize websocket database: {}", e);
-	               return common_response(StatusCode::INTERNAL_SERVER_ERROR, "Database initialization error");
-	           }
-	       };
-	       let surrealdb_mem = match surrealdb_init_mem().await {
-	           Ok(db) => db,
-	           Err(e) => {
-	               error!("Failed to initialize memory database: {}", e);
-	               return common_response(StatusCode::INTERNAL_SERVER_ERROR, "Database initialization error");
-	           }
-	       };
-		let state = AppState { surrealdb_ws, surrealdb_mem };
-		let user_repo = UsersRepository::new(&state);
+		let user_repo = UsersRepository::new(state);
 		let user = match decode_refresh_token(&payload.refresh_token) {
 			Ok(token_data) => {
 				match user_repo.query_user_by_email(token_data.claims.sub.clone()).await {
@@ -508,37 +497,42 @@ let token = match encode_reset_password_token(user.email.clone(), user.id.id.to_
 		let auth_repo = AuthRepository::new(state);
 		let email = payload.email.clone();
 		let user = match user_repo.query_user_by_email(email.clone()).await {
-			Ok(user) if !user.is_deleted => user,
+			Ok(user) => user,
 			_ => {
 				return common_response(StatusCode::NOT_FOUND, "User not found");
 			}
 		};
+
+		if user.is_active {
+			return common_response(StatusCode::BAD_REQUEST, "User already active");
+		}
+
 		let patch = UsersSchema {
 			id: user.id.clone(),
 			is_active: true,
 			..UsersSchema::from(user.clone())
 		};
+
 		match auth_repo.query_get_stored_otp(email.clone()).await {
-			Ok(stored_otp) => match stored_otp == payload.otp {
-				true => match user_repo.query_update_user(patch).await {
-					Ok(_) => match auth_repo.query_delete_stored_otp(email.clone()).await {
-						Ok(_) => common_response(StatusCode::OK, "Email verified successfully"),
-						Err(e_del) => {
-							error!("Failed to delete OTP for {}: {}", email, e_del);
-							common_response(StatusCode::INTERNAL_SERVER_ERROR, &e_del.to_string())
+			Ok(stored_otp) => {
+				if stored_otp != payload.otp {
+					// Delete OTP even if it doesn't match
+					let _ = auth_repo.query_delete_stored_otp(email.clone()).await;
+					return common_response(StatusCode::BAD_REQUEST, "Failed to verify OTP");
+				}
+
+				match user_repo.query_update_user(patch).await {
+					Ok(_) => {
+						match auth_repo.query_delete_stored_otp(email.clone()).await {
+							Ok(_) => common_response(StatusCode::OK, "Email verified successfully"),
+							Err(e_del) => {
+								error!("Failed to delete OTP for {}: {}", email, e_del);
+								common_response(StatusCode::INTERNAL_SERVER_ERROR, &e_del.to_string())
+							}
 						}
 					},
-					Err(err_update) => {
-						common_response(StatusCode::BAD_REQUEST, &err_update.to_string())
-					}
-				},
-				false => match auth_repo.query_delete_stored_otp(email.clone()).await {
-					Ok(_) => common_response(StatusCode::BAD_REQUEST, "Failed to verify OTP"),
-					Err(e_del_mismatch) => common_response(
-						StatusCode::INTERNAL_SERVER_ERROR,
-						&format!("Failed to delete OTP: {e_del_mismatch}"),
-					),
-				},
+					Err(err_update) => common_response(StatusCode::BAD_REQUEST, &err_update.to_string()),
+				}
 			},
 			Err(err_get) => common_response(StatusCode::BAD_REQUEST, &err_get.to_string()),
 		}

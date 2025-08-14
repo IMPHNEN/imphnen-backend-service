@@ -139,7 +139,8 @@ pub async fn post_new_password(
     tag = "Authentication"
 )]
 pub async fn post_refresh_token(
+	Extension(state): Extension<AppState>,
 	Json(payload): Json<AuthRefreshTokenRequestDto>,
 ) -> impl IntoResponse {
-	AuthService::mutation_refresh_token(payload).await
+	AuthService::mutation_refresh_token(payload, &state).await
 }

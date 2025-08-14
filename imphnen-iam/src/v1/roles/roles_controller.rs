@@ -45,7 +45,7 @@ pub async fn get_role_list(
 	)
 	.await
 	{
-		Ok((_user, state)) => RolesService::get_role_list(&state, meta).await,
+		Ok((_claims, state)) => RolesService::get_role_list(&state, meta).await,
 		Err(response) => response,
 	}
 }
@@ -74,7 +74,7 @@ pub async fn get_role_by_id(
 	)
 	.await
 	{
-		Ok((_user, state)) => RolesService::get_role_by_id(&state, id).await,
+		Ok((_claims, state)) => RolesService::get_role_by_id(&state, id).await,
 		Err(response) => response,
 	}
 }
@@ -103,7 +103,7 @@ pub async fn post_create_role(
 	)
 	.await
 	{
-		Ok((_user, state)) => RolesService::create_role(&state, payload).await,
+		Ok((_claims, state)) => RolesService::create_role(&state, payload).await,
 		Err(response) => response,
 	}
 }
@@ -133,7 +133,7 @@ pub async fn put_update_role(
 	)
 	.await
 	{
-		Ok((_user, state)) => RolesService::update_role(&state, id, payload).await,
+		Ok((_claims, state)) => RolesService::update_role(&state, id, payload).await,
 		Err(response) => response,
 	}
 }
@@ -161,7 +161,7 @@ pub async fn delete_role(
 	)
 	.await
 	{
-		Ok((_user, state)) => RolesService::delete_role(&state, id).await,
+		Ok((_claims, state)) => RolesService::delete_role(&state, id).await,
 		Err(response) => response,
 	}
 }

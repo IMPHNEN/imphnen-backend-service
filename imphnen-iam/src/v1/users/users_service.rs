@@ -6,12 +6,11 @@ use crate::{
 	AppState, MetaRequestDto, ResponseListSuccessDto, UsersRepository, UsersSchema,
 };
 use crate::{
-	ResponseSuccessDto, common_response, extract_email, extract_email_async, success_list_response,
-	success_response, validate_request, UsersDetailQueryDto,
+	ResponseSuccessDto, common_response, success_list_response,
+	success_response, validate_request,
 };
-use axum::http::HeaderMap;
 use axum::{http::StatusCode, response::Response, extract::Multipart};
-use imphnen_libs::{ResourceEnum, hash_password, verify_password, surrealdb_init_ws, surrealdb_init_mem, MinioConfig, FileType, decode_base64_file, extract_content_type_from_data_url, create_minio_service_from_config};
+use imphnen_libs::{ResourceEnum, hash_password, verify_password, MinioConfig, FileType, decode_base64_file, extract_content_type_from_data_url, create_minio_service_from_config};
 use imphnen_utils::make_thing;
 use uuid::Uuid;
 use anyhow::Result;
@@ -24,18 +23,18 @@ use serde_json::json;
 pub trait UsersServiceTrait: Send + Sync + 'static {
     async fn get_user_list(state: &AppState, meta: MetaRequestDto) -> Response;
     async fn get_user_by_id(state: &AppState, id: String) -> Response;
-    async fn get_user_me(user: UsersDetailQueryDto, state: &AppState) -> Response;
+    async fn get_user_me(claims: imphnen_libs::jsonwebtoken::Claims, state: &AppState) -> Response;
     async fn create_user(state: &AppState, new_user: UsersCreateRequestDto) -> Response;
     async fn update_user(state: &AppState, id: String, user: UsersUpdateRequestDto) -> Response;
-    async fn update_user_me(headers: HeaderMap, state: &AppState, user: UsersUpdateRequestDto) -> Response;
+    async fn update_user_me(claims: imphnen_libs::jsonwebtoken::Claims, state: &AppState, user: UsersUpdateRequestDto) -> Response;
     async fn set_user_active_status(state: &AppState, id: String, payload: UsersActiveInactiveRequestDto) -> Response;
     async fn update_user_password(state: &AppState, email: String, payload: UsersSetNewPasswordRequestDto) -> Response;
     async fn get_user_by_mentor_id(state: &AppState, mentor_id: String) -> Response;
     async fn delete_user(state: &AppState, id: String) -> Response;
 
-    async fn get_user_by_email(&self, email: &str) -> Result<Option<UserDto>>;
-    async fn create_user_by_dto(&self, new_user: CreateUserDto) -> Result<UserDto>;
-    async fn update_user_avatar(&self, email: &str, avatar_url: Option<String>) -> Result<()>;
+    async fn get_user_by_email(&self, email: &str, state: &AppState) -> Result<Option<UserDto>>;
+    async fn create_user_by_dto(&self, new_user: CreateUserDto, state: &AppState) -> Result<UserDto>;
+    async fn update_user_avatar(&self, email: &str, avatar_url: Option<String>, state: &AppState) -> Result<()>;
     async fn upload_file(state: &AppState, user_id: String, multipart: Multipart) -> Response;
 }
 
@@ -76,11 +75,16 @@ impl UsersServiceTrait for UsersService {
 		}
 	}
 
-	async fn get_user_me(user: UsersDetailQueryDto, _state: &AppState) -> Response {
-		// User data is already provided by the permissions_guard
-		success_response(ResponseSuccessDto {
-			data: UserDto::from(&user),
-		})
+	async fn get_user_me(claims: imphnen_libs::jsonwebtoken::Claims, state: &AppState) -> Response {
+		let repo = UsersRepository::new(state);
+		let thing_id = make_thing(&ResourceEnum::Users.to_string(), &claims.user_id);
+		match repo.query_user_by_id(&thing_id).await {
+			Ok(user) if !user.is_deleted => success_response(ResponseSuccessDto {
+				data: UserDto::from(&user),
+			}),
+			Ok(_) => common_response(StatusCode::NOT_FOUND, "User not found"),
+			Err(e) => common_response(StatusCode::NOT_FOUND, &e.to_string()),
+		}
 	}
 
 	async fn create_user(
@@ -134,34 +138,23 @@ impl UsersServiceTrait for UsersService {
 	}
 
 	async fn update_user_me(
-		headers: HeaderMap,
+		claims: imphnen_libs::jsonwebtoken::Claims,
 		state: &AppState,
-		user: UsersUpdateRequestDto,
+		user_update_dto: UsersUpdateRequestDto,
 	) -> Response {
 		let repo = UsersRepository::new(state);
 		
-		// Try synchronous email extraction first (for internal JWT tokens)
-		let email = match extract_email(&headers) {
-			Some(email) => email,
-			None => {
-				// If sync extraction fails, try async (for Google tokens)
-				match extract_email_async(&headers).await {
-					Some(email) => email,
-					None => return common_response(StatusCode::UNAUTHORIZED, "Unauthorized"),
-				}
-			}
-		};
-		
-		let user_data = match repo.query_user_by_email(email.clone()).await {
+		let thing_id = make_thing(&ResourceEnum::Users.to_string(), &claims.user_id);
+		let user_data = match repo.query_user_by_id(&thing_id).await {
 			Ok(user) => user,
 			Err(_) => return common_response(StatusCode::NOT_FOUND, "User not found"),
 		};
 		
-		if let Err((status, message)) = validate_request(&user) {
+		if let Err((status, message)) = validate_request(&user_update_dto) {
 			return common_response(status, &message);
 		}
 		
-		let updated_user = UsersSchema::partial_update(user_data, user);
+		let updated_user = UsersSchema::partial_update(user_data, user_update_dto);
 		match repo.query_update_user(updated_user).await {
 			Ok(msg) => common_response(StatusCode::OK, &msg),
 			Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
@@ -268,79 +261,46 @@ impl UsersServiceTrait for UsersService {
 		}
 	}
 
-    #[allow(unused_variables)]
-    async fn get_user_by_email(&self, email: &str) -> Result<Option<UserDto>> {
-        let surrealdb_ws = surrealdb_init_ws().await
-            .map_err(|e| anyhow::anyhow!("Failed to initialize websocket database: {}", e))?;
-        let surrealdb_mem = surrealdb_init_mem().await
-            .map_err(|e| anyhow::anyhow!("Failed to initialize memory database: {}", e))?;
-        
-        let state = AppState {
-            surrealdb_ws,
-            surrealdb_mem,
-        };
-        let repo = UsersRepository::new(&state);
+    async fn get_user_by_email(&self, email: &str, state: &AppState) -> Result<Option<UserDto>> {
+        let repo = UsersRepository::new(state);
         let user = repo.query_user_by_email(email.to_string()).await;
         match user {
-            Ok(u) => Ok(Some(UserDto::from(&u))), // Corrected to use UserDto::from by reference
+            Ok(u) => Ok(Some(UserDto::from(&u))),
             Err(e) if e.to_string().contains("User not found") => Ok(None),
             Err(e) => Err(anyhow::anyhow!(e.to_string())),
         }
     }
 
-    #[allow(unused_variables)]
-    async fn create_user_by_dto(&self, new_user: CreateUserDto) -> Result<UserDto> {
-        let surrealdb_ws = surrealdb_init_ws().await
-            .map_err(|e| anyhow::anyhow!("Failed to initialize websocket database: {}", e))?;
-        let surrealdb_mem = surrealdb_init_mem().await
-            .map_err(|e| anyhow::anyhow!("Failed to initialize memory database: {}", e))?;
-        
-        let state = AppState {
-            surrealdb_ws,
-            surrealdb_mem,
-        };
-        let repo = UsersRepository::new(&state);
-        let email_clone = new_user.email.clone(); // Store email before moving new_user
+    async fn create_user_by_dto(&self, new_user: CreateUserDto, state: &AppState) -> Result<UserDto> {
+        let repo = UsersRepository::new(state);
+        let email_clone = new_user.email.clone();
         let user_schema = UsersSchema {
             email: new_user.email,
-            password: new_user.password, // No unwrap_or_default needed
+            password: new_user.password,
             fullname: new_user.fullname,
-            phone_number: new_user.phone_number, // No unwrap_or_default needed
-            is_active: new_user.is_active, // No unwrap_or needed
-            avatar: new_user.avatar, // Copy avatar from DTO
+            phone_number: new_user.phone_number,
+            is_active: new_user.is_active,
+            avatar: new_user.avatar,
             role: make_thing(&ResourceEnum::Roles.to_string(), &new_user.role_id),
             ..Default::default()
         };
         match repo.query_create_user(user_schema).await {
-            Ok(_msg) => { // msg is String, not UsersDetailQueryDto
-                // Re-fetch the created user to get the full UsersDetailQueryDto
-                let created_user = repo.query_user_by_email(email_clone).await?; // Use cloned email
-                Ok(UserDto::from(&created_user)) // Corrected to use UserDto::from by reference
+            Ok(_msg) => {
+                let created_user = repo.query_user_by_email(email_clone).await?;
+                Ok(UserDto::from(&created_user))
             },
             Err(e) => Err(anyhow::anyhow!(e.to_string())),
         }
     }
 
-    async fn update_user_avatar(&self, email: &str, avatar_url: Option<String>) -> Result<()> {
-        let surrealdb_ws = surrealdb_init_ws().await
-            .map_err(|e| anyhow::anyhow!("Failed to initialize websocket database: {}", e))?;
-        let surrealdb_mem = surrealdb_init_mem().await
-            .map_err(|e| anyhow::anyhow!("Failed to initialize memory database: {}", e))?;
+    async fn update_user_avatar(&self, email: &str, avatar_url: Option<String>, state: &AppState) -> Result<()> {
+        let repo = UsersRepository::new(state);
         
-        let state = AppState {
-            surrealdb_ws,
-            surrealdb_mem,
-        };
-        let repo = UsersRepository::new(&state);
-        
-        // Get the existing user
         let mut user = repo.query_user_by_email(email.to_string()).await
             .map_err(|e| anyhow::anyhow!("Failed to get user: {}", e))?;
         
-        // Update the avatar
         user.avatar = avatar_url;
         
-        // Convert to schema and update
         let user_schema = UsersSchema::from(user);
         match repo.query_update_user(user_schema).await {
             Ok(_) => {

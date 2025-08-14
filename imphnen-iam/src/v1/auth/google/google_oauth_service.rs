@@ -78,12 +78,21 @@ impl AuthRequest {
     }
 }
 
+use crate::{RolesRepository, RolesEnum};
+
 /// Helper function to get default role ID for new OAuth users
-async fn get_default_role_id(_env: &Env) -> Result<String, Error> {
-    // Use the User role ID from the seed data directly
-    let default_role_id = "5713cb37-dc02-4e87-8048-d7a41d352059".to_string();
-    info!("Using default User role ID from seed: {}", default_role_id);
-    Ok(default_role_id)
+async fn get_default_role_id(app_state: &AppState) -> Result<String, Error> {
+    let role_repo = RolesRepository::new(app_state);
+    match role_repo.query_role_by_name(RolesEnum::User.to_string()).await {
+        Ok(role) => {
+            info!("Using default User role ID: {}", role.id);
+            Ok(role.id)
+        },
+        Err(e) => {
+            error!("Failed to retrieve User role: {:?}", e);
+            Err(Error::Anyhow(anyhow::Error::msg("Failed to get default role ID".to_string())))
+        }
+    }
 }
 
 #[async_trait]
@@ -253,7 +262,7 @@ where
         info!("Google user data: name={:?}, given_name={:?}, family_name={:?}, picture={:?}", 
               google_user.name, google_user.given_name, google_user.family_name, google_user.picture);
 
-        let user = self.users_service.get_user_by_email(&google_user.email).await?;
+        let user = self.users_service.get_user_by_email(&google_user.email, app_state).await?;
 
         let user = match user {
             Some(mut user) => {
@@ -262,7 +271,7 @@ where
                 // Update avatar if user doesn't have one and Google provides one
                 if user.avatar.is_none() && google_user.picture.is_some() {
                     info!("Updating avatar for existing user: {}", google_user.email);
-                    match self.users_service.update_user_avatar(&google_user.email, google_user.picture.clone()).await {
+                    match self.users_service.update_user_avatar(&google_user.email, google_user.picture.clone(), app_state).await {
                         Ok(_) => {
                             info!("Successfully updated avatar for user: {}", google_user.email);
                             user.avatar = google_user.picture.clone();
@@ -279,11 +288,11 @@ where
                 info!("Creating new user for email: {}", google_user.email);
                 
                 // Get default role ID using robust lookup
-                let default_role_id = get_default_role_id(self.env).await
-                    .unwrap_or_else(|e| {
-                        error!("Failed to get default role ID, using fallback: {:?}", e);
-                        "5713cb37-dc02-4e87-8048-d7a41d352059".to_string() // Hardcoded User role ID as final fallback
-                    });
+                let default_role_id = get_default_role_id(app_state).await
+                    .map_err(|e| {
+                        error!("Failed to get default role ID: {:?}", e);
+                        Error::Anyhow(anyhow::Error::msg("Failed to get default role ID for new user".to_string()))
+                    })?;
                 
                 let new_user = UsersCreateRequestDto {
                     email: google_user.email.clone(),
@@ -306,12 +315,12 @@ where
                     avatar: google_user.picture.clone(), // Set avatar from Google user picture
                 };
                 
-                self.users_service.create_user_by_dto(new_user).await?
+                self.users_service.create_user_by_dto(new_user, app_state).await?
             }
         };
 
         let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
-let access_token = encode_access_token(user.email.clone(), user.id.clone(), permissions)
+let access_token = encode_access_token(user.email.clone(), user.id.clone(), permissions.clone())
             .map_err(|e| {
                 error!("Failed to generate access token for {}: {:?}", user.email, e);
                 Error::Auth("Failed to generate access token".to_string())

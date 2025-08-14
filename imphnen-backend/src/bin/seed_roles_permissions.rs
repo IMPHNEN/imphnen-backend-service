@@ -16,7 +16,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		.use_db(env.surrealdb_dbname.clone())
 		.await?;
     db.query("DEFINE INDEX user_email_index ON TABLE users COLUMNS email UNIQUE;")
+	
         .await?;
+    db.query("DEFINE INDEX role_name_idx ON TABLE roles COLUMNS name UNIQUE;")
+	
+        .await?;
+	
     println!("✅ Index 'user_email_index' defined on table 'users' for column 'email'.");
 
 	let roles_permissions = vec![

@@ -393,5 +393,11 @@ impl From<&UsersDetailItemDto> for UsersDetailQueryDto {
 			updated_at: dto.updated_at.clone(),
 			mentor_id: None,
 		}
-	}
+		}
+}
+
+impl UsersDetailItemDto {
+	   pub fn extract_permissions_from_user_role(&self) -> Vec<String> {
+	       self.role.permissions.iter().map(|p| p.name.clone()).collect()
+	   }
 }
