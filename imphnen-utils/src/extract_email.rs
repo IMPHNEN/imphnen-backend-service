@@ -143,18 +143,28 @@ pub fn extract_email_token(token: String) -> Option<String> {
     }
 }
 
+/// A simple helper to check if a token string looks like a JWT.
+fn is_jwt(token: &str) -> bool {
+    let parts: Vec<_> = token.split('.').collect();
+    parts.len() == 3
+}
+
 /// Async version of extract_email_token that can handle Google access tokens
 pub async fn extract_email_token_async(token: String) -> Option<String> {
     info!(token = %token, "extract_email_token_async called with token");
-    match decode_access_token(&token) {
-        Ok(data) => {
-            info!(email = %data.claims.sub, "Successfully decoded internal token in extract_email_token_async");
-            Some(data.claims.sub)
-        }
-        Err(_) => {
-            info!("Failed to decode as internal JWT in extract_email_token_async, trying Google token validation");
-            // If it fails, try to validate as Google access token
-            extract_email_from_google_token(&token).await
+
+    if is_jwt(&token) {
+        match decode_access_token(&token) {
+            Ok(data) => {
+                info!(email = %data.claims.sub, "Successfully decoded internal token in extract_email_token_async");
+                return Some(data.claims.sub);
+            }
+            Err(_) => {
+                info!("Failed to decode as internal JWT in extract_email_token_async, trying Google token validation");
+            }
         }
     }
+    
+    // If it's not a valid internal JWT, try to validate as Google access token
+    extract_email_from_google_token(&token).await
 }

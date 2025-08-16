@@ -9,13 +9,14 @@ use crate::{
 	AppState, ResourceEnum, ResponseSuccessDto, RolesEnum, RolesRepository,
 	UsersDetailItemDto, UsersRepository, UsersSchema, common_response,
 	decode_refresh_token, encode_access_token, encode_refresh_token,
-	encode_reset_password_token, extract_email_token, generate_otp, get_iso_date,
+	encode_reset_password_token, extract_email_token_async, generate_otp, get_iso_date,
 	hash_password, make_thing, send_email, success_response, validate_request,
 	verify_password,
 };
 use axum::{http::StatusCode, response::Response};
 use surrealdb::Uuid;
 use tracing::error;
+use tokio;
 
 
 pub trait AuthServiceTrait: Send + Sync + 'static {
@@ -463,56 +464,35 @@ impl AuthServiceTrait for AuthService {
         let payload = payload;
         let state = state.to_owned();
         Box::pin(async move {
-		if let Err((status, message)) = validate_request(&payload) {
-			return common_response(status, &message);
-		}
-		let user_repo = UsersRepository::new(&state);
-		let user_result = user_repo.query_user_by_email(payload.email.clone()).await;
-		let user = match user_result {
-			Ok(user) => user,
-			Err(err_find) if err_find.to_string().contains("User not found") => {
-				return common_response(StatusCode::BAD_REQUEST, "User not found");
-			}
-			Err(err_other) => {
-				error!(
-					"Error finding user for forgot password {}: {}",
-					payload.email, err_other
-				);
-				return common_response(
-					StatusCode::INTERNAL_SERVER_ERROR,
-					&err_other.to_string(),
-				);
-			}
-		};
-		let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
-        let token = match encode_reset_password_token(user.email.clone(), user.id.id.to_raw(), permissions) {
-			Ok(token) => token,
-			Err(_e) => {
-				error!(
-					"Failed to generate reset password token for {}: {}",
-					user.email, _e
-				);
-				return common_response(
-					StatusCode::INTERNAL_SERVER_ERROR,
-					"Failed to generate access token",
-				);
-			}
-		};
-		let env = &crate::enviroment::ENV;
-		let fe_url = env.fe_url.clone();
-		let message = format!(
-			"You have requested a password reset. Please click the link below to continue: {fe_url}/auth/reset-password?token={token}"
-		);
-		match send_email(&payload.email, "Reset Password Request", &message) {
-			Ok(_) => common_response(StatusCode::OK, "Reset Password request send"),
-			Err(err_send) => {
-				error!(
-					"Failed to send reset password email to {}: {}",
-					payload.email, err_send
-				);
-				common_response(StatusCode::BAD_REQUEST, &err_send.to_string())
-			}
-		}
+            if let Err((status, message)) = validate_request(&payload) {
+                return common_response(status, &message);
+            }
+
+            tokio::spawn(async move {
+                let user_repo = UsersRepository::new(&state);
+                if let Ok(user) = user_repo.query_user_by_email(payload.email.clone()).await {
+                    let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
+                    let token = match encode_reset_password_token(user.email.clone(), user.id.id.to_raw(), permissions) {
+                        Ok(token) => token,
+                        Err(_e) => {
+                            error!("Failed to generate reset password token for {}: {}", user.email, _e);
+                            return;
+                        }
+                    };
+
+                    let env = &crate::enviroment::ENV;
+                    let fe_url = env.fe_url.clone();
+                    let message = format!(
+                        "You have requested a password reset. Please click the link below to continue: {fe_url}/auth/reset-password?token={token}"
+                    );
+
+                    if let Err(err_send) = send_email(&payload.email, "Reset Password Request", &message) {
+                        error!("Failed to send reset password email to {}: {}", payload.email, err_send);
+                    }
+                }
+            });
+
+            common_response(StatusCode::OK, "If your email is registered, you will receive a password reset link.")
         })
 	}
 
@@ -584,7 +564,7 @@ impl AuthServiceTrait for AuthService {
 		}
 		let repo = UsersRepository::new(&state);
 		let user_repo = UsersRepository::new(&state);
-		let email = match extract_email_token(payload.token.clone()) {
+		let email = match extract_email_token_async(payload.token.clone()).await {
 			Some(email) => email,
 			None => {
 				return common_response(StatusCode::BAD_REQUEST, "Invalid or missing token");
