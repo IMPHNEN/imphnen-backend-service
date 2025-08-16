@@ -3,7 +3,6 @@ use axum::{
 	response::Response,
 };
 use imphnen_libs::{AppState, jsonwebtoken::decode_access_token};
-use surrealdb::sql::Thing;
 use imphnen_iam::v1::users::users_dto::UsersDetailQueryDto;
 use imphnen_utils::common_response;
 use axum_extra::headers::{authorization::Bearer, Authorization, HeaderMapExt};
