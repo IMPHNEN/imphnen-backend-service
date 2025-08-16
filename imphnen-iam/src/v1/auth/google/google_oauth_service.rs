@@ -3,7 +3,7 @@ use std::future::Future;
 use anyhow::Result;
 
 use oauth2::{
-    basic::BasicClient, AuthUrl, ClientId, ClientSecret, CsrfToken, PkceCodeChallenge, PkceCodeVerifier,
+    AuthUrl, ClientId, ClientSecret, CsrfToken, PkceCodeChallenge, PkceCodeVerifier,
     RedirectUrl, Scope, TokenUrl,
 };
 use serde::{Deserialize, Serialize};
@@ -102,7 +102,6 @@ async fn get_default_role_id(app_state: &AppState) -> Result<String, Error> {
 pub trait GoogleOauthService<A: AuthServiceTrait + Send + Sync + 'static, U: UsersServiceTrait + Send + Sync + 'static>: Send + Sync + 'static {
     // Removed new() from trait
     fn with_services(auth_service: A, users_service: U, env: &'static Env) -> Self;
-    fn google_oauth_client(&self, custom_redirect_uri: Option<String>) -> BasicClient;
     fn generate_auth_url(&self, custom_redirect_uri: Option<String>) -> (Url, CsrfToken);
     fn google_oauth_callback(&self, auth_request: AuthRequest, app_state: &AppState) -> Pin<Box<dyn Future<Output = Result<(UsersDetailItemDto, TokenDto), Error>> + Send + '_>>; // Changed return type
 }
@@ -137,44 +136,38 @@ where
         }
     }
 
-    fn google_oauth_client(&self, custom_redirect_uri: Option<String>) -> BasicClient {
+
+    fn generate_auth_url(&self, custom_redirect_uri: Option<String>) -> (Url, CsrfToken) {
         let google_client_id = ClientId::new(self.env.google_client_id.clone());
         let google_client_secret = ClientSecret::new(self.env.google_client_secret.clone());
         let auth_url = AuthUrl::new("https://accounts.google.com/o/oauth2/v2/auth".to_string())
             .expect("Invalid authorization endpoint URL");
         let token_url = TokenUrl::new("https://oauth2.googleapis.com/token".to_string())
             .expect("Invalid token endpoint URL");
-
         let redirect_uri = custom_redirect_uri.unwrap_or_else(|| self.env.google_redirect_url.clone());
-
-        BasicClient::new(
-            google_client_id,
-            Some(google_client_secret),
-            auth_url,
-            Some(token_url),
-        )
-        .set_redirect_uri(
-            RedirectUrl::new(redirect_uri)
-                .expect("Invalid redirect URL"),
-        )
-    }
-
-    fn generate_auth_url(&self, custom_redirect_uri: Option<String>) -> (Url, CsrfToken) {
-        let client = self.google_oauth_client(custom_redirect_uri);
+        let client = oauth2::basic::BasicClient::new(google_client_id)
+            .set_client_secret(google_client_secret)
+            .set_auth_uri(auth_url)
+            .set_token_uri(token_url)
+            .set_redirect_uri(
+                RedirectUrl::new(redirect_uri)
+                    .expect("Invalid redirect URL"),
+            );
         let (pkce_code_challenge, pkce_code_verifier) = PkceCodeChallenge::new_random_sha256();
 
         // Generate a signed CSRF token with PKCE verifier for stateless validation
         let csrf_token_str = generate_oauth_csrf_token(&self.env.access_token_secret, pkce_code_verifier.secret())
             .unwrap_or_else(|_| uuid::Uuid::new_v4().to_string()); // Fallback to UUID if signing fails
         
-        let csrf_token = CsrfToken::new(csrf_token_str);
+        let _ = CsrfToken::new(csrf_token_str);
 
-        client
-            .authorize_url(|| csrf_token.clone())
+        let (auth_url, csrf_token) = client
+            .authorize_url(CsrfToken::new_random)
             .add_scope(Scope::new("https://www.googleapis.com/auth/userinfo.email".to_string()))
             .add_scope(Scope::new("https://www.googleapis.com/auth/userinfo.profile".to_string()))
             .set_pkce_challenge(pkce_code_challenge)
-            .url()
+            .url();
+        (auth_url, csrf_token)
     }
 
     fn google_oauth_callback(&self, auth_request: AuthRequest, app_state: &AppState) -> Pin<Box<dyn Future<Output = Result<(UsersDetailItemDto, TokenDto), Error>> + Send + '_>> {
@@ -193,7 +186,21 @@ where
         
         // Use the SAME redirect URI that was used for auth URL generation
         // This is crucial for OAuth security and consistency
-        let client = self_clone.google_oauth_client(auth_request.redirect_uri.clone());
+        let google_client_id = ClientId::new(self_clone.env.google_client_id.clone());
+        let google_client_secret = ClientSecret::new(self_clone.env.google_client_secret.clone());
+        let auth_url = AuthUrl::new("https://accounts.google.com/o/oauth2/v2/auth".to_string())
+            .expect("Invalid authorization endpoint URL");
+        let token_url = TokenUrl::new("https://oauth2.googleapis.com/token".to_string())
+            .expect("Invalid token endpoint URL");
+        let redirect_uri = auth_request.redirect_uri.clone().unwrap_or_else(|| self_clone.env.google_redirect_url.clone());
+        let client = oauth2::basic::BasicClient::new(google_client_id)
+            .set_client_secret(google_client_secret)
+            .set_auth_uri(auth_url)
+            .set_token_uri(token_url)
+            .set_redirect_uri(
+                RedirectUrl::new(redirect_uri)
+                    .expect("Invalid redirect URL"),
+            );
         
         // Debug the OAuth client configuration
         let effective_redirect_uri = auth_request.redirect_uri.as_ref().unwrap_or(&self_clone.env.google_redirect_url);
@@ -207,18 +214,18 @@ where
         let token_response = client
             .exchange_code(oauth2::AuthorizationCode::new(auth_request.code.clone()))
             .set_pkce_verifier(pkce_verifier)
-            .request_async(oauth2::reqwest::async_http_client)
+            .request_async(&reqwest::Client::new())
             .await
             .map_err(|e| {
                 error!("Failed to exchange OAuth code with Google: {}", e);
                 error!("OAuth code was: {}", auth_request.code);
                 error!("Redirect URI was: {:?}", auth_request.redirect_uri);
-                
+
                 // Debug OAuth client configuration
                 error!("Google Client ID: {}", self_clone.env.google_client_id);
-                error!("OAuth client redirect URI configured: {}", 
+                error!("OAuth client redirect URI configured: {}",
                     auth_request.redirect_uri.as_ref().unwrap_or(&self_clone.env.google_redirect_url));
-                
+
                 // Try to extract more details from the error
                 match &e {
                     oauth2::RequestTokenError::ServerResponse(response) => {
@@ -235,7 +242,7 @@ where
                         error!("Google OAuth Other Error: {:?}", other);
                     },
                 }
-                
+
                 Error::Auth("Authentication error: Failed to exchange authorization code".to_string())
             })?;
 

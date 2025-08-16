@@ -30,7 +30,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let url = Url::parse(SURREALDB_URL_WS)?; // Menggunakan SURREALDB_URL_WS statis
 
-    let (ws_stream, _) = connect_async(url).await?;
+    let (ws_stream, _) = connect_async(url.as_str()).await?;
     let (mut write, mut read) = ws_stream.split();
 
     // Authenticate (signin)
@@ -43,7 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "id": 1
     }).to_string();
     println!("DEBUG: Sending signin query: {}", signin_query);
-    write.send(Message::Text(signin_query)).await?;
+    write.send(Message::Text(signin_query.into())).await?;
     
     let signin_response = read.next().await.ok_or("Failed to read signin response")?;
     let signin_response_msg = signin_response?;
@@ -60,7 +60,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "id": 2
     }).to_string();
     println!("DEBUG: Sending use query: {}", use_query);
-    write.send(Message::Text(use_query)).await?;
+    write.send(Message::Text(use_query.into())).await?;
     
     let use_response = read.next().await.ok_or("Failed to read use response")?;
     let use_response_msg = use_response?;
@@ -82,7 +82,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }).to_string();
 
         println!("DEBUG: Attempting REMOVE TABLE {}: {}", table, query_json);
-        write.send(Message::Text(query_json)).await?;
+        write.send(Message::Text(query_json.into())).await?;
         let response_result = read.next().await.ok_or("Stream ended unexpectedly")?;
 
         
@@ -100,7 +100,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }).to_string();
 
                     println!("DEBUG: Attempting DELETE {}: {}", table, delete_all_json);
-                    write.send(Message::Text(delete_all_json)).await?;
+                    write.send(Message::Text(delete_all_json.into())).await?;
                     let delete_response_result = read.next().await.ok_or("Stream ended unexpectedly during DELETE type::")?;
 
                     match delete_response_result {
@@ -137,7 +137,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "params": [select_query],
             "id": i + 1000
         }).to_string();
-        write.send(Message::Text(select_json)).await?;
+        write.send(Message::Text(select_json.into())).await?;
         let select_response_result = read.next().await.ok_or("Stream ended unexpectedly during SELECT check")?;
         match select_response_result {
             Ok(select_msg) => {
