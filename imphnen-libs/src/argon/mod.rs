@@ -8,7 +8,15 @@ use argon2::{
 
 pub fn hash_password(password: &str) -> Result<String, Error> {
 	let salt = SaltString::generate(&mut OsRng);
-	let argon2 = Argon2::default();
+	let argon2 = if std::env::var("RUST_ENV").unwrap_or_default() == "test" || std::env::var("RUST_ENV").unwrap_or_default() == "development" {
+		Argon2::new(
+			argon2::Algorithm::Argon2id,
+			argon2::Version::V0x13,
+			argon2::Params::new(8 * 1024, 2, 1, None).unwrap() // 8MB, 2 iterations, 1 thread
+		)
+	} else {
+		Argon2::default()
+	};
 	let password_hash = argon2
 		.hash_password(password.as_bytes(), &salt)?
 		.to_string();

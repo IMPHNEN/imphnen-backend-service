@@ -72,10 +72,13 @@ impl AuthServiceTrait for AuthService {
 		let user_repo = UsersRepository::new(&state);
 		let auth_repo = AuthRepository::new(&state);
 
-		match user_repo.query_user_by_email(payload.email.clone()).await {
+		let email = &payload.email;
+		let password = &payload.password;
+
+		match user_repo.query_user_by_email(email.to_string()).await {
 			Ok(user) => {
 				let is_password_correct =
-					verify_password(&payload.password, &user.password).unwrap_or(false);
+					verify_password(password, &user.password).unwrap_or(false);
 
 				if !is_password_correct {
 					return common_response(
@@ -91,13 +94,16 @@ impl AuthServiceTrait for AuthService {
 					);
 				}
 
-				let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
-                let access_token = match encode_access_token(payload.email.clone(), user.id.id.to_raw(), permissions.clone()) {
+				// Avoid unnecessary clone of user for caching if not needed
+				let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.as_str()).map(str::to_owned).collect();
+				let user_id = user.id.id.to_raw();
+
+				let access_token = match encode_access_token(email.to_string(), user_id.clone(), permissions.clone()) {
 					Ok(token) => token,
 					Err(_e) => {
 						error!(
 							"Failed to generate access token for {}: {}",
-							payload.email, _e
+							email, _e
 						);
 						return common_response(
 							StatusCode::INTERNAL_SERVER_ERROR,
@@ -106,13 +112,12 @@ impl AuthServiceTrait for AuthService {
 					}
 				};
 
-				let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
-                let refresh_token = match encode_refresh_token(payload.email.clone(), user.id.id.to_raw(), permissions) {
+				let refresh_token = match encode_refresh_token(email.to_string(), user_id, permissions) {
 					Ok(token) => token,
 					Err(_e) => {
 						error!(
 							"Failed to generate refresh token for {}: {}",
-							payload.email, _e
+							email, _e
 						);
 						return common_response(
 							StatusCode::INTERNAL_SERVER_ERROR,
@@ -131,6 +136,7 @@ impl AuthServiceTrait for AuthService {
 					},
 				};
 
+				// Only clone user if caching is required
 				if let Err(err_store) = auth_repo.query_store_user(user.clone()).await {
 					error!(
 						"Failed to store user cache for {}: {}",

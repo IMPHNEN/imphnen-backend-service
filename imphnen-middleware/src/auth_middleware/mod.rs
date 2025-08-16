@@ -3,6 +3,8 @@ use axum::{
 	response::Response,
 };
 use imphnen_libs::{AppState, jsonwebtoken::decode_access_token};
+use surrealdb::sql::Thing;
+use imphnen_iam::v1::users::users_dto::UsersDetailQueryDto;
 use imphnen_utils::common_response;
 use axum_extra::headers::{authorization::Bearer, Authorization, HeaderMapExt};
 use std::convert::Infallible;
@@ -11,7 +13,7 @@ use imphnen_libs::ResourceEnum;
 use imphnen_utils::make_thing;
 
 pub async fn auth_middleware(
-	Extension(_state): Extension<AppState>, // state is currently unused in this middleware
+	Extension(state): Extension<AppState>,
 	mut req: Request,
 	next: Next,
 ) -> Result<Response, Infallible> {
@@ -37,11 +39,34 @@ pub async fn auth_middleware(
 
 	let user_id = claims.user_id.clone();
 
-	let repo = UsersService {};
 	let thing_id = make_thing(&ResourceEnum::Users.to_string(), &user_id);
-	let user_data = match repo.get_user_by_id_internal(&thing_id, &_state).await {
-		Ok(user) => user,
-		Err(_) => return Ok(common_response(StatusCode::UNAUTHORIZED, "User not found")),
+
+	// Try SurrealDB mem first
+	let mem_db = &state.surrealdb_mem;
+	let mut user_data: Option<UsersDetailQueryDto> = None;
+	if let Ok(opt_user) = mem_db.select(("users", &user_id)).await {
+		if let Some(user) = opt_user {
+			let user: imphnen_iam::v1::users::users_dto::UsersDetailQueryDto = user;
+			if !user.is_deleted && !user.role.is_deleted {
+				user_data = Some(user);
+			}
+		}
+	}
+
+	// Fallback to main DB if not found in mem
+	let user_data = match user_data {
+		Some(user) => user,
+		None => {
+			let repo = UsersService {};
+			match repo.get_user_by_id_internal(&thing_id, &state).await {
+				Ok(user) => {
+					// Optionally: insert into mem for future requests
+					let _: Result<Vec<imphnen_iam::v1::users::users_dto::UsersDetailQueryDto>, _> = mem_db.update(&thing_id.id.to_raw()).content(user.clone()).await;
+					user
+				},
+				Err(_) => return Ok(common_response(StatusCode::UNAUTHORIZED, "User not found")),
+			}
+		}
 	};
 
 	req.extensions_mut().insert(user_data);
