@@ -78,8 +78,11 @@ impl AuthServiceTrait for AuthService {
 
 		match user_repo.query_user_by_email(email.to_string()).await {
 			Ok(user) => {
-				let is_password_correct =
-					verify_password(password, &user.password).unwrap_or(false);
+				let is_password_correct = tokio::task::spawn_blocking({
+					let password = password.to_owned();
+					let user_password = user.password.clone();
+					move || verify_password(&password, &user_password).unwrap_or(false)
+				}).await.unwrap_or(false);
 
 				if !is_password_correct {
 					return common_response(
@@ -173,8 +176,11 @@ impl AuthServiceTrait for AuthService {
 
 		match user_repo.query_user_by_email(payload.email.clone()).await {
 			Ok(user) => {
-				let is_password_correct =
-					verify_password(&payload.password, &user.password).unwrap_or(false);
+				let is_password_correct = tokio::task::spawn_blocking({
+					let password = payload.password.clone();
+					let user_password = user.password.clone();
+					move || verify_password(&password, &user_password).unwrap_or(false)
+				}).await.unwrap_or(false);
 
 				if !is_password_correct {
 					return common_response(
