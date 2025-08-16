@@ -3,9 +3,10 @@
 use std::env;
 use once_cell::sync::Lazy;
 // Logging for warnings if .env is missing
-use log::warn;
+use log::{warn, info};
 
 /// Struct holding all environment configuration.
+#[derive(Clone)]
 pub struct Env {
     pub port: u16,
     pub access_token_secret: String,
@@ -35,6 +36,39 @@ pub struct Env {
     pub google_redirect_url: String,
 }
 
+// Custom Debug implementation to mask secrets in logs
+impl std::fmt::Debug for Env {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Env")
+            .field("port", &self.port)
+            .field("access_token_secret", &"***")
+            .field("refresh_token_secret", &"***")
+            .field("surrealdb_url", &self.surrealdb_url)
+            .field("surrealdb_username", &self.surrealdb_username)
+            .field("surrealdb_password", &"***")
+            .field("surrealdb_namespace", &self.surrealdb_namespace)
+            .field("surrealdb_dbname", &self.surrealdb_dbname)
+            .field("surrealdb_url_ws", &self.surrealdb_url_ws)
+            .field("smtp_email", &self.smtp_email)
+            .field("smtp_password", &"***")
+            .field("smtp_name", &self.smtp_name)
+            .field("smtp_host", &self.smtp_host)
+            .field("redisdb_url", &self.redisdb_url)
+            .field("fe_url", &self.fe_url)
+            .field("rust_env", &self.rust_env)
+            .field("minio_endpoint", &self.minio_endpoint)
+            .field("minio_bucket_name", &self.minio_bucket_name)
+            .field("minio_access_key", &"***")
+            .field("minio_secret_key", &"***")
+            .field("minio_region", &self.minio_region)
+            .field("minio_secure", &self.minio_secure)
+            .field("google_client_id", &self.google_client_id)
+            .field("google_client_secret", &"***")
+            .field("google_redirect_url", &self.google_redirect_url)
+            .finish()
+    }
+}
+
 /// Helper to get env var with warning if not set.
 fn get_env_with_warning(key: &str, default: &str) -> String {
     match env::var(key) {
@@ -57,7 +91,7 @@ pub static ENV: Lazy<Env> = Lazy::new(|| {
         Err(_) => {}
     }
 
-    Env {
+    let env = Env {
         port: get_env_with_warning("PORT", "3000")
             .parse()
             .unwrap_or(3000),
@@ -88,5 +122,7 @@ pub static ENV: Lazy<Env> = Lazy::new(|| {
         google_client_id: get_env_with_warning("GOOGLE_CLIENT_ID", "default_google_client_id"),
         google_client_secret: get_env_with_warning("GOOGLE_CLIENT_SECRET", "default_google_client_secret"),
         google_redirect_url: get_env_with_warning("GOOGLE_REDIRECT_URL", "http://localhost:8000/api/v1/auth/google/callback"),
-    }
+    };
+    info!("Loaded environment configuration: {:?}", env);
+    env
 });

@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 imphnen-libs.workspace = true
 imphnen-utils.workspace = true
-async-trait = { workspace = true }
+
 imphnen-entities.workspace = true
 axum.workspace = true
 serde.workspace = true

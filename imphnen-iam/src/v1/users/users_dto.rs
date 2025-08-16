@@ -149,7 +149,7 @@ pub struct UsersUpdateRequestDto {
 	pub career_status: Option<String>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Default)]
 pub struct UsersDetailItemDto {
 	pub id: String,
 	pub role: RolesDetailItemDto,

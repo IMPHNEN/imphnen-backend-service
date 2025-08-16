@@ -32,7 +32,7 @@ pub struct AuthLoginResponsetDto {
 	pub user: UsersDetailItemDto,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Default)]
 pub struct TokenDto {
 	pub access_token: String,
 	pub refresh_token: String,

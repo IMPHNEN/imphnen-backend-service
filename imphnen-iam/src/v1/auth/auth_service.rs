@@ -1,3 +1,5 @@
+use std::pin::Pin;
+use std::future::Future;
 use super::{
 	AuthLoginRequestDto, AuthLoginResponsetDto, AuthNewPasswordRequestDto,
 	AuthRefreshTokenRequestDto, AuthRegisterRequestDto, AuthRepository,
@@ -15,59 +17,60 @@ use axum::{http::StatusCode, response::Response};
 use surrealdb::Uuid;
 use tracing::error;
 
-use async_trait::async_trait;
 
-#[async_trait]
 pub trait AuthServiceTrait: Send + Sync + 'static {
-    async fn mutation_login(
+    fn mutation_login(
         payload: AuthLoginRequestDto,
         state: &AppState,
-    ) -> Response;
-    async fn mutation_mentor_login(
+    ) -> Pin<Box<dyn Future<Output = Response> + Send>>;
+    fn mutation_mentor_login(
         payload: AuthLoginRequestDto,
         state: &AppState,
-    ) -> Response;
-    async fn mutation_register(
+    ) -> Pin<Box<dyn Future<Output = Response> + Send>>;
+    fn mutation_register(
         payload: AuthRegisterRequestDto,
         state: &AppState,
-    ) -> Response;
-    async fn mutation_resend_otp(
+    ) -> Pin<Box<dyn Future<Output = Response> + Send>>;
+    fn mutation_resend_otp(
         payload: AuthResendOtpRequestDto,
         state: &AppState,
-    ) -> Response;
-    async fn mutation_refresh_token(
+    ) -> Pin<Box<dyn Future<Output = Response> + Send>>;
+    fn mutation_refresh_token(
         payload: AuthRefreshTokenRequestDto,
         state: &AppState,
-    ) -> Response;
-    async fn mutation_forgot_password(
+    ) -> Pin<Box<dyn Future<Output = Response> + Send>>;
+    fn mutation_forgot_password(
         payload: AuthResendOtpRequestDto,
         state: &AppState,
-    ) -> Response;
-    async fn mutation_verify_email(
+    ) -> Pin<Box<dyn Future<Output = Response> + Send>>;
+    fn mutation_verify_email(
         payload: AuthVerifyEmailRequestDto,
         state: &AppState,
-    ) -> Response;
-    async fn mutation_new_password(
+    ) -> Pin<Box<dyn Future<Output = Response> + Send>>;
+    fn mutation_new_password(
         payload: AuthNewPasswordRequestDto,
         state: &AppState,
-    ) -> Response;
+    ) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 }
 
 #[derive(Clone)] // Added Clone derive
 pub struct AuthService;
 
-#[async_trait]
+
 impl AuthServiceTrait for AuthService {
-	async fn mutation_login(
+	fn mutation_login(
 		payload: AuthLoginRequestDto,
 		state: &AppState,
-	) -> Response {
+	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
+        let payload = payload;
+        let state = state.to_owned();
+        Box::pin(async move {
 		if let Err((status, message)) = validate_request(&payload) {
 			return common_response(status, &message);
 		}
 
-		let user_repo = UsersRepository::new(state);
-		let auth_repo = AuthRepository::new(state);
+		let user_repo = UsersRepository::new(&state);
+		let auth_repo = AuthRepository::new(&state);
 
 		match user_repo.query_user_by_email(payload.email.clone()).await {
 			Ok(user) => {
@@ -89,7 +92,7 @@ impl AuthServiceTrait for AuthService {
 				}
 
 				let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
-let access_token = match encode_access_token(payload.email.clone(), user.id.id.to_raw(), permissions.clone()) {
+                let access_token = match encode_access_token(payload.email.clone(), user.id.id.to_raw(), permissions.clone()) {
 					Ok(token) => token,
 					Err(_e) => {
 						error!(
@@ -104,7 +107,7 @@ let access_token = match encode_access_token(payload.email.clone(), user.id.id.t
 				};
 
 				let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
-let refresh_token = match encode_refresh_token(payload.email.clone(), user.id.id.to_raw(), permissions) {
+                let refresh_token = match encode_refresh_token(payload.email.clone(), user.id.id.to_raw(), permissions) {
 					Ok(token) => token,
 					Err(_e) => {
 						error!(
@@ -144,18 +147,22 @@ let refresh_token = match encode_refresh_token(payload.email.clone(), user.id.id
 				common_response(StatusCode::UNAUTHORIZED, &err_find.to_string())
 			}
 		}
+        })
 	}
 
-	async fn mutation_mentor_login(
+	fn mutation_mentor_login(
 		payload: AuthLoginRequestDto,
 		state: &AppState,
-	) -> Response {
+	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
+        let payload = payload;
+        let state = state.to_owned();
+        Box::pin(async move {
 		if let Err((status, message)) = validate_request(&payload) {
 			return common_response(status, &message);
 		}
 
-		let user_repo = UsersRepository::new(state);
-		let auth_repo = AuthRepository::new(state);
+		let user_repo = UsersRepository::new(&state);
+		let auth_repo = AuthRepository::new(&state);
 
 		match user_repo.query_user_by_email(payload.email.clone()).await {
 			Ok(user) => {
@@ -186,7 +193,7 @@ let refresh_token = match encode_refresh_token(payload.email.clone(), user.id.id
 				}
 
 				let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
-let access_token = match encode_access_token(payload.email.clone(), user.id.id.to_raw(), permissions.clone()) {
+                let access_token = match encode_access_token(payload.email.clone(), user.id.id.to_raw(), permissions.clone()) {
 					Ok(token) => token,
 					Err(_e) => {
 						error!(
@@ -201,7 +208,7 @@ let access_token = match encode_access_token(payload.email.clone(), user.id.id.t
 				};
 
 				let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
-let refresh_token = match encode_refresh_token(payload.email.clone(), user.id.id.to_raw(), permissions) {
+                let refresh_token = match encode_refresh_token(payload.email.clone(), user.id.id.to_raw(), permissions) {
 					Ok(token) => token,
 					Err(_e) => {
 						error!(
@@ -241,18 +248,22 @@ let refresh_token = match encode_refresh_token(payload.email.clone(), user.id.id
 				common_response(StatusCode::UNAUTHORIZED, &err_find.to_string())
 			}
 		}
+        })
 	}
 
-	async fn mutation_register(
+	fn mutation_register(
 		payload: AuthRegisterRequestDto,
 		state: &AppState,
-	) -> Response {
+	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
+        let payload = payload;
+        let state = state.to_owned();
+        Box::pin(async move {
 		if let Err((status, message)) = validate_request(&payload) {
 			return common_response(status, &message);
 		}
-		let user_repo = UsersRepository::new(state);
-		let auth_repo = AuthRepository::new(state);
-		let role_repo = RolesRepository::new(state);
+		let user_repo = UsersRepository::new(&state);
+		let auth_repo = AuthRepository::new(&state);
+		let role_repo = RolesRepository::new(&state);
 		let role = match role_repo
 			.query_role_by_name(RolesEnum::User.to_string())
 			.await
@@ -340,16 +351,20 @@ let refresh_token = match encode_refresh_token(payload.email.clone(), user.id.id
 				common_response(StatusCode::INTERNAL_SERVER_ERROR, &err_create.to_string())
 			}
 		}
+        })
 	}
 
-	async fn mutation_resend_otp(
+	fn mutation_resend_otp(
 		payload: AuthResendOtpRequestDto,
 		state: &AppState,
-	) -> Response {
+	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
+        let payload = payload;
+        let state = state.to_owned();
+        Box::pin(async move {
 		if let Err((status, message)) = validate_request(&payload) {
 			return common_response(status, &message);
 		}
-		let user_repo = UsersRepository::new(state);
+		let user_repo = UsersRepository::new(&state);
 		if user_repo
 			.query_user_by_email(payload.email.clone())
 			.await
@@ -357,7 +372,7 @@ let refresh_token = match encode_refresh_token(payload.email.clone(), user.id.id
 		{
 			return common_response(StatusCode::BAD_REQUEST, "User not found");
 		}
-		let auth_repo = AuthRepository::new(state);
+		let auth_repo = AuthRepository::new(&state);
 		let _ = auth_repo.query_get_stored_otp(payload.email.clone()).await;
 		let otp = generate_otp::OtpManager::generate_otp();
 		let message = format!("Your OTP code is {otp}");
@@ -377,17 +392,21 @@ let refresh_token = match encode_refresh_token(payload.email.clone(), user.id.id
 				common_response(StatusCode::BAD_REQUEST, &err_store.to_string())
 			}
 		}
+        })
 	}
 
-	async fn mutation_refresh_token(
+	fn mutation_refresh_token(
 		payload: AuthRefreshTokenRequestDto,
 		state: &AppState,
-	) -> Response {
+	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
+        let payload = payload;
+        let state = state.to_owned();
+        Box::pin(async move {
 		if let Err((status, message)) = validate_request(&payload) {
 			return common_response(status, &message);
 		}
 		
-		let user_repo = UsersRepository::new(state);
+		let user_repo = UsersRepository::new(&state);
 		let user = match decode_refresh_token(&payload.refresh_token) {
 			Ok(token_data) => {
 				match user_repo.query_user_by_email(token_data.claims.sub.clone()).await {
@@ -428,16 +447,20 @@ let refresh_token = match encode_refresh_token(payload.email.clone(), user.id.id
 			},
 		};
 		success_response(response)
+        })
 	}
 
-	async fn mutation_forgot_password(
+	fn mutation_forgot_password(
 		payload: AuthResendOtpRequestDto,
 		state: &AppState,
-	) -> Response {
+	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
+        let payload = payload;
+        let state = state.to_owned();
+        Box::pin(async move {
 		if let Err((status, message)) = validate_request(&payload) {
 			return common_response(status, &message);
 		}
-		let user_repo = UsersRepository::new(state);
+		let user_repo = UsersRepository::new(&state);
 		let user_result = user_repo.query_user_by_email(payload.email.clone()).await;
 		let user = match user_result {
 			Ok(user) => user,
@@ -456,7 +479,7 @@ let refresh_token = match encode_refresh_token(payload.email.clone(), user.id.id
 			}
 		};
 		let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
-let token = match encode_reset_password_token(user.email.clone(), user.id.id.to_raw(), permissions) {
+        let token = match encode_reset_password_token(user.email.clone(), user.id.id.to_raw(), permissions) {
 			Ok(token) => token,
 			Err(_e) => {
 				error!(
@@ -484,17 +507,21 @@ let token = match encode_reset_password_token(user.email.clone(), user.id.id.to_
 				common_response(StatusCode::BAD_REQUEST, &err_send.to_string())
 			}
 		}
+        })
 	}
 
-	async fn mutation_verify_email(
+	fn mutation_verify_email(
 		payload: AuthVerifyEmailRequestDto,
 		state: &AppState,
-	) -> Response {
+	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
+        let payload = payload;
+        let state = state.to_owned();
+        Box::pin(async move {
 		if let Err((status, message)) = validate_request(&payload) {
 			return common_response(status, &message);
 		}
-		let user_repo = UsersRepository::new(state);
-		let auth_repo = AuthRepository::new(state);
+		let user_repo = UsersRepository::new(&state);
+		let auth_repo = AuthRepository::new(&state);
 		let email = payload.email.clone();
 		let user = match user_repo.query_user_by_email(email.clone()).await {
 			Ok(user) => user,
@@ -536,17 +563,21 @@ let token = match encode_reset_password_token(user.email.clone(), user.id.id.to_
 			},
 			Err(err_get) => common_response(StatusCode::BAD_REQUEST, &err_get.to_string()),
 		}
+        })
 	}
 
-	async fn mutation_new_password(
+	fn mutation_new_password(
 		payload: AuthNewPasswordRequestDto,
 		state: &AppState,
-	) -> Response {
+	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
+        let payload = payload;
+        let state = state.to_owned();
+        Box::pin(async move {
 		if let Err((status, message)) = validate_request(&payload) {
 			return common_response(status, &message);
 		}
-		let repo = UsersRepository::new(state);
-		let user_repo = UsersRepository::new(state);
+		let repo = UsersRepository::new(&state);
+		let user_repo = UsersRepository::new(&state);
 		let email = match extract_email_token(payload.token.clone()) {
 			Some(email) => email,
 			None => {
@@ -576,5 +607,6 @@ let token = match encode_reset_password_token(user.email.clone(), user.id.id.to_
 			Ok(msg) => common_response(StatusCode::OK, &msg),
 			Err(_e) => common_response(StatusCode::BAD_REQUEST, &_e.to_string()),
 		}
+        })
 	}
 }

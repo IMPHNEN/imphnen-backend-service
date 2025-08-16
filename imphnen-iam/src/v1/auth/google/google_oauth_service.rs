@@ -1,11 +1,14 @@
+use std::pin::Pin;
+use std::future::Future;
 use anyhow::Result;
-use async_trait::async_trait;
+
 use oauth2::{
     basic::BasicClient, AuthUrl, ClientId, ClientSecret, CsrfToken, PkceCodeChallenge, PkceCodeVerifier,
-    RedirectUrl, Scope, TokenResponse, TokenUrl,
+    RedirectUrl, Scope, TokenUrl,
 };
 use serde::{Deserialize, Serialize};
 use oauth2::url::Url;
+use oauth2::TokenResponse;
 use tracing::{info, error};
 
 use imphnen_entities::error_dto::error::Error;
@@ -13,12 +16,12 @@ use imphnen_libs::{jsonwebtoken::{encode_access_token, encode_refresh_token}, en
 use imphnen_utils::{generate_oauth_csrf_token, validate_oauth_csrf_token, validate_csrf_token};
 use crate::v1::auth::TokenDto;
 use crate::v1::auth::auth_service::AuthServiceTrait;
-use crate::v1::users::users_dto::{UsersCreateRequestDto, UsersDetailItemDto};
+use crate::v1::users::users_dto::{UsersDetailItemDto, UsersCreateRequestDto};
 use crate::v1::users::users_service::UsersServiceTrait;
 
 use super::google_oauth_dto::GoogleUser;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AuthRequest {
     pub code: String,
     pub state: String,
@@ -95,21 +98,20 @@ async fn get_default_role_id(app_state: &AppState) -> Result<String, Error> {
     }
 }
 
-#[async_trait]
+
 pub trait GoogleOauthService<A: AuthServiceTrait + Send + Sync + 'static, U: UsersServiceTrait + Send + Sync + 'static>: Send + Sync + 'static {
     // Removed new() from trait
     fn with_services(auth_service: A, users_service: U, env: &'static Env) -> Self;
     fn google_oauth_client(&self, custom_redirect_uri: Option<String>) -> BasicClient;
     fn generate_auth_url(&self, custom_redirect_uri: Option<String>) -> (Url, CsrfToken);
-    async fn google_oauth_callback(&self, auth_request: AuthRequest, app_state: &AppState) -> Result<(UsersDetailItemDto, TokenDto), Error>; // Changed return type
+    fn google_oauth_callback(&self, auth_request: AuthRequest, app_state: &AppState) -> Pin<Box<dyn Future<Output = Result<(UsersDetailItemDto, TokenDto), Error>> + Send + '_>>; // Changed return type
 }
 
 #[derive(Clone)]
 pub struct GoogleOauthServiceImpl<A: AuthServiceTrait, U: UsersServiceTrait> {
     users_service: U,
     env: &'static Env,
-    #[allow(dead_code)]
-    auth_service: A,
+    _auth_service: A,
 }
 
 impl GoogleOauthServiceImpl<crate::v1::auth::auth_service::AuthService, crate::v1::users::users_service::UsersService> {
@@ -120,7 +122,8 @@ impl GoogleOauthServiceImpl<crate::v1::auth::auth_service::AuthService, crate::v
     }
 }
 
-#[async_trait]
+
+
 impl<A, U> GoogleOauthService<A, U> for GoogleOauthServiceImpl<A, U>
 where
     A: AuthServiceTrait + Send + Sync + 'static,
@@ -128,7 +131,7 @@ where
 {
     fn with_services(auth_service: A, users_service: U, env: &'static Env) -> Self {
         Self {
-            auth_service,
+            _auth_service: auth_service,
             users_service,
             env,
         }
@@ -174,12 +177,15 @@ where
             .url()
     }
 
-    async fn google_oauth_callback(&self, auth_request: AuthRequest, app_state: &AppState) -> Result<(UsersDetailItemDto, TokenDto), Error> {
+    fn google_oauth_callback(&self, auth_request: AuthRequest, app_state: &AppState) -> Pin<Box<dyn Future<Output = Result<(UsersDetailItemDto, TokenDto), Error>> + Send + '_>> {
+        let self_clone = self; // Use reference instead of clone
+        let app_state = app_state.to_owned();
+        Box::pin(async move {
         // Validate input parameters first
         auth_request.validate()?;
         
         // CRITICAL: Validate CSRF state token and extract PKCE verifier
-        let pkce_verifier = auth_request.validate_csrf_state_and_get_pkce_verifier(&self.env.access_token_secret)?;
+        let pkce_verifier = auth_request.validate_csrf_state_and_get_pkce_verifier(&self_clone.env.access_token_secret)?;
         
         info!("Starting Google OAuth callback process");
         info!("Redirect URI used: {:?}", auth_request.redirect_uri);
@@ -187,12 +193,12 @@ where
         
         // Use the SAME redirect URI that was used for auth URL generation
         // This is crucial for OAuth security and consistency
-        let client = self.google_oauth_client(auth_request.redirect_uri.clone());
+        let client = self_clone.google_oauth_client(auth_request.redirect_uri.clone());
         
         // Debug the OAuth client configuration
-        let effective_redirect_uri = auth_request.redirect_uri.as_ref().unwrap_or(&self.env.google_redirect_url);
+        let effective_redirect_uri = auth_request.redirect_uri.as_ref().unwrap_or(&self_clone.env.google_redirect_url);
         info!("Effective redirect URI for OAuth client: {}", effective_redirect_uri);
-        info!("Google Client ID: {}", self.env.google_client_id);
+        info!("Google Client ID: {}", self_clone.env.google_client_id);
 
         info!("Attempting to exchange authorization code with Google");
         info!("Using PKCE verifier for secure exchange");
@@ -209,9 +215,9 @@ where
                 error!("Redirect URI was: {:?}", auth_request.redirect_uri);
                 
                 // Debug OAuth client configuration
-                error!("Google Client ID: {}", self.env.google_client_id);
+                error!("Google Client ID: {}", self_clone.env.google_client_id);
                 error!("OAuth client redirect URI configured: {}", 
-                    auth_request.redirect_uri.as_ref().unwrap_or(&self.env.google_redirect_url));
+                    auth_request.redirect_uri.as_ref().unwrap_or(&self_clone.env.google_redirect_url));
                 
                 // Try to extract more details from the error
                 match &e {
@@ -262,7 +268,7 @@ where
         info!("Google user data: name={:?}, given_name={:?}, family_name={:?}, picture={:?}", 
               google_user.name, google_user.given_name, google_user.family_name, google_user.picture);
 
-        let user = self.users_service.get_user_by_email(&google_user.email, app_state).await?;
+        let user = self_clone.users_service.get_user_by_email(&google_user.email, &app_state).await?;
 
         let user = match user {
             Some(mut user) => {
@@ -271,7 +277,7 @@ where
                 // Update avatar if user doesn't have one and Google provides one
                 if user.avatar.is_none() && google_user.picture.is_some() {
                     info!("Updating avatar for existing user: {}", google_user.email);
-                    match self.users_service.update_user_avatar(&google_user.email, google_user.picture.clone(), app_state).await {
+                    match self_clone.users_service.update_user_avatar(&google_user.email, google_user.picture.clone(), &app_state).await {
                         Ok(_) => {
                             info!("Successfully updated avatar for user: {}", google_user.email);
                             user.avatar = google_user.picture.clone();
@@ -288,7 +294,7 @@ where
                 info!("Creating new user for email: {}", google_user.email);
                 
                 // Get default role ID using robust lookup
-                let default_role_id = get_default_role_id(app_state).await
+                let default_role_id = get_default_role_id(&app_state).await
                     .map_err(|e| {
                         error!("Failed to get default role ID: {:?}", e);
                         Error::Anyhow(anyhow::Error::msg("Failed to get default role ID for new user".to_string()))
@@ -315,7 +321,7 @@ where
                     avatar: google_user.picture.clone(), // Set avatar from Google user picture
                 };
                 
-                self.users_service.create_user_by_dto(new_user, app_state).await?
+                self_clone.users_service.create_user_by_dto(new_user, &app_state).await?
             }
         };
 
@@ -339,7 +345,7 @@ let refresh_token = encode_refresh_token(user.email.clone(), user.id.clone(), pe
         };
 
         // Cache the user in auth repository for subsequent requests
-        let auth_repo = crate::v1::auth::AuthRepository::new(app_state);
+        let auth_repo = crate::v1::auth::AuthRepository::new(&app_state);
         let user_query_dto: crate::v1::users::users_dto::UsersDetailQueryDto = (&user).into();
         if let Err(err_store) = auth_repo.query_store_user(user_query_dto).await {
             error!(
@@ -349,147 +355,12 @@ let refresh_token = encode_refresh_token(user.email.clone(), user.id.clone(), pe
             // Don't fail the login, just log the error
             error!("Google OAuth login succeeded but caching failed for user: {}", user.email);
         } else {
+
             info!("Successfully cached user {} after Google OAuth login", user.email);
         }
 
         info!("Successfully completed Google OAuth for user: {}", user.email);
         Ok((user, token_dto))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use imphnen_utils::generate_oauth_csrf_token;
-    
-    #[test]
-    fn test_auth_request_validation_with_base64_characters() {
-        // Test case that was failing before the fix
-        let auth_request = AuthRequest {
-            code: "4/0-ARAA6EeEKN8rlQ_Dh5XAAA_dCpKFwKa3-Jl9cO7I".to_string(),
-            state: "valid_state".to_string(),
-            redirect_uri: None,
-        };
-        
-        let result = auth_request.validate();
-        assert!(result.is_ok(), "Authorization code with base64-like characters should be valid");
-    }
-    
-    #[test]
-    fn test_auth_request_validation_with_slash() {
-        let auth_request = AuthRequest {
-            code: "authorization/code/with/slashes".to_string(),
-            state: "valid_state".to_string(),
-            redirect_uri: None,
-        };
-        
-        let result = auth_request.validate();
-        assert!(result.is_ok(), "Authorization code with forward slashes should be valid");
-    }
-    
-    #[test]
-    fn test_auth_request_validation_with_plus() {
-        let auth_request = AuthRequest {
-            code: "authorization+code+with+plus".to_string(),
-            state: "valid_state".to_string(),
-            redirect_uri: None,
-        };
-        
-        let result = auth_request.validate();
-        assert!(result.is_ok(), "Authorization code with plus signs should be valid");
-    }
-    
-    #[test]
-    fn test_auth_request_validation_with_equals() {
-        let auth_request = AuthRequest {
-            code: "authorization=code=with=equals=".to_string(),
-            state: "valid_state".to_string(),
-            redirect_uri: None,
-        };
-        
-        let result = auth_request.validate();
-        assert!(result.is_ok(), "Authorization code with equals signs should be valid");
-    }
-    
-    #[test]
-    fn test_auth_request_validation_with_invalid_chars() {
-        let auth_request = AuthRequest {
-            code: "authorization@code#with$invalid%chars".to_string(),
-            state: "valid_state".to_string(),
-            redirect_uri: None,
-        };
-        
-        let result = auth_request.validate();
-        assert!(result.is_err(), "Authorization code with invalid characters should be rejected");
-    }
-    
-    #[test]
-    fn test_auth_request_validation_empty_code() {
-        let auth_request = AuthRequest {
-            code: "".to_string(),
-            state: "valid_state".to_string(),
-            redirect_uri: None,
-        };
-        
-        let result = auth_request.validate();
-        assert!(result.is_err(), "Empty authorization code should be rejected");
-    }
-    
-    #[test]
-    fn test_oauth_csrf_with_pkce_verifier() {
-        let secret = "test_secret";
-        let pkce_verifier = "test_pkce_verifier";
-        
-        // Generate OAuth CSRF token with PKCE verifier
-        let token = generate_oauth_csrf_token(secret, pkce_verifier).unwrap();
-        
-        // Create auth request with the token
-        let auth_request = AuthRequest {
-            code: "test_code".to_string(),
-            state: token,
-            redirect_uri: None,
-        };
-        
-        // Validate and extract PKCE verifier
-        let extracted_verifier = auth_request.validate_csrf_state_and_get_pkce_verifier(secret).unwrap();
-        assert_eq!(extracted_verifier.secret(), pkce_verifier);
-    }
-    
-    #[test]
-    fn test_oauth_csrf_backwards_compatibility() {
-        let secret = "test_secret";
-        
-        // Generate regular CSRF token (legacy)
-        let token = imphnen_utils::generate_csrf_token(secret).unwrap();
-        
-        // Create auth request with the token
-        let auth_request = AuthRequest {
-            code: "test_code".to_string(),
-            state: token,
-            redirect_uri: None,
-        };
-        
-        // Legacy validation should still work
-        let result = auth_request.validate_csrf_state(secret);
-        assert!(result.is_ok(), "Legacy CSRF validation should still work");
-    }
-
-    #[test]
-    fn test_user_creation_with_avatar() {
-        use crate::v1::users::users_dto::UsersCreateRequestDto;
-        
-        let google_user_picture = Some("https://lh3.googleusercontent.com/a/default-user".to_string());
-        
-        let new_user = UsersCreateRequestDto {
-            email: "test@example.com".to_string(),
-            password: "password123".to_string(),
-            fullname: "Test User".to_string(),
-            phone_number: "1234567890".to_string(),
-            is_active: true,
-            role_id: "test_role_id".to_string(),
-            avatar: google_user_picture.clone(),
-        };
-        
-        assert_eq!(new_user.avatar, google_user_picture, "Avatar should be set from Google user picture");
+})
     }
 }

@@ -58,7 +58,7 @@ hyper = "1.6.0"
 hyper-util = "0.1.0"
 minio = "0.1.0"
 
-async-trait = "0.1.77"
+
 tokio-test = "0.4.3"
 mockall = "0.12.1"
 once_cell = "1.19.0"
