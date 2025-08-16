@@ -15,18 +15,20 @@ pub struct Claims {
     pub permissions: Vec<String>,
 }
 
+static ACCESS_HEADER: once_cell::sync::Lazy<Header> = once_cell::sync::Lazy::new(Header::default);
+static ACCESS_KEY: once_cell::sync::Lazy<EncodingKey> = once_cell::sync::Lazy::new(|| {
+	EncodingKey::from_secret(ENV.access_token_secret.as_ref())
+});
 pub fn encode_access_token(sub: String, user_id: String, permissions: Vec<String>) -> Result<String, StatusCode> {
-	let env = &ENV;
-	let secret: String = env.access_token_secret.clone();
 	let now = Utc::now();
 	let expire: TimeDelta = Duration::minutes(15);
 	let exp: usize = (now + expire).timestamp() as usize;
 	let iat: usize = now.timestamp() as usize;
 	let claim = Claims { iat, exp, sub, user_id, permissions };
 	encode(
-		&Header::default(),
+		&ACCESS_HEADER,
 		&claim,
-		&EncodingKey::from_secret(secret.as_ref()),
+		&ACCESS_KEY,
 	)
 	.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
@@ -61,18 +63,20 @@ pub fn decode_access_token(
 	result
 }
 
+static REFRESH_HEADER: once_cell::sync::Lazy<Header> = once_cell::sync::Lazy::new(Header::default);
+static REFRESH_KEY: once_cell::sync::Lazy<EncodingKey> = once_cell::sync::Lazy::new(|| {
+	EncodingKey::from_secret(ENV.refresh_token_secret.as_ref())
+});
 pub fn encode_refresh_token(sub: String, user_id: String, permissions: Vec<String>) -> Result<String, StatusCode> {
-	let env = &ENV;
-	let secret: String = env.refresh_token_secret.clone();
 	let now = Utc::now();
 	let expire: TimeDelta = Duration::days(1);
 	let exp: usize = (now + expire).timestamp() as usize;
 	let iat: usize = now.timestamp() as usize;
 	let claim = Claims { iat, exp, sub, user_id, permissions };
 	encode(
-		&Header::default(),
+		&REFRESH_HEADER,
 		&claim,
-		&EncodingKey::from_secret(secret.as_ref()),
+		&REFRESH_KEY,
 	)
 	.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
