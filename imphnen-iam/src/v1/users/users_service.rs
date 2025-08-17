@@ -18,6 +18,7 @@ use std::pin::Pin;
 use std::future::Future;
 use anyhow::Result;
 
+use tracing::warn;
 use tracing::info;
 use crate::v1::users::users_dto::{UsersDetailItemDto as UserDto, UsersCreateRequestDto as CreateUserDto};
 use serde_json::json;
@@ -38,7 +39,7 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
  
      fn get_user_by_email(&self, email: &str, state: &AppState) -> Pin<Box<dyn Future<Output = Result<Option<UserDto>>> + Send>>;
      fn create_user_by_dto(&self, new_user: CreateUserDto, state: &AppState) -> Pin<Box<dyn Future<Output = Result<UserDto>> + Send>>;
-     fn update_user_avatar(&self, email: &str, avatar_url: Option<String>, state: &AppState) -> Pin<Box<dyn Future<Output = Result<()>> + Send>>;
+     fn update_user_avatar(email: &str, avatar_url: Option<String>, state: &AppState) -> Pin<Box<dyn Future<Output = Result<()>> + Send>>;
      fn upload_file(state: &AppState, user_id: String, multipart: Multipart) -> Pin<Box<dyn Future<Output = Response> + Send>>;
  }
  
@@ -356,7 +357,7 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
         })
     }
  
-    fn update_user_avatar(&self, email: &str, avatar_url: Option<String>, state: &AppState) -> Pin<Box<dyn Future<Output = Result<()>> + Send>> {
+    fn update_user_avatar(email: &str, avatar_url: Option<String>, state: &AppState) -> Pin<Box<dyn Future<Output = Result<()>> + Send>> {
         let email = email.to_owned();
         let avatar_url = avatar_url.to_owned();
         let state = state.to_owned();
@@ -382,12 +383,6 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
     fn upload_file(state: &AppState, user_id: String, mut multipart: Multipart) -> Pin<Box<dyn Future<Output = Response> + Send>> {
         let state = state.to_owned();
         let user_id = user_id.to_owned();
-        // multipart cannot be moved directly into async block because it's `!Send`
-        // We need to process it outside or find a way to make it Send.
-        // For now, I'll assume it's processed outside or handled by the framework.
-        // If it needs to be processed inside, it will require a more complex solution
-        // like using `tokio::spawn_blocking` or refactoring the multipart handling.
-        // If compilation fails here, this is the first place to look.
         Box::pin(async move {
             // Initialize MinIO configuration
             let minio_config = match MinioConfig::from_env() {
@@ -422,13 +417,14 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
                 .replace("⟨", "")
                 .replace("⟩", "");
                 
-            // Get actual user data from database to get real user ID
+            // Get actual user data from database to get real user ID and old avatar URL
             let repo = UsersRepository::new(&state);
-            let (actual_user_id, user_email) = match repo.query_user_by_email(user_email.clone()).await {
+            let (actual_user_id, user_email, old_avatar_url) = match repo.query_user_by_email(user_email.clone()).await {
                 Ok(user) => {
                     // Extract the actual ID from the user record
                     let actual_id = user.id.id.to_raw();
-                    (actual_id, user.email)
+                    let old_avatar = user.avatar.clone(); // Get the old avatar URL
+                    (actual_id, user.email, old_avatar)
                 }
                 Err(_) => {
                     return common_response(
@@ -443,23 +439,22 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
             let mut content_type: Option<String> = None;
 
             // Process multipart form
-            // This part needs to be handled carefully as `multipart` is not `Send`
-            // If `multipart` needs to be consumed inside the async block,
-            // it might require `tokio::spawn_blocking` or a different approach.
-            // For now, I'll keep it as is, assuming `multipart` is handled by Axum
-            // before entering this async block, or that it implicitly becomes `Send`
-            // in the context of the `Box::pin(async move { ... })` block.
-            // If compilation fails here, this is the first place to look.
             while let Some(field) = multipart.next_field().await.unwrap_or(None) {
                 let name = field.name().unwrap_or("").to_string();
                 
                 match name.as_str() {
                     "file" => {
+                        if file_data.is_some() {
+                            warn!("Multiple file fields detected for profile upload. Only the first one will be processed.");
+                        }
                         filename = field.file_name().map(|s| s.to_string());
                         content_type = field.content_type().map(|s| s.to_string());
                         
                         match field.bytes().await {
-                            Ok(bytes) => file_data = Some(bytes.to_vec()),
+                            Ok(bytes) => {
+                                file_data = Some(bytes.to_vec());
+                                break; // Process only the first file field
+                            },
                             Err(e) => {
                                 log::error!("Failed to read file data: {}", e);
                                 return common_response(
@@ -470,7 +465,9 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
                         }
                     }
                     "base64_data" => {
-                        // Handle base64 data from frontend
+                        if file_data.is_some() {
+                            warn!("Multiple file fields detected for profile upload. Only the first one will be processed.");
+                        }
                         let base64_str = field.text().await.unwrap_or_default();
                         if !base64_str.is_empty() {
                             match decode_base64_file(&base64_str) {
@@ -480,6 +477,7 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
                                     if let Some(detected_type) = extract_content_type_from_data_url(&base64_str) {
                                         content_type = Some(detected_type);
                                     }
+                                    break; // Process only the first file field
                                 }
                                 Err(e) => {
                                     log::error!("Failed to decode base64 data: {}", e);
@@ -500,6 +498,23 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
                     _ => {
                         // Skip unknown fields
                     }
+                }
+            }
+
+            // If an old avatar exists, delete it from MinIO
+            if let Some(old_url) = old_avatar_url {
+                // Extract object path from the URL
+                // Assuming URL format is https://cdn.asepharyana.tech/{bucket_name}/{object_path}
+                let parts: Vec<&str> = old_url.splitn(4, '/').collect();
+                if parts.len() == 4 {
+                    let old_object_path = parts[3];
+                    log::info!("Deleting old avatar from MinIO: {}", old_object_path);
+                    if let Err(e) = minio_service.delete_file(old_object_path).await {
+                        log::error!("Failed to delete old avatar from MinIO: {}", e);
+                        // Do not return error, continue with new upload
+                    }
+                } else {
+                    log::warn!("Could not parse old avatar URL for deletion: {}", old_url);
                 }
             }
 
@@ -565,6 +580,12 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
                     // Create permanent URL (no expiration)
                     let permanent_url = format!("https://cdn.asepharyana.tech/{}/{}", 
                         bucket_name, object_path);
+
+                    // Update user's avatar URL in the database
+                    if let Err(e) = UsersService::update_user_avatar(&user_email, Some(permanent_url.clone()), &state).await {
+                        log::error!("Failed to update user avatar in DB: {}", e);
+                        // Continue with response, but log the error
+                    }
 
                     let response_data = json!({
                         "filename": filename,

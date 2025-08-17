@@ -290,7 +290,7 @@ where
                 // Update avatar if user doesn't have one and Google provides one
                 if user.avatar.is_none() && google_user.picture.is_some() {
                     info!("Updating avatar for existing user: {}", google_user.email);
-                    match self_clone.users_service.update_user_avatar(&google_user.email, google_user.picture.clone(), &app_state).await {
+                    match U::update_user_avatar(&google_user.email, google_user.picture.clone(), &app_state).await {
                         Ok(_) => {
                             info!("Successfully updated avatar for user: {}", google_user.email);
                             user.avatar = google_user.picture.clone();
