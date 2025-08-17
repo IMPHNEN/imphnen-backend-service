@@ -25,13 +25,13 @@ pub async fn get_detail_gacha_roll(
 	Path(id): Path<String>,
 ) -> impl IntoResponse {
 	match permissions_guard(
-		&headers,
-		state.clone(),
+		headers,
+		Extension(state),
 		vec![PermissionsEnum::ReadDetailGachaRolls],
 	)
 	.await
 	{
-		Ok(_) => GachaRollService::get_gacha_roll_by_id(&state, id).await,
+		Ok((_user, state)) => GachaRollService::get_gacha_roll_by_id(&state, id).await,
 		Err(response) => response,
 	}
 }
@@ -54,13 +54,13 @@ pub async fn post_create_gacha_roll(
 	Json(payload): Json<GachaRollRequestDto>,
 ) -> impl IntoResponse {
 	match permissions_guard(
-		&headers,
-		state.clone(),
+		headers,
+		Extension(state),
 		vec![PermissionsEnum::CreateGachaRolls],
 	)
 	.await
 	{
-		Ok(_) => GachaRollService::create_gacha_roll(&state, payload).await,
+		Ok((_user, state)) => GachaRollService::create_gacha_roll(&state, payload).await,
 		Err(response) => response,
 	}
 }
@@ -81,13 +81,13 @@ pub async fn post_execute_gacha_roll(
 	Extension(state): Extension<AppState>,
 ) -> impl IntoResponse {
 	match permissions_guard(
-		&headers,
-		state.clone(),
+		headers.clone(),
+		Extension(state),
 		vec![PermissionsEnum::ExecuteGachaRolls],
 	)
 	.await
 	{
-		Ok(_) => GachaRollService::execute_roll_once(headers, &state).await,
+		Ok((_user, state)) => GachaRollService::execute_roll_once(headers, &state).await,
 		Err(response) => response,
 	}
 }
@@ -110,13 +110,13 @@ pub async fn delete_gacha_roll(
 	Path(id): Path<String>,
 ) -> impl IntoResponse {
 	match permissions_guard(
-		&headers,
-		state.clone(),
+		headers,
+		Extension(state),
 		vec![PermissionsEnum::DeleteGachaRolls],
 	)
 	.await
 	{
-		Ok(_) => GachaRollService::soft_delete_gacha_roll(&state, id).await,
+		Ok((_user, state)) => GachaRollService::soft_delete_gacha_roll(&state, id).await,
 		Err(response) => response,
 	}
 }

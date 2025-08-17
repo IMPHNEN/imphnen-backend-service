@@ -11,7 +11,7 @@ use imphnen_libs::{
 	AppState, MetaRequestDto, ResponseListSuccessDto, ResponseSuccessDto,
 };
 use imphnen_utils::{
-	common_response, success_list_response, success_response, validate_request,
+	common_response, success_list_response, success_response, success_created_response, validate_request,
 };
 
 pub struct TestimonialsService;
@@ -46,8 +46,8 @@ impl TestimonialsService {
 			Ok(testimonial) if !testimonial.is_deleted => {
 				success_response(ResponseSuccessDto {
 					data: TestimonialsDetailItemDto {
-						id: testimonial.id.id.to_raw(),
-						user_id: testimonial.user.id.id.to_raw(),
+						id: testimonial.id.to_raw(),
+						user_id: testimonial.user.id.to_raw(),
 						user_fullname: testimonial.user.fullname,
 						role: testimonial.role,
 						content: testimonial.content,
@@ -72,7 +72,19 @@ impl TestimonialsService {
 		let repo = TestimonialsRepository::new(state);
 		let schema = TestimonialsSchema::create(payload, &authenticated_user.id);
 		match repo.query_create_testimonial(schema).await {
-			Ok(msg) => common_response(StatusCode::CREATED, &msg),
+			Ok(created_testimonial) => {
+				success_created_response(ResponseSuccessDto {
+					data: TestimonialsDetailItemDto {
+						id: created_testimonial.id.to_raw(),
+						user_id: created_testimonial.user.id.to_raw(),
+						user_fullname: authenticated_user.fullname.clone(),
+						role: created_testimonial.role,
+						content: created_testimonial.content,
+						created_at: created_testimonial.created_at,
+						updated_at: created_testimonial.updated_at,
+					},
+				})
+			}
 			Err(e) => common_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
 		}
 	}

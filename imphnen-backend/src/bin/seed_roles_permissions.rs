@@ -1,22 +1,28 @@
-use imphnen_iam::{get_iso_date, make_thing, Env, PermissionsEnum};
-use imphnen_libs::enviroment::load_env;
+use imphnen_iam::{get_iso_date, make_thing, PermissionsEnum};
 use std::error::Error;
 use surrealdb::engine::any;
 use surrealdb::opt::auth::Root;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-	load_env();
-	let env = Env::new();
+	let env = &imphnen_libs::enviroment::ENV;
 	let db = any::connect(&env.surrealdb_url).await?;
 	db.signin(Root {
 		username: &env.surrealdb_username,
 		password: &env.surrealdb_password,
 	})
 	.await?;
-	db.use_ns(env.surrealdb_namespace)
-		.use_db(env.surrealdb_dbname)
+	db.use_ns(env.surrealdb_namespace.clone())
+		.use_db(env.surrealdb_dbname.clone())
 		.await?;
+    db.query("DEFINE INDEX user_email_index ON TABLE users COLUMNS email UNIQUE;")
+	
+        .await?;
+    db.query("DEFINE INDEX role_name_idx ON TABLE roles COLUMNS name UNIQUE;")
+	
+        .await?;
+	
+    println!("✅ Index 'user_email_index' defined on table 'users' for column 'email'.");
 
 	let roles_permissions = vec![
 		(
@@ -59,6 +65,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		(
 			"3b9f8c4e-6a2d-4f8a-9a12-2d6f8b3c4e5a",
 			vec![
+				PermissionsEnum::ReadListUsers, // Added ReadListUsers permission
 				PermissionsEnum::ReadOwnMentorProfile,
 				PermissionsEnum::UpdateOwnMentorProfile,
 				PermissionsEnum::ReadOwnMentorStatus,
@@ -76,6 +83,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			vec![
 				PermissionsEnum::ReadListGachaItems,
 				PermissionsEnum::ReadDetailGachaItems,
+				PermissionsEnum::ReadListUsers,
+				PermissionsEnum::ReadDetailUsers,
 				PermissionsEnum::CreateGachaClaims,
 				PermissionsEnum::ReadDetailGachaClaims,
 				PermissionsEnum::ReadDetailGachaRolls,

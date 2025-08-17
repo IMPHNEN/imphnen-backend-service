@@ -1,38 +1,41 @@
 use super::PermissionsEnum;
-use crate::{AppState, AuthRepository, common_response, extract_email};
+use crate::{AppState, common_response, decode_access_token};
 use axum::{
 	http::{HeaderMap, StatusCode},
-	response::Response,
+	response::Response, Extension,
 };
+use axum_extra::headers::{authorization::Bearer, Authorization, HeaderMapExt};
+// Removed imphnen_utils::make_thing as it's no longer needed here
 
 pub async fn permissions_guard(
-	headers: &HeaderMap,
-	state: AppState,
+	headers: HeaderMap,
+	Extension(state): Extension<AppState>,
 	required_permissions: Vec<PermissionsEnum>,
-) -> Result<(), Response> {
-	let auth_repo = AuthRepository::new(&state);
-	let email = extract_email(headers).ok_or_else(|| {
-		common_response(
-			StatusCode::UNAUTHORIZED,
-			"Invalid or missing authorization token",
-		)
-	})?;
-	let raw_user = auth_repo
-		.query_get_stored_user(email.clone())
-		.await
+) -> Result<(imphnen_libs::jsonwebtoken::Claims, AppState), Response> {
+	let auth_header = headers
+		.typed_get::<Authorization<Bearer>>()
+		.ok_or_else(|| {
+			common_response(
+				StatusCode::UNAUTHORIZED,
+				"Invalid or missing authorization token",
+			)
+		})?;
+
+	let token = auth_header.token();
+
+	let claims = decode_access_token(token)
 		.map_err(|_| {
 			common_response(
 				StatusCode::UNAUTHORIZED,
-				"User session expired or not found",
+				"Invalid or expired token",
 			)
-		})?;
-	let role = raw_user.role;
-	let role_permissions: Vec<String> =
-		role.permissions.into_iter().map(|perm| perm.name).collect();
+		})?
+		.claims;
 
+	// Use permissions from JWT for the check
 	for required in &required_permissions {
 		let required_str = required.to_string();
-		if !role_permissions.contains(&required_str) {
+		if !claims.permissions.contains(&required_str) {
 			eprintln!("  MISSING REQUIRED PERMISSION: {required_str}");
 			return Err(common_response(
 				StatusCode::FORBIDDEN,
@@ -40,5 +43,6 @@ pub async fn permissions_guard(
 			));
 		}
 	}
-	Ok(())
+
+	Ok((claims, state))
 }

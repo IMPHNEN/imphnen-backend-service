@@ -29,6 +29,7 @@ use imphnen_iam::{
 	RolesRequestUpdateDto, TokenDto, UsersCreateRequestDto, UsersDetailItemDto,
 	UsersListItemDto, UsersUpdateRequestDto, auth, permissions, roles, users,
 };
+use imphnen_iam::users::users_controller::FileUploadSchema;
 use utoipa::{
 	Modify, OpenApi,
 	openapi::security::{Http, HttpAuthScheme, SecurityScheme},
@@ -53,6 +54,7 @@ use utoipa::{
      users::users_controller::get_user_by_id,
      users::users_controller::get_user_me,
      users::users_controller::get_user_list,
+     users::users_controller::upload_file,
      roles::roles_controller::get_role_list,
      roles::roles_controller::get_role_by_id,
      roles::roles_controller::post_create_role,
@@ -114,6 +116,7 @@ use utoipa::{
            UsersListItemDto,
            UsersUpdateRequestDto,
            UsersCreateRequestDto,
+           FileUploadSchema,
            GachaClaimItemDto,
            GachaClaimRequestDto,
            GachaItemDto,

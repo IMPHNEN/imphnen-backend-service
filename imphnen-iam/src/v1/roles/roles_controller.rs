@@ -39,13 +39,13 @@ pub async fn get_role_list(
 	Query(meta): Query<MetaRequestDto>,
 ) -> impl IntoResponse {
 	match permissions_guard(
-		&headers,
-		state.clone(),
+		headers,
+		Extension(state),
 		vec![PermissionsEnum::ReadListRoles],
 	)
 	.await
 	{
-		Ok(_) => RolesService::get_role_list(&state, meta).await,
+		Ok((_claims, state)) => RolesService::get_role_list(&state, meta).await,
 		Err(response) => response,
 	}
 }
@@ -68,13 +68,13 @@ pub async fn get_role_by_id(
 	Path(id): Path<String>,
 ) -> impl IntoResponse {
 	match permissions_guard(
-		&headers,
-		state.clone(),
+		headers,
+		Extension(state),
 		vec![PermissionsEnum::ReadDetailRoles],
 	)
 	.await
 	{
-		Ok(_) => RolesService::get_role_by_id(&state, id).await,
+		Ok((_claims, state)) => RolesService::get_role_by_id(&state, id).await,
 		Err(response) => response,
 	}
 }
@@ -97,13 +97,13 @@ pub async fn post_create_role(
 	Json(payload): Json<RolesRequestCreateDto>,
 ) -> impl IntoResponse {
 	match permissions_guard(
-		&headers,
-		state.clone(),
+		headers,
+		Extension(state),
 		vec![PermissionsEnum::CreateRoles],
 	)
 	.await
 	{
-		Ok(_) => RolesService::create_role(&state, payload).await,
+		Ok((_claims, state)) => RolesService::create_role(&state, payload).await,
 		Err(response) => response,
 	}
 }
@@ -127,13 +127,13 @@ pub async fn put_update_role(
 	Json(payload): Json<RolesRequestUpdateDto>,
 ) -> impl IntoResponse {
 	match permissions_guard(
-		&headers,
-		state.clone(),
+		headers,
+		Extension(state),
 		vec![PermissionsEnum::UpdateRoles],
 	)
 	.await
 	{
-		Ok(_) => RolesService::update_role(&state, id, payload).await,
+		Ok((_claims, state)) => RolesService::update_role(&state, id, payload).await,
 		Err(response) => response,
 	}
 }
@@ -155,13 +155,13 @@ pub async fn delete_role(
 	Path(id): Path<String>,
 ) -> impl IntoResponse {
 	match permissions_guard(
-		&headers,
-		state.clone(),
+		headers,
+		Extension(state),
 		vec![PermissionsEnum::DeleteRoles],
 	)
 	.await
 	{
-		Ok(_) => RolesService::delete_role(&state, id).await,
+		Ok((_claims, state)) => RolesService::delete_role(&state, id).await,
 		Err(response) => response,
 	}
 }

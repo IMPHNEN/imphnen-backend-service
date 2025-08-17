@@ -8,6 +8,7 @@ use imphnen_utils::{DetailQueryBuilder, QueryListBuilder, get_iso_date};
 use serde_json::{Map, Value};
 use std::time::Instant;
 use tracing::instrument;
+use tracing::info;
 
 pub struct MentorsRepository<'a> {
 	pub state: &'a AppState,
@@ -27,19 +28,11 @@ impl<'a> MentorsRepository<'a> {
 		let db = &self.state.surrealdb_ws;
 		let mentors_table = ResourceEnum::Mentors.to_string();
 		let builder = QueryListBuilder::new(db, &mentors_table, &meta)
-			.search_field("legal_name")
+			.search_field("user_id.legal_name") // Search in user data instead
 			.select_fields(vec![
 				"id",
 				"user_id",
-				"user_id.fullname as fullname",
-				"email",
-				"legal_name",
-				"identity_document_url",
-				"phone_for_verification",
-				"bio",
-				"linkedin_url",
-				"github_url",
-				"cv_url",
+				// Personal data comes from user relation, not mentor table
 				"industries",
 				"expertise",
 				"languages",
@@ -79,19 +72,11 @@ impl<'a> MentorsRepository<'a> {
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
 		let mut builder = DetailQueryBuilder::new(ResourceEnum::Mentors.to_string())
-			.with_where("email", Some(email.clone()))
+			.with_where("user_id.email", Some(email.clone())) // Search in user table
 			.with_select_fields(vec![
 				"id",
 				"user_id",
-				"user_id.fullname as fullname",
-				"email",
-				"legal_name",
-				"identity_document_url",
-				"phone_for_verification",
-				"bio",
-				"linkedin_url",
-				"github_url",
-				"cv_url",
+				// Personal data comes from user relation, not mentor table
 				"industries",
 				"expertise",
 				"languages",
@@ -114,6 +99,7 @@ impl<'a> MentorsRepository<'a> {
 		}
 
 		let sql = builder.build();
+		info!(query = %sql, "Executing SurrealDB query in query_mentor_by_email");
 		let mentor_opt: Option<MentorDetailWithUserDto> =
 			builder.apply_bindings(db.query(sql)).await?.take(0)?;
 		let elapsed = now.elapsed();
@@ -141,15 +127,7 @@ impl<'a> MentorsRepository<'a> {
 			.with_select_fields(vec![
 				"id",
 				"user_id",
-				"user_id.fullname as fullname",
-				"email",
-				"legal_name",
-				"identity_document_url",
-				"phone_for_verification",
-				"bio",
-				"linkedin_url",
-				"github_url",
-				"cv_url",
+				// Personal data comes from user relation, not mentor table
 				"industries",
 				"expertise",
 				"languages",
@@ -172,6 +150,7 @@ impl<'a> MentorsRepository<'a> {
 		}
 
 		let sql = builder.build();
+		info!(query = %sql, "Executing SurrealDB query in query_mentor_by_id");
 		let mentor_opt: Option<MentorDetailWithUserDto> =
 			builder.apply_bindings(db.query(sql)).await?.take(0)?;
 		let elapsed = now.elapsed();
@@ -194,8 +173,10 @@ impl<'a> MentorsRepository<'a> {
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
 		let dto: MentorInsertDto = data.into();
+		let resource = ResourceEnum::Mentors.to_string();
+		info!(query = %resource, "Executing SurrealDB create in query_create_mentor");
 		let record: Option<MentorSchema> = db
-			.create(ResourceEnum::Mentors.to_string())
+			.create(resource)
 			.content(dto.clone())
 			.await?;
 		let elapsed = now.elapsed();
@@ -237,6 +218,7 @@ impl<'a> MentorsRepository<'a> {
 
 		merged_data_json.insert("updated_at".to_string(), Value::String(get_iso_date()));
 
+		info!(query = ?record_key, "Executing SurrealDB update in query_update_mentor");
 		let record: Option<MentorSchema> =
 			db.update(record_key).merge(merged_data_json).await?;
 		let elapsed = now.elapsed();
@@ -282,6 +264,7 @@ impl<'a> MentorsRepository<'a> {
 		patch.insert("is_deleted".to_string(), Value::Bool(true));
 		patch.insert("updated_at".to_string(), Value::String(get_iso_date()));
 
+		info!(query = ?record_key, "Executing SurrealDB soft delete in query_delete_mentor");
 		let record: Option<MentorSchema> = db.update(record_key).merge(patch).await?;
 		let elapsed = now.elapsed();
 		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())

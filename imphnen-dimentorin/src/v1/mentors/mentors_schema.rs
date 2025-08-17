@@ -1,5 +1,5 @@
 use super::{
-	IdentityAndVerification, MentorDetailQueryDto, MentorUpdateRequestDto,
+	MentorDetailQueryDto, MentorUpdateRequestDto,
 	MentoringLogistics, MentoringRate, ProfessionalProfile,
 };
 use imphnen_libs::ResourceEnum;
@@ -12,18 +12,9 @@ pub struct MentorSchema {
 	pub id: Thing,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub user_id: Option<Thing>,
-	pub email: Option<String>,
-	pub legal_name: String,
-	pub gender: Option<String>,
-	pub domicile: Option<String>,
-	pub identity_document_url: String,
-	pub phone_for_verification: String,
-	pub bio: String,
-	pub last_education: Option<String>,
-	pub linkedin_url: Option<String>,
-	pub github_url: Option<String>,
-	pub cv_url: Option<String>,
-	pub portfolio_url: Option<String>,
+	// Personal data has been moved to UsersSchema - use user_id to reference
+	// phone_for_verification, bio, last_education, linkedin_url, github_url, 
+	// cv_url, portfolio_url
 	pub industries: Vec<String>,
 	pub expertise: Vec<String>,
 	pub languages: Vec<String>,
@@ -52,18 +43,6 @@ impl Default for MentorSchema {
 				ResourceEnum::Users.to_string().as_str(),
 				&Uuid::new_v4().to_string(),
 			)),
-			email: None,
-			legal_name: String::new(),
-			gender: None,
-			domicile: None,
-			identity_document_url: String::new(),
-			phone_for_verification: String::new(),
-			bio: String::new(),
-			last_education: None,
-			linkedin_url: None,
-			github_url: None,
-			cv_url: None,
-			portfolio_url: None,
 			industries: Vec::new(),
 			expertise: Vec::new(),
 			languages: Vec::new(),
@@ -89,11 +68,9 @@ impl Default for MentorSchema {
 
 impl MentorSchema {
 	pub fn create(
-		identity_and_verification: IdentityAndVerification,
 		professional_profile: ProfessionalProfile,
 		mentoring_logistics: MentoringLogistics,
 		user_id_raw: String,
-		email_str: String,
 	) -> Self {
 		Self {
 			id: make_thing(
@@ -101,18 +78,7 @@ impl MentorSchema {
 				&Uuid::new_v4().to_string(),
 			),
 			user_id: Some(make_thing(&ResourceEnum::Users.to_string(), &user_id_raw)),
-			email: Some(email_str),
-			legal_name: identity_and_verification.legal_name,
-			gender: identity_and_verification.gender,
-			domicile: identity_and_verification.domicile,
-			identity_document_url: identity_and_verification.identity_document_url,
-			phone_for_verification: identity_and_verification.phone_for_verification,
-			bio: professional_profile.bio,
-			last_education: professional_profile.last_education,
-			linkedin_url: professional_profile.linkedin_url,
-			github_url: professional_profile.github_url,
-			cv_url: professional_profile.cv_url,
-			portfolio_url: professional_profile.portfolio_url,
+			// Personal data now stored in UsersSchema, not here
 			industries: professional_profile.industries,
 			expertise: professional_profile.expertise,
 			languages: professional_profile.languages,
@@ -139,18 +105,7 @@ impl MentorSchema {
 		Self {
 			id: dto.id,
 			user_id: Some(dto.user_id),
-			email: dto.email,
-			legal_name: dto.legal_name,
-			gender: dto.gender,
-			domicile: dto.domicile,
-			identity_document_url: dto.identity_document_url,
-			phone_for_verification: dto.phone_for_verification,
-			bio: dto.bio,
-			last_education: dto.last_education,
-			linkedin_url: dto.linkedin_url,
-			github_url: dto.github_url,
-			cv_url: dto.cv_url,
-			portfolio_url: dto.portfolio_url,
+			// Personal data now comes from UsersSchema via user_id
 			industries: dto.industries,
 			expertise: dto.expertise,
 			languages: dto.languages,
@@ -170,40 +125,10 @@ impl MentorSchema {
 	}
 
 	pub fn update(mut self, dto: MentorUpdateRequestDto) -> Self {
-		// Update fields only if they are Some(value), otherwise preserve current value
-		if let Some(val) = dto.legal_name {
-			self.legal_name = val;
-		}
-		if let Some(val) = dto.gender {
-			self.gender = Some(val);
-		}
-		if let Some(val) = dto.domicile {
-			self.domicile = Some(val);
-		}
-		if let Some(val) = dto.identity_document_url {
-			self.identity_document_url = val;
-		}
-		if let Some(val) = dto.phone_for_verification {
-			self.phone_for_verification = val;
-		}
-		if let Some(val) = dto.bio {
-			self.bio = val;
-		}
-		if let Some(val) = dto.last_education {
-			self.last_education = Some(val);
-		}
-		if let Some(val) = dto.linkedin_url {
-			self.linkedin_url = Some(val);
-		}
-		if let Some(val) = dto.github_url {
-			self.github_url = Some(val);
-		}
-		if let Some(val) = dto.cv_url {
-			self.cv_url = Some(val);
-		}
-		if let Some(val) = dto.portfolio_url {
-			self.portfolio_url = Some(val);
-		}
+		// phone_for_verification, bio, last_education, linkedin_url, github_url, 
+		// cv_url, portfolio_url) are now updated in UsersSchema, not here
+		
+		// Only update professional fields that are still in MentorSchema
 		if let Some(val) = dto.industries {
 			self.industries = val;
 		}

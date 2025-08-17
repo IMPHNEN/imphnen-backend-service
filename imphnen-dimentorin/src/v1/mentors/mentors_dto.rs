@@ -18,15 +18,9 @@ pub struct MentorListResponseDto {
 pub struct MentorDetailWithUserDto {
 	pub id: Thing,
 	pub user_id: Thing,
-	pub fullname: Option<String>,
-	pub email: Option<String>,
-	pub legal_name: String,
-	pub identity_document_url: String,
-	pub phone_for_verification: String,
-	pub bio: String,
-	pub linkedin_url: Option<String>,
-	pub github_url: Option<String>,
-	pub cv_url: Option<String>,
+	// Personal data is now in UsersSchema, access via user_id
+	// Removed: fullname, email, legal_name, identity_document_url, 
+	// phone_for_verification, bio, linkedin_url, github_url, cv_url
 	pub industries: Vec<String>,
 	pub expertise: Vec<String>,
 	pub languages: Vec<String>,
@@ -47,15 +41,20 @@ pub struct MentorDetailWithUserDto {
 pub struct MentorDetailResponseDto {
 	pub id: String,
 	pub user_id: String,
+	// Personal data fields from UsersSchema
 	pub fullname: Option<String>,
 	pub email: Option<String>,
-	pub legal_name: String,
-	pub identity_document_url: String,
-	pub phone_for_verification: String,
-	pub bio: String,
+	pub legal_name: Option<String>,
+	pub gender: Option<String>,
+	pub domicile: Option<String>,
+	pub phone_for_verification: Option<String>,
+	pub bio: Option<String>,
+	pub last_education: Option<String>,
 	pub linkedin_url: Option<String>,
 	pub github_url: Option<String>,
 	pub cv_url: Option<String>,
+	pub portfolio_url: Option<String>,
+	// Professional data from MentorSchema
 	pub industries: Vec<String>,
 	pub expertise: Vec<String>,
 	pub languages: Vec<String>,
@@ -94,9 +93,6 @@ pub struct MentorUpdateRequestDto {
 	pub gender: Option<String>,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub domicile: Option<String>,
-	#[validate(url(message = "Invalid identity document URL"))]
-	#[serde(skip_serializing_if = "Option::is_none")]
-	pub identity_document_url: Option<String>,
 	#[validate(length(
 		min = 10,
 		max = 15,
@@ -118,6 +114,7 @@ pub struct MentorUpdateRequestDto {
 	#[validate(url(message = "Invalid CV URL"))]
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub cv_url: Option<String>,
+	#[validate(url(message = "Invalid portfolio URL"))]
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub portfolio_url: Option<String>,
 	#[validate(length(min = 1, message = "At least 1 industry required"))]
@@ -279,18 +276,7 @@ pub struct MentoringRate {
 pub struct MentorInsertDto {
 	pub id: Thing,
 	pub user_id: Option<Thing>,
-	pub email: Option<String>,
-	pub legal_name: String,
-	pub gender: Option<String>,
-	pub domicile: Option<String>,
-	pub identity_document_url: String,
-	pub phone_for_verification: String,
-	pub bio: String,
-	pub last_education: Option<String>,
-	pub linkedin_url: Option<String>,
-	pub github_url: Option<String>,
-	pub cv_url: Option<String>,
-	pub portfolio_url: Option<String>,
+	// Personal data removed - now stored in UsersSchema
 	pub industries: Vec<String>,
 	pub expertise: Vec<String>,
 	pub languages: Vec<String>,
@@ -313,18 +299,7 @@ impl From<MentorSchema> for MentorInsertDto {
 		MentorInsertDto {
 			id: schema.id,
 			user_id: schema.user_id,
-			email: schema.email,
-			legal_name: schema.legal_name,
-			gender: schema.gender,
-			domicile: schema.domicile,
-			identity_document_url: schema.identity_document_url,
-			phone_for_verification: schema.phone_for_verification,
-			bio: schema.bio,
-			last_education: schema.last_education,
-			linkedin_url: schema.linkedin_url,
-			github_url: schema.github_url,
-			cv_url: schema.cv_url,
-			portfolio_url: schema.portfolio_url,
+			// Personal data removed from MentorSchema
 			industries: schema.industries,
 			expertise: schema.expertise,
 			languages: schema.languages,
@@ -354,19 +329,10 @@ pub struct MentorVerifyRequestDto {
 pub struct MentorDetailQueryDto {
 	pub id: Thing,
 	pub user_id: Thing,
-	pub fullname: Option<String>,
-	pub email: Option<String>,
-	pub legal_name: String,
-	pub gender: Option<String>,
-	pub domicile: Option<String>,
-	pub identity_document_url: String,
-	pub phone_for_verification: String,
-	pub bio: String,
-	pub last_education: Option<String>,
-	pub linkedin_url: Option<String>,
-	pub github_url: Option<String>,
-	pub cv_url: Option<String>,
-	pub portfolio_url: Option<String>,
+	// Personal data has been moved to UsersSchema
+	// Use user_id to get: fullname, email, legal_name, gender, domicile, 
+	// identity_document_url, phone_for_verification, bio, last_education, 
+	// linkedin_url, github_url, cv_url, portfolio_url
 	pub industries: Vec<String>,
 	pub expertise: Vec<String>,
 	pub languages: Vec<String>,
@@ -388,8 +354,8 @@ impl From<MentorDetailQueryDto> for MentorListResponseDto {
 	fn from(dto: MentorDetailQueryDto) -> Self {
 		Self {
 			id: extract_id(&dto.id),
-			fullname: dto.fullname,
-			email: dto.email,
+			fullname: None, // now in user table, must be populated from service layer
+			email: None, // now in user table, must be populated from service layer
 			status: dto.status,
 			created_at: dto.created_at,
 			updated_at: dto.updated_at,
@@ -402,15 +368,20 @@ impl From<MentorDetailQueryDto> for MentorDetailResponseDto {
 		Self {
 			id: extract_id(&dto.id),
 			user_id: extract_id(&dto.user_id),
-			fullname: dto.fullname,
-			email: dto.email,
-			legal_name: dto.legal_name,
-			identity_document_url: dto.identity_document_url,
-			phone_for_verification: dto.phone_for_verification,
-			bio: dto.bio,
-			linkedin_url: dto.linkedin_url,
-			github_url: dto.github_url,
-			cv_url: dto.cv_url,
+			// Personal data fields are populated in service layer from UsersSchema
+			fullname: None, // populated from user table in service layer
+			email: None, // populated from user table in service layer
+			legal_name: None, // populated from user table in service layer
+			gender: None, // populated from user table in service layer
+			domicile: None, // populated from user table in service layer
+			phone_for_verification: None, // populated from user table in service layer
+			bio: None, // populated from user table in service layer
+			last_education: None, // populated from user table in service layer
+			linkedin_url: None, // populated from user table in service layer
+			github_url: None, // populated from user table in service layer
+			cv_url: None, // populated from user table in service layer
+			portfolio_url: None, // populated from user table in service layer
+			// Professional data from mentor
 			industries: dto.industries,
 			expertise: dto.expertise,
 			languages: dto.languages,
@@ -433,7 +404,7 @@ impl From<MentorSchema> for MentorRegisterResponseDto {
 		Self {
 			id: schema.id.to_string(),
 			user_id: schema.user_id.map(|id| extract_id(&id)).unwrap_or_default(),
-			email: schema.email,
+			email: None, // schema.email - now in user table
 			status: schema.status,
 			created_at: schema.created_at,
 			updated_at: schema.updated_at,
@@ -446,19 +417,7 @@ impl From<MentorDetailWithUserDto> for MentorDetailQueryDto {
 		MentorDetailQueryDto {
 			id: dto.id,
 			user_id: dto.user_id,
-			fullname: dto.fullname,
-			email: dto.email,
-			legal_name: dto.legal_name,
-			gender: None, // Frontend form implies these are optional, not present in original MentorDetailWithUserDto
-			domicile: None, // Frontend form implies these are optional, not present in original MentorDetailWithUserDto
-			identity_document_url: dto.identity_document_url,
-			phone_for_verification: dto.phone_for_verification,
-			bio: dto.bio,
-			last_education: None, // Frontend form implies these are optional, not present in original MentorDetailWithUserDto
-			linkedin_url: dto.linkedin_url,
-			github_url: dto.github_url,
-			cv_url: dto.cv_url,
-			portfolio_url: None, // Frontend form implies these are optional, not present in original MentorDetailWithUserDto
+			// Personal data removed from MentorDetailWithUserDto - now in UsersSchema
 			industries: dto.industries,
 			expertise: dto.expertise,
 			languages: dto.languages,

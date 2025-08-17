@@ -1,11 +1,12 @@
 use crate::{
-	AppState, GachaItemDto, GachaItemRepository, GachaItemRequestDto, GachaItemSchema,
+	AppState, GachaItemDto, GachaItemRepository, GachaItemRequestDto, GachaItemUpdateRequestDto, GachaItemSchema,
 	MetaRequestDto, ResourceEnum, ResponseListSuccessDto, ResponseSuccessDto,
 	common_response, make_thing, success_list_response, success_response,
 	validate_request,
 };
 use axum::http::StatusCode;
 use axum::response::Response;
+use imphnen_utils::get_iso_date;
 
 pub struct GachaItemService;
 
@@ -59,20 +60,33 @@ impl GachaItemService {
 
 	pub async fn update_gacha_item(
 		state: &AppState,
-		payload: GachaItemRequestDto,
+		payload: GachaItemUpdateRequestDto,
 		id: String,
 	) -> Response {
 		if let Err((status, message)) = validate_request(&payload) {
 			return common_response(status, &message);
 		}
 		let repo = GachaItemRepository::new(state);
-		let schema = GachaItemSchema {
-			id: make_thing(&ResourceEnum::GachaItems.to_string(), &id),
-			name: payload.name,
-			image_url: payload.image_url,
-			..Default::default()
+		
+		// Get current gacha item data first
+		let _thing_id = make_thing(&ResourceEnum::GachaItems.to_string(), &id);
+		let current_item = match repo.query_gacha_item_by_id(id.clone()).await {
+			Ok(item) => item,
+			Err(_) => return common_response(StatusCode::NOT_FOUND, "Gacha Item not found"),
 		};
-		match repo.query_update_gacha_item(schema).await {
+		
+		let mut updated_item = current_item;
+		updated_item.updated_at = Some(get_iso_date());
+		
+		// Only update fields that are provided
+		if let Some(name) = payload.name {
+			updated_item.name = name;
+		}
+		if let Some(image_url) = payload.image_url {
+			updated_item.image_url = image_url;
+		}
+		
+		match repo.query_update_gacha_item(updated_item).await {
 			Ok(msg) => common_response(StatusCode::OK, &msg),
 			Err(e) => {
 				if e.to_string().contains("not found") {

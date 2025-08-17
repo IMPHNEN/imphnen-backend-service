@@ -9,6 +9,7 @@ imphnen-libs.workspace = true
 imphnen-utils.workspace = true
 imphnen-entities.workspace = true
 axum.workspace = true
+axum-extra.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 utoipa.workspace = true

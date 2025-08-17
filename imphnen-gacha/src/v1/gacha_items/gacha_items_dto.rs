@@ -11,6 +11,16 @@ pub struct GachaItemRequestDto {
 	pub image_url: String,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Validate)]
+pub struct GachaItemUpdateRequestDto {
+	#[validate(length(min = 1, message = "Item name must not be empty"))]
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub name: Option<String>,
+	#[validate(length(min = 1, message = "Image URL must not be empty"))]
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub image_url: Option<String>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct GachaItemDto {
 	pub id: String,

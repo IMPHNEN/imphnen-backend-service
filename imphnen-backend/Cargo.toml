@@ -3,6 +3,46 @@ name = "imphnen-backend"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "api"
+path = "src/main.rs"
+
+[[bin]]
+name = "clear_db_test"
+path = "src/bin/clear_db_test.rs"
+
+[[bin]]
+name = "seeder"
+path = "src/bin/seeder.rs"
+
+[[bin]]
+name = "seed_events"
+path = "src/bin/seed_events.rs"
+
+[[bin]]
+name = "seed_gacha_rolls"
+path = "src/bin/seed_gacha_rolls.rs"
+
+[[bin]]
+name = "seed_mentor_user"
+path = "src/bin/seed_mentor_user.rs"
+
+[[bin]]
+name = "seed_permissions"
+path = "src/bin/seed_permissions.rs"
+
+[[bin]]
+name = "seed_roles"
+path = "src/bin/seed_roles.rs"
+
+[[bin]]
+name = "seed_roles_permissions"
+path = "src/bin/seed_roles_permissions.rs"
+
+[[bin]]
+name = "seed_users"
+path = "src/bin/seed_users.rs"
+
 [dependencies]
 imphnen-libs.workspace = true
 imphnen-utils.workspace = true

@@ -43,3 +43,14 @@ pub fn common_response(status: StatusCode, message: &str) -> Response {
 	)
 		.into_response()
 }
+
+pub fn success_created_response<T: Serialize>(params: ResponseSuccessDto<T>) -> Response {
+    (
+        StatusCode::CREATED,
+        Json(json!({
+            "data": params.data,
+            "version": "0.1.0",
+        })),
+    )
+        .into_response()
+}

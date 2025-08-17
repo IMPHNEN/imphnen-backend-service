@@ -7,6 +7,7 @@ use imphnen_utils::{DetailQueryBuilder, QueryListBuilder, extract_id};
 use serde_json;
 use std::time::Instant;
 use tracing::instrument;
+use tracing::info;
 
 pub struct PermissionsRepository<'a> {
 	state: &'a AppState,
@@ -23,6 +24,7 @@ impl<'a> PermissionsRepository<'a> {
 		meta: MetaRequestDto,
 	) -> Result<ResponseListSuccessDto<Vec<PermissionsItemDto>>> {
 		let now = Instant::now();
+		info!("Executing SurrealDB query: QueryListBuilder for Permissions with meta: {:?}", meta);
 		let raw_result: ResponseListSuccessDto<Vec<PermissionsSchema>> =
 			QueryListBuilder::new(
 				&self.state.surrealdb_ws,
@@ -61,6 +63,7 @@ impl<'a> PermissionsRepository<'a> {
 	) -> Result<PermissionsSchema> {
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
+		info!(id = %id, "Executing SurrealDB select for Permissions");
 		let result: Option<PermissionsSchema> = db
 			.select((ResourceEnum::Permissions.to_string(), id.clone()))
 			.await?;
@@ -82,6 +85,7 @@ impl<'a> PermissionsRepository<'a> {
 		id: String,
 	) -> Result<PermissionsItemDto> {
 		let now = Instant::now();
+		info!(id = %id, "Executing transformed_query_permission_by_id (delegates to query_permission_by_id)");
 		let raw_result = self.query_permission_by_id(id.clone()).await?;
 		let elapsed = now.elapsed();
 		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
@@ -109,6 +113,7 @@ impl<'a> PermissionsRepository<'a> {
 			.with_where("name", Some(name.clone()))
 			.with_select_fields(vec!["*"]);
 		let sql = builder.build();
+		info!(query = %sql, "Executing SurrealDB query");
 		let result: Option<PermissionsSchema> =
 			builder.apply_bindings(db.query(sql)).await?.take(0)?;
 		let elapsed = now.elapsed();
@@ -130,6 +135,7 @@ impl<'a> PermissionsRepository<'a> {
 	) -> Result<String> {
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
+		info!("Executing SurrealDB create for Permissions with data: {:?}", data);
 		let record: Option<PermissionsSchema> = db
 			.create(ResourceEnum::Permissions.to_string())
 			.content(data)
@@ -162,6 +168,7 @@ impl<'a> PermissionsRepository<'a> {
 			created_at: existing.created_at,
 			..data.clone()
 		};
+		info!(record_key = ?record_key, "Executing SurrealDB update for Permissions");
 		let record: Option<PermissionsSchema> =
 			db.update(record_key).merge(merged).await?;
 		let elapsed = now.elapsed();
@@ -188,6 +195,7 @@ impl<'a> PermissionsRepository<'a> {
 			bail!("Permission already deleted");
 		}
 		let record_key = get_id(&permission.id)?;
+		info!(record_key = ?record_key, "Executing SurrealDB soft delete for Permissions");
 		let record: Option<PermissionsSchema> = db
 			.update(record_key)
 			.merge(serde_json::json!({ "is_deleted": true }))

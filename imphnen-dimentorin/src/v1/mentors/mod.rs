@@ -26,5 +26,5 @@ pub fn mentors_router() -> Router {
 		.route("/update/{id}", put(put_update_mentor))
 		.route("/update", put(put_update_mentor_no_id))
 		.route("/delete/{id}", delete(delete_mentor))
-		.route("/verify/{id}", put(put(put_verify_mentor)))
+		.route("/verify/{id}", put(put_verify_mentor))
 }

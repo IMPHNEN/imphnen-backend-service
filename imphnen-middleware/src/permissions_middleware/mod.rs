@@ -5,7 +5,7 @@ use axum::{
 use futures::future::BoxFuture;
 use imphnen_iam::{AuthRepository, PermissionsEnum};
 use imphnen_libs::AppState;
-use imphnen_utils::{common_response, extract_email};
+use imphnen_utils::{common_response, extract_email, extract_email_async};
 use std::task::{Context, Poll};
 use tower::{Layer, Service};
 
@@ -59,15 +59,24 @@ where
 		let permissions = self.permissions.clone();
 		Box::pin(async move {
 			let headers = req.headers();
+			
+			// Try synchronous email extraction first (for internal JWT tokens)
 			let email = match extract_email(headers) {
 				Some(email) => email,
 				None => {
-					return Ok(common_response(
-						StatusCode::UNAUTHORIZED,
-						"Invalid or missing authorization token",
-					));
+					// If sync extraction fails, try async (for Google tokens)
+					match extract_email_async(headers).await {
+						Some(email) => email,
+						None => {
+							return Ok(common_response(
+								StatusCode::UNAUTHORIZED,
+								"Invalid or missing authorization token",
+							));
+						}
+					}
 				}
 			};
+			
 			let auth_repo = AuthRepository::new(&app_state);
 			let user = match auth_repo.query_get_stored_user(email).await {
 				Ok(user) => user,

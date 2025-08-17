@@ -1,13 +1,11 @@
 use imphnen_iam::UsersSchema;
-use imphnen_libs::enviroment::load_env;
-use imphnen_utils::{get_iso_date, hash_password, Env};
+use imphnen_utils::{get_iso_date, hash_password};
 use std::error::Error;
 
 use surrealdb::{opt::auth::Root, sql::Thing};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-	load_env();
-	let env = Env::new();
+	let env = &imphnen_libs::enviroment::ENV;
 	use surrealdb::engine::any;
 	let db = any::connect(&env.surrealdb_url).await?;
 	db.signin(Root {
@@ -15,8 +13,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		password: &env.surrealdb_password,
 	})
 	.await?;
-	db.use_ns(env.surrealdb_namespace)
-		.use_db(env.surrealdb_dbname)
+	db.use_ns(env.surrealdb_namespace.clone())
+		.use_db(env.surrealdb_dbname.clone())
 		.await?;
 
 	let users = vec![
@@ -48,15 +46,32 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		let user = UsersSchema {
 			id: Thing::from(("app_users", id)),
 			fullname: fullname.into(),
+			legal_name: Some(format!("{} Legal Name", fullname)),
 			email: email.into(),
 			password: hash_password("password").unwrap(),
-			avatar: None,
+			avatar: Some("https://example.com/avatar.jpg".into()),
 			phone_number: "081234567890".into(),
+			phone_for_verification: Some("081234567890".into()),
 			is_active: true,
 			is_deleted: false,
 			mentor_id: None,
-			gender: None,
-			birthdate: None,
+			gender: Some("male".into()),
+			birthdate: Some("1990-05-15".into()),
+			domicile: Some("Jakarta, Indonesia".into()),
+			// identity_document_url: None, // Sudah tidak dipakai, bisa dihapus dari schema jika tidak diperlukan
+			bio: Some(format!("{} adalah user dengan data pribadi lengkap untuk testing.", fullname)),
+			last_education: Some("S1 Teknik Informatika".into()),
+			linkedin_url: Some("https://linkedin.com/in/user".into()),
+			github_url: Some("https://github.com/user".into()),
+			cv_url: Some("https://example.com/cv.pdf".into()),
+			portfolio_url: Some("https://example.com/portfolio".into()),
+			website_url: Some("https://example.com/website".into()),
+			twitter_url: Some("https://twitter.com/user".into()),
+			location: Some("Jakarta, Indonesia".into()),
+			skills: Some(vec!["JavaScript".into(), "React".into(), "Node.js".into()]),
+			experience: None,
+			education: None,
+			career_status: Some("Senior Developer".into()),
 			role: Thing::from(("app_roles", role_id)),
 			created_at: get_iso_date(),
 			updated_at: get_iso_date(),

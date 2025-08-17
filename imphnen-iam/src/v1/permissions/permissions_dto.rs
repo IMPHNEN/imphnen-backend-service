@@ -9,6 +9,13 @@ pub struct PermissionsRequestDto {
 	pub name: String,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Validate)]
+pub struct PermissionsUpdateRequestDto {
+	#[validate(length(min = 1, message = "Permission name must not be empty"))]
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub name: Option<String>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct PermissionsItemDto {
 	pub id: String,

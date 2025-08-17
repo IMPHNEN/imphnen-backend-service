@@ -5,8 +5,9 @@ use crate::{
 };
 use axum::http::StatusCode;
 use axum::response::Response;
+use imphnen_utils::get_iso_date;
 
-use super::PermissionsRequestDto;
+use super::{PermissionsRequestDto, PermissionsUpdateRequestDto};
 
 pub struct PermissionsService;
 
@@ -70,21 +71,31 @@ impl PermissionsService {
 
 	pub async fn update_permission(
 		state: &AppState,
-		payload: PermissionsRequestDto,
+		payload: PermissionsUpdateRequestDto,
 		id: String,
 	) -> Response {
 		if let Err((status, message)) = validate_request(&payload) {
 			return common_response(status, &message);
 		}
 		let repo = PermissionsRepository::new(state);
-		match repo
-			.query_update_permission(PermissionsSchema {
-				id: make_thing(&ResourceEnum::Permissions.to_string(), &id),
-				name: payload.name,
-				..Default::default()
-			})
-			.await
-		{
+		
+		// Get current permission data first
+		let thing_id = make_thing(&ResourceEnum::Permissions.to_string(), &id);
+		let current_permission = match repo.query_permission_by_id(id.clone()).await {
+			Ok(permission) => permission,
+			Err(_) => return common_response(StatusCode::NOT_FOUND, "Permission not found"),
+		};
+		
+		let mut updated_permission = current_permission;
+		updated_permission.id = thing_id;
+		updated_permission.updated_at = Some(get_iso_date());
+		
+		// Only update fields that are provided
+		if let Some(name) = payload.name {
+			updated_permission.name = name;
+		}
+		
+		match repo.query_update_permission(updated_permission).await {
 			Ok(msg) => common_response(StatusCode::OK, &msg),
 			Err(e) => {
 				if e.to_string().contains("not found") {

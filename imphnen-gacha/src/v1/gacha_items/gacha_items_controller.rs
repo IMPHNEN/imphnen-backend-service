@@ -1,5 +1,5 @@
 use crate::{
-	AppState, GachaItemDto, GachaItemRequestDto, GachaItemService, MessageResponseDto,
+	AppState, GachaItemDto, GachaItemRequestDto, GachaItemUpdateRequestDto, GachaItemService, MessageResponseDto,
 	MetaRequestDto, ResponseListSuccessDto, ResponseSuccessDto,
 };
 use axum::{
@@ -36,13 +36,13 @@ pub async fn get_gacha_item_list(
 	Query(meta): Query<MetaRequestDto>,
 ) -> impl IntoResponse {
 	match permissions_guard(
-		&headers,
-		state.clone(),
+		headers,
+		Extension(state),
 		vec![PermissionsEnum::ReadListGachaItems],
 	)
 	.await
 	{
-		Ok(_) => GachaItemService::get_gacha_item_list(&state, meta).await,
+		Ok((_user, state)) => GachaItemService::get_gacha_item_list(&state, meta).await,
 		Err(response) => response,
 	}
 }
@@ -65,13 +65,13 @@ pub async fn get_gacha_item_by_id(
 	Path(id): Path<String>,
 ) -> impl IntoResponse {
 	match permissions_guard(
-		&headers,
-		state.clone(),
+		headers,
+		Extension(state),
 		vec![PermissionsEnum::ReadDetailGachaItems],
 	)
 	.await
 	{
-		Ok(_) => GachaItemService::get_gacha_item_by_id(&state, id).await,
+		Ok((_user, state)) => GachaItemService::get_gacha_item_by_id(&state, id).await,
 		Err(response) => response,
 	}
 }
@@ -94,13 +94,13 @@ pub async fn post_create_gacha_item(
 	Json(payload): Json<GachaItemRequestDto>,
 ) -> impl IntoResponse {
 	match permissions_guard(
-		&headers,
-		state.clone(),
+		headers,
+		Extension(state),
 		vec![PermissionsEnum::CreateGachaItems],
 	)
 	.await
 	{
-		Ok(_) => GachaItemService::create_gacha_item(&state, payload).await,
+		Ok((_user, state)) => GachaItemService::create_gacha_item(&state, payload).await,
 		Err(response) => response,
 	}
 }
@@ -111,7 +111,7 @@ pub async fn post_create_gacha_item(
     security(
         ("Bearer" = [])
     ),
-    request_body = GachaItemRequestDto,
+    request_body = GachaItemUpdateRequestDto,
     responses(
         (status = 200, description = "Update gacha item", body = MessageResponseDto)
     ),
@@ -121,16 +121,16 @@ pub async fn put_update_gacha_item(
 	headers: HeaderMap,
 	Extension(state): Extension<AppState>,
 	Path(id): Path<String>,
-	Json(payload): Json<GachaItemRequestDto>,
+	Json(payload): Json<GachaItemUpdateRequestDto>,
 ) -> impl IntoResponse {
 	match permissions_guard(
-		&headers,
-		state.clone(),
+		headers,
+		Extension(state),
 		vec![PermissionsEnum::UpdateGachaItems],
 	)
 	.await
 	{
-		Ok(_) => GachaItemService::update_gacha_item(&state, payload, id).await,
+		Ok((_user, state)) => GachaItemService::update_gacha_item(&state, payload, id).await,
 		Err(response) => response,
 	}
 }
@@ -152,13 +152,13 @@ pub async fn delete_gacha_item(
 	Path(id): Path<String>,
 ) -> impl IntoResponse {
 	match permissions_guard(
-		&headers,
-		state.clone(),
+		headers,
+		Extension(state),
 		vec![PermissionsEnum::DeleteGachaItems],
 	)
 	.await
 	{
-		Ok(_) => GachaItemService::delete_gacha_item(&state, id).await,
+		Ok((_user, state)) => GachaItemService::delete_gacha_item(&state, id).await,
 		Err(response) => response,
 	}
 }

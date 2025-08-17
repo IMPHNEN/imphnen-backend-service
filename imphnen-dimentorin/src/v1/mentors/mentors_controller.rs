@@ -57,13 +57,13 @@ pub async fn get_mentor_list(
 	Query(meta): Query<MetaRequestDto>,
 ) -> Response {
 	match permissions_guard(
-		&headers,
-		app_state.clone(),
+		headers,
+		Extension(app_state),
 		vec![PermissionsEnum::ReadListMentors],
 	)
 	.await
 	{
-		Ok(_) => MentorsService::get_mentor_list(&app_state, meta).await,
+		Ok((_user, app_state)) => MentorsService::get_mentor_list(&app_state, meta).await,
 		Err(response) => response,
 	}
 }
@@ -90,13 +90,13 @@ pub async fn get_mentor_by_id(
 	Path(id): Path<String>,
 ) -> Response {
 	match permissions_guard(
-		&headers,
-		app_state.clone(),
+		headers,
+		Extension(app_state),
 		vec![PermissionsEnum::ReadDetailMentors],
 	)
 	.await
 	{
-		Ok(_) => MentorsService::get_mentor_by_id(&app_state, &id).await,
+		Ok((_user, app_state)) => MentorsService::get_mentor_by_id(&app_state, &id).await,
 		Err(response) => response,
 	}
 }
@@ -126,13 +126,13 @@ pub async fn put_update_mentor(
 	Json(dto): Json<MentorUpdateRequestDto>,
 ) -> Response {
 	match permissions_guard(
-		&headers,
-		app_state.clone(),
+		headers,
+		Extension(app_state),
 		vec![PermissionsEnum::UpdateMentors],
 	)
 	.await
 	{
-		Ok(_) => MentorsService::update_mentor(&app_state, &id, dto).await,
+		Ok((_user, app_state)) => MentorsService::update_mentor(&app_state, &id, dto).await,
 		Err(response) => response,
 	}
 }
@@ -159,13 +159,13 @@ pub async fn delete_mentor(
 	Path(id): Path<String>,
 ) -> Response {
 	match permissions_guard(
-		&headers,
-		app_state.clone(),
+		headers,
+		Extension(app_state),
 		vec![PermissionsEnum::DeleteMentors],
 	)
 	.await
 	{
-		Ok(_) => MentorsService::delete_mentor(&app_state, &id).await,
+		Ok((_user, app_state)) => MentorsService::delete_mentor(&app_state, &id).await,
 		Err(response) => response,
 	}
 }
@@ -195,13 +195,13 @@ pub async fn put_verify_mentor(
 	Json(dto): Json<MentorVerifyRequestDto>,
 ) -> Response {
 	match permissions_guard(
-		&headers,
-		app_state.clone(),
+		headers,
+		Extension(app_state),
 		vec![PermissionsEnum::VerifyMentors],
 	)
 	.await
 	{
-		Ok(_) => MentorsService::verify_mentor(&app_state, &id, dto).await,
+		Ok((_user, app_state)) => MentorsService::verify_mentor(&app_state, &id, dto).await,
 		Err(response) => response,
 	}
 }
@@ -221,17 +221,17 @@ pub async fn put_verify_mentor(
     )
 )]
 pub async fn get_mentor_me(
-	Extension(app_state): Extension<AppState>,
 	headers: HeaderMap,
+	Extension(app_state): Extension<AppState>,
 ) -> Response {
 	match permissions_guard(
-		&headers,
-		app_state.clone(),
+		headers.clone(),
+		Extension(app_state),
 		vec![PermissionsEnum::ReadOwnMentorProfile],
 	)
 	.await
 	{
-		Ok(_) => {
+		Ok((_user, app_state)) => {
 			let email = match extract_email(&headers) {
 				Some(email) => email,
 				None => {
@@ -268,18 +268,18 @@ pub async fn get_mentor_me(
     )
 )]
 pub async fn put_update_mentor_me(
-	Extension(app_state): Extension<AppState>,
 	headers: HeaderMap,
+	Extension(app_state): Extension<AppState>,
 	Json(dto): Json<MentorUpdateRequestDto>,
 ) -> Response {
 	match permissions_guard(
-		&headers,
-		app_state.clone(),
+		headers.clone(),
+		Extension(app_state),
 		vec![PermissionsEnum::UpdateOwnMentorProfile],
 	)
 	.await
 	{
-		Ok(_) => {
+		Ok((_user, app_state)) => {
 			let email = match extract_email(&headers) {
 				Some(email) => email,
 				None => {
@@ -325,17 +325,17 @@ pub async fn put_update_mentor_no_id() -> Response {
     )
 )]
 pub async fn get_mentor_status(
-	Extension(app_state): Extension<AppState>,
 	headers: HeaderMap,
+	Extension(app_state): Extension<AppState>,
 ) -> Response {
 	match permissions_guard(
-		&headers,
-		app_state.clone(),
+		headers.clone(),
+		Extension(app_state),
 		vec![PermissionsEnum::ReadOwnMentorStatus],
 	)
 	.await
 	{
-		Ok(_) => {
+		Ok((_user, app_state)) => {
 			let email = match extract_email(&headers) {
 				Some(email) => email,
 				None => {
