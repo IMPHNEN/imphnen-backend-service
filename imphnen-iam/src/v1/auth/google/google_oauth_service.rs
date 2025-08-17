@@ -52,8 +52,8 @@ impl AuthRequest {
     
     /// Validate CSRF state token with signature verification and extract PKCE verifier
     pub fn validate_csrf_state_and_get_pkce_verifier(&self, secret: &str) -> Result<PkceCodeVerifier, Error> {
-        // Maximum age of 10 minutes for OAuth flow
-        const MAX_AGE_SECONDS: u64 = 600;
+        // Maximum age of 30 minutes for OAuth flow (increased from 10)
+        const MAX_AGE_SECONDS: u64 = 300; // Changed from 30 minutes (1800s) to 5 minutes (300s)
         
         let pkce_verifier_secret = validate_oauth_csrf_token(&self.state, secret, MAX_AGE_SECONDS)
             .map_err(|e| {
@@ -67,7 +67,7 @@ impl AuthRequest {
     /// Validate CSRF state token with signature verification (legacy method for backward compatibility)
     pub fn validate_csrf_state(&self, secret: &str) -> Result<(), Error> {
         // Try OAuth CSRF validation first, if it fails, fall back to regular CSRF validation
-        match validate_oauth_csrf_token(&self.state, secret, 600) {
+        match validate_oauth_csrf_token(&self.state, secret, 1800) {
             Ok(_) => Ok(()),
             Err(_) => {
                 // Fallback to regular CSRF validation for backward compatibility
@@ -150,19 +150,22 @@ where
             .set_auth_uri(auth_url)
             .set_token_uri(token_url)
             .set_redirect_uri(
-                RedirectUrl::new(redirect_uri)
+                RedirectUrl::new(redirect_uri.clone())
                     .expect("Invalid redirect URL"),
             );
+        info!("OAuth client configured with redirect URI: {}", redirect_uri);
         let (pkce_code_challenge, pkce_code_verifier) = PkceCodeChallenge::new_random_sha256();
+        info!("Generated PKCE Code Challenge: {}", pkce_code_challenge.as_str());
+        info!("Generated PKCE Code Verifier: {}", pkce_code_verifier.secret());
 
         // Generate a signed CSRF token with PKCE verifier for stateless validation
         let csrf_token_str = generate_oauth_csrf_token(&self.env.access_token_secret, pkce_code_verifier.secret())
             .unwrap_or_else(|_| uuid::Uuid::new_v4().to_string()); // Fallback to UUID if signing fails
         
-        let _ = CsrfToken::new(csrf_token_str);
+        
 
         let (auth_url, csrf_token) = client
-            .authorize_url(CsrfToken::new_random)
+            .authorize_url(|| CsrfToken::new(csrf_token_str.clone()))
             .add_scope(Scope::new("https://www.googleapis.com/auth/userinfo.email".to_string()))
             .add_scope(Scope::new("https://www.googleapis.com/auth/userinfo.profile".to_string()))
             .set_pkce_challenge(pkce_code_challenge)
@@ -175,6 +178,7 @@ where
         let app_state = app_state.to_owned();
         Box::pin(async move {
         // Validate input parameters first
+        info!("Received OAuth callback request with state: {}", auth_request.state);
         auth_request.validate()?;
         
         // CRITICAL: Validate CSRF state token and extract PKCE verifier
@@ -182,6 +186,7 @@ where
         
         info!("Starting Google OAuth callback process");
         info!("Redirect URI used: {:?}", auth_request.redirect_uri);
+        info!("PKCE verifier extracted: {}", pkce_verifier.secret());
         info!("PKCE verifier extracted: {}", pkce_verifier.secret());
         
         // Use the SAME redirect URI that was used for auth URL generation
@@ -198,9 +203,10 @@ where
             .set_auth_uri(auth_url)
             .set_token_uri(token_url)
             .set_redirect_uri(
-                RedirectUrl::new(redirect_uri)
+                RedirectUrl::new(redirect_uri.clone())
                     .expect("Invalid redirect URL"),
             );
+        info!("OAuth client configured with redirect URI: {}", redirect_uri);
         
         // Debug the OAuth client configuration
         let effective_redirect_uri = auth_request.redirect_uri.as_ref().unwrap_or(&self_clone.env.google_redirect_url);
