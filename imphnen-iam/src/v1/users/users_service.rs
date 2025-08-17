@@ -18,8 +18,8 @@ use std::pin::Pin;
 use std::future::Future;
 use anyhow::Result;
 
-use tracing::warn;
 use tracing::info;
+use tracing::error;
 use crate::v1::users::users_dto::{UsersDetailItemDto as UserDto, UsersCreateRequestDto as CreateUserDto};
 use serde_json::json;
 
@@ -384,11 +384,16 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
         let state = state.to_owned();
         let user_id = user_id.to_owned();
         Box::pin(async move {
+            info!("Entering upload_file function for user_id: {}", user_id);
+
             // Initialize MinIO configuration
             let minio_config = match MinioConfig::from_env() {
-                Ok(config) => config,
+                Ok(config) => {
+                    info!("MinIO config loaded successfully.");
+                    config
+                },
                 Err(e) => {
-                    log::error!("Failed to load MinIO config: {}", e);
+                    error!("Failed to load MinIO config: {}", e);
                     return common_response(
                         StatusCode::INTERNAL_SERVER_ERROR,
                         "MinIO configuration error",
@@ -398,12 +403,16 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
 
             // Store bucket name before minio_config is moved
             let bucket_name = minio_config.bucket_name.clone();
+            info!("MinIO bucket name: {}", bucket_name);
 
             // Initialize MinIO service
             let minio_service = match create_minio_service_from_config(minio_config).await {
-                Ok(service) => service,
+                Ok(service) => {
+                    info!("MinIO service initialized successfully.");
+                    service
+                },
                 Err(e) => {
-                    log::error!("Failed to initialize MinIO service: {}", e);
+                    error!("Failed to initialize MinIO service: {}", e);
                     return common_response(
                         StatusCode::INTERNAL_SERVER_ERROR,
                         "MinIO service initialization error",
@@ -411,52 +420,47 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
                 }
             };
 
-            // Extract email from user_id (which contains email in SurrealDB format)
-            let user_email = user_id
-                .replace("app_users:", "")
-                .replace("⟨", "")
-                .replace("⟩", "");
-                
-            // Get actual user data from database to get real user ID and old avatar URL
+            // Get actual user data from database using user_id (which is a UUID)
             let repo = UsersRepository::new(&state);
-            let (actual_user_id, user_email, old_avatar_url) = match repo.query_user_by_email(user_email.clone()).await {
+            let thing_id = make_thing(&ResourceEnum::Users.to_string(), &user_id);
+            let user_data = match repo.query_user_by_id(&thing_id).await {
                 Ok(user) => {
-                    // Extract the actual ID from the user record
-                    let actual_id = user.id.id.to_raw();
-                    let old_avatar = user.avatar.clone(); // Get the old avatar URL
-                    (actual_id, user.email, old_avatar)
+                    info!("Found user in DB. User ID: {}, Email: {}", user.id.id.to_raw(), user.email);
+                    user
                 }
-                Err(_) => {
+                Err(e) => {
+                    error!("Failed to find user in DB for ID {}: {}", user_id, e);
                     return common_response(
                         StatusCode::NOT_FOUND,
                         "User not found",
                     );
                 }
             };
+            let actual_user_id = user_data.id.id.to_raw();
+            let user_email = user_data.email;
 
             let mut file_data: Option<Vec<u8>> = None;
             let mut filename: Option<String> = None;
             let mut content_type: Option<String> = None;
 
-            // Process multipart form
+            info!("Starting multipart form processing.");
             while let Some(field) = multipart.next_field().await.unwrap_or(None) {
                 let name = field.name().unwrap_or("").to_string();
+                info!("Processing multipart field: {}", name);
                 
                 match name.as_str() {
                     "file" => {
-                        if file_data.is_some() {
-                            warn!("Multiple file fields detected for profile upload. Only the first one will be processed.");
-                        }
                         filename = field.file_name().map(|s| s.to_string());
                         content_type = field.content_type().map(|s| s.to_string());
+                        info!("Detected file field. Filename: {:?}, Content-Type: {:?}", filename, content_type);
                         
                         match field.bytes().await {
                             Ok(bytes) => {
                                 file_data = Some(bytes.to_vec());
-                                break; // Process only the first file field
+                                info!("Successfully read file data, size: {} bytes", file_data.as_ref().map_or(0, |d| d.len()));
                             },
                             Err(e) => {
-                                log::error!("Failed to read file data: {}", e);
+                                error!("Failed to read file data from multipart: {}", e);
                                 return common_response(
                                     StatusCode::BAD_REQUEST,
                                     "Failed to read file data",
@@ -465,22 +469,20 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
                         }
                     }
                     "base64_data" => {
-                        if file_data.is_some() {
-                            warn!("Multiple file fields detected for profile upload. Only the first one will be processed.");
-                        }
                         let base64_str = field.text().await.unwrap_or_default();
+                        info!("Detected base64_data field, length: {}", base64_str.len());
                         if !base64_str.is_empty() {
                             match decode_base64_file(&base64_str) {
                                 Ok(decoded_data) => {
                                     file_data = Some(decoded_data);
-                                    // Extract content type from data URL if present
+                                    info!("Successfully decoded base64 data, size: {} bytes", file_data.as_ref().map_or(0, |d| d.len()));
                                     if let Some(detected_type) = extract_content_type_from_data_url(&base64_str) {
                                         content_type = Some(detected_type);
+                                        info!("Detected content type from base64 data URL: {}", content_type.as_ref().unwrap());
                                     }
-                                    break; // Process only the first file field
                                 }
                                 Err(e) => {
-                                    log::error!("Failed to decode base64 data: {}", e);
+                                    error!("Failed to decode base64 data: {}", e);
                                     return common_response(
                                         StatusCode::BAD_REQUEST,
                                         "Invalid base64 data",
@@ -491,57 +493,55 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
                     }
                     "filename" => {
                         filename = Some(field.text().await.unwrap_or_default());
+                        info!("Received filename from field: {:?}", filename);
                     }
                     "content_type" => {
                         content_type = Some(field.text().await.unwrap_or_default());
+                        info!("Received content_type from field: {:?}", content_type);
                     }
                     _ => {
-                        // Skip unknown fields
+                        info!("Skipping unknown multipart field: {}", name);
                     }
                 }
             }
-
-            // If an old avatar exists, delete it from MinIO
-            if let Some(old_url) = old_avatar_url {
-                // Extract object path from the URL
-                // Assuming URL format is https://cdn.asepharyana.tech/{bucket_name}/{object_path}
-                let parts: Vec<&str> = old_url.splitn(4, '/').collect();
-                if parts.len() == 4 {
-                    let old_object_path = parts[3];
-                    log::info!("Deleting old avatar from MinIO: {}", old_object_path);
-                    if let Err(e) = minio_service.delete_file(old_object_path).await {
-                        log::error!("Failed to delete old avatar from MinIO: {}", e);
-                        // Do not return error, continue with new upload
-                    }
-                } else {
-                    log::warn!("Could not parse old avatar URL for deletion: {}", old_url);
-                }
-            }
+            info!("Finished multipart form processing.");
 
             // Validate required fields
             let file_data = match file_data {
                 Some(data) => data,
                 None => {
+                    error!("File data is missing after multipart processing.");
                     return common_response(
                         StatusCode::BAD_REQUEST,
                         "file data is required",
                     );
                 }
             };
+            info!("File data extracted, size: {} bytes.", file_data.len());
 
-            let filename = filename.unwrap_or_else(|| "unnamed_file".to_string());
-            let content_type = content_type.unwrap_or_else(|| "application/octet-stream".to_string());
+            let filename = filename.unwrap_or_else(|| {
+                info!("Filename not provided, defaulting to 'unnamed_file'.");
+                "unnamed_file".to_string()
+            });
+            let content_type = content_type.unwrap_or_else(|| {
+                info!("Content type not provided, defaulting to 'application/octet-stream'.");
+                "application/octet-stream".to_string()
+            });
+            info!("Final filename: {}, Content-Type: {}", filename, content_type);
 
             // Auto-detect file type based on content type and filename
             let file_type = FileType::from_content_type(&content_type);
             let file_type = if matches!(file_type, FileType::Unknown) {
+                info!("Content type detection failed, trying from filename.");
                 FileType::from_filename(&filename)
             } else {
                 file_type
             };
+            info!("Detected file type: {:?}", file_type);
 
             // Validate file type is supported
             if matches!(file_type, FileType::Unknown) {
+                error!("Unsupported file type detected: {:?}", file_type);
                 return common_response(
                     StatusCode::BAD_REQUEST,
                     "Unsupported file type. Supported types: JPEG, PNG, WEBP, GIF, PDF, DOC, DOCX",
@@ -550,20 +550,24 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
 
             // Validate file type matches content type
             if !file_type.allowed_types().contains(&content_type.as_str()) {
+                error!("File type '{:?}' does not match content type '{}'.", file_type, content_type);
                 return common_response(
                     StatusCode::BAD_REQUEST,
-                    &format!("File type '{}' does not match content type '{:?}'", content_type, file_type),
+                    &format!("File type '{:?}' does not match content type '{}'", file_type, content_type),
                 );
             }
 
             // Validate file size
             if file_data.len() > file_type.max_size() {
+                error!("File too large. Current size: {} bytes, Max size for {:?}: {} bytes", 
+                    file_data.len(), file_type, file_type.max_size());
                 return common_response(
                     StatusCode::BAD_REQUEST,
                     &format!("File too large. Maximum size for {:?} is {} bytes", 
                         file_type, file_type.max_size()),
                 );
             }
+            info!("File size validated: {} bytes.", file_data.len());
 
             // Create secure upload path with user ID (sanitized for filesystem)
             let sanitized_user_id = user_email
@@ -571,21 +575,20 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
                 .replace(":", "_")
                 .replace("@", "_at_")
                 .replace(".", "_");
+            info!("Sanitized user ID for folder path: {}", sanitized_user_id);
             
             let folder = format!("{}/{}", file_type.as_folder(), sanitized_user_id);
+            info!("Upload folder: {}", folder);
 
             // Upload file to MinIO with deduplication
+            info!("Attempting to upload file to MinIO.");
             match minio_service.upload_file_with_deduplication(&file_data, &content_type, &folder, &filename).await {
                 Ok(object_path) => {
+                    info!("File uploaded successfully to MinIO. Object path: {}", object_path);
                     // Create permanent URL (no expiration)
                     let permanent_url = format!("https://cdn.asepharyana.tech/{}/{}", 
                         bucket_name, object_path);
-
-                    // Update user's avatar URL in the database
-                    if let Err(e) = UsersService::update_user_avatar(&user_email, Some(permanent_url.clone()), &state).await {
-                        log::error!("Failed to update user avatar in DB: {}", e);
-                        // Continue with response, but log the error
-                    }
+                    info!("Permanent URL: {}", permanent_url);
 
                     let response_data = json!({
                         "filename": filename,
@@ -604,7 +607,7 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
                     })
                 }
                 Err(e) => {
-                    log::error!("Failed to upload file: {}", e);
+                    error!("Failed to upload file to MinIO: {}", e);
                     common_response(
                         StatusCode::INTERNAL_SERVER_ERROR,
                         &format!("Upload failed: {}", e),

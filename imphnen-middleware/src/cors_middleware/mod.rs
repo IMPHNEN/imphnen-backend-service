@@ -5,19 +5,23 @@ use tower_http::cors::CorsLayer;
 pub fn cors_middleware() -> CorsLayer {
 	let env = &ENV;
 	let cors_origins = match env.rust_env.as_str() {
-		"development" => vec!["http://localhost:3000"],
+		"development" => {
+			let mut origins = vec!["http://localhost:3000".to_string()];
+			origins.push(format!("http://localhost:{}", env.port));
+			origins
+		},
 		"production" => {
 			vec![
-				"https://gacha.imphnen.dev",
-				"https://imphnen.dev",
-				"https://dimentorin.imphnen.dev",
+				"https://gacha.imphnen.dev".to_string(),
+				"https://imphnen.dev".to_string(),
+				"https://dimentorin.imphnen.dev".to_string(),
 			]
 		}
 		_ => vec![
-			"http://localhost:3000",
-			"https://gacha.imphnen.dev",
-			"https://imphnen.dev",
-			"https://dimentorin.imphnen.dev",
+			"http://localhost:3000".to_string(),
+			"https://gacha.imphnen.dev".to_string(),
+			"https://imphnen.dev".to_string(),
+			"https://dimentorin.imphnen.dev".to_string(),
 		],
 	};
 	let allowed_origins: Vec<HeaderValue> = cors_origins
@@ -27,7 +31,7 @@ pub fn cors_middleware() -> CorsLayer {
 
 	CorsLayer::new()
 		.allow_origin(allowed_origins)
-		.allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
+		.allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
 		.allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE])
 		.allow_credentials(true)
 }
