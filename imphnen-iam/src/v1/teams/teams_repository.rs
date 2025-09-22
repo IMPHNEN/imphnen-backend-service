@@ -188,8 +188,12 @@ impl<'a> TeamsRepository<'a> {
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
 		
-		let condition = format!("{} AND is_active = true", build_thing_condition("team_id", team_id));
-		let sql = format!("SELECT * FROM {} WHERE {}", ResourceEnum::TeamMembers, condition);
+		let builder = DetailQueryBuilder::new(ResourceEnum::TeamMembers.to_string())
+			.with_thing_equals("team_id", team_id)
+			.with_condition("is_active = true")
+			.with_select_fields(vec!["*"]);
+			
+		let sql = builder.build();
 		let mut result = db.query(sql).await?;
 		
 		let members: Vec<TeamMembersQueryDto> = match result.take(0) {
@@ -248,7 +252,7 @@ impl<'a> TeamsRepository<'a> {
 		
 		let member_count = execute_safe_count_query(
 			db,
-			&ResourceEnum::TeamMembers.to_string(),
+			ResourceEnum::TeamMembers.to_string(),
 			&conditions,
 		).await.unwrap_or(0);
 		

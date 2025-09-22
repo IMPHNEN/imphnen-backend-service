@@ -230,16 +230,16 @@ impl DetailQueryBuilder {
 		self
 	}
 
-	pub fn with_thing_condition(mut self, field: &str, thing: &Thing) -> Self {
-		let condition = build_thing_condition(field, thing);
-		self.conditions.push(condition);
-		self
+	pub fn with_thing_equals(mut self, field: &str, thing: &Thing) -> Self {
+	    let condition = build_thing_condition(field, thing);
+	    self.conditions.push(condition);
+	    self
 	}
 
-	pub fn with_multi_thing_condition(mut self, conditions: &[(&str, &Thing)]) -> Self {
-		let condition = build_multi_thing_condition(conditions);
-		self.conditions.push(condition);
-		self
+	pub fn with_things_equals(mut self, conditions: &[(&str, &Thing)]) -> Self {
+	    let condition = build_multi_thing_condition(conditions);
+	    self.conditions.push(condition);
+	    self
 	}
 
 	pub fn with_select_fields(mut self, fields: Vec<&str>) -> Self {
@@ -318,23 +318,16 @@ pub async fn execute_safe_update_query(
 
 pub async fn execute_safe_count_query(
 	db: &Surreal<surrealdb::engine::any::Any>,
-	table: &str,
+	resource: String,
 	conditions: &str,
 ) -> Result<u64> {
-	let query = format!("SELECT COUNT() AS member_count FROM {} WHERE {}", table, conditions);
+	let query = format!("SELECT count() FROM {} WHERE {}", resource, conditions);
 	let mut result = db.query(query).await?;
 	
-	let count_result: Vec<serde_json::Value> = result.take(0).unwrap_or_default();
-	
-	let count = if let Some(first_result) = count_result.first() {
-		if let Some(count_val) = first_result.get("member_count") {
-			count_val.as_u64().unwrap_or(0)
-		} else {
-			0
-		}
-	} else {
-		0
-	};
+	// Extract the count from the result
+	let response: Vec<surrealdb::Value> = result.take(0)?;
+	let count = response.get(0).and_then(|v| v.to_string().parse::<u64>().ok())
+		.ok_or_else(|| anyhow::anyhow!("No count found in response"))?;
 	
 	Ok(count)
 }
