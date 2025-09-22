@@ -8,7 +8,8 @@ use imphnen_libs::{
 };
 use imphnen_utils::{
 	get_id, DetailQueryBuilder, QueryListBuilder, make_thing_from_enum,
-	build_thing_condition, build_multi_thing_condition, execute_safe_update_query, execute_safe_count_query
+	build_thing_condition, build_multi_thing_condition, execute_safe_update_query, execute_safe_count_query,
+	ListQueryBuilder
 };
 use surrealdb::sql::Thing;
 use anyhow::{Result, bail};
