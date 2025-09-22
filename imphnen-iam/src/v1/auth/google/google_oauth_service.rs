@@ -338,15 +338,13 @@ where
             }
         };
 
-        let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
-let access_token = encode_access_token(user.email.clone(), user.id.clone(), permissions.clone())
+let access_token = encode_access_token(user.email.clone(), user.id.clone())
             .map_err(|e| {
                 error!("Failed to generate access token for {}: {:?}", user.email, e);
                 Error::Auth("Failed to generate access token".to_string())
             })?;
             
-        let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
-let refresh_token = encode_refresh_token(user.email.clone(), user.id.clone(), permissions)
+let refresh_token = encode_refresh_token(user.email.clone(), user.id.clone())
             .map_err(|e| {
                 error!("Failed to generate refresh token for {}: {:?}", user.email, e);
                 Error::Auth("Failed to generate refresh token".to_string())

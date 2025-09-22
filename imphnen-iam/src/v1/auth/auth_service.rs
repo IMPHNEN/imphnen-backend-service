@@ -98,11 +98,9 @@ impl AuthServiceTrait for AuthService {
 					);
 				}
 
-				// Avoid unnecessary clone of user for caching if not needed
-				let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.as_str()).map(str::to_owned).collect();
 				let user_id = user.id.id.to_raw();
 
-				let access_token = match encode_access_token(email.to_string(), user_id.clone(), permissions.clone()) {
+				let access_token = match encode_access_token(email.to_string(), user_id.clone()) {
 					Ok(token) => token,
 					Err(_e) => {
 						error!(
@@ -116,7 +114,7 @@ impl AuthServiceTrait for AuthService {
 					}
 				};
 
-				let refresh_token = match encode_refresh_token(email.to_string(), user_id, permissions) {
+				let refresh_token = match encode_refresh_token(email.to_string(), user_id) {
 					Ok(token) => token,
 					Err(_e) => {
 						error!(
@@ -205,8 +203,7 @@ impl AuthServiceTrait for AuthService {
 					);
 				}
 
-				let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
-                let access_token = match encode_access_token(payload.email.clone(), user.id.id.to_raw(), permissions.clone()) {
+				            let access_token = match encode_access_token(payload.email.clone(), user.id.id.to_raw()) {
 					Ok(token) => token,
 					Err(_e) => {
 						error!(
@@ -220,8 +217,7 @@ impl AuthServiceTrait for AuthService {
 					}
 				};
 
-				let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
-                let refresh_token = match encode_refresh_token(payload.email.clone(), user.id.id.to_raw(), permissions) {
+				            let refresh_token = match encode_refresh_token(payload.email.clone(), user.id.id.to_raw()) {
 					Ok(token) => token,
 					Err(_e) => {
 						error!(
@@ -432,8 +428,7 @@ impl AuthServiceTrait for AuthService {
 			}
 		};
 
-		let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
-		let access_token = match encode_access_token(user.email.clone(), user.id.id.to_raw(), permissions.clone()) {
+		let access_token = match encode_access_token(user.email.clone(), user.id.id.to_raw()) {
 			Ok(token) => token,
 			Err(_e) => {
 				error!("Failed to generate access token for {}: {}", user.email, _e);
@@ -443,7 +438,7 @@ impl AuthServiceTrait for AuthService {
 				);
 			}
 		};
-		let refresh_token = match encode_refresh_token(user.email.clone(), user.id.id.to_raw(), permissions) {
+		let refresh_token = match encode_refresh_token(user.email.clone(), user.id.id.to_raw()) {
 			Ok(token) => token,
 			Err(_e) => {
 				error!("Failed to generate refresh token for {}: {}", user.email, _e);
@@ -477,8 +472,7 @@ impl AuthServiceTrait for AuthService {
             tokio::spawn(async move {
                 let user_repo = UsersRepository::new(&state);
                 if let Ok(user) = user_repo.query_user_by_email(payload.email.clone()).await {
-                    let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
-                    let token = match encode_reset_password_token(user.email.clone(), user.id.id.to_raw(), permissions) {
+                    let token = match encode_reset_password_token(user.email.clone(), user.id.id.to_raw()) {
                         Ok(token) => token,
                         Err(_e) => {
                             error!("Failed to generate reset password token for {}: {}", user.email, _e);

@@ -12,19 +12,18 @@ pub struct Claims {
 	pub iat: usize,
 	pub sub: String,
     pub user_id: String,
-    pub permissions: Vec<String>,
 }
 
 static ACCESS_HEADER: once_cell::sync::Lazy<Header> = once_cell::sync::Lazy::new(Header::default);
 static ACCESS_KEY: once_cell::sync::Lazy<EncodingKey> = once_cell::sync::Lazy::new(|| {
 	EncodingKey::from_secret(ENV.access_token_secret.as_ref())
 });
-pub fn encode_access_token(sub: String, user_id: String, permissions: Vec<String>) -> Result<String, StatusCode> {
+pub fn encode_access_token(sub: String, user_id: String) -> Result<String, StatusCode> {
 	let now = Utc::now();
 	let expire: TimeDelta = Duration::minutes(15);
 	let exp: usize = (now + expire).timestamp() as usize;
 	let iat: usize = now.timestamp() as usize;
-	let claim = Claims { iat, exp, sub, user_id, permissions };
+	let claim = Claims { iat, exp, sub, user_id };
 	encode(
 		&ACCESS_HEADER,
 		&claim,
@@ -33,14 +32,14 @@ pub fn encode_access_token(sub: String, user_id: String, permissions: Vec<String
 	.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
-pub fn encode_reset_password_token(sub: String, user_id: String, permissions: Vec<String>) -> Result<String, StatusCode> {
+pub fn encode_reset_password_token(sub: String, user_id: String) -> Result<String, StatusCode> {
 	let env = &ENV;
 	let secret: String = env.access_token_secret.clone();
 	let now = Utc::now();
 	let expire: TimeDelta = Duration::minutes(5);
 	let exp: usize = (now + expire).timestamp() as usize;
 	let iat: usize = now.timestamp() as usize;
-	let claim = Claims { iat, exp, sub, user_id, permissions };
+	let claim = Claims { iat, exp, sub, user_id };
 	encode(
 		&Header::default(),
 		&claim,
@@ -67,12 +66,12 @@ static REFRESH_HEADER: once_cell::sync::Lazy<Header> = once_cell::sync::Lazy::ne
 static REFRESH_KEY: once_cell::sync::Lazy<EncodingKey> = once_cell::sync::Lazy::new(|| {
 	EncodingKey::from_secret(ENV.refresh_token_secret.as_ref())
 });
-pub fn encode_refresh_token(sub: String, user_id: String, permissions: Vec<String>) -> Result<String, StatusCode> {
+pub fn encode_refresh_token(sub: String, user_id: String) -> Result<String, StatusCode> {
 	let now = Utc::now();
 	let expire: TimeDelta = Duration::days(1);
 	let exp: usize = (now + expire).timestamp() as usize;
 	let iat: usize = now.timestamp() as usize;
-	let claim = Claims { iat, exp, sub, user_id, permissions };
+	let claim = Claims { iat, exp, sub, user_id };
 	encode(
 		&REFRESH_HEADER,
 		&claim,
@@ -95,6 +94,6 @@ pub fn decode_refresh_token(
 	result // Explicitly return result
 }
 
-pub fn generate_jwt(user_id: &str, permissions: Vec<String>) -> Result<String, StatusCode> {
-    encode_access_token(user_id.to_string(), user_id.to_string(), permissions)
+pub fn generate_jwt(user_id: &str) -> Result<String, StatusCode> {
+    encode_access_token(user_id.to_string(), user_id.to_string())
 }
