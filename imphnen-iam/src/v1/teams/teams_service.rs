@@ -1,6 +1,6 @@
 use super::{
 	TeamsCreateRequestDto, TeamsUpdateRequestDto, TeamInviteRequestDto,
-	TeamAcceptInvitationRequestDto, TeamsDetailItemDto,
+	TeamAcceptInvitationRequestDto, TeamsDetailItemDto, MemberTeamsDetailItemDto,
 	TeamMemberDto, TeamsRepository, TeamsSchema, TeamMembersSchema,
 	TeamInvitationsSchema, TeamsSearchQueryDto, PublicTeamsListItemDto, PublicTeamsDetailItemDto,
 	AdminTeamsListItemDto, AdminTeamsDetailItemDto
@@ -24,6 +24,8 @@ use chrono::Utc;
 pub trait TeamsServiceTrait: Send + Sync + 'static {
 	fn get_team_list(state: &AppState, meta: MetaRequestDto) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn get_team_by_id(state: &AppState, id: String) -> Pin<Box<dyn Future<Output = Response> + Send>>;
+	fn get_member_team_list(state: &AppState, meta: MetaRequestDto) -> Pin<Box<dyn Future<Output = Response> + Send>>;
+	fn get_member_team_by_id(state: &AppState, id: String) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn get_public_team_list(state: &AppState, meta: MetaRequestDto) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn get_public_team_by_id(state: &AppState, id: String) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn create_team(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims, new_team: TeamsCreateRequestDto) -> Pin<Box<dyn Future<Output = Response> + Send>>;
@@ -33,6 +35,7 @@ pub trait TeamsServiceTrait: Send + Sync + 'static {
 	fn accept_invitation(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims, accept: TeamAcceptInvitationRequestDto) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn get_team_members(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims, team_id: String) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn leave_team(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims, team_id: String) -> Pin<Box<dyn Future<Output = Response> + Send>>;
+	fn leave_current_team(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn search_teams(state: &AppState, search_params: TeamsSearchQueryDto) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn get_admin_team_list(state: &AppState, meta: MetaRequestDto) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn get_admin_team_by_id(state: &AppState, id: String) -> Pin<Box<dyn Future<Output = Response> + Send>>;
@@ -107,69 +110,167 @@ impl TeamsService {
 
 impl TeamsServiceTrait for TeamsService {
 	fn get_team_list(state: &AppState, meta: MetaRequestDto) -> Pin<Box<dyn Future<Output = Response> + Send>> {
-		let state = state.to_owned();
-		Box::pin(async move {
-			let repo = TeamsRepository::new(&state);
-			match repo.query_team_list(meta).await {
-				Ok(data) => {
-					let response = ResponseListSuccessDto {
-						data: data.data,
-						meta: data.meta,
-					};
-					success_list_response(response)
+			let state = state.to_owned();
+			Box::pin(async move {
+				let repo = TeamsRepository::new(&state);
+				match repo.query_team_list(meta).await {
+					Ok(data) => {
+						let response = ResponseListSuccessDto {
+							data: data.data,
+							meta: data.meta,
+						};
+						success_list_response(response)
+					}
+					Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
 				}
-				Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
-			}
-		})
-	}
-
-	fn get_team_by_id(state: &AppState, id: String) -> Pin<Box<dyn Future<Output = Response> + Send>> {
-		let state = state.to_owned();
-		Box::pin(async move {
-			if Uuid::parse_str(&id).is_err() {
-				return common_response(StatusCode::BAD_REQUEST, "Invalid Team ID format");
-			}
-			let repo = TeamsRepository::new(&state);
-			let thing_id = make_thing_from_enum(ResourceEnum::Teams, &id);
-			match repo.query_team_by_id(&thing_id).await {
-				Ok(team) if !team.is_deleted => {
-					let members = repo.query_team_members(&team.id).await.unwrap_or_default();
-					
-					// For public team details, only show sensitive info if user is authenticated and part of the team
-					let team_dto = TeamsDetailItemDto {
-						id: team.id.id.to_raw(),
-						name: team.name,
-						description: team.description,
-						leader: TeamMemberDto {
-							id: String::new(),
-							user_id: team.leader_id.id.to_raw(),
-							fullname: String::new(),
-							email: None,
-							avatar: None,
-							role: "leader".to_string(),
-							skills: None,
-							joined_at: team.created_at.clone(),
-						},
-						is_open: team.is_open,
-						max_members: team.max_members,
-						current_member_count: members.len() as i32 + 1,
-						skills_required: team.skills_required,
-						location: team.location,
-						avatar: team.avatar,
-						website_url: team.website_url,
-						github_url: team.github_url,
-						members: None,
-						is_active: team.is_active,
-						created_at: team.created_at,
-						updated_at: team.updated_at,
-					};
-					success_response(ResponseSuccessDto { data: team_dto })
+			})
+		}
+	
+		fn get_team_by_id(state: &AppState, id: String) -> Pin<Box<dyn Future<Output = Response> + Send>> {
+			let state = state.to_owned();
+			Box::pin(async move {
+				if Uuid::parse_str(&id).is_err() {
+					return common_response(StatusCode::BAD_REQUEST, "Invalid Team ID format");
 				}
-				Ok(_) => common_response(StatusCode::NOT_FOUND, "Team not found"),
-				Err(e) => common_response(StatusCode::NOT_FOUND, &e.to_string()),
-			}
-		})
-	}
+				let repo = TeamsRepository::new(&state);
+				let thing_id = make_thing_from_enum(ResourceEnum::Teams, &id);
+				match repo.query_team_by_id(&thing_id).await {
+					Ok(team) if !team.is_deleted => {
+						let members = repo.query_team_members(&team.id).await.unwrap_or_default();
+						
+						// For public team details, only show sensitive info if user is authenticated and part of the team
+						let team_dto = TeamsDetailItemDto {
+							id: team.id.id.to_raw(),
+							name: team.name,
+							description: team.description,
+							leader: TeamMemberDto {
+								id: String::new(),
+								user_id: team.leader_id.id.to_raw(),
+								fullname: String::new(),
+								email: None,
+								avatar: None,
+								role: "leader".to_string(),
+								skills: None,
+								joined_at: team.created_at.clone(),
+							},
+							is_open: team.is_open,
+							max_members: team.max_members,
+							current_member_count: members.len() as i32 + 1,
+							skills_required: team.skills_required,
+							location: team.location,
+							avatar: team.avatar,
+							website_url: team.website_url,
+							github_url: team.github_url,
+							members: None,
+							is_active: team.is_active,
+							created_at: team.created_at,
+							updated_at: team.updated_at,
+						};
+						success_response(ResponseSuccessDto { data: team_dto })
+					}
+					Ok(_) => common_response(StatusCode::NOT_FOUND, "Team not found"),
+					Err(e) => common_response(StatusCode::NOT_FOUND, &e.to_string()),
+				}
+			})
+		}
+	
+		fn get_member_team_list(state: &AppState, meta: MetaRequestDto) -> Pin<Box<dyn Future<Output = Response> + Send>> {
+			let state = state.to_owned();
+			Box::pin(async move {
+				let repo = TeamsRepository::new(&state);
+				match repo.query_team_list(meta).await {
+					Ok(data) => {
+						let response = ResponseListSuccessDto {
+							data: data.data,
+							meta: data.meta,
+						};
+						success_list_response(response)
+					}
+					Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
+				}
+			})
+		}
+	
+		fn get_member_team_by_id(state: &AppState, id: String) -> Pin<Box<dyn Future<Output = Response> + Send>> {
+			let state = state.to_owned();
+			Box::pin(async move {
+				if Uuid::parse_str(&id).is_err() {
+					return common_response(StatusCode::BAD_REQUEST, "Invalid Team ID format");
+				}
+				let repo = TeamsRepository::new(&state);
+				let thing_id = make_thing_from_enum(ResourceEnum::Teams, &id);
+				match repo.query_team_by_id(&thing_id).await {
+					Ok(team) if !team.is_deleted => {
+						let members = repo.query_team_members(&team.id).await.unwrap_or_default();
+						
+						// For member team details, include all information including members list
+						let mut member_dtos = Vec::new();
+						for member in members {
+							match Self::get_user_info_with_privacy(
+								&member.user_id.id.to_raw(),
+								"system",  // In member context, we show all user info
+								true,       // In member context, we show all user info
+								&state,
+							).await {
+								Ok(mut member_dto) => {
+									member_dto.role = member.role;
+									member_dto.joined_at = member.joined_at;
+									member_dtos.push(member_dto);
+								}
+								Err(_) => continue,
+							}
+						}
+						
+						// Add leader with full info
+						let leader_dto = match Self::get_user_info_with_privacy(
+							&team.leader_id.id.to_raw(),
+							"system",
+							true,
+							&state,
+						).await {
+							Ok(mut leader_dto) => {
+								leader_dto.role = "leader".to_string();
+								leader_dto
+							}
+							Err(_) => TeamMemberDto {
+								id: String::new(),
+								user_id: team.leader_id.id.to_raw(),
+								fullname: String::new(),
+								email: None,
+								avatar: None,
+								role: "leader".to_string(),
+								skills: None,
+								joined_at: team.created_at.clone(),
+							}
+						};
+						
+						member_dtos.insert(0, leader_dto);
+						
+						let team_dto = MemberTeamsDetailItemDto {
+													id: team.id.id.to_raw(),
+													name: team.name,
+													description: team.description,
+													leader: leader_dto,
+													is_open: team.is_open,
+													max_members: team.max_members,
+													current_member_count: members.len() as i32 + 1,
+													skills_required: team.skills_required,
+													location: team.location,
+													avatar: team.avatar,
+													website_url: team.website_url,
+													github_url: team.github_url,
+													members: member_dtos,
+													is_active: team.is_active,
+													created_at: team.created_at,
+													updated_at: team.updated_at,
+												};
+						success_response(ResponseSuccessDto { data: team_dto })
+					}
+					Ok(_) => common_response(StatusCode::NOT_FOUND, "Team not found"),
+					Err(e) => common_response(StatusCode::NOT_FOUND, &e.to_string()),
+				}
+			})
+		}
 
 	fn get_public_team_list(state: &AppState, meta: MetaRequestDto) -> Pin<Box<dyn Future<Output = Response> + Send>> {
 		let state = state.to_owned();
@@ -761,8 +862,44 @@ impl TeamsServiceTrait for TeamsService {
 				success_response(ResponseSuccessDto { data: member_dtos })
 			})
 		}
-				Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
+	
+		fn leave_current_team(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims) -> Pin<Box<dyn Future<Output = Response> + Send>> {
+				let state = state.to_owned();
+				Box::pin(async move {
+					let repo = TeamsRepository::new(&state);
+					let user_thing = make_thing_from_enum(ResourceEnum::Users, &claims.user_id);
+					
+					// Find the teams that the user is a member of
+					let teams = match repo.query_teams_by_user(&user_thing).await {
+						Ok(teams) => teams,
+						Err(e) => {
+							error!("Failed to query user teams: {}", e);
+							return common_response(StatusCode::INTERNAL_SERVER_ERROR, "Failed to retrieve user teams")
+						},
+					};
+		
+					if teams.is_empty() {
+						return common_response(StatusCode::BAD_REQUEST, "User is not a member of any team");
+					}
+		
+					// For now, assume user is in only one team (common case)
+					// In a future enhancement, we could ask the user to specify which team to leave
+					let team = &teams[0];
+					let team_id = team.id.id.to_raw();
+					let team_thing = make_thing_from_enum(ResourceEnum::Teams, &team_id);
+		
+					// Check if user is the leader
+					if team.leader_id.id.to_raw() == claims.user_id {
+						return common_response(StatusCode::FORBIDDEN, "Team leader cannot leave the team");
+					}
+		
+					match repo.query_remove_team_member(&team_thing, &user_thing).await {
+						Ok(msg) => common_response(StatusCode::OK, &format!("Successfully left team: {}", team.name)),
+						Err(e) => {
+							error!("Failed to remove team member: {}", e);
+							return common_response(StatusCode::INTERNAL_SERVER_ERROR, "Failed to leave team")
+						},
+					}
+				})
 			}
-		})
-	}
 }

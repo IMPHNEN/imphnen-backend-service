@@ -6,11 +6,13 @@ use crate::{
 	TeamMemberDto, TeamsSearchQueryDto, PublicTeamsListItemDto, PublicTeamsDetailItemDto,
 	AdminTeamsListItemDto, AdminTeamsDetailItemDto, PermissionsEnum
 };
+use axum::http::StatusCode;
+use axum::response::Response;
+use axum::extract::Query;
 use axum::extract::Path;
 use axum::http::HeaderMap;
 use axum::response::IntoResponse;
 use axum::{Extension, Json};
-
 use super::teams_service::{TeamsServiceTrait, TeamsService};
 
 #[utoipa::path(
@@ -29,55 +31,60 @@ use super::teams_service::{TeamsServiceTrait, TeamsService};
 		("filter_by" = Option<String>, Query, description = "Field to filter by"),
 	),
 	responses(
-		(status = 200, description = "Get team list", body = ResponseListSuccessDto<Vec<TeamsListItemDto>>)
+		(status = 200, description = "Get team list", body = ResponseListSuccessDto<Vec<TeamsListItemDto>>),
+		(status = 200, description = "Get public team list", body = ResponseListSuccessDto<Vec<PublicTeamsListItemDto>>)
 	),
 	tag = "Teams"
 )]
 pub async fn get_team_list(
-	headers: HeaderMap,
+	headers: Option<HeaderMap>,
 	Extension(state): Extension<AppState>,
 	axum::extract::Query(meta): axum::extract::Query<MetaRequestDto>,
 ) -> impl IntoResponse {
-	match permissions_guard(
-		headers,
-		Extension(state),
-		vec![],
-	)
-	.await
-	{
-		Ok((_claims, state)) => TeamsService::get_team_list(&state, meta).await,
-		Err(response) => response,
+	match headers {
+		Some(headers) => {
+			match permissions_guard(
+				headers,
+				Extension(state.clone()),
+				vec![],
+			).await {
+				Ok((_claims, state)) => TeamsService::get_team_list(&state, meta).await,
+				Err(_) => TeamsService::get_public_team_list(&state, meta).await,
+			}
+		},
+		None => TeamsService::get_public_team_list(&state, meta).await,
 	}
 }
 
 #[utoipa::path(
-get,
-security(
-       ("Bearer" = [])
-   ),
-path = "/v1/teams/detail/{id}",
-params(
-	("id" = String, Path, description = "Team ID")
-),
-responses(
-	(status = 200, description = "Get team by ID", body = ResponseSuccessDto<TeamsDetailItemDto>)
-),
-tag = "Teams"
+	get,
+	path = "/v1/teams/{id}",
+	params(
+		("id" = String, Path, description = "Team ID")
+	),
+	responses(
+		(status = 200, description = "Get team by ID", body = ResponseSuccessDto<TeamsDetailItemDto>),
+		(status = 200, description = "Get public team by ID", body = ResponseSuccessDto<PublicTeamsDetailItemDto>)
+	),
+	tag = "Teams"
 )]
 pub async fn get_team_by_id(
-	headers: HeaderMap,
+	headers: Option<HeaderMap>,
 	Extension(state): Extension<AppState>,
 	Path(id): Path<String>,
 ) -> impl IntoResponse {
-	match permissions_guard(
-		headers,
-		Extension(state),
-		vec![],
-	)
-	.await
-	{
-		Ok((_claims, state)) => TeamsService::get_team_by_id(&state, id).await,
-		Err(response) => response,
+	match headers {
+		Some(headers) => {
+			match permissions_guard(
+				headers,
+				Extension(state.clone()),
+				vec![],
+			).await {
+				Ok((_claims, state)) => TeamsService::get_team_by_id(&state, id).await,
+				Err(_) => TeamsService::get_public_team_by_id(&state, id).await,
+			}
+		},
+		None => TeamsService::get_public_team_by_id(&state, id).await,
 	}
 }
 
@@ -303,7 +310,7 @@ pub async fn get_team_members(
 		("id" = String, Path, description = "Team ID")
 	),
 	responses(
-		(status = 200, description = "Leave team", body = MessageResponseDto)
+		(status = 200, description = "Leave specific team", body = MessageResponseDto)
 	),
 	tag = "Teams"
 )]
@@ -325,45 +332,32 @@ pub async fn post_leave_team(
 }
 
 #[utoipa::path(
-	get,
-	path = "/v1/teams/public",
-	params(
-		("page" = Option<i64>, Query, description = "Page number"),
-		("per_page" = Option<i64>, Query, description = "Items per page"),
-		("search" = Option<String>, Query, description = "Search keyword"),
-		("sort_by" = Option<String>, Query, description = "Sort by field"),
-		("order" = Option<String>, Query, description = "Order ASC or DESC"),
-		("filter" = Option<String>, Query, description = "Filter value"),
-		("filter_by" = Option<String>, Query, description = "Field to filter by"),
-	),
+	post,
+	security(
+        ("Bearer" = [])
+    ),
+	path = "/v1/teams/leave-me",
 	responses(
-		(status = 200, description = "Get public team list", body = ResponseListSuccessDto<Vec<PublicTeamsListItemDto>>)
+		(status = 200, description = "Leave current team", body = MessageResponseDto)
 	),
 	tag = "Teams"
 )]
-pub async fn get_public_team_list(
+pub async fn post_leave_current_team(
+	headers: HeaderMap,
 	Extension(state): Extension<AppState>,
-	axum::extract::Query(meta): axum::extract::Query<MetaRequestDto>,
 ) -> impl IntoResponse {
-	TeamsService::get_team_list(&state, meta).await
+	match permissions_guard(
+		headers,
+		Extension(state),
+		vec![],
+	)
+	.await
+	{
+		Ok((claims, state)) => TeamsService::leave_current_team(&state, claims).await,
+		Err(response) => response,
+	}
 }
 
-#[utoipa::path(
-	get,
-	path = "/v1/teams/public/{id}",
-	params(
-		("id" = String, Path, description = "Team ID")
-	),
-	responses(
-		(status = 200, description = "Get public team by ID", body = ResponseSuccessDto<PublicTeamsDetailItemDto>)
-	),
-	tag = "Teams"
-)]
-pub async fn get_public_team_by_id(
-	Extension(state): Extension<AppState>,
-	Path(id): Path<String>,
-) -> impl IntoResponse {
-	TeamsService::get_team_by_id(&state, id).await
 #[utoipa::path(
 	get,
 	security(
