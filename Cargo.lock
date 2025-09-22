@@ -4856,6 +4856,8 @@ dependencies = [
  "tower",
  "tracing",
  "uuid",
+ "yoke",
+ "yoke-derive",
 ]
 
 [[package]]

@@ -44,7 +44,7 @@ mod auth_repository_test {
 			experience: None,
 			education: None,
 			career_status: None,
-			role: make_thing("app_roles", &get_role_id(state).await),
+			role: get_role_id("user", state).await,
 			mentor_id: None,
 			created_at: get_iso_date(),
 			updated_at: get_iso_date(),
@@ -57,7 +57,7 @@ mod auth_repository_test {
 		let repo = AuthRepository::new(&app_state);
 		let email = generate_unique_email("forgot");
 		let mut user = create_mock_user(&app_state, &email).await;
-		user.role = make_thing("app_roles", &get_role_id(&app_state).await);
+		user.role = get_role_id("user", &app_state).await;
 		let user_repo = UsersRepository::new(&app_state);
 		let create_user = user_repo.query_create_user(user.clone()).await;
 		assert!(create_user.is_ok());

@@ -15,6 +15,9 @@ pub enum ResourceEnum {
 	Events,
 	Testimonials,
 	Mentors,
+	Teams,
+	TeamMembers,
+	TeamInvitations,
 }
 
 impl fmt::Display for ResourceEnum {
@@ -33,6 +36,9 @@ impl fmt::Display for ResourceEnum {
 			ResourceEnum::Events => "app_events",
 			ResourceEnum::Testimonials => "app_testimonials",
 			ResourceEnum::Mentors => "app_mentors",
+			ResourceEnum::Teams => "app_teams",
+			ResourceEnum::TeamMembers => "app_team_members",
+			ResourceEnum::TeamInvitations => "app_team_invitations",
 		};
 		write!(f, "{str}")
 	}

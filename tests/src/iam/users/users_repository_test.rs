@@ -7,7 +7,7 @@ async fn test_create_and_get_user() {
 	let repo = UsersRepository::new(&app_state);
 	let email = generate_unique_email("testuser");
 	let user =
-		create_test_user(&email, "Test User", true, &get_role_id(&app_state).await);
+		create_test_user(&email, "Test User", true, &get_role_id("user", &app_state).await);
 	let create_result = repo.query_create_user(user.clone()).await;
 	assert!(
 		create_result.is_ok(),
@@ -32,7 +32,7 @@ async fn test_query_user_list_with_pagination_and_filter() {
 		let fullname = format!("User {i}");
 		let is_active = i % 2 == 0;
 		let user =
-			create_test_user(&email, &fullname, is_active, &get_role_id(&app_state).await);
+			create_test_user(&email, &fullname, is_active, &get_role_id("user", &app_state).await);
 		let create_res = repo.query_create_user(user).await;
 		assert!(
 			create_res.is_ok(),
@@ -78,7 +78,7 @@ async fn test_query_user_list_basic() {
 			&email,
 			&format!("Basic User {i}"),
 			true,
-			&get_role_id(&app_state).await,
+			&get_role_id("user", &app_state).await,
 		);
 		let create_res = repo.query_create_user(user).await;
 		assert!(
@@ -125,7 +125,7 @@ async fn test_query_delete_user() {
 	let repo = UsersRepository::new(&app_state);
 	let email = &generate_unique_email("deleteuser");
 	let user =
-		create_test_user(email, "Delete User", true, &get_role_id(&app_state).await);
+		create_test_user(email, "Delete User", true, &get_role_id("user", &app_state).await);
 	let create_res = repo.query_create_user(user.clone()).await;
 	assert!(
 		create_res.is_ok(),
@@ -172,7 +172,7 @@ async fn test_delete_user_twice_should_fail_on_second_attempt() {
 	let repo = UsersRepository::new(&app_state);
 	let email = "twice@example.com";
 	let user =
-		create_test_user(email, "Delete Twice", true, &get_role_id(&app_state).await);
+		create_test_user(email, "Delete Twice", true, &get_role_id("user", &app_state).await);
 	let create_res = repo.query_create_user(user.clone()).await;
 	assert!(
 		create_res.is_ok(),
@@ -198,7 +198,7 @@ async fn test_query_update_user_should_succeed() {
 		"update@example.com",
 		"Old Name",
 		true,
-		&get_role_id(&state).await,
+		&get_role_id("user", &state).await,
 	);
 	let create_res = repo.query_create_user(user.clone()).await;
 	assert!(
