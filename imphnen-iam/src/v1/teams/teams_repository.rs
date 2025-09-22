@@ -6,10 +6,12 @@ use super::{
 use imphnen_libs::{
     AppState, MetaRequestDto, ResourceEnum, ResponseListSuccessDto
 };
-use imphnen_utils::get_id;
+use imphnen_utils::{
+	get_id, DetailQueryBuilder, QueryListBuilder, make_thing_from_enum,
+	build_thing_condition, build_multi_thing_condition, execute_safe_update_query, execute_safe_count_query
+};
 use surrealdb::sql::Thing;
 use anyhow::{Result, bail};
-use imphnen_utils::{DetailQueryBuilder, QueryListBuilder, make_thing_from_enum};
 use serde_json;
 use std::time::Instant;
 
@@ -184,12 +186,9 @@ impl<'a> TeamsRepository<'a> {
 	pub async fn query_team_members(&self, team_id: &Thing) -> Result<Vec<TeamMembersQueryDto>> {
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
-		let sql = format!(
-			"SELECT * FROM {} WHERE team_id = type::thing('{}', '{}') AND is_active = true",
-			ResourceEnum::TeamMembers,
-			team_id.tb,
-			team_id.id.to_raw()
-		);
+		
+		let condition = format!("{} AND is_active = true", build_thing_condition("team_id", team_id));
+		let sql = format!("SELECT * FROM {} WHERE {}", ResourceEnum::TeamMembers, condition);
 		let mut result = db.query(sql).await?;
 		
 		let members: Vec<TeamMembersQueryDto> = match result.take(0) {
@@ -241,38 +240,16 @@ impl<'a> TeamsRepository<'a> {
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
 		
-		let sql = format!(
-			"SELECT COUNT() AS member_count FROM {} WHERE team_id = type::thing('{}', '{}') AND user_id = type::thing('{}', '{}') AND is_active = true",
-			ResourceEnum::TeamMembers,
-			team_id.tb,
-			team_id.id.to_raw(),
-			user_id.tb,
-			user_id.id.to_raw()
+		let conditions = format!(
+			"{} AND is_active = true",
+			build_multi_thing_condition(&[("team_id", team_id), ("user_id", user_id)])
 		);
-		let mut result = db.query(sql).await?;
 		
-		// Use COUNT query to avoid serialization issues with enum values
-		let count_result: Vec<serde_json::Value> = match result.take(0) {
-			Ok(count_result) => count_result,
-			Err(e) => {
-				if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
-					== "development"
-				{
-					println!("Error checking team membership: {:?}", e);
-				}
-				vec![]
-			}
-		};
-		
-		let member_count = if let Some(first_result) = count_result.first() {
-			if let Some(count_val) = first_result.get("member_count") {
-				count_val.as_u64().unwrap_or(0)
-			} else {
-				0
-			}
-		} else {
-			0
-		};
+		let member_count = execute_safe_count_query(
+			db,
+			&ResourceEnum::TeamMembers.to_string(),
+			&conditions,
+		).await.unwrap_or(0);
 		
 		let elapsed = now.elapsed();
 
@@ -419,20 +396,15 @@ impl<'a> TeamsRepository<'a> {
 	pub async fn query_remove_team_member(&self, team_id: &Thing, user_id: &Thing) -> Result<String> {
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
+		
+		let conditions = build_multi_thing_condition(&[("team_id", team_id), ("user_id", user_id)]);
 		let sql = format!(
-			"UPDATE {} SET is_active = false WHERE team_id = type::thing('{}', '{}') AND user_id = type::thing('{}', '{}')",
+			"UPDATE {} SET is_active = false WHERE {}",
 			ResourceEnum::TeamMembers,
-			team_id.tb,
-			team_id.id.to_raw(),
-			user_id.tb,
-			user_id.id.to_raw()
+			conditions
 		);
 		
-		// Execute the query but don't try to parse the result as it can contain complex enum values
-		let mut result = db.query(sql).await?;
-		
-		// Just consume the result without trying to deserialize it to avoid serialization errors
-		let _: Result<Vec<serde_json::Value>, _> = result.take(0);
+		execute_safe_update_query(db, sql).await?;
 		
 		let elapsed = now.elapsed();
 

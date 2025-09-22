@@ -11,6 +11,7 @@ pub mod response_format;
 pub mod serde_helpers;
 pub mod validator;
 pub mod csrf_token;
+pub mod surrealdb_helpers;
 
 pub use logger::init_logger;
 pub use bind_filter::*;
@@ -30,3 +31,4 @@ pub use serde_helpers::{
 };
 pub use validator::*;
 pub use csrf_token::*;
+pub use surrealdb_helpers::*;
