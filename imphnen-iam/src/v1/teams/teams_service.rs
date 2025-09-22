@@ -2,7 +2,7 @@ use super::{
 	TeamsCreateRequestDto, TeamsUpdateRequestDto, TeamInviteRequestDto,
 	TeamAcceptInvitationRequestDto, TeamsDetailItemDto,
 	TeamMemberDto, TeamsRepository, TeamsSchema, TeamMembersSchema,
-	TeamInvitationsSchema, TeamsSearchQueryDto
+	TeamInvitationsSchema, TeamsSearchQueryDto, PublicTeamsListItemDto, PublicTeamsDetailItemDto
 };
 use crate::{
 	AppState, MetaRequestDto, ResponseListSuccessDto, ResponseSuccessDto,
@@ -23,6 +23,8 @@ use chrono::Utc;
 pub trait TeamsServiceTrait: Send + Sync + 'static {
 	fn get_team_list(state: &AppState, meta: MetaRequestDto) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn get_team_by_id(state: &AppState, id: String) -> Pin<Box<dyn Future<Output = Response> + Send>>;
+	fn get_public_team_list(state: &AppState, meta: MetaRequestDto) -> Pin<Box<dyn Future<Output = Response> + Send>>;
+	fn get_public_team_by_id(state: &AppState, id: String) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn create_team(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims, new_team: TeamsCreateRequestDto) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn update_team(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims, id: String, team: TeamsUpdateRequestDto) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn delete_team(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims, id: String) -> Pin<Box<dyn Future<Output = Response> + Send>>;
@@ -128,6 +130,8 @@ impl TeamsServiceTrait for TeamsService {
 			match repo.query_team_by_id(&thing_id).await {
 				Ok(team) if !team.is_deleted => {
 					let members = repo.query_team_members(&team.id).await.unwrap_or_default();
+					
+					// For public team details, only show sensitive info if user is authenticated and part of the team
 					let team_dto = TeamsDetailItemDto {
 						id: team.id.id.to_raw(),
 						name: team.name,
@@ -151,6 +155,60 @@ impl TeamsServiceTrait for TeamsService {
 						website_url: team.website_url,
 						github_url: team.github_url,
 						members: None,
+						is_active: team.is_active,
+						created_at: team.created_at,
+						updated_at: team.updated_at,
+					};
+					success_response(ResponseSuccessDto { data: team_dto })
+				}
+				Ok(_) => common_response(StatusCode::NOT_FOUND, "Team not found"),
+				Err(e) => common_response(StatusCode::NOT_FOUND, &e.to_string()),
+			}
+		})
+	}
+
+	fn get_public_team_list(state: &AppState, meta: MetaRequestDto) -> Pin<Box<dyn Future<Output = Response> + Send>> {
+		let state = state.to_owned();
+		Box::pin(async move {
+			let repo = TeamsRepository::new(&state);
+			match repo.query_team_list(meta).await {
+				Ok(data) => {
+					let response = ResponseListSuccessDto {
+						data: data.data,
+						meta: data.meta,
+					};
+					success_list_response(response)
+				}
+				Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
+			}
+		})
+	}
+
+	fn get_public_team_by_id(state: &AppState, id: String) -> Pin<Box<dyn Future<Output = Response> + Send>> {
+		let state = state.to_owned();
+		Box::pin(async move {
+			if Uuid::parse_str(&id).is_err() {
+				return common_response(StatusCode::BAD_REQUEST, "Invalid Team ID format");
+			}
+			let repo = TeamsRepository::new(&state);
+			let thing_id = make_thing_from_enum(ResourceEnum::Teams, &id);
+			match repo.query_team_by_id(&thing_id).await {
+				Ok(team) if !team.is_deleted => {
+					let members = repo.query_team_members(&team.id).await.unwrap_or_default();
+					
+					// For public team details, only show sensitive info if user is authenticated and part of the team
+					let team_dto = PublicTeamsDetailItemDto {
+						id: team.id.id.to_raw(),
+						name: team.name,
+						description: team.description,
+						is_open: team.is_open,
+						max_members: team.max_members,
+						current_member_count: members.len() as i32 + 1,
+						skills_required: team.skills_required,
+						location: team.location,
+						avatar: team.avatar,
+						website_url: team.website_url,
+						github_url: team.github_url,
 						is_active: team.is_active,
 						created_at: team.created_at,
 						updated_at: team.updated_at,

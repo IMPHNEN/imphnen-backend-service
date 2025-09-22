@@ -112,17 +112,49 @@ pub struct TeamsDetailItemDto {
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct TeamsListItemDto {
-	pub id: String,
-	pub name: String,
-	pub description: Option<String>,
-	pub leader: TeamMemberDto,
-	pub is_open: bool,
-	pub current_member_count: i32,
-	pub max_members: Option<i32>,
-	pub skills_required: Option<Vec<String>>,
-	pub location: Option<String>,
-	pub avatar: Option<String>,
-	pub created_at: String,
+    pub id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub leader: TeamMemberDto,
+    pub is_open: bool,
+    pub current_member_count: i32,
+    pub max_members: Option<i32>,
+    pub skills_required: Option<Vec<String>>,
+    pub location: Option<String>,
+    pub avatar: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+pub struct PublicTeamsListItemDto {
+    pub id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub is_open: bool,
+    pub current_member_count: i32,
+    pub max_members: Option<i32>,
+    pub skills_required: Option<Vec<String>>,
+    pub location: Option<String>,
+    pub avatar: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+pub struct PublicTeamsDetailItemDto {
+    pub id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub is_open: bool,
+    pub max_members: Option<i32>,
+    pub current_member_count: i32,
+    pub skills_required: Option<Vec<String>>,
+    pub location: Option<String>,
+    pub avatar: Option<String>,
+    pub website_url: Option<String>,
+    pub github_url: Option<String>,
+    pub is_active: bool,
+    pub created_at: String,
+    pub updated_at: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
