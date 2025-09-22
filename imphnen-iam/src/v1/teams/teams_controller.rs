@@ -3,7 +3,8 @@ use crate::{
 	MessageResponseDto, ResponseListSuccessDto, ResponseSuccessDto,
 	TeamsCreateRequestDto, TeamsDetailItemDto, TeamsListItemDto, permissions_guard,
 	TeamsUpdateRequestDto, TeamInviteRequestDto, TeamAcceptInvitationRequestDto,
-	TeamMemberDto, TeamsSearchQueryDto, PublicTeamsListItemDto, PublicTeamsDetailItemDto
+	TeamMemberDto, TeamsSearchQueryDto, PublicTeamsListItemDto, PublicTeamsDetailItemDto,
+	AdminTeamsListItemDto, AdminTeamsDetailItemDto, PermissionsEnum
 };
 use axum::extract::Path;
 use axum::http::HeaderMap;
@@ -363,4 +364,102 @@ pub async fn get_public_team_by_id(
 	Path(id): Path<String>,
 ) -> impl IntoResponse {
 	TeamsService::get_team_by_id(&state, id).await
+#[utoipa::path(
+	get,
+	security(
+        ("Bearer" = [])
+    ),
+	path = "/v1/teams/admin",
+	params(
+		("page" = Option<i64>, Query, description = "Page number"),
+		("per_page" = Option<i64>, Query, description = "Items per page"),
+		("search" = Option<String>, Query, description = "Search keyword"),
+		("sort_by" = Option<String>, Query, description = "Sort by field"),
+		("order" = Option<String>, Query, description = "Order ASC or DESC"),
+		("filter" = Option<String>, Query, description = "Filter value"),
+		("filter_by" = Option<String>, Query, description = "Field to filter by"),
+	),
+	responses(
+		(status = 200, description = "Get admin team list", body = ResponseListSuccessDto<Vec<AdminTeamsListItemDto>>)
+	),
+	tag = "Teams - Admin"
+)]
+pub async fn get_admin_team_list(
+	headers: HeaderMap,
+	Extension(state): Extension<AppState>,
+	axum::extract::Query(meta): axum::extract::Query<MetaRequestDto>,
+) -> impl IntoResponse {
+	match permissions_guard(
+			headers,
+			Extension(state),
+			vec![PermissionsEnum::ReadListTeams.to_string()],
+		)
+	.await
+	{
+		Ok((_claims, state)) => TeamsService::get_admin_team_list(&state, meta).await,
+		Err(response) => response,
+	}
+}
+
+#[utoipa::path(
+	get,
+	security(
+        ("Bearer" = [])
+    ),
+	path = "/v1/teams/admin/{id}",
+	params(
+		("id" = String, Path, description = "Team ID")
+	),
+	responses(
+		(status = 200, description = "Get admin team by ID", body = ResponseSuccessDto<AdminTeamsDetailItemDto>)
+	),
+	tag = "Teams - Admin"
+)]
+pub async fn get_admin_team_by_id(
+	headers: HeaderMap,
+	Extension(state): Extension<AppState>,
+	Path(id): Path<String>,
+) -> impl IntoResponse {
+	match permissions_guard(
+			headers,
+			Extension(state),
+			vec![PermissionsEnum::ReadDetailTeams.to_string()],
+		)
+	.await
+	{
+		Ok((_claims, state)) => TeamsService::get_admin_team_by_id(&state, id).await,
+		Err(response) => response,
+	}
+}
+
+#[utoipa::path(
+	get,
+	security(
+        ("Bearer" = [])
+    ),
+	path = "/v1/teams/admin/{id}/members",
+	params(
+		("id" = String, Path, description = "Team ID")
+	),
+	responses(
+		(status = 200, description = "Get admin team members", body = ResponseSuccessDto<Vec<TeamMemberDto>>)
+	),
+	tag = "Teams - Admin"
+)]
+pub async fn get_admin_team_members(
+	headers: HeaderMap,
+	Extension(state): Extension<AppState>,
+	Path(id): Path<String>,
+) -> impl IntoResponse {
+	match permissions_guard(
+			headers,
+			Extension(state),
+			vec![PermissionsEnum::ReadDetailTeams.to_string()],
+		)
+	.await
+	{
+		Ok((_claims, state)) => TeamsService::get_admin_team_members(&state, id).await,
+		Err(response) => response,
+	}
+}
 }

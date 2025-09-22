@@ -266,28 +266,163 @@ impl TeamsDetailQueryDto {
 }
 
 impl TeamsListQueryDto {
-	pub fn from(self) -> TeamsListItemDto {
-		TeamsListItemDto {
-			id: self.id.id.to_raw(),
-			name: self.name,
-			description: self.description,
-			leader: TeamMemberDto {
-				id: String::new(),
-				user_id: self.leader_id.id.to_raw(),
-				fullname: String::new(),
-				email: None,
-				avatar: None,
-				role: "leader".to_string(),
-				skills: None,
-				joined_at: self.created_at.clone(),
-			},
-			is_open: self.is_open,
-			current_member_count: 1,
-			max_members: self.max_members,
-			skills_required: self.skills_required,
-			location: self.location,
-			avatar: self.avatar,
-			created_at: self.created_at,
-		}
-	}
+    pub fn from(self) -> TeamsListItemDto {
+        TeamsListItemDto {
+            id: self.id.id.to_raw(),
+            name: self.name,
+            description: self.description,
+            leader: TeamMemberDto {
+                id: String::new(),
+                user_id: self.leader_id.id.to_raw(),
+                fullname: String::new(),
+                email: None,
+                avatar: None,
+                role: "leader".to_string(),
+                skills: None,
+                joined_at: self.created_at.clone(),
+            },
+            is_open: self.is_open,
+            current_member_count: 1,
+            max_members: self.max_members,
+            skills_required: self.skills_required,
+            location: self.location,
+            avatar: self.avatar,
+            created_at: self.created_at,
+        }
+    }
+
+    pub fn to_admin_list_dto(self) -> AdminTeamsListItemDto {
+        let members = vec![];
+        AdminTeamsListItemDto {
+            id: self.id.id.to_raw(),
+            name: self.name,
+            description: self.description,
+            leader: TeamMemberDto {
+                id: String::new(),
+                user_id: self.leader_id.id.to_raw(),
+                fullname: String::new(),
+                email: None,
+                avatar: None,
+                role: "leader".to_string(),
+                skills: None,
+                joined_at: self.created_at.clone(),
+            },
+            is_open: self.is_open,
+            current_member_count: members.len() as i32 + 1,
+            max_members: self.max_members,
+            skills_required: self.skills_required,
+            location: self.location,
+            avatar: self.avatar,
+            website_url: None,
+            github_url: None,
+            is_active: true,
+            is_deleted: false,
+            created_at: self.created_at,
+        }
+    }
+}
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+pub struct AdminTeamsListItemDto {
+    pub id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub leader: TeamMemberDto,
+    pub is_open: bool,
+    pub current_member_count: i32,
+    pub max_members: Option<i32>,
+    pub skills_required: Option<Vec<String>>,
+    pub location: Option<String>,
+    pub avatar: Option<String>,
+    pub website_url: Option<String>,
+    pub github_url: Option<String>,
+    pub is_active: bool,
+    pub is_deleted: bool,
+    pub created_at: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+pub struct AdminTeamsDetailItemDto {
+    pub id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub leader: TeamMemberDto,
+    pub is_open: bool,
+    pub max_members: Option<i32>,
+    pub current_member_count: i32,
+    pub skills_required: Option<Vec<String>>,
+    pub location: Option<String>,
+    pub avatar: Option<String>,
+    pub website_url: Option<String>,
+    pub github_url: Option<String>,
+    pub members: Vec<TeamMemberDto>,
+    pub is_active: bool,
+    pub is_deleted: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+impl TeamsListQueryDto {
+    pub fn to_admin_list_dto(self) -> AdminTeamsListItemDto {
+        let members = vec![];
+        AdminTeamsListItemDto {
+            id: self.id.id.to_raw(),
+            name: self.name,
+            description: self.description,
+            leader: TeamMemberDto {
+                id: String::new(),
+                user_id: self.leader_id.id.to_raw(),
+                fullname: String::new(),
+                email: None,
+                avatar: None,
+                role: "leader".to_string(),
+                skills: None,
+                joined_at: self.created_at.clone(),
+            },
+            is_open: self.is_open,
+            current_member_count: members.len() as i32 + 1,
+            max_members: self.max_members,
+            skills_required: self.skills_required,
+            location: self.location,
+            avatar: self.avatar,
+            website_url: None,
+            github_url: None,
+            is_active: true,
+            is_deleted: false,
+            created_at: self.created_at,
+        }
+    }
+}
+
+impl TeamsDetailQueryDto {
+    pub fn to_admin_detail_dto(self, members: Vec<TeamMemberDto>) -> AdminTeamsDetailItemDto {
+        AdminTeamsDetailItemDto {
+            id: self.id.id.to_raw(),
+            name: self.name,
+            description: self.description,
+            leader: TeamMemberDto {
+                id: String::new(),
+                user_id: self.leader_id.id.to_raw(),
+                fullname: String::new(),
+                email: None,
+                avatar: None,
+                role: "leader".to_string(),
+                skills: None,
+                joined_at: self.created_at.clone(),
+            },
+            is_open: self.is_open,
+            current_member_count: members.len() as i32 + 1,
+            max_members: self.max_members,
+            skills_required: self.skills_required,
+            location: self.location,
+            avatar: self.avatar,
+            website_url: self.website_url,
+            github_url: self.github_url,
+            members,
+            is_active: self.is_active,
+            is_deleted: self.is_deleted,
+            created_at: self.created_at,
+            updated_at: self.updated_at,
+        }
+    }
+}
 }

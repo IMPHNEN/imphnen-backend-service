@@ -2,7 +2,8 @@ use super::{
 	TeamsCreateRequestDto, TeamsUpdateRequestDto, TeamInviteRequestDto,
 	TeamAcceptInvitationRequestDto, TeamsDetailItemDto,
 	TeamMemberDto, TeamsRepository, TeamsSchema, TeamMembersSchema,
-	TeamInvitationsSchema, TeamsSearchQueryDto, PublicTeamsListItemDto, PublicTeamsDetailItemDto
+	TeamInvitationsSchema, TeamsSearchQueryDto, PublicTeamsListItemDto, PublicTeamsDetailItemDto,
+	AdminTeamsListItemDto, AdminTeamsDetailItemDto
 };
 use crate::{
 	AppState, MetaRequestDto, ResponseListSuccessDto, ResponseSuccessDto,
@@ -33,6 +34,9 @@ pub trait TeamsServiceTrait: Send + Sync + 'static {
 	fn get_team_members(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims, team_id: String) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn leave_team(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims, team_id: String) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn search_teams(state: &AppState, search_params: TeamsSearchQueryDto) -> Pin<Box<dyn Future<Output = Response> + Send>>;
+	fn get_admin_team_list(state: &AppState, meta: MetaRequestDto) -> Pin<Box<dyn Future<Output = Response> + Send>>;
+	fn get_admin_team_by_id(state: &AppState, id: String) -> Pin<Box<dyn Future<Output = Response> + Send>>;
+	fn get_admin_team_members(state: &AppState, team_id: String) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 }
 
 #[derive(Clone)]
@@ -654,6 +658,109 @@ impl TeamsServiceTrait for TeamsService {
 					};
 					success_list_response(response)
 				}
+	fn get_admin_team_list(state: &AppState, meta: MetaRequestDto) -> Pin<Box<dyn Future<Output = Response> + Send>> {
+		let state = state.to_owned();
+		Box::pin(async move {
+			let repo = TeamsRepository::new(&state);
+			match repo.query_team_list(meta).await {
+				Ok(data) => {
+					let response = ResponseListSuccessDto {
+						data: data.data.into_iter().map(|team| team.to_admin_list_dto()).collect(),
+						meta: data.meta,
+					};
+					success_list_response(response)
+				}
+				Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
+			}
+		})
+	}
+
+	fn get_admin_team_by_id(state: &AppState, id: String) -> Pin<Box<dyn Future<Output = Response> + Send>> {
+			let state = state.to_owned();
+			Box::pin(async move {
+				if Uuid::parse_str(&id).is_err() {
+					return common_response(StatusCode::BAD_REQUEST, "Invalid Team ID format");
+				}
+				let repo = TeamsRepository::new(&state);
+				let thing_id = make_thing_from_enum(ResourceEnum::Teams, &id);
+				match repo.query_team_by_id(&thing_id).await {
+					Ok(team) if !team.is_deleted => {
+						let members = repo.query_team_members(&team.id).await.unwrap_or_default();
+						let mut member_dtos = Vec::new();
+						
+						for member in members {
+							match Self::get_user_info_with_privacy(
+								&member.user_id.id.to_raw(),
+								"system",  // Admin context - show all sensitive data
+								true,       // Admin context - always show sensitive data
+								&state,
+							).await {
+								Ok(mut member_dto) => {
+									member_dto.role = member.role;
+									member_dto.joined_at = member.joined_at;
+									member_dtos.push(member_dto);
+								}
+								Err(_) => continue,
+							}
+						}
+	
+						// Add leader with full sensitive info
+						match Self::get_user_info_with_privacy(
+							&team.leader_id.id.to_raw(),
+							"system",
+							true,
+							&state,
+						).await {
+							Ok(mut leader_dto) => {
+								leader_dto.role = "leader".to_string();
+								member_dtos.insert(0, leader_dto);
+							}
+							Err(_) => {}
+						}
+						
+						let team_dto = team.to_admin_detail_dto(member_dtos);
+						success_response(ResponseSuccessDto { data: team_dto })
+					}
+					Ok(_) => common_response(StatusCode::NOT_FOUND, "Team not found"),
+					Err(e) => common_response(StatusCode::NOT_FOUND, &e.to_string()),
+				}
+			})
+		}
+
+	fn get_admin_team_members(state: &AppState, team_id: String) -> Pin<Box<dyn Future<Output = Response> + Send>> {
+			let state = state.to_owned();
+			Box::pin(async move {
+				if Uuid::parse_str(&team_id).is_err() {
+					return common_response(StatusCode::BAD_REQUEST, "Invalid Team ID format");
+				}
+				let repo = TeamsRepository::new(&state);
+				let thing_id = make_thing_from_enum(ResourceEnum::Teams, &team_id);
+				
+				let members = match repo.query_team_members(&thing_id).await {
+					Ok(members) => members,
+					Err(e) => return common_response(StatusCode::BAD_REQUEST, &e.to_string()),
+				};
+	
+				let mut member_dtos = Vec::new();
+				for member in members {
+					match Self::get_user_info_with_privacy(
+						&member.user_id.id.to_raw(),
+						"system",  // Admin context - show all sensitive data
+						true,       // Admin context - always show sensitive data
+						&state,
+					).await {
+						Ok(mut member_dto) => {
+							member_dto.role = member.role;
+							member_dto.joined_at = member.joined_at;
+							member_dtos.push(member_dto);
+						}
+						Err(_) => continue,
+					}
+				}
+	
+				success_response(ResponseSuccessDto { data: member_dtos })
+			})
+		}
 				Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
 			}
 		})
