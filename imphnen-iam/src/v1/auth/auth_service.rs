@@ -162,7 +162,6 @@ impl AuthServiceTrait for AuthService {
 		payload: AuthLoginRequestDto,
 		state: &AppState,
 	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
-        let payload = payload;
         let state = state.to_owned();
         Box::pin(async move {
 		if let Err((status, message)) = validate_request(&payload) {
@@ -264,7 +263,6 @@ impl AuthServiceTrait for AuthService {
 		payload: AuthRegisterRequestDto,
 		state: &AppState,
 	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
-        let payload = payload;
         let state = state.to_owned();
         Box::pin(async move {
 		if let Err((status, message)) = validate_request(&payload) {
@@ -367,7 +365,6 @@ impl AuthServiceTrait for AuthService {
 		payload: AuthResendOtpRequestDto,
 		state: &AppState,
 	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
-        let payload = payload;
         let state = state.to_owned();
         Box::pin(async move {
 		if let Err((status, message)) = validate_request(&payload) {
@@ -408,7 +405,6 @@ impl AuthServiceTrait for AuthService {
 		payload: AuthRefreshTokenRequestDto,
 		state: &AppState,
 	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
-        let payload = payload;
         let state = state.to_owned();
         Box::pin(async move {
 		if let Err((status, message)) = validate_request(&payload) {
@@ -462,7 +458,6 @@ impl AuthServiceTrait for AuthService {
 		payload: AuthResendOtpRequestDto,
 		state: &AppState,
 	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
-        let payload = payload;
         let state = state.to_owned();
         Box::pin(async move {
             if let Err((status, message)) = validate_request(&payload) {
@@ -500,7 +495,6 @@ impl AuthServiceTrait for AuthService {
 		payload: AuthVerifyEmailRequestDto,
 		state: &AppState,
 	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
-        let payload = payload;
         let state = state.to_owned();
         Box::pin(async move {
 		if let Err((status, message)) = validate_request(&payload) {
@@ -556,7 +550,6 @@ impl AuthServiceTrait for AuthService {
 		payload: AuthNewPasswordRequestDto,
 		state: &AppState,
 	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
-        let payload = payload;
         let state = state.to_owned();
         Box::pin(async move {
 		if let Err((status, message)) = validate_request(&payload) {

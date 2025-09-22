@@ -1,4 +1,5 @@
-use crate::{ResourceEnum, make_thing};
+use crate::ResourceEnum;
+use imphnen_utils::make_thing_from_enum;
 use serde::{Deserialize, Serialize};
 use surrealdb::{Uuid, sql::Thing};
 
@@ -15,9 +16,9 @@ pub struct PermissionsSchema {
 
 impl Default for PermissionsSchema {
 	fn default() -> Self {
-		PermissionsSchema {
-			id: make_thing(
-				&ResourceEnum::Permissions.to_string(),
+		Self {
+			id: make_thing_from_enum(
+				ResourceEnum::Permissions,
 				&Uuid::new_v4().to_string(),
 			),
 			name: String::new(),

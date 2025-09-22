@@ -181,15 +181,15 @@ pub struct UsersDetailItemDto {
 }
 
 impl UsersDetailItemDto {
-	pub fn from(dto: &UsersDetailQueryDto) -> Self { // Reverted to taking a reference
+	pub fn from(dto: &UsersDetailQueryDto) -> Self {
 		Self {
-			id: dto.id.id.to_raw().clone(),
+			id: dto.id.id.to_raw(),
 			role: RolesDetailItemDto::from(&dto.role),
 			fullname: dto.fullname.clone(),
 			legal_name: dto.legal_name.clone(),
 			email: dto.email.clone(),
 			avatar: dto.avatar.clone(),
-			phone_number: dto.phone_number.clone(), // Corrected from dto.phone.clone()
+			phone_number: dto.phone_number.clone(),
 			phone_for_verification: dto.phone_for_verification.clone(),
 			is_active: dto.is_active,
 			gender: dto.gender.clone(),
@@ -276,14 +276,14 @@ impl UsersListQueryDto {
 	pub fn from(self) -> UsersListItemDto {
 		UsersListItemDto {
 			id: self.id.id.to_raw(),
-			role: self.role.name.clone(),
-			fullname: self.fullname.clone(),
-			email: self.email.clone(),
-			avatar: self.avatar.clone(),
-			phone_number: self.phone_number.clone(),
+			role: self.role.name,
+			fullname: self.fullname,
+			email: self.email,
+			avatar: self.avatar,
+			phone_number: self.phone_number,
 			is_active: self.is_active,
-			created_at: self.created_at.clone(),
-			updated_at: self.updated_at.clone(),
+			created_at: self.created_at,
+			updated_at: self.updated_at,
 		}
 	}
 }
@@ -323,39 +323,8 @@ pub struct UsersDetailQueryDto {
 }
 
 impl UsersDetailQueryDto {
-	pub fn from(&self) -> Self {
-		Self {
-			id: self.id.clone(),
-			role: self.role.clone(),
-			fullname: self.fullname.clone(),
-			legal_name: self.legal_name.clone(),
-			email: self.email.clone(),
-			avatar: self.avatar.clone(),
-			phone_number: self.phone_number.clone(),
-			phone_for_verification: self.phone_for_verification.clone(),
-			is_active: self.is_active,
-			mentor_id: self.mentor_id.clone(),
-			gender: self.gender.clone(),
-			domicile: self.domicile.clone(),
-			bio: self.bio.clone(),
-			last_education: self.last_education.clone(),
-			linkedin_url: self.linkedin_url.clone(),
-			github_url: self.github_url.clone(),
-			cv_url: self.cv_url.clone(),
-			portfolio_url: self.portfolio_url.clone(),
-			website_url: self.website_url.clone(),
-			twitter_url: self.twitter_url.clone(),
-			location: self.location.clone(),
-			skills: self.skills.clone(),
-			experience: self.experience.clone(),
-			education: self.education.clone(),
-			career_status: self.career_status.clone(),
-			is_deleted: self.is_deleted,
-			password: self.password.clone(),
-			birthdate: self.birthdate.clone(),
-			created_at: self.created_at.clone(),
-			updated_at: self.updated_at.clone(),
-		}
+	pub fn from(self) -> Self {
+		self
 	}
 }
 

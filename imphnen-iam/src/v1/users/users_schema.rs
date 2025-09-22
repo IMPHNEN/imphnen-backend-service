@@ -1,7 +1,7 @@
 use super::{UsersCreateRequestDto, UsersDetailQueryDto, UsersUpdateRequestDto, ExperienceDto, EducationDto};
 use imphnen_libs::{ResourceEnum, hash_password};
 use imphnen_utils::extract_id;
-use imphnen_utils::{get_iso_date, make_thing};
+use imphnen_utils::{get_iso_date, make_thing_from_enum};
 use serde::{Deserialize, Serialize};
 use surrealdb::{Uuid, sql::Thing};
 
@@ -62,8 +62,8 @@ pub struct UsersSchema {
 impl Default for UsersSchema {
 	fn default() -> Self {
 		Self {
-			id: make_thing(
-				&ResourceEnum::Users.to_string(),
+			id: make_thing_from_enum(
+				ResourceEnum::Users,
 				&Uuid::new_v4().to_string(),
 			),
 			fullname: String::new(),
@@ -92,8 +92,8 @@ impl Default for UsersSchema {
 			experience: None,
 			education: None,
 			career_status: None,
-			role: make_thing(
-				&ResourceEnum::Roles.to_string(),
+			role: make_thing_from_enum(
+				ResourceEnum::Roles,
 				"5713cb37-dc02-4e87-8048-d7a41d352059",
 			),
 			created_at: get_iso_date(),
@@ -134,13 +134,13 @@ impl UsersSchema {
 			password: dto.password,
 			created_at: dto.created_at,
 			updated_at: dto.updated_at,
-			role: make_thing(&ResourceEnum::Roles.to_string(), &extract_id(&dto.role.id)),
+			role: make_thing_from_enum(ResourceEnum::Roles, &extract_id(&dto.role.id)),
 		}
 	}
 
 	pub fn update(_user: UsersUpdateRequestDto, id: String) -> Self {
 		Self {
-			id: make_thing(&ResourceEnum::Users.to_string(), &id),
+			id: make_thing_from_enum(ResourceEnum::Users, &id),
 			updated_at: get_iso_date(),
 			// Set defaults for required fields - these should be overridden by actual data from DB
 			..Default::default()
@@ -159,7 +159,7 @@ impl UsersSchema {
 			schema.email = email;
 		}
 		if let Some(password) = user.password {
-			schema.password = hash_password(&password).unwrap_or_else(|_| password);
+			schema.password = hash_password(&password).unwrap_or(password);
 		}
 		if let Some(phone_number) = user.phone_number {
 			schema.phone_number = phone_number;
@@ -168,7 +168,7 @@ impl UsersSchema {
 			schema.is_active = is_active;
 		}
 		if let Some(role_id) = user.role_id {
-			schema.role = make_thing(&ResourceEnum::Roles.to_string(), &role_id);
+			schema.role = make_thing_from_enum(ResourceEnum::Roles, &role_id);
 		}
 		
 		// Optional fields - only update if provided
@@ -236,8 +236,8 @@ impl UsersSchema {
 	pub fn create(user: UsersCreateRequestDto) -> Self {
 		let password = hash_password(&user.password).unwrap();
 		Self {
-			id: make_thing(
-				&ResourceEnum::Users.to_string(),
+			id: make_thing_from_enum(
+				ResourceEnum::Users,
 				&Uuid::new_v4().to_string(),
 			),
 			fullname: user.fullname,
@@ -266,7 +266,7 @@ impl UsersSchema {
 			career_status: None,
 			avatar: user.avatar,
 			is_deleted: false,
-			role: make_thing(&ResourceEnum::Roles.to_string(), &user.role_id),
+			role: make_thing_from_enum(ResourceEnum::Roles, &user.role_id),
 			created_at: get_iso_date(),
 			updated_at: get_iso_date(),
 		}
@@ -281,10 +281,7 @@ impl UsersSchema {
 	}
 
 	pub fn update_mentor_id(mut self, mentor_id: Option<String>) -> Self {
-		self.mentor_id = match mentor_id {
-			Some(id) => Some(make_thing(&ResourceEnum::Users.to_string(), &id)),
-			None => None, // Set to None if no mentor_id provided
-		};
+		self.mentor_id = mentor_id.map(|id| make_thing_from_enum(ResourceEnum::Users, &id));
 		self.updated_at = get_iso_date();
 		self
 	}

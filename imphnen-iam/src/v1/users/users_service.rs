@@ -12,7 +12,7 @@ use crate::{
 };
 use axum::{http::StatusCode, response::Response, extract::Multipart};
 use imphnen_libs::{ResourceEnum, hash_password, verify_password, MinioConfig, FileType, decode_base64_file, extract_content_type_from_data_url, create_minio_service_from_config};
-use imphnen_utils::make_thing;
+use imphnen_utils::make_thing_from_enum;
 use uuid::Uuid;
 use std::pin::Pin;
 use std::future::Future;
@@ -84,7 +84,7 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
             return common_response(StatusCode::BAD_REQUEST, "Invalid User ID format");
         }
 		let repo = UsersRepository::new(&state);
-		let thing_id = make_thing(&ResourceEnum::Users.to_string(), &id);
+		let thing_id = make_thing_from_enum(ResourceEnum::Users, &id);
 		match repo.query_user_by_id(&thing_id).await {
 			Ok(user) if !user.is_deleted => success_response(ResponseSuccessDto {
 				data: UserDto::from(&user), // Corrected to use UserDto::from by reference
@@ -100,7 +100,7 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
         let state = state.to_owned();
         Box::pin(async move {
 		let repo = UsersRepository::new(&state);
-		let thing_id = make_thing(&ResourceEnum::Users.to_string(), &claims.user_id);
+		let thing_id = make_thing_from_enum(ResourceEnum::Users, &claims.user_id);
 		match repo.query_user_by_id(&thing_id).await {
 			Ok(user) if !user.is_deleted => success_response(ResponseSuccessDto {
 				data: UserDto::from(&user),
@@ -116,7 +116,6 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
 		new_user: UsersCreateRequestDto,
 	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
         let state = state.to_owned();
-        let new_user = new_user;
         Box::pin(async move {
 		if let Err((status, message)) = validate_request(&new_user) {
 			return common_response(status, &message);
@@ -145,7 +144,6 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
 	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
         let state = state.to_owned();
         let id = id.to_owned();
-        let user = user;
         Box::pin(async move {
 		if Uuid::parse_str(&id).is_err() {
             return common_response(StatusCode::BAD_REQUEST, "Invalid User ID format");
@@ -156,7 +154,7 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
 		}
 		
 		// Get current user data first
-		let thing_id = make_thing(&ResourceEnum::Users.to_string(), &id);
+		let thing_id = make_thing_from_enum(ResourceEnum::Users, &id);
 		let current_user = match repo.query_user_by_id(&thing_id).await {
 			Ok(user) => user,
 			Err(_) => return common_response(StatusCode::NOT_FOUND, "User not found"),
@@ -177,11 +175,10 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
 	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
         let claims = claims.to_owned();
         let state = state.to_owned();
-        let user_update_dto = user_update_dto;
         Box::pin(async move {
 		let repo = UsersRepository::new(&state);
 		
-		let thing_id = make_thing(&ResourceEnum::Users.to_string(), &claims.user_id);
+		let thing_id = make_thing_from_enum(ResourceEnum::Users, &claims.user_id);
 		let user_data = match repo.query_user_by_id(&thing_id).await {
 			Ok(user) => user,
 			Err(_) => return common_response(StatusCode::NOT_FOUND, "User not found"),
@@ -206,13 +203,12 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
 	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
         let state = state.to_owned();
         let id = id.to_owned();
-        let payload = payload;
         Box::pin(async move {
 		if Uuid::parse_str(&id).is_err() {
             return common_response(StatusCode::BAD_REQUEST, "Invalid User ID format");
         }
 		let repo = UsersRepository::new(&state);
-		let thing_id = make_thing(&ResourceEnum::Users.to_string(), &id);
+		let thing_id = make_thing_from_enum(ResourceEnum::Users, &id);
 		match repo.query_user_by_id(&thing_id).await {
 			Ok(user) if !user.is_deleted => {
 				let patch = UsersSchema {
@@ -238,7 +234,6 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
 	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
         let state = state.to_owned();
         let email = email.to_owned();
-        let payload = payload;
         Box::pin(async move {
 		let repo = UsersRepository::new(&state);
 		let user = match repo.query_user_by_email(email.clone()).await {
@@ -287,7 +282,7 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
         let mentor_id = mentor_id.to_owned();
         Box::pin(async move {
 		let repo = UsersRepository::new(&state);
-		let thing_id = make_thing(&ResourceEnum::Mentors.to_string(), &mentor_id);
+		let thing_id = make_thing_from_enum(ResourceEnum::Mentors, &mentor_id);
 		match repo.query_user_by_id(&thing_id).await {
 			Ok(user) if !user.is_deleted => success_response(ResponseSuccessDto {
 				data: UserDto::from(&user), // Corrected to use UserDto::from by reference
@@ -306,7 +301,7 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
             return common_response(StatusCode::BAD_REQUEST, "Invalid User ID format");
         }
 		let repo = UsersRepository::new(&state);
-		let thing_id = make_thing(&ResourceEnum::Users.to_string(), &id);
+		let thing_id = make_thing_from_enum(ResourceEnum::Users, &id);
 		if repo.query_user_by_id(&thing_id).await.is_err() {
 			return common_response(StatusCode::BAD_REQUEST, "User not found");
 		}
@@ -332,7 +327,6 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
     }
  
     fn create_user_by_dto(&self, new_user: CreateUserDto, state: &AppState) -> Pin<Box<dyn Future<Output = Result<UserDto>> + Send>> {
-        let new_user = new_user;
         let state = state.to_owned();
         Box::pin(async move {
         let repo = UsersRepository::new(&state);
@@ -344,7 +338,7 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
             phone_number: new_user.phone_number,
             is_active: new_user.is_active,
             avatar: new_user.avatar,
-            role: make_thing(&ResourceEnum::Roles.to_string(), &new_user.role_id),
+            role: make_thing_from_enum(ResourceEnum::Roles, &new_user.role_id),
             ..Default::default()
         };
         match repo.query_create_user(user_schema).await {
@@ -422,7 +416,7 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
 
             // Get actual user data from database using user_id (which is a UUID)
             let repo = UsersRepository::new(&state);
-            let thing_id = make_thing(&ResourceEnum::Users.to_string(), &user_id);
+            let thing_id = make_thing_from_enum(ResourceEnum::Users, &user_id);
             let user_data = match repo.query_user_by_id(&thing_id).await {
                 Ok(user) => {
                     info!("Found user in DB. User ID: {}, Email: {}", user.id.id.to_raw(), user.email);

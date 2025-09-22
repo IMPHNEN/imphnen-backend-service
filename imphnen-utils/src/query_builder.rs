@@ -122,9 +122,9 @@ impl ListQueryBuilder {
 		};
 
 		let select_clause = if self.select_fields.is_empty() {
-			"*".to_string()
+			"*"
 		} else {
-			self.select_fields.join(", ")
+			&self.select_fields.join(", ")
 		};
 
 		format!(
@@ -196,7 +196,7 @@ impl DetailQueryBuilder {
 			);
 		}
 		self.thing = Some(thing.to_string());
-		self.resource = thing.tb.clone();
+		self.resource = thing.tb.to_string();
 		self
 	}
 
@@ -240,48 +240,42 @@ impl DetailQueryBuilder {
 
 	pub fn build(&self) -> String {
 		let select_clause = if self.select_fields.is_empty() {
-			"*".to_string()
+			"*"
 		} else {
-			self.select_fields.join(", ")
+			&self.select_fields.join(", ")
 		};
 
 		let fetch_clause = if self.fetch_fields.is_empty() {
-			String::new()
+			""
 		} else {
-			format!("FETCH {}", self.fetch_fields.join(", ")) // Fixed: Changed self.fetch to self.fetch_fields
+			&format!("FETCH {}", self.fetch_fields.join(", "))
 		};
 
 		// Determine the base FROM clause
-		let mut from_clause_base = if let Some(thing) = &self.thing {
-			thing.to_string()
+		let from_clause_base = if let Some(thing) = &self.thing {
+			thing.as_str()
 		} else if let Some(id_val) = &self.id {
-			format!("{}:⟨{}⟩", self.resource, id_val)
+			&format!("{}:⟨{}⟩", self.resource, id_val)
 		} else {
-			self.resource.clone() // Start with resource name for WHERE queries
+			&self.resource
 		};
 
 		// Add WHERE clause based on accumulated conditions
-		if !self.conditions.is_empty() {
-			// This logic needs to be careful: if `from_clause_base` already contains `WHERE` (e.g. from `id` lookup),
-			// then `conditions` should append with `AND`. But for `DetailQueryBuilder`, only one `WHERE` style is expected.
-			// The panic conditions in `with_id`, `with_thing`, `with_where` should prevent logical conflicts.
-			from_clause_base = format!(
-				"{} WHERE {}",
-				from_clause_base,
-				self.conditions.join(" AND ")
-			);
-		}
+		let final_from_clause = if !self.conditions.is_empty() {
+			format!("{} WHERE {}", from_clause_base, self.conditions.join(" AND "))
+		} else {
+			from_clause_base.to_string()
+		};
 
-		format!("SELECT {select_clause} FROM {from_clause_base} {fetch_clause}")
+		format!("SELECT {select_clause} FROM {final_from_clause} {fetch_clause}")
 	}
 
-	// Modified apply_bindings to clone both key and value
 	pub fn apply_bindings<'q>(
 		&self,
 		mut query: Query<'q, any::Any>,
 	) -> Query<'q, any::Any> {
 		for (key, val) in &self.bindings {
-			query = query.bind((key.clone(), val.clone())); // Clone both key and value
+			query = query.bind((key.clone(), val.clone()));
 		}
 		query
 	}

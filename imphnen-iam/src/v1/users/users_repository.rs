@@ -4,7 +4,7 @@ use crate::{
 };
 use surrealdb::sql::Thing;
 use anyhow::{Result, bail};
-use imphnen_utils::{DetailQueryBuilder, QueryListBuilder};
+use imphnen_utils::{DetailQueryBuilder, QueryListBuilder, make_thing_from_enum};
 use serde_json;
 use std::time::Instant;
 use surrealdb::{Surreal, engine::remote::ws::Client};
@@ -105,7 +105,7 @@ impl<'a> UsersRepository<'a> {
 		if user.role.updated_at.is_none() || user.role.is_deleted {
 			bail!("User not found");
 		}
-		Ok(UsersDetailQueryDto::from(&user))
+		Ok(UsersDetailQueryDto::from(user))
 	}
 
 	
@@ -115,7 +115,7 @@ impl<'a> UsersRepository<'a> {
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
 		let builder = DetailQueryBuilder::new(ResourceEnum::Users.to_string())
-			.with_id(&id.id.to_raw())
+			.with_id(id.id.to_raw())
 			.with_select_fields(vec!["*"])
 			.with_fetch("role")
 			.with_fetch("role.permissions");
@@ -139,7 +139,7 @@ impl<'a> UsersRepository<'a> {
 		if user.role.is_deleted {
 			bail!("User's role has been deleted");
 		}
-		Ok(UsersDetailQueryDto::from(&user))
+		Ok(UsersDetailQueryDto::from(user))
 	}
 
 	
@@ -203,7 +203,7 @@ impl<'a> UsersRepository<'a> {
 	pub async fn query_delete_user(&self, id: String) -> Result<String> {
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
-		let user = self.query_user_by_id(&make_thing(&ResourceEnum::Users.to_string(), &id)).await?;
+		let user = self.query_user_by_id(&make_thing_from_enum(ResourceEnum::Users, &id)).await?;
 		if user.is_deleted {
 			bail!("User not found");
 		}

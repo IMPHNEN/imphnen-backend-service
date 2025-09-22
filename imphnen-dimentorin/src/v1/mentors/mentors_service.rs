@@ -35,7 +35,7 @@ impl MentorsService {
 		let role_repo = RolesRepository::new(state);
 		let auth_repo = AuthRepository::new(state);
 
-		let user_email = dto.email.clone();
+		let user_email = &dto.email;
 		let mut _user_to_update: Option<UsersSchema> = None;
 
 		let existing_user_result =
@@ -56,7 +56,7 @@ impl MentorsService {
 				);
 			}
 
-			let mut user_schema = UsersSchema::from(user_detail_query_dto.clone());
+			let mut user_schema = UsersSchema::from(user_detail_query_dto);
 
 			user_schema.fullname = dto.fullname.clone();
 			user_schema.phone_number = dto.phone_number.clone();
@@ -99,7 +99,7 @@ impl MentorsService {
 				}
 			};
 			user_schema.role =
-				imphnen_utils::make_thing(&ResourceEnum::Roles.to_string(), &mentor_role.id);
+				imphnen_utils::make_thing_from_enum(ResourceEnum::Roles, &mentor_role.id);
 			user_schema.is_active = false;
 
 			if let Err(_err) = user_repo.query_update_user(user_schema.clone()).await {
@@ -139,14 +139,14 @@ impl MentorsService {
 			};
 
 			let new_user_schema = UsersSchema {
-				id: imphnen_utils::make_thing(
-					&ResourceEnum::Users.to_string(),
+				id: imphnen_utils::make_thing_from_enum(
+					ResourceEnum::Users,
 					&Uuid::new_v4().to_string(),
 				),
-				email: dto.email.clone(),
-				fullname: dto.fullname.clone(),
+				email: dto.email,
+				fullname: dto.fullname,
 				password: hashed_password,
-				phone_number: dto.phone_number.clone(),
+				phone_number: dto.phone_number,
 				// Store personal data from identity_and_verification in user
 				legal_name: Some(dto.identity_and_verification.legal_name.clone()),
 				gender: dto.identity_and_verification.gender.clone(),
@@ -161,8 +161,8 @@ impl MentorsService {
 				portfolio_url: dto.professional_profile.portfolio_url.clone(),
 				created_at: imphnen_utils::get_iso_date(),
 				updated_at: imphnen_utils::get_iso_date(),
-				role: imphnen_utils::make_thing(
-					&ResourceEnum::Roles.to_string(),
+				role: imphnen_utils::make_thing_from_enum(
+					ResourceEnum::Roles,
 					&mentor_role.id,
 				),
 				is_active: false,

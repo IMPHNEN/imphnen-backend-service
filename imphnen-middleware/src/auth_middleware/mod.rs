@@ -60,7 +60,7 @@ pub async fn auth_middleware(
 			match repo.get_user_by_id_internal(&thing_id, &state).await {
 				Ok(user) => {
 					// Optionally: insert into mem for future requests
-					let _: Result<Vec<imphnen_iam::v1::users::users_dto::UsersDetailQueryDto>, _> = mem_db.update(&thing_id.id.to_raw()).content(user.clone()).await;
+					let _: Result<Option<UsersDetailQueryDto>, _> = mem_db.update(("users", &user_id)).content(user.clone()).await;
 					user
 				},
 				Err(_) => return Ok(common_response(StatusCode::UNAUTHORIZED, "User not found")),

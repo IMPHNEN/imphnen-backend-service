@@ -34,10 +34,10 @@ impl GachaItemDto {
 	pub fn from(dto: GachaItemSchema) -> Self {
 		Self {
 			id: dto.id.id.to_raw(),
-			name: dto.name.clone(),
+			name: dto.name,
 			is_deleted: dto.is_deleted,
-			created_at: dto.created_at.clone(),
-			updated_at: dto.updated_at.clone(),
+			created_at: dto.created_at,
+			updated_at: dto.updated_at,
 		}
 	}
 }
