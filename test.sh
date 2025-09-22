@@ -79,7 +79,7 @@ TEST_START_TIME=$(date +%s)
 AUTH_TOKEN=""
 SERVER_PID=""
 TEST_RESULTS=()
-FALED_TESTS_SUMMARY=()
+FAILED_TESTS_SUMMARY=()
 PASS_COUNT=0
 FAIL_COUNT=0
 TEST_TESTIMONIAL_ID=""
@@ -135,10 +135,20 @@ test_api_endpoint() {
 
   local start_req_time=$(date +%s%3N)
   
-  response=$(curl -s -w "\n%{http_code}" -X "$method" "${headers[@]}" -d "$body" "$BASE_URL$endpoint")
+  # Use a more compatible approach for Windows/Git Bash
+  local temp_file=$(mktemp)
+  local status_file=$(mktemp)
   
-  http_status=$(echo "$response" | tail -n1)
-  response_body=$(echo "$response" | sed '$d')
+  # Make single request and capture both body and status using response headers
+  curl -s -X "$method" "${headers[@]}" -d "$body" "$BASE_URL$endpoint" \
+    -D "$status_file" -o "$temp_file"
+  
+  response_body=$(cat "$temp_file")
+  
+  # Extract HTTP status code from headers file
+  http_status=$(head -n 1 "$status_file" | cut -d' ' -f2)
+  
+  rm -f "$temp_file" "$status_file"
 
   local end_req_time=$(date +%s%3N)
   local duration=$((end_req_time - start_req_time))
@@ -146,16 +156,21 @@ test_api_endpoint() {
   local status="FAIL"
   local error_msg=""
 
-  if [ "$http_status" -eq "$expected_status" ]; then
+  # Check if http_status is numeric
+  if [[ "$http_status" =~ ^[0-9]+$ ]] && [ "$http_status" -eq "$expected_status" ]; then
     status="PASS"
     ((PASS_COUNT++))
     write_test_log "SUCCESS" "✓ $test_name - Sukses (Status: $http_status, Waktu: ${duration}ms)"
   else
     status="FAIL"
     ((FAIL_COUNT++))
-write_test_log "ERROR" "  Request Body: $body"
+    write_test_log "ERROR" "  Request Body: $body"
     write_test_log "ERROR" "  Response Body: $response_body"
-    error_msg="Status yang diharapkan $expected_status, tetapi mendapat $http_status."
+    if [[ ! "$http_status" =~ ^[0-9]+$ ]]; then
+      error_msg="Failed to get valid HTTP status code (got: $http_status)"
+    else
+      error_msg="Status yang diharapkan $expected_status, tetapi mendapat $http_status."
+    fi
     write_test_log "ERROR" "✗ $test_name - Gagal: $error_msg"
     FAILED_TESTS_SUMMARY+=("✗ $test_name - $error_msg")
   fi
@@ -194,14 +209,24 @@ get_auth_token() {
   local headers=(-H "Content-Type: application/json")
   local start_req_time=$(date +%s%3N)
   
-  response=$(curl -s -w "\n%{http_code}" -X "POST" "${headers[@]}" -d "$login_data" "$BASE_URL/v1/auth/login")
+  # Use a more compatible approach for Windows/Git Bash
+  local temp_file=$(mktemp)
+  local status_file=$(mktemp)
   
-  local http_status=$(echo "$response" | tail -n1)
-  local response_body=$(echo "$response" | sed '$d')
+  # Make single request and capture both body and status using response headers
+  curl -s -X "POST" "${headers[@]}" -d "$login_data" "$BASE_URL/v1/auth/login" \
+    -D "$status_file" -o "$temp_file"
+  
+  local response_body=$(cat "$temp_file")
+  
+  # Extract HTTP status code from headers file
+  local http_status=$(head -n 1 "$status_file" | cut -d' ' -f2)
+  
+  rm -f "$temp_file" "$status_file"
   local end_req_time=$(date +%s%3N)
   local duration=$((end_req_time - start_req_time))
   
-  if [ "$http_status" -eq 200 ]; then
+  if [[ "$http_status" =~ ^[0-9]+$ ]] && [ "$http_status" -eq 200 ]; then
     if echo "$response_body" | jq . > /dev/null 2>&1; then
       AUTH_TOKEN=$(echo "$response_body" | jq -r '.data.token.access_token // empty')
       if [[ -n "$AUTH_TOKEN" && "$AUTH_TOKEN" != "null" ]]; then
@@ -226,9 +251,13 @@ get_auth_token() {
 
   local status="PASS"
   local error_msg=""
-  if [ "$http_status" -ne 200 ] || [[ -z "$AUTH_TOKEN" ]]; then
+  if [[ ! "$http_status" =~ ^[0-9]+$ ]] || [ "$http_status" -ne 200 ] || [[ -z "$AUTH_TOKEN" ]]; then
     status="FAIL"
-    error_msg="Authentication failed"
+    if [[ ! "$http_status" =~ ^[0-9]+$ ]]; then
+      error_msg="Failed to get valid HTTP status code (got: $http_status)"
+    else
+      error_msg="Authentication failed"
+    fi
   fi
   
   result_json=$(jq -n --arg name "User Authentication" --arg ep "/v1/auth/login" --arg meth "POST" \
@@ -254,19 +283,26 @@ test_all_users_login_performance() {
   
   local start_time=$(date +%s%3N)
   
-  response=$(curl -s -w "\n%{http_code}" -X "POST" \
-      -H "Content-Type: application/json" \
-      -d "$login_data" \
-      "$BASE_URL/v1/auth/login")
+  # Use a more compatible approach for Windows/Git Bash
+  local temp_file=$(mktemp)
+  local status_file=$(mktemp)
   
-  local http_status=$(echo "$response" | tail -n1)
-  local response_body=$(echo "$response" | sed '$d')
+  # Make single request and capture both body and status using response headers
+  curl -s -X "POST" -H "Content-Type: application/json" -d "$login_data" "$BASE_URL/v1/auth/login" \
+    -D "$status_file" -o "$temp_file"
+  
+  local response_body=$(cat "$temp_file")
+  
+  # Extract HTTP status code from headers file
+  local http_status=$(head -n 1 "$status_file" | cut -d' ' -f2)
+  
+  rm -f "$temp_file" "$status_file"
   local end_time=$(date +%s%3N)
   local duration=$((end_time - start_time))
   
   total_login_time=$((total_login_time + duration))
   
-  if [ "$http_status" -eq 200 ]; then
+  if [[ "$http_status" =~ ^[0-9]+$ ]] && [ "$http_status" -eq 200 ]; then
     if echo "$response_body" | jq -e '.data.token.access_token' > /dev/null 2>&1; then
       ((successful_logins++))
       ((PASS_COUNT++))
@@ -322,34 +358,47 @@ test_with_user() {
   
   local login_data
   login_data=$(jq -n --arg email "$email" --arg pass "$TEST_PASSWORD" '{email: $email, password: $pass}')
-  
   local start_time=$(date +%s%3N)
   
-  response=$(curl -s -w "\n%{http_code}" -X "POST" \
-      -H "Content-Type: application/json" \
-      -d "$login_data" \
-      "$BASE_URL/v1/auth/login")
+  # Use a more compatible approach for Windows/Git Bash
+  local temp_file=$(mktemp)
+  local status_file=$(mktemp)
   
-  local http_status=$(echo "$response" | tail -n1)
-  local response_body=$(echo "$response" | sed '$d')
+  # Make single request and capture both body and status using response headers
+  curl -s -X "POST" -H "Content-Type: application/json" -d "$login_data" "$BASE_URL/v1/auth/login" \
+    -D "$status_file" -o "$temp_file"
+  
+  local response_body=$(cat "$temp_file")
+  
+  # Extract HTTP status code from headers file
+  local http_status=$(head -n 1 "$status_file" | cut -d' ' -f2)
+  
+  rm -f "$temp_file" "$status_file"
   local end_time=$(date +%s%3N)
   local duration=$((end_time - start_time))
   
-  if [ "$http_status" -eq 200 ]; then
+  if [[ "$http_status" =~ ^[0-9]+$ ]] && [ "$http_status" -eq 200 ]; then
     if echo "$response_body" | jq -e '.data.token.access_token' > /dev/null 2>&1; then
       local user_auth_token=$(echo "$response_body" | jq -r '.data.token.access_token')
       write_test_log "SUCCESS" "✓ Login $fullname berhasil - ${duration}ms"
       
       local me_response
-      me_response=$(curl -s -w "\n%{http_code}" -X "GET" \
-          -H "Content-Type: application/json" \
-          -H "Authorization: Bearer $user_auth_token" \
-          "$BASE_URL/v1/users/me")
+      # Use a more compatible approach for Windows/Git Bash
+      local temp_file=$(mktemp)
+      local status_file=$(mktemp)
       
-      local me_status=$(echo "$me_response" | tail -n1)
-      local me_body=$(echo "$me_response" | sed '$d')
+      # Make single request and capture both body and status using response headers
+      curl -s -X "GET" -H "Content-Type: application/json" -H "Authorization: Bearer $user_auth_token" "$BASE_URL/v1/users/me" \
+        -D "$status_file" -o "$temp_file"
       
-      if [ "$me_status" -eq 200 ]; then
+      local me_body=$(cat "$temp_file")
+      
+      # Extract HTTP status code from headers file
+      local me_status=$(head -n 1 "$status_file" | cut -d' ' -f2)
+      
+      rm -f "$temp_file" "$status_file"
+      
+      if [[ "$me_status" =~ ^[0-9]+$ ]] && [ "$me_status" -eq 200 ]; then
         ((PASS_COUNT++))
         write_test_log "SUCCESS" "✓ Get profile $fullname berhasil"
         
@@ -396,17 +445,24 @@ test_comprehensive_with_user() {
   
   local start_time=$(date +%s%3N)
   
-  response=$(curl -s -w "\n%{http_code}" -X "POST" \
-      -H "Content-Type: application/json" \
-      -d "$login_data" \
-      "$BASE_URL/v1/auth/login")
+  # Use a more compatible approach for Windows/Git Bash
+  local temp_file=$(mktemp)
+  local status_file=$(mktemp)
   
-  local http_status=$(echo "$response" | tail -n1)
-  local response_body=$(echo "$response" | sed '$d')
+  # Make single request and capture both body and status using response headers
+  curl -s -X "POST" -H "Content-Type: application/json" -d "$login_data" "$BASE_URL/v1/auth/login" \
+    -D "$status_file" -o "$temp_file"
+  
+  local response_body=$(cat "$temp_file")
+  
+  # Extract HTTP status code from headers file
+  local http_status=$(head -n 1 "$status_file" | cut -d' ' -f2)
+  
+  rm -f "$temp_file" "$status_file"
   local end_time=$(date +%s%3N)
   local duration=$((end_time - start_time))
   
-  if [ "$http_status" -eq 200 ]; then
+  if [[ "$http_status" =~ ^[0-9]+$ ]] && [ "$http_status" -eq 200 ]; then
     if echo "$response_body" | jq -e '.data.token.access_token' > /dev/null 2>&1; then
       user_token=$(echo "$response_body" | jq -r '.data.token.access_token')
       write_test_log "SUCCESS" "✓ Login $fullname berhasil - ${duration}ms"
