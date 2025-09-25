@@ -54,6 +54,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		PermissionsEnum::UpdateMentors,
 		PermissionsEnum::VerifyMentors,
 		PermissionsEnum::DeleteMentors,
+		PermissionsEnum::Administrator,
 	] {
 		db.query("CREATE type::thing('app_permissions', $id) CONTENT $data")
 			.bind(("id", permission.id()))

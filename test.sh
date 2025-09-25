@@ -884,6 +884,12 @@ clear_database
 printf "\n${CYAN}=== Menjalankan Seeders ===${NC}\n"
 if [ "$SKIP_SEED" = true ]; then
   write_test_log "INFO" "Melewatkan seeding database."
+  # Still seed permissions even if skipping other seeds
+  if ! RUST_LOG=debug cargo run --bin seed_permissions; then
+    write_test_log "ERROR" "Gagal menjalankan seed permissions."
+    exit 1
+  fi
+  write_test_log "SUCCESS" "Permissions seeded."
 else
   if ! RUST_LOG=debug cargo run --bin seeder; then
     write_test_log "ERROR" "Gagal menjalankan seeder roles permissions."
