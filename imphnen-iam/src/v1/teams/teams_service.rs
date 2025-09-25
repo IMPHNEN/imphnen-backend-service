@@ -2,8 +2,7 @@ use super::{
 	TeamsCreateRequestDto, TeamsUpdateRequestDto, TeamInviteRequestDto,
 	TeamAcceptInvitationRequestDto, TeamsDetailItemDto, MemberTeamsDetailItemDto,
 	TeamMemberDto, TeamsRepository, TeamsSchema, TeamMembersSchema,
-	TeamInvitationsSchema, TeamsSearchQueryDto, PublicTeamsListItemDto, PublicTeamsDetailItemDto,
-	AdminTeamsListItemDto, AdminTeamsDetailItemDto
+	TeamInvitationsSchema, TeamsSearchQueryDto, PublicTeamsDetailItemDto, AdminTeamsListItemDto
 };
 use crate::{
 	AppState, MetaRequestDto, ResponseListSuccessDto, ResponseSuccessDto,
@@ -137,6 +136,7 @@ impl TeamsServiceTrait for TeamsService {
 			match repo.query_team_by_id(&thing_id).await {
 				Ok(team) if !team.is_deleted => {
 					let members = repo.query_team_members(&team.id).await.unwrap_or_default();
+					let members_len = members.len();
 					
 					// For public team details, only show sensitive info if user is authenticated and part of the team
 					let team_dto = TeamsDetailItemDto {
@@ -155,7 +155,7 @@ impl TeamsServiceTrait for TeamsService {
 						},
 						is_open: team.is_open,
 						max_members: team.max_members,
-						current_member_count: members.len() as i32 + 1,
+						current_member_count: members_len as i32 + 1,
 						skills_required: team.skills_required,
 						location: team.location,
 						avatar: team.avatar,
@@ -202,6 +202,7 @@ impl TeamsServiceTrait for TeamsService {
 			match repo.query_team_by_id(&thing_id).await {
 				Ok(team) if !team.is_deleted => {
 					let members = repo.query_team_members(&team.id).await.unwrap_or_default();
+					let members_len = members.len();
 					
 					// For member team details, include all information including members list
 					let mut member_dtos = Vec::new();
@@ -244,16 +245,17 @@ impl TeamsServiceTrait for TeamsService {
 						}
 					};
 					
+					let leader_dto_clone = leader_dto.clone();
 					member_dtos.insert(0, leader_dto);
 					
 					let team_dto = MemberTeamsDetailItemDto {
 						id: team.id.id.to_raw(),
 						name: team.name,
 						description: team.description,
-						leader: leader_dto,
+						leader: leader_dto_clone,
 						is_open: team.is_open,
 						max_members: team.max_members,
-						current_member_count: members.len() as i32 + 1,
+						current_member_count: members_len as i32 + 1,
 						skills_required: team.skills_required,
 						location: team.location,
 						avatar: team.avatar,
@@ -300,6 +302,7 @@ impl TeamsServiceTrait for TeamsService {
 			match repo.query_team_by_id(&thing_id).await {
 				Ok(team) if !team.is_deleted => {
 					let members = repo.query_team_members(&team.id).await.unwrap_or_default();
+					let members_len = members.len();
 					
 					// For public team details, only show sensitive info if user is authenticated and part of the team
 					let team_dto = PublicTeamsDetailItemDto {
@@ -308,7 +311,7 @@ impl TeamsServiceTrait for TeamsService {
 						description: team.description,
 						is_open: team.is_open,
 						max_members: team.max_members,
-						current_member_count: members.len() as i32 + 1,
+						current_member_count: members_len as i32 + 1,
 						skills_required: team.skills_required,
 						location: team.location,
 						avatar: team.avatar,
@@ -765,21 +768,21 @@ impl TeamsServiceTrait for TeamsService {
 	}
 
 	fn get_admin_team_list(state: &AppState, meta: MetaRequestDto) -> Pin<Box<dyn Future<Output = Response> + Send>> {
-		let state = state.to_owned();
-		Box::pin(async move {
-			let repo = TeamsRepository::new(&state);
-			match repo.query_team_list(meta).await {
-				Ok(data) => {
-					let response = ResponseListSuccessDto {
-						data: data.data.into_iter().map(|team| team.to_admin_list_dto()).collect(),
-						meta: data.meta,
-					};
-					success_list_response(response)
+			let state = state.to_owned();
+			Box::pin(async move {
+				let repo = TeamsRepository::new(&state);
+				match repo.query_team_list(meta).await {
+					Ok(data) => {
+						let response = ResponseListSuccessDto {
+													data: data.data.into_iter().map(|team| team.into_list_item_dto().into_admin_list_dto()).collect::<Vec<AdminTeamsListItemDto>>(),
+													meta: data.meta,
+												};
+						success_list_response(response)
+					}
+					Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
 				}
-				Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
-			}
-		})
-	}
+			})
+		}
 
 	fn get_admin_team_by_id(state: &AppState, id: String) -> Pin<Box<dyn Future<Output = Response> + Send>> {
 		let state = state.to_owned();
@@ -824,7 +827,7 @@ impl TeamsServiceTrait for TeamsService {
 						Err(_) => {}
 					}
 					
-					let team_dto = team.to_admin_detail_dto(member_dtos);
+					let team_dto = team.into_admin_detail_dto(member_dtos);
 					success_response(ResponseSuccessDto { data: team_dto })
 				}
 				Ok(_) => common_response(StatusCode::NOT_FOUND, "Team not found"),
@@ -899,7 +902,7 @@ impl TeamsServiceTrait for TeamsService {
 			}
 
 			match repo.query_remove_team_member(&team_thing, &user_thing).await {
-				Ok(msg) => common_response(StatusCode::OK, &format!("Successfully left team: {}", team.name)),
+				Ok(_) => common_response(StatusCode::OK, &format!("Successfully left team: {}", team.name)),
 				Err(e) => {
 					error!("Failed to remove team member: {}", e);
 					return common_response(StatusCode::INTERNAL_SERVER_ERROR, "Failed to leave team")

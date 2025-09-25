@@ -325,6 +325,32 @@ impl TeamsDetailQueryDto {
     }
 }
 
+impl TeamsListItemDto {
+    pub fn into_list_item_dto(self) -> Self {
+        self
+    }
+
+    pub fn into_admin_list_dto(self) -> AdminTeamsListItemDto {
+        AdminTeamsListItemDto {
+            id: self.id,
+            name: self.name,
+            description: self.description,
+            leader: self.leader,
+            is_open: self.is_open,
+            current_member_count: self.current_member_count,
+            max_members: self.max_members,
+            skills_required: self.skills_required,
+            location: self.location,
+            avatar: self.avatar,
+            website_url: None,
+            github_url: None,
+            is_active: true,
+            is_deleted: false,
+            created_at: self.created_at,
+        }
+    }
+}
+
 impl TeamsListQueryDto {
     pub fn into_list_item_dto(self) -> TeamsListItemDto {
         TeamsListItemDto {

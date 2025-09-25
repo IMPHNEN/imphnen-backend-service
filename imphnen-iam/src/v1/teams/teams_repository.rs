@@ -8,8 +8,7 @@ use imphnen_libs::{
 };
 use imphnen_utils::{
 	get_id, DetailQueryBuilder, QueryListBuilder, make_thing_from_enum,
-	build_thing_condition, build_multi_thing_condition, execute_safe_update_query, execute_safe_count_query,
-	ListQueryBuilder
+	build_multi_thing_condition, execute_safe_update_query, execute_safe_count_query,
 };
 use surrealdb::sql::Thing;
 use anyhow::{Result, bail};
@@ -52,7 +51,7 @@ impl<'a> TeamsRepository<'a> {
 		let data = result
 			.data
 			.into_iter()
-			.map(TeamsListQueryDto::from)
+			.map(|dto| dto.into_list_item_dto())
 			.collect();
 		Ok(ResponseListSuccessDto {
 			data,
@@ -215,7 +214,7 @@ impl<'a> TeamsRepository<'a> {
 		Ok(members)
 	}
 
-	pub async fn query_user_teams(&self, user_id: &Thing) -> Result<Vec<TeamsDetailQueryDto>> {
+	pub async fn query_teams_by_user(&self, user_id: &Thing) -> Result<Vec<TeamsDetailQueryDto>> {
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
 		let sql = format!(
@@ -390,7 +389,7 @@ impl<'a> TeamsRepository<'a> {
 		let data = result
 			.data
 			.into_iter()
-			.map(TeamsListQueryDto::from)
+			.map(|dto| dto.into_list_item_dto())
 			.collect();
 		Ok(ResponseListSuccessDto {
 			data,

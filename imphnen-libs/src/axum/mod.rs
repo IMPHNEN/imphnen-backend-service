@@ -22,8 +22,7 @@ where
 	let addr = SocketAddr::from(([0, 0, 0, 0], port));
 	let listener = TcpListener::bind(&addr).await.unwrap();
 
-	match serve(listener, router).await {
-		Ok(_) => {}
-		Err(_err) => {}
-	}
+	if let Err(err) = serve(listener, router).await {
+			log::error!("Server failed to start: {}", err);
+		}
 }

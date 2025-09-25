@@ -127,7 +127,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	for (role_id, permissions) in roles_permissions {
 		let permission_refs: Vec<_> = permissions
 			.iter()
-			.map(|perm| make_thing("app_permissions", perm.id()))
+			.map(|perm| make_thing("app_permissions", &perm.id()))
 			.collect();
 
 		db.query("UPDATE type::thing('app_roles', $role_id) SET permissions = $permissions, updated_at = $updated_at WHERE is_deleted = false")

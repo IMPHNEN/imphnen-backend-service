@@ -10,21 +10,8 @@ pub use teams_repository::*;
 pub use teams_schema::*;
 pub use teams_service::*;
 
-use axum::{
-	routing::{delete, get, post, put},
-	Router,
-};
+use axum::Router;
 
 pub fn teams_router() -> Router {
 	Router::new()
-		.route("/", get(get_team_list))
-		.route("/create", post(post_create_team))
-		.route("/detail/{id}", get(get_team_by_id))
-		.route("/update/{id}", put(put_update_team))
-		.route("/delete/{id}", delete(delete_team))
-		.route("/{id}/invite", post(post_invite_team_members))
-		.route("/accept/{token}", post(post_accept_invitation))
-		.route("/search", get(get_public_team_search))
-		.route("/{id}/members", get(get_team_members))
-		.route("/{id}/leave", post(post_leave_team))
 }

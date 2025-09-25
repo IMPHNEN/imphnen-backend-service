@@ -6,9 +6,7 @@ use crate::{
 	TeamMemberDto, TeamsSearchQueryDto, PublicTeamsListItemDto, PublicTeamsDetailItemDto,
 	AdminTeamsListItemDto, AdminTeamsDetailItemDto, PermissionsEnum
 };
-use axum::http::StatusCode;
 use axum::response::Response;
-use axum::extract::Query;
 use axum::extract::Path;
 use axum::http::HeaderMap;
 use axum::response::IntoResponse;
@@ -20,10 +18,10 @@ async fn authenticated<F, Fut>(
 	headers: HeaderMap,
 	state: Extension<AppState>,
 	f: F,
-) -> impl IntoResponse
+) -> Response
 where
 	F: FnOnce(crate::Claims, AppState) -> Fut,
-	Fut: std::future::Future<Output = impl IntoResponse> + Send,
+	Fut: std::future::Future<Output = Response> + Send,
 {
 	match permissions_guard(headers, state, vec![]).await {
 		Ok((claims, state)) => f(claims, state).await,
@@ -35,12 +33,12 @@ where
 async fn with_perms<F, Fut>(
 	headers: HeaderMap,
 	state: Extension<AppState>,
-	perms: Vec<String>,
+	perms: Vec<PermissionsEnum>,
 	f: F,
-) -> impl IntoResponse
+) -> Response
 where
 	F: FnOnce(crate::Claims, AppState) -> Fut,
-	Fut: std::future::Future<Output = impl IntoResponse> + Send,
+	Fut: std::future::Future<Output = Response> + Send,
 {
 	match permissions_guard(headers, state, perms).await {
 		Ok((claims, state)) => f(claims, state).await,
@@ -73,14 +71,11 @@ pub async fn get_team_list(
 	headers: Option<HeaderMap>,
 	Extension(state): Extension<AppState>,
 	axum::extract::Query(meta): axum::extract::Query<MetaRequestDto>,
-) -> impl IntoResponse {
+) -> Response {
+	let state = state;
 	match headers {
 		Some(headers) => {
-			match permissions_guard(
-				headers,
-				Extension(state.clone()),
-				vec![],
-			).await {
+			match permissions_guard(headers, axum::Extension(state.clone()), vec![]).await {
 				Ok((_claims, state)) => TeamsService::get_team_list(&state, meta).await,
 				Err(_) => TeamsService::get_public_team_list(&state, meta).await,
 			}
@@ -105,14 +100,11 @@ pub async fn get_team_by_id(
 	headers: Option<HeaderMap>,
 	Extension(state): Extension<AppState>,
 	Path(id): Path<String>,
-) -> impl IntoResponse {
+) -> Response {
+	let state = state;
 	match headers {
 		Some(headers) => {
-			match permissions_guard(
-				headers,
-				Extension(state.clone()),
-				vec![],
-			).await {
+			match permissions_guard(headers, axum::Extension(state.clone()), vec![]).await {
 				Ok((_claims, state)) => TeamsService::get_team_by_id(&state, id).await,
 				Err(_) => TeamsService::get_public_team_by_id(&state, id).await,
 			}
@@ -343,8 +335,12 @@ pub async fn get_admin_team_list(
 	headers: HeaderMap,
 	Extension(state): Extension<AppState>,
 	axum::extract::Query(meta): axum::extract::Query<MetaRequestDto>,
-) -> impl IntoResponse {
-	with_perms(headers, Extension(state), vec![PermissionsEnum::ReadListTeams.to_string()], move |_claims, state| TeamsService::get_admin_team_list(&state, meta)).await
+) -> Response {
+	let state = state;
+	with_perms(headers, axum::Extension(state), vec![PermissionsEnum::ReadListTeams], move |_claims, state| {
+	    let response = TeamsService::get_admin_team_list(&state, meta);
+	    response
+	}).await
 }
 
 #[utoipa::path(
@@ -365,8 +361,12 @@ pub async fn get_admin_team_by_id(
 	headers: HeaderMap,
 	Extension(state): Extension<AppState>,
 	Path(id): Path<String>,
-) -> impl IntoResponse {
-	with_perms(headers, Extension(state), vec![PermissionsEnum::ReadDetailTeams.to_string()], move |_claims, state| TeamsService::get_admin_team_by_id(&state, id)).await
+) -> Response {
+	let state = state;
+	with_perms(headers, axum::Extension(state), vec![PermissionsEnum::ReadDetailTeams], move |_claims, state| {
+	    let response = TeamsService::get_admin_team_by_id(&state, id);
+	    response
+	}).await
 }
 
 #[utoipa::path(
@@ -387,6 +387,10 @@ pub async fn get_admin_team_members(
 	headers: HeaderMap,
 	Extension(state): Extension<AppState>,
 	Path(id): Path<String>,
-) -> impl IntoResponse {
-	with_perms(headers, Extension(state), vec![PermissionsEnum::ReadDetailTeams.to_string()], move |_claims, state| TeamsService::get_admin_team_members(&state, id)).await
+) -> Response {
+	let state = state;
+	with_perms(headers, axum::Extension(state), vec![PermissionsEnum::ReadDetailTeams], move |_claims, state| {
+	    let response = TeamsService::get_admin_team_members(&state, id);
+	    response
+	}).await
 }
