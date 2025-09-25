@@ -485,6 +485,16 @@ test_comprehensive_with_user() {
           test_api_endpoint "Get Mentor Status - $fullname" "GET" "/v1/mentors/status" 403 "" true # Admin is not a mentor
           test_api_endpoint "Get Gacha Items - $fullname" "GET" "/v1/gacha/items" 200 "" true
           test_api_endpoint "Execute Gacha Roll - $fullname" "POST" "/v1/gacha/rolls/execute" 200 "" true
+
+          # Team endpoints for admin
+          # Admin teams endpoint should only be accessible to admins
+          if [ "$email" = "admin@example.com" ]; then
+            test_api_endpoint "Get Admin Teams List - $fullname" "GET" "/v1/teams/admin" 200 "" true
+          else
+            test_api_endpoint "Get Admin Teams List - $fullname" "GET" "/v1/teams/admin" 403 "" true
+          fi
+          test_api_endpoint "Get Public Teams List - $fullname" "GET" "/v1/teams" 200 "" true
+          test_api_endpoint "Search Teams - $fullname" "GET" "/v1/teams/search?query=Development" 200 "" true
           
           local testimonial_data
           testimonial_data=$(jq -n --arg content "Test testimonial by $fullname $(date +%s)" '{role: "Student", content: $content}')
@@ -498,6 +508,16 @@ test_comprehensive_with_user() {
           test_api_endpoint "Get Mentors List - $fullname" "GET" "/v1/mentors" 200 "" true
           test_api_endpoint "Get Gacha Items - $fullname" "GET" "/v1/gacha/items" 200 "" true
           test_api_endpoint "Execute Gacha Roll - $fullname" "POST" "/v1/gacha/rolls/execute" 200 "" true
+
+          # Team endpoints for admin
+          # Admin teams endpoint should only be accessible to admins
+          if [ "$email" = "admin@example.com" ]; then
+            test_api_endpoint "Get Admin Teams List - $fullname" "GET" "/v1/teams/admin" 200 "" true
+          else
+            test_api_endpoint "Get Admin Teams List - $fullname" "GET" "/v1/teams/admin" 403 "" true
+          fi
+          test_api_endpoint "Get Public Teams List - $fullname" "GET" "/v1/teams" 200 "" true
+          test_api_endpoint "Search Teams - $fullname" "GET" "/v1/teams/search?query=Development" 200 "" true
           
           local testimonial_data
           testimonial_data=$(jq -n --arg content "Test testimonial by $fullname $(date +%s)" '{role: "Student", content: $content}')
@@ -513,6 +533,21 @@ test_comprehensive_with_user() {
           test_api_endpoint "Get Mentor Status - $fullname" "GET" "/v1/mentors/status" 200 "" true
           test_api_endpoint "Get Gacha Items - $fullname" "GET" "/v1/gacha/items" 200 "" true
           test_api_endpoint "Execute Gacha Roll - $fullname" "POST" "/v1/gacha/rolls/execute" 200 "" true
+
+          # Team endpoints for admin
+          # Admin teams endpoint should only be accessible to admins
+          if [ "$email" = "admin@example.com" ]; then
+            # Admin teams endpoint should only be accessible to admins
+            if [ "$email" = "admin@example.com" ]; then
+              test_api_endpoint "Get Admin Teams List - $fullname" "GET" "/v1/teams/admin" 200 "" true
+            else
+              test_api_endpoint "Get Admin Teams List - $fullname" "GET" "/v1/teams/admin" 403 "" true
+            fi
+          else
+            test_api_endpoint "Get Admin Teams List - $fullname" "GET" "/v1/teams/admin" 403 "" true
+          fi
+          test_api_endpoint "Get Public Teams List - $fullname" "GET" "/v1/teams" 200 "" true
+          test_api_endpoint "Search Teams - $fullname" "GET" "/v1/teams/search?query=Development" 200 "" true
           
           local testimonial_data
           testimonial_data=$(jq -n --arg content "Test testimonial by $fullname $(date +%s)" '{role: "Student", content: $content}')
@@ -528,6 +563,11 @@ test_comprehensive_with_user() {
           test_api_endpoint "Get Mentor Status - $fullname" "GET" "/v1/mentors/status" 403 "" true # User is not a mentor
           test_api_endpoint "Get Gacha Items - $fullname" "GET" "/v1/gacha/items" 200 "" true
           test_api_endpoint "Execute Gacha Roll - $fullname" "POST" "/v1/gacha/rolls/execute" 200 "" true
+
+          # Team endpoints for admin
+          test_api_endpoint "Get Admin Teams List - $fullname" "GET" "/v1/teams/admin" 200 "" true
+          test_api_endpoint "Get Public Teams List - $fullname" "GET" "/v1/teams" 200 "" true
+          test_api_endpoint "Search Teams - $fullname" "GET" "/v1/teams/search?query=Development" 200 "" true
           
           local testimonial_data
           testimonial_data=$(jq -n --arg content "Test testimonial by $fullname $(date +%s)" '{role: "Student", content: $content}')
@@ -788,6 +828,18 @@ test_gacha_endpoints() {
   test_api_endpoint "Execute Gacha Roll" "POST" "/v1/gacha/rolls/execute" 200 "" true
 }
 
+test_team_endpoints() {
+  printf "\n${CYAN}=== Menguji Team Endpoints ===${NC}\n"
+  test_api_endpoint "Get Public Teams List" "GET" "/v1/teams" 200 "" true
+  test_api_endpoint "Search Teams" "GET" "/v1/teams/search?query=Development" 200 "" true
+  # Admin teams endpoint should only be accessible to admins
+  if [ "$email" = "admin@example.com" ]; then
+    test_api_endpoint "Get Admin Teams List" "GET" "/v1/teams/admin" 200 "" true
+  else
+    test_api_endpoint "Get Admin Teams List" "GET" "/v1/teams/admin" 403 "" true
+  fi
+}
+
 test_advanced_scenarios() {
   printf "\n${CYAN}=== Menguji Advanced Scenarios ===${NC}\n"
   
@@ -884,12 +936,17 @@ clear_database
 printf "\n${CYAN}=== Menjalankan Seeders ===${NC}\n"
 if [ "$SKIP_SEED" = true ]; then
   write_test_log "INFO" "Melewatkan seeding database."
-  # Still seed permissions even if skipping other seeds
+  # Still seed permissions and teams even if skipping other seeds
   if ! RUST_LOG=debug cargo run --bin seed_permissions; then
     write_test_log "ERROR" "Gagal menjalankan seed permissions."
     exit 1
   fi
   write_test_log "SUCCESS" "Permissions seeded."
+  if ! RUST_LOG=debug cargo run --bin seed_teams; then
+    write_test_log "ERROR" "Gagal menjalankan seed teams."
+    exit 1
+  fi
+  write_test_log "SUCCESS" "Teams seeded."
 else
   if ! RUST_LOG=debug cargo run --bin seeder; then
     write_test_log "ERROR" "Gagal menjalankan seeder roles permissions."
@@ -933,6 +990,7 @@ if [[ "$SKIP_COMPREHENSIVE" = false && -n "$AUTH_TOKEN" ]]; then
   test_events_endpoints
   test_testimonials_endpoints # This will now use TEST_TESTIMONIAL_ID
   test_gacha_endpoints
+  test_team_endpoints
 fi
 
 test_advanced_scenarios
