@@ -33,7 +33,7 @@ where
     security(
         ("Bearer" = [])
     ),
-    path = "/v1/admin/teams",
+    path = "/",
     params(
         ("page" = Option<i64>, Query, description = "Page number"),
         ("per_page" = Option<i64>, Query, description = "Items per page"),
@@ -63,7 +63,7 @@ pub async fn get_all_teams(
     security(
         ("Bearer" = [])
     ),
-    path = "/v1/admin/teams/{id}",
+    path = "/{id}",
     params(
         ("id" = String, Path, description = "Team ID")
     ),
@@ -87,7 +87,7 @@ pub async fn get_team_by_id(
     security(
         ("Bearer" = [])
     ),
-    path = "/v1/admin/teams/{id}/members",
+    path = "/{id}/members",
     params(
         ("id" = String, Path, description = "Team ID")
     ),
@@ -111,7 +111,7 @@ pub async fn get_team_members(
     security(
         ("Bearer" = [])
     ),
-    path = "/v1/admin/teams",
+    path = "/",
     request_body = TeamsCreateRequestDto,
     responses(
         (status = 200, description = "Create team (admin)", body = ResponseSuccessDto<serde_json::Value>)
@@ -133,7 +133,7 @@ pub async fn create_team(
     security(
         ("Bearer" = [])
     ),
-    path = "/v1/admin/teams/{id}",
+    path = "/{id}",
     params(
         ("id" = String, Path, description = "Team ID")
     ),
@@ -159,7 +159,7 @@ pub async fn update_team(
     security(
         ("Bearer" = [])
     ),
-    path = "/v1/admin/teams/{id}",
+    path = "/{id}",
     params(
         ("id" = String, Path, description = "Team ID")
     ),
@@ -183,7 +183,7 @@ pub async fn delete_team(
     security(
         ("Bearer" = [])
     ),
-    path = "/v1/admin/teams/{id}/invite",
+    path = "/{id}/invite",
     params(
         ("id" = String, Path, description = "Team ID")
     ),
@@ -207,10 +207,10 @@ pub async fn invite_team_members(
 pub fn admin_teams_router() -> Router {
     Router::new()
         .route("/", axum::routing::get(get_all_teams))
-        .route("/:id", axum::routing::get(get_team_by_id))
-        .route("/:id/members", axum::routing::get(get_team_members))
+        .route("/{id}", axum::routing::get(get_team_by_id))
+        .route("/{id}/members", axum::routing::get(get_team_members))
         .route("/", axum::routing::post(create_team))
-        .route("/:id", axum::routing::put(update_team))
-        .route("/:id", axum::routing::delete(delete_team))
-        .route("/:id/invite", axum::routing::post(invite_team_members))
+        .route("/{id}", axum::routing::put(update_team))
+        .route("/{id}", axum::routing::delete(delete_team))
+        .route("/{id}/invite", axum::routing::post(invite_team_members))
 }

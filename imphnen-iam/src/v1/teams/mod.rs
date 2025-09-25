@@ -18,6 +18,6 @@ pub fn teams_router() -> Router {
 	Router::new()
 		// Public routes
 		.merge(teams_controller::teams_router())
-		// Admin routes
-		.merge(admin_teams_controller::admin_teams_router())
+		// Admin routes - prefixed with /admin to avoid route conflicts
+		.nest("/admin", admin_teams_controller::admin_teams_router())
 }
