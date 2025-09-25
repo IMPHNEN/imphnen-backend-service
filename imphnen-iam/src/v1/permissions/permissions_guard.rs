@@ -45,6 +45,12 @@ pub async fn permissions_guard(
 
 	// Check permissions from database
 	let user_permissions: Vec<String> = user.role.permissions.as_ref().unwrap_or(&vec![]).iter().filter_map(|p| p.as_ref().and_then(|pp| pp.name.clone())).collect();
+
+	// If user has Administrator permission, allow all
+	if user_permissions.contains(&"Administrator".to_string()) {
+		return Ok((claims, state));
+	}
+
 	for required in &required_permissions {
 		let required_str = required.to_string();
 		if !user_permissions.contains(&required_str) {
