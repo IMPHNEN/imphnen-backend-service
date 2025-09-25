@@ -107,6 +107,14 @@ impl fmt::Display for PermissionsEnum {
 			PermissionsEnum::UpdateMentors => "Update Mentors",
 			PermissionsEnum::VerifyMentors => "Verify Mentors",
 			PermissionsEnum::DeleteMentors => "Delete Mentors",
+			
+			// Administrator permissions
+			PermissionsEnum::ManageAllUsers => "Manage All Users",
+			PermissionsEnum::ManageAllRoles => "Manage All Roles",
+			PermissionsEnum::ManageAllPermissions => "Manage All Permissions",
+			PermissionsEnum::ManageAllTeams => "Manage All Teams",
+			PermissionsEnum::ViewAllSensitiveData => "View All Sensitive Data",
+			PermissionsEnum::AccessAdminDashboard => "Access Admin Dashboard",
 		};
 		write!(f, "{permission_str}")
 	}
@@ -164,6 +172,14 @@ impl PermissionsEnum {
 			PermissionsEnum::UpdateMentors => "a7b8c9d0-1234-5678-0123-789012345678".to_string(),
 			PermissionsEnum::VerifyMentors => "b8c9d0e1-2345-6789-1234-890123456789".to_string(),
 			PermissionsEnum::DeleteMentors => "c9d0e1f2-3456-7890-2345-901234567890".to_string(),
+			
+			// Administrator permissions
+			PermissionsEnum::ManageAllUsers => "d0e1f2a3-4567-8901-2345-0123456789ab".to_string(),
+			PermissionsEnum::ManageAllRoles => "e1f2a3b4-5678-9012-3456-1234567890ab".to_string(),
+			PermissionsEnum::ManageAllPermissions => "f2a3b4c5-6789-0123-4567-2345678901ab".to_string(),
+			PermissionsEnum::ManageAllTeams => "a3b4c5d6-7890-1234-5678-3456789012ab".to_string(),
+			PermissionsEnum::ViewAllSensitiveData => "b4c5d6e7-8901-2345-6789-4567890123ab".to_string(),
+			PermissionsEnum::AccessAdminDashboard => "c5d6e7f8-9012-3456-7890-5678901234ab".to_string(),
 		}
 	}
 	
@@ -224,6 +240,14 @@ impl PermissionsEnum {
 			PermissionsEnum::UpdateMentors,
 			PermissionsEnum::VerifyMentors,
 			PermissionsEnum::DeleteMentors,
+			
+			// Administrator permissions
+			PermissionsEnum::ManageAllUsers,
+			PermissionsEnum::ManageAllRoles,
+			PermissionsEnum::ManageAllPermissions,
+			PermissionsEnum::ManageAllTeams,
+			PermissionsEnum::ViewAllSensitiveData,
+			PermissionsEnum::AccessAdminDashboard,
 		]
 	}
 }

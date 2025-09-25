@@ -34,6 +34,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
 				PermissionsEnum::DeleteUsers,
 				PermissionsEnum::UpdateUsers,
 				PermissionsEnum::ActivateUsers,
+				// Full admin permissions
+				PermissionsEnum::ManageAllUsers,
+				PermissionsEnum::ManageAllRoles,
+				PermissionsEnum::ManageAllPermissions,
+				PermissionsEnum::ManageAllTeams,
+				PermissionsEnum::ViewAllSensitiveData,
+				PermissionsEnum::AccessAdminDashboard,
 				PermissionsEnum::ReadListRoles,
 				PermissionsEnum::ReadDetailRoles,
 				PermissionsEnum::CreateRoles,

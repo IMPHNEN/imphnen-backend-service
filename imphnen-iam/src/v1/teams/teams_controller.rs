@@ -12,6 +12,7 @@ use axum::http::HeaderMap;
 use axum::response::IntoResponse;
 use axum::{Extension, Json};
 use super::teams_service::{TeamsServiceTrait, TeamsService};
+use axum::Router;
 
 // Helper function for endpoints requiring authentication without specific permissions
 async fn authenticated<F, Fut>(
@@ -393,4 +394,22 @@ pub async fn get_admin_team_members(
 	    let response = TeamsService::get_admin_team_members(&state, id);
 	    response
 	}).await
+}
+
+pub fn teams_router() -> Router {
+	Router::new()
+		.route("/", axum::routing::get(get_team_list))
+		.route("/:id", axum::routing::get(get_team_by_id))
+		.route("/create", axum::routing::post(post_create_team))
+		.route("/update/:id", axum::routing::put(put_update_team))
+		.route("/delete/:id", axum::routing::delete(delete_team))
+		.route("/:id/invite", axum::routing::post(post_invite_team_members))
+		.route("/accept/:token", axum::routing::post(post_accept_invitation))
+		.route("/search", axum::routing::get(get_public_team_search))
+		.route("/:id/members", axum::routing::get(get_team_members))
+		.route("/:id/leave", axum::routing::post(post_leave_team))
+		.route("/leave-me", axum::routing::post(post_leave_current_team))
+		.route("/admin", axum::routing::get(get_admin_team_list))
+		.route("/admin/:id", axum::routing::get(get_admin_team_by_id))
+		.route("/admin/:id/members", axum::routing::get(get_admin_team_members))
 }
