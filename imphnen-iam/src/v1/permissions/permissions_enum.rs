@@ -123,6 +123,7 @@ impl fmt::Display for PermissionsEnum {
 			PermissionsEnum::ManageAllTeams => "Manage All Teams",
 			PermissionsEnum::ViewAllSensitiveData => "View All Sensitive Data",
 			PermissionsEnum::AccessAdminDashboard => "Access Admin Dashboard",
+			PermissionsEnum::Administrator => "Administrator",
 		};
 		write!(f, "{permission_str}")
 	}
@@ -188,6 +189,7 @@ impl PermissionsEnum {
 			PermissionsEnum::ManageAllTeams => "a3b4c5d6-7890-1234-5678-3456789012ab".to_string(),
 			PermissionsEnum::ViewAllSensitiveData => "b4c5d6e7-8901-2345-6789-4567890123ab".to_string(),
 			PermissionsEnum::AccessAdminDashboard => "c5d6e7f8-9012-3456-7890-5678901234ab".to_string(),
+			PermissionsEnum::Administrator => "administrator-permission-id-123456789".to_string(),
 		}
 	}
 	
@@ -256,6 +258,7 @@ impl PermissionsEnum {
 			PermissionsEnum::ManageAllTeams,
 			PermissionsEnum::ViewAllSensitiveData,
 			PermissionsEnum::AccessAdminDashboard,
+			PermissionsEnum::Administrator,
 		]
 	}
 }
