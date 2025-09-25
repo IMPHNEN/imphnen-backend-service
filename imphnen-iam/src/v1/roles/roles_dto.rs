@@ -49,6 +49,7 @@ impl RolesDetailItemDto {
 				.as_ref()
 				.unwrap_or(&vec![])
 				.iter()
+				.filter_map(|p| p.as_ref())
 				.map(PermissionsItemDto::from)
 				.collect(),
 			created_at: dto.created_at.clone(),
@@ -61,7 +62,7 @@ impl RolesDetailItemDto {
 pub struct RolesDetailQueryDto {
 	pub id: Thing,
 	pub name: String,
-	pub permissions: Option<Vec<PermissionsQueryDto>>,
+	pub permissions: Option<Vec<Option<PermissionsQueryDto>>>,
 	pub is_deleted: bool,
 	pub created_at: Option<String>,
 	pub updated_at: Option<String>,

@@ -27,8 +27,8 @@ pub struct PermissionsItemDto {
 impl PermissionsItemDto {
 	pub fn from(dto: &PermissionsQueryDto) -> Self {
 		Self {
-			id: dto.id.id.to_raw(),
-			name: dto.name.clone(),
+			id: dto.id.as_ref().map(|id| id.id.to_raw()).unwrap_or_default(),
+			name: dto.name.clone().unwrap_or_default(),
 			created_at: dto.created_at.clone(),
 			updated_at: dto.updated_at.clone(),
 		}
@@ -37,8 +37,8 @@ impl PermissionsItemDto {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PermissionsQueryDto {
-	pub id: Thing,
-	pub name: String,
+	pub id: Option<Thing>,
+	pub name: Option<String>,
 	pub created_at: Option<String>,
 	pub updated_at: Option<String>,
 }

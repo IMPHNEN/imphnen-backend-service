@@ -41,8 +41,8 @@ impl PermissionsSchema {
 
 	pub fn from(dto: PermissionsQueryDto) -> Self {
 		Self {
-			id: dto.id,
-			name: dto.name,
+			id: dto.id.unwrap_or_else(|| make_thing_from_enum(ResourceEnum::Permissions, "unknown")),
+			name: dto.name.unwrap_or_default(),
 			is_deleted: false,
 			created_at: dto.created_at,
 			updated_at: dto.updated_at,

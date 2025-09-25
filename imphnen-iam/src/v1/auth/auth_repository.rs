@@ -27,7 +27,7 @@ impl<'a> AuthRepository<'a> {
 		let table = ResourceEnum::UsersCache.to_string();
 		let user_id = user.email.clone();
 		let permissions: Vec<String> =
-			user.role.permissions.as_ref().unwrap_or(&vec![]).iter().map(|p| p.name.clone()).collect();
+			user.role.permissions.as_ref().unwrap_or(&vec![]).iter().filter_map(|p| p.as_ref().and_then(|pp| pp.name.clone())).collect();
 		let user_cache = UserCacheSchema {
 			email: user_id.clone(),
 			permissions,
@@ -72,11 +72,11 @@ impl<'a> AuthRepository<'a> {
 					.permissions
 					.into_iter()
 					.map(|name| PermissionsQueryDto {
-						id: Thing::from((
+						id: Some(Thing::from((
 							"app_permissions".to_string(),
 							surrealdb::sql::Id::rand(),
-						)),
-						name,
+						))),
+						name: Some(name),
 						created_at: None,
 						updated_at: None,
 					})
@@ -85,7 +85,7 @@ impl<'a> AuthRepository<'a> {
 				let role_detail_query_dto = RolesDetailQueryDto {
 					id: Thing::from(("app_roles".to_string(), surrealdb::sql::Id::rand())),
 					name: "CachedRole".to_string(),
-					permissions: Some(permissions_query_dto),
+					permissions: Some(permissions_query_dto.into_iter().map(Some).collect()),
 					is_deleted: false,
 					created_at: None,
 					updated_at: None,
