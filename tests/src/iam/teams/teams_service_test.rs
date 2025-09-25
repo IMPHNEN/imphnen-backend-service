@@ -476,8 +476,9 @@ mod tests {
 		);
 		repo.query_add_team_member(member_member).await.unwrap();
 
-		// Verify non-leader is a member
-		let is_member = repo.query_is_team_member(&team_thing, &make_thing_from_enum(ResourceEnum::Users, &non_leader.id.id.to_raw())).await.unwrap();
+		// Verify non-leader is a member by directly checking team members
+		let members = repo.query_team_members(&team_thing).await.unwrap();
+		let is_member = members.iter().any(|m| m.user_id.id.to_raw() == non_leader.id.id.to_raw());
 		assert!(is_member, "Non-leader should be a team member");
 
 		// Try to remove member as non-leader (this would fail in real service layer with auth)

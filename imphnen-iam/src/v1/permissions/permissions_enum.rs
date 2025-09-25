@@ -30,6 +30,14 @@ pub enum PermissionsEnum {
 	ReadListTeams,
 	ReadDetailTeams,
 	
+	// Administrator permissions
+	ManageAllUsers,
+	ManageAllRoles,
+	ManageAllPermissions,
+	ManageAllTeams,
+	ViewAllSensitiveData,
+	AccessAdminDashboard,
+
 	// Gacha permissions
 	CreateGachaClaims,
 	ReadDetailGachaClaims,

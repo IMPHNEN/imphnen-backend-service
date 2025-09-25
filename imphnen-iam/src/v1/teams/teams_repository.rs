@@ -241,31 +241,40 @@ impl<'a> TeamsRepository<'a> {
 	}
 
 	pub async fn query_is_team_member(&self, team_id: &Thing, user_id: &Thing) -> Result<bool> {
-		let now = Instant::now();
-		let db = &self.state.surrealdb_ws;
-		
-		let conditions = format!(
-			"{} AND is_active = true",
-			build_multi_thing_condition(&[("team_id", team_id), ("user_id", user_id)])
-		);
-		
-		let member_count = execute_safe_count_query(
-			db,
-			ResourceEnum::TeamMembers.to_string(),
-			&conditions,
-		).await.unwrap_or(0);
-		
-		let elapsed = now.elapsed();
-
-		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
-			== "development"
-		{
-			println!("Query 'query_is_team_member' found {} matching members", member_count);
-			println!("Query 'query_is_team_member' took: {elapsed:.2?}");
+			let now = Instant::now();
+			let db = &self.state.surrealdb_ws;
+			
+			// Use direct SQL query for more control over the team member check
+			let sql = format!(
+				"SELECT COUNT() AS count FROM {}
+				WHERE team_id = $team_id
+				AND user_id = $user_id
+				AND is_active = true",
+				ResourceEnum::TeamMembers
+			);
+			
+			let mut result = db.query(sql)
+				.bind(("team_id", team_id.id.to_raw()))
+				.bind(("user_id", user_id.id.to_raw()))
+				.await?;
+			
+			// Use a simpler approach to get the count
+			let count = match result.take(0) {
+				Ok(Some(surrealdb::sql::Value::Number(num))) => num.to_int(),
+				_ => 0,
+			};
+			
+			let elapsed = now.elapsed();
+	
+			if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
+				== "development"
+			{
+				println!("Query 'query_is_team_member' found {} matching members", count);
+				println!("Query 'query_is_team_member' took: {elapsed:.2?}");
+			}
+	
+			Ok(count > 0)
 		}
-
-		Ok(member_count > 0)
-	}
 
 	pub async fn query_create_invitation(&self, data: TeamInvitationsSchema) -> Result<String> {
 		let now = Instant::now();
