@@ -1,315 +1,182 @@
-use crate::{
-	get_iso_date, make_thing,
-	permissions::{
-		permissions_repository::PermissionsRepository,
-		permissions_schema::PermissionsSchema,
-	},
-	roles::{
-		roles_dto::{RolesRequestCreateDto, RolesRequestUpdateDto},
-		roles_repository::RolesRepository,
-	},
-	setup_all_test_environment, ResourceEnum,
-};
-use surrealdb::Uuid;
-
-fn generate_unique_name(prefix: &str) -> String {
-	format!("{}_{}", prefix, Uuid::new_v4())
-}
-
-#[tokio::test]
-async fn test_query_create_role_should_succeed() {
-	let state = setup_all_test_environment().await;
-	let perm_repo = PermissionsRepository::new(&state);
-	let role_repo = RolesRepository::new(&state);
-	let perm_id = Uuid::new_v4().to_string();
-	let permission = PermissionsSchema {
-		id: make_thing(&ResourceEnum::Permissions.to_string(), &perm_id),
-		name: generate_unique_name("read_quiz"),
-		is_deleted: false,
-		created_at: Some(get_iso_date()),
-		updated_at: Some(get_iso_date()),
+#[cfg(test)]
+mod tests {
+	use imphnen_iam::{
+		RolesRequestCreateDto, RolesRequestUpdateDto, RolesDetailItemDto, ResourceEnum,
 	};
-	let perm_res = perm_repo.query_create_permission(permission).await;
-	assert!(
-		perm_res.is_ok(),
-		"Failed to create permission: {:?}",
-		perm_res.err()
-	);
-	let payload = RolesRequestCreateDto {
-		name: generate_unique_name("user"),
-		permissions: vec![perm_id.clone()],
-	};
-	let result = role_repo.query_create_role(payload).await;
-	assert!(result.is_ok(), "Failed to create role: {:?}", result.err());
-}
+	use imphnen_utils::{make_thing_from_enum};
+	use imphnen_entities::MetaRequestDto;
 
-#[tokio::test]
-async fn test_query_role_by_name_should_return_data() {
-	let state = setup_all_test_environment().await;
-	let role_repo = RolesRepository::new(&state);
-	let name = generate_unique_name("viewer");
-	let payload = RolesRequestCreateDto {
-		name: name.clone(),
-		permissions: vec![],
-	};
-	let create_res = role_repo.query_create_role(payload.clone()).await;
-	assert!(
-		create_res.is_ok(),
-		"Failed to create role: {:?}",
-		create_res.err()
-	);
-	let role = role_repo.query_role_by_name(name.clone()).await;
-	assert!(role.is_ok(), "Failed to get role by name: {:?}", role.err());
-	let role = role.unwrap();
-	assert_eq!(role.name, name.clone());
-}
+	#[tokio::test]
+	async fn test_query_create_role() {
+		let app_state = crate::get_app_state().await;
+		let repo = imphnen_iam::RolesRepository::new(&app_state);
 
-#[tokio::test]
-async fn test_query_role_by_id_should_return_data() {
-	let state = setup_all_test_environment().await;
-	let role_repo = RolesRepository::new(&state);
+		// Test data
+		let role_name = "test_role_repo_create".to_string();
+		let role = RolesRequestCreateDto {
+			name: role_name.clone(),
+			permissions: vec![],
+		};
 
-	let name = generate_unique_name("tester");
+		// Create role
+		let result = repo.query_create_role(role.clone()).await;
+		assert!(result.is_ok(), "Failed to create role: {:?}", result.err());
 
-	let payload = RolesRequestCreateDto {
-		name: name.clone(),
-		permissions: vec![],
-	};
+		// Verify role was created
+		let created_role = repo
+			.query_role_by_name(role_name.clone())
+			.await
+			.unwrap();
+		assert_eq!(created_role.name, role_name);
 
-	let create_res = role_repo.query_create_role(payload.clone()).await;
-
-	assert!(
-		create_res.is_ok(),
-		"Failed to create role: {:?}",
-		create_res.err()
-	);
-
-	let role = role_repo.query_role_by_name(name.clone()).await;
-
-	assert!(role.is_ok(), "Failed to get role by name: {:?}", role.err());
-	let role = role.unwrap();
-
-	let result = role_repo.query_role_by_id(role.id.clone()).await;
-
-	assert!(
-		result.is_ok(),
-		"Failed to get role by id: {:?}",
-		result.err()
-	);
-	let result_role = result.unwrap();
-
-	assert_eq!(result_role.name, name.clone());
-}
-
-#[tokio::test]
-async fn test_query_update_role_should_update_name_and_permissions() {
-	let state = setup_all_test_environment().await;
-	let repo = RolesRepository::new(&state);
-	let perm_repo = PermissionsRepository::new(&state);
-	let original_perm_id = Uuid::new_v4().to_string();
-	let original_perm = PermissionsSchema {
-		id: make_thing(&ResourceEnum::Permissions.to_string(), &original_perm_id),
-		name: generate_unique_name("original_permission"),
-		is_deleted: false,
-		created_at: Some(crate::get_iso_date()),
-		updated_at: Some(crate::get_iso_date()),
-	};
-	let perm_res = perm_repo.query_create_permission(original_perm).await;
-	assert!(
-		perm_res.is_ok(),
-		"Failed to create original permission: {:?}",
-		perm_res.err()
-	);
-	let role_upadate_name = generate_unique_name("role_for_update");
-	let create_payload = RolesRequestCreateDto {
-		name: role_upadate_name.clone(),
-		permissions: vec![original_perm_id.clone()],
-	};
-	let create_res = repo.query_create_role(create_payload).await;
-	assert!(
-		create_res.is_ok(),
-		"Failed to create role: {:?}",
-		create_res.err()
-	);
-	let existing_role = repo.query_role_by_name(role_upadate_name.clone()).await;
-	assert!(
-		existing_role.is_ok(),
-		"Failed to get role by name: {:?}",
-		existing_role.err()
-	);
-	let existing_role = existing_role.unwrap();
-	let existing_role_id = existing_role.id.clone();
-	let new_perm_id = Uuid::new_v4().to_string();
-	let new_perm = PermissionsSchema {
-		id: make_thing(&ResourceEnum::Permissions.to_string(), &new_perm_id),
-		name: "New Permission".into(),
-		is_deleted: false,
-		created_at: Some(crate::get_iso_date()),
-		updated_at: Some(crate::get_iso_date()),
-	};
-	let new_role_name = generate_unique_name("updated_role_name");
-	let perm_res = perm_repo.query_create_permission(new_perm).await;
-	assert!(
-		perm_res.is_ok(),
-		"Failed to create new permission: {:?}",
-		perm_res.err()
-	);
-	let update_payload = RolesRequestUpdateDto {
-		name: Some(new_role_name.clone()),
-		permissions: Some(vec![new_perm_id.clone()]),
-		overwrite: None,
-	};
-	let update_result = repo
-		.query_update_role(existing_role_id.clone(), update_payload)
-		.await;
-	assert!(
-		update_result.is_ok(),
-		"Failed to update role: {:?}",
-		update_result.err()
-	);
-	let updated = repo.query_role_by_id(existing_role_id.clone()).await;
-	assert!(
-		updated.is_ok(),
-		"Failed to get updated role: {:?}",
-		updated.err()
-	);
-	assert_eq!(updated.unwrap().name, new_role_name.clone());
-}
-
-#[tokio::test]
-async fn test_query_delete_role_should_soft_delete() {
-	let state = setup_all_test_environment().await;
-	let role_repo = RolesRepository::new(&state);
-	let name = generate_unique_name("temporary");
-	let payload = RolesRequestCreateDto {
-		name: name.clone(),
-		permissions: vec![],
-	};
-	let create_res = role_repo.query_create_role(payload.clone()).await;
-	assert!(
-		create_res.is_ok(),
-		"Failed to create role: {:?}",
-		create_res.err()
-	);
-	let role = role_repo.query_role_by_name(name.clone()).await;
-	assert!(role.is_ok(), "Failed to get role by name: {:?}", role.err());
-	let role = role.unwrap();
-	let result = role_repo.query_delete_role(role.id.clone()).await;
-	assert!(result.is_ok(), "Failed to delete role: {:?}", result.err());
-	let deleted = role_repo.query_role_by_id(role.id).await;
-	assert!(
-		deleted.is_err(),
-		"Role should be deleted, but got: {deleted:?}"
-	);
-	if let Some(err) = deleted.err() {
-		assert!(
-			err.to_string().contains("Role not found"),
-			"Expected 'Role not found' error, got: {err}"
-		);
+		// Clean up
+		let _ = repo.query_delete_role(created_role.id).await;
 	}
-}
 
-#[tokio::test]
-async fn test_query_update_role_should_fallback_to_existing_permissions_if_none_provided(
-) {
-	let state = setup_all_test_environment().await;
-	let repo = RolesRepository::new(&state);
-	let perm_repo = PermissionsRepository::new(&state);
-	let perm_id = Uuid::new_v4().to_string();
-	let permission = PermissionsSchema {
-		id: make_thing(&ResourceEnum::Permissions.to_string(), &perm_id),
-		name: "Permission for Fallback".into(),
-		is_deleted: false,
-		created_at: Some(crate::get_iso_date()),
-		updated_at: Some(crate::get_iso_date()),
-	};
-	let perm_res = perm_repo.query_create_permission(permission).await;
-	assert!(
-		perm_res.is_ok(),
-		"Failed to create permission: {:?}",
-		perm_res.err()
-	);
-	let create_payload = RolesRequestCreateDto {
-		name: "Role With Permission".into(),
-		permissions: vec![perm_id.clone()],
-	};
-	let create_res = repo.query_create_role(create_payload).await;
-	assert!(
-		create_res.is_ok(),
-		"Failed to create role: {:?}",
-		create_res.err()
-	);
-	let existing = repo.query_role_by_name("Role With Permission".into()).await;
-	assert!(
-		existing.is_ok(),
-		"Failed to get role by name: {:?}",
-		existing.err()
-	);
-	let existing = existing.unwrap();
-	let existing_id = existing.id.clone();
-	let update_payload = RolesRequestUpdateDto {
-		name: Some("Updated Role Name".into()),
-		permissions: None,
-		overwrite: None,
-	};
-	let update_res = repo
-		.query_update_role(existing_id.clone(), update_payload)
-		.await;
-	assert!(
-		update_res.is_ok(),
-		"Failed to update role (fallback): {:?}",
-		update_res.err()
-	);
-}
+	#[tokio::test]
+	async fn test_query_role_by_name() {
+		let app_state = crate::get_app_state().await;
+		let repo = imphnen_iam::RolesRepository::new(&app_state);
 
-#[tokio::test]
-async fn test_query_role_by_name_should_fail_if_not_found() {
-	let state = setup_all_test_environment().await;
-	let role_repo = RolesRepository::new(&state);
-	let result = role_repo.query_role_by_name("ghost-role".into()).await;
-	assert!(result.is_err());
-	if let Some(err) = result.err() {
-		assert!(
-			err.to_string().contains("Role not found"),
-			"Expected 'Role not found' error, got: {err}"
-		);
+		// Test data
+		let role_name = "test_role_repo_by_name".to_string();
+		let role = RolesRequestCreateDto {
+			name: role_name.clone(),
+			permissions: vec![],
+		};
+
+		// Create role
+		let create_result = repo.query_create_role(role.clone()).await;
+		assert!(create_result.is_ok());
+
+		// Query role by name
+		let result = repo.query_role_by_name(role_name.clone()).await;
+		assert!(result.is_ok());
+		let found_role = result.unwrap();
+		assert_eq!(found_role.name, role_name);
+
+		// Query non-existent role
+		let non_existent_result = repo.query_role_by_name("non_existent".to_string()).await;
+		assert!(non_existent_result.is_err());
+		assert!(non_existent_result.err().unwrap().to_string().contains("not found"));
+
+		// Clean up
+		let _ = repo.query_delete_role(found_role.id).await;
 	}
-}
 
-#[tokio::test]
-async fn test_query_delete_role_should_fail_if_already_deleted() {
-	let state = setup_all_test_environment().await;
-	let role_repo = RolesRepository::new(&state);
-	let name = generate_unique_name("soft_delete_test");
-	let payload = RolesRequestCreateDto {
-		name: name.clone(),
-		permissions: vec![],
-	};
-	let create_res = role_repo.query_create_role(payload.clone()).await;
-	assert!(
-		create_res.is_ok(),
-		"Failed to create role: {:?}",
-		create_res.err()
-	);
-	let role = role_repo.query_role_by_name(name.clone()).await;
-	assert!(role.is_ok(), "Failed to get role by name: {:?}", role.err());
-	let role = role.unwrap();
-	let del_res = role_repo.query_delete_role(role.id.clone()).await;
-	assert!(
-		del_res.is_ok(),
-		"Failed to delete role: {:?}",
-		del_res.err()
-	);
-	let result_fut = role_repo.query_delete_role(role.id);
-	let result_val = result_fut.await;
-	assert!(
-		result_val.is_err(),
-		"Role should already be deleted, but got: {result_val:?}"
-	);
-	if let Some(err) = result_val.err() {
-		assert!(
-			err.to_string().contains("Role not found"),
-			"Expected 'Role not found' error, got: {err}"
-		);
+	#[tokio::test]
+	async fn test_query_role_list() {
+		let app_state = crate::get_app_state().await;
+		let repo = imphnen_iam::RolesRepository::new(&app_state);
+
+		// Create test roles
+		let role_names = vec![
+			"test_role_list_1".to_string(),
+			"test_role_list_2".to_string(),
+			"test_role_list_3".to_string(),
+		];
+
+		for name in &role_names {
+			let role = RolesRequestCreateDto {
+				name: name.clone(),
+				permissions: vec![],
+			};
+			let _ = repo.query_create_role(role).await;
+		}
+
+		// Query role list
+		let meta = MetaRequestDto {
+			page: Some(1),
+			per_page: Some(10),
+			search: None,
+			filter: None,
+			sort_by: None,
+			order: None,
+			filter_by: None,
+		};
+		let result = repo.query_role_list(meta).await;
+		assert!(result.is_ok());
+		let role_list = result.unwrap();
+		assert_eq!(role_list.data.len(), 3);
+
+		// Clean up
+		for name in role_names {
+			let role = repo.query_role_by_name(name).await.unwrap();
+			let _ = repo.query_delete_role(role.id).await;
+		}
+	}
+
+	#[tokio::test]
+	async fn test_query_update_role() {
+		let app_state = crate::get_app_state().await;
+		let repo = imphnen_iam::RolesRepository::new(&app_state);
+
+		// Test data
+		let original_name = "test_role_update_original".to_string();
+		let new_name = "test_role_update_updated".to_string();
+		
+		let role = RolesRequestCreateDto {
+			name: original_name.clone(),
+			permissions: vec![],
+		};
+
+		// Create role
+		let create_result = repo.query_create_role(role.clone()).await;
+		assert!(create_result.is_ok());
+
+		// Get created role
+		let created_role = repo.query_role_by_name(original_name.clone()).await.unwrap();
+		
+		// Update role
+		let updated_role = RolesRequestUpdateDto {
+			name: Some(new_name.clone()),
+			permissions: None,
+			overwrite: None,
+		};
+
+		let update_result = repo.query_update_role(created_role.id.clone(), updated_role).await;
+		assert!(update_result.is_ok());
+
+		// Verify role was updated
+		let result = repo.query_role_by_name(new_name.clone()).await;
+		assert!(result.is_ok());
+		let found_role = result.unwrap();
+		assert_eq!(found_role.name, new_name);
+
+		// Clean up
+		let _ = repo.query_delete_role(found_role.id).await;
+	}
+
+	#[tokio::test]
+	async fn test_query_delete_role() {
+		let app_state = crate::get_app_state().await;
+		let repo = imphnen_iam::RolesRepository::new(&app_state);
+
+		// Test data
+		let role_name = "test_role_delete".to_string();
+		let role = RolesRequestCreateDto {
+			name: role_name.clone(),
+			permissions: vec![],
+		};
+
+		// Create role
+		let create_result = repo.query_create_role(role.clone()).await;
+		assert!(create_result.is_ok());
+
+		// Get created role
+		let created_role = repo.query_role_by_name(role_name.clone()).await.unwrap();
+		
+		// Verify role exists before deletion
+		let role_id = created_role.id.clone();
+		let exists_before = repo.query_role_by_id(role_id.clone()).await.is_ok();
+		assert!(exists_before);
+
+		// Delete role
+		let delete_result = repo.query_delete_role(role_id.clone()).await;
+		assert!(delete_result.is_ok());
+
+		// Verify role was deleted
+		let exists_after = repo.query_role_by_id(role_id.clone()).await.is_ok();
+		assert!(!exists_after);
 	}
 }

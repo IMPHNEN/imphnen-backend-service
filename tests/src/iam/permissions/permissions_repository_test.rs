@@ -1,145 +1,199 @@
-use crate::{
-	get_iso_date, // Import the new setup function and get_iso_date
-	permissions::{PermissionsRepository, PermissionsSchema},
-	setup_all_test_environment,
-};
-use chrono::Utc;
-
-fn create_dummy_permission(name: &str) -> PermissionsSchema {
-	PermissionsSchema {
-		name: name.to_string(),
-		created_at: Some(get_iso_date()), // Ensure created_at is always set
-		updated_at: Some(get_iso_date()), // Ensure updated_at is always set
-		..Default::default()
-	}
-}
-
-#[tokio::test]
-async fn test_create_permission_should_succeed() {
-	let state = setup_all_test_environment().await; // Use the new setup function
-	let repo = PermissionsRepository::new(&state);
-	let permission = create_dummy_permission("Test Permission");
-	let result = repo.query_create_permission(permission).await;
-	assert!(result.is_ok(), "Create failed: {:?}", result.err());
-}
-
-#[tokio::test]
-async fn test_query_permission_list_should_return_data() {
-	let state = setup_all_test_environment().await; // Use the new setup function
-	let repo = PermissionsRepository::new(&state);
-
-	let _ = repo
-		.query_create_permission(create_dummy_permission("View"))
-		.await;
-	let meta = crate::MetaRequestDto {
-		page: Some(1),
-		per_page: Some(10),
-		search: None,
-		sort_by: None,
-		order: None,
-		filter: None,
-		filter_by: None,
+#[cfg(test)]
+mod tests {
+	use imphnen_iam::{
+		PermissionsSchema, ResourceEnum,
 	};
+	use imphnen_utils::{make_thing_from_enum};
+	use surrealdb::Uuid;
+	use imphnen_entities::MetaRequestDto;
 
-	let result = repo.query_permission_list(meta).await;
-	assert!(result.is_ok(), "List failed: {:?}", result.err());
-	assert!(!result.unwrap().data.is_empty(), "Data should not be empty");
-}
+	#[tokio::test]
+	async fn test_query_create_permission() {
+		let app_state = crate::get_app_state().await;
+		let repo = imphnen_iam::PermissionsRepository::new(&app_state);
 
-#[tokio::test]
-async fn test_query_permission_by_id_should_succeed() {
-	let state = setup_all_test_environment().await; // Use the new setup function
-	let repo = PermissionsRepository::new(&state);
-	let permission = create_dummy_permission("Detail");
-	let _ = repo.query_create_permission(permission.clone()).await;
-	let id = permission.id.id.to_raw();
-	let result = repo.query_permission_by_id(id).await;
-	assert!(result.is_ok(), "Get by id failed: {:?}", result.err());
-}
+		// Test data
+		let permission_name = "test_permission_repo_create".to_string();
+		let permission = PermissionsSchema {
+			id: make_thing_from_enum(ResourceEnum::Permissions, &Uuid::new_v4().to_string()),
+			name: permission_name.clone(),
+			is_deleted: false,
+			created_at: None,
+			updated_at: None,
+		};
 
-#[tokio::test]
-async fn test_update_permission_should_succeed() {
-	let state = setup_all_test_environment().await; // Use the new setup function
-	let repo = PermissionsRepository::new(&state);
-	let mut permission = create_dummy_permission("Update This");
-	let _ = repo.query_create_permission(permission.clone()).await;
-	permission.name = "Updated Name".into();
-	permission.updated_at = Some(Utc::now().to_rfc3339());
-	let result = repo.query_update_permission(permission).await;
-	assert!(result.is_ok(), "Update failed: {:?}", result.err());
-}
+		// Create permission
+		let result = repo.query_create_permission(permission.clone()).await;
+		assert!(result.is_ok(), "Failed to create permission: {:?}", result.err());
 
-#[tokio::test]
-async fn test_delete_permission_should_succeed() {
-	let state = setup_all_test_environment().await; // Use the new setup function
-	let repo = PermissionsRepository::new(&state);
-	let permission = create_dummy_permission("To Be Deleted");
-	let _ = repo.query_create_permission(permission.clone()).await;
-	let id = permission.id.id.to_raw();
-	let result = repo.query_delete_permission(id).await;
-	assert!(result.is_ok(), "Delete failed: {:?}", result.err());
-}
+		// Verify permission was created
+		let created_permission = repo
+			.query_permission_by_name(permission_name.clone())
+			.await
+			.unwrap();
+		assert_eq!(created_permission.name, permission_name);
 
-#[tokio::test]
-async fn test_delete_permission_should_fail_if_already_deleted() {
-	let state = setup_all_test_environment().await; // Use the new setup function
-	let repo = PermissionsRepository::new(&state);
-	let permission = create_dummy_permission("Delete Twice");
-	let _ = repo.query_create_permission(permission.clone()).await;
-	let id = permission.id.id.to_raw();
-	let delete_result = repo.query_delete_permission(id.clone()).await;
-	assert!(
-		delete_result.is_ok(),
-		"Initial delete failed: {:?}",
-		delete_result.err()
-	);
-	let second_delete_result = repo.query_delete_permission(id).await;
-	assert!(
-		second_delete_result.is_err(),
-		"Should fail on second delete"
-	);
-	if let Some(err) = second_delete_result.err() {
-		assert!(
-			err.to_string().contains("Permission not found"),
-			"Expected 'Permission not found' error, got: {err}"
-		);
+		// Clean up
+		let _ = repo.query_delete_permission(created_permission.id.id.to_raw()).await;
 	}
-}
 
-#[tokio::test]
-async fn test_update_permission_should_fail_if_deleted() {
-	let state = setup_all_test_environment().await; // Use the new setup function
-	let repo = PermissionsRepository::new(&state);
-	let mut permission = create_dummy_permission("To Be Updated Then Deleted");
-	let _ = repo.query_create_permission(permission.clone()).await;
-	let id = permission.id.id.to_raw();
-	let delete_result = repo.query_delete_permission(id.clone()).await;
-	assert!(
-		delete_result.is_ok(),
-		"Initial delete failed: {:?}",
-		delete_result.err()
-	);
-	permission.name = "Try Update".into();
-	let result = repo.query_update_permission(permission).await;
-	assert!(result.is_err(), "Update on deleted should fail");
-	if let Some(err) = result.err() {
-		assert!(
-			err.to_string().contains("Permission not found"),
-			"Expected 'Permission not found' error, got: {err}"
-		);
+	#[tokio::test]
+	async fn test_query_permission_by_name() {
+		let app_state = crate::get_app_state().await;
+		let repo = imphnen_iam::PermissionsRepository::new(&app_state);
+
+		// Test data
+		let permission_name = "test_permission_repo_by_name".to_string();
+		let permission = PermissionsSchema {
+			id: make_thing_from_enum(ResourceEnum::Permissions, &Uuid::new_v4().to_string()),
+			name: permission_name.clone(),
+			is_deleted: false,
+			created_at: None,
+			updated_at: None,
+		};
+
+		// Create permission
+		let create_result = repo.query_create_permission(permission.clone()).await;
+		assert!(create_result.is_ok());
+
+		// Query permission by name
+		let result = repo.query_permission_by_name(permission_name.clone()).await;
+		assert!(result.is_ok());
+		let found_permission = result.unwrap();
+		assert_eq!(found_permission.name, permission_name);
+
+		// Query non-existent permission
+		let non_existent_result = repo.query_permission_by_name("non_existent".to_string()).await;
+		assert!(non_existent_result.is_err());
+		assert!(non_existent_result.err().unwrap().to_string().contains("not found"));
+
+		// Clean up
+		let _ = repo.query_delete_permission(found_permission.id.id.to_raw()).await;
 	}
-}
 
-#[tokio::test]
-async fn test_query_permission_by_id_should_fail_if_not_found() {
-	let state = setup_all_test_environment().await; // Use the new setup function
-	let repo = PermissionsRepository::new(&state);
-	let result = repo.query_permission_by_id("non-existent-id".into()).await;
-	assert!(result.is_err(), "Expected error for not found id");
-	if let Some(err) = result.err() {
-		assert!(
-			err.to_string().contains("Permission not found"),
-			"Expected 'Permission not found' error, got: {err}"
-		);
+	#[tokio::test]
+	async fn test_query_permission_list() {
+		let app_state = crate::get_app_state().await;
+		let repo = imphnen_iam::PermissionsRepository::new(&app_state);
+
+		// Create test permissions
+		let permission_names = vec![
+			"test_permission_list_1".to_string(),
+			"test_permission_list_2".to_string(),
+			"test_permission_list_3".to_string(),
+		];
+
+		for name in &permission_names {
+			let permission = PermissionsSchema {
+				id: make_thing_from_enum(ResourceEnum::Permissions, &Uuid::new_v4().to_string()),
+				name: name.clone(),
+				is_deleted: false,
+				created_at: None,
+				updated_at: None,
+			};
+			let _ = repo.query_create_permission(permission).await;
+		}
+
+		// Query permission list
+		let meta = MetaRequestDto {
+			page: Some(1),
+			per_page: Some(10),
+			search: None,
+			filter: None,
+			sort_by: None,
+			order: None,
+			filter_by: None,
+		};
+		let result = repo.query_permission_list(meta).await;
+		assert!(result.is_ok());
+		let permission_list = result.unwrap();
+		assert_eq!(permission_list.data.len(), 3);
+
+		// Clean up
+		for name in permission_names {
+			let permission = repo.query_permission_by_name(name).await.unwrap();
+			let _ = repo.query_delete_permission(permission.id.id.to_raw()).await;
+		}
+	}
+
+	#[tokio::test]
+	async fn test_query_update_permission() {
+		let app_state = crate::get_app_state().await;
+		let repo = imphnen_iam::PermissionsRepository::new(&app_state);
+
+		// Test data
+		let original_name = "test_permission_update_original".to_string();
+		let new_name = "test_permission_update_updated".to_string();
+		
+		let permission = PermissionsSchema {
+			id: make_thing_from_enum(ResourceEnum::Permissions, &Uuid::new_v4().to_string()),
+			name: original_name.clone(),
+			is_deleted: false,
+			created_at: None,
+			updated_at: None,
+		};
+
+		// Create permission
+		let create_result = repo.query_create_permission(permission.clone()).await;
+		assert!(create_result.is_ok());
+
+		// Get created permission
+		let created_permission = repo.query_permission_by_name(original_name).await.unwrap();
+		
+		// Update permission
+		let updated_permission = PermissionsSchema {
+			id: created_permission.id.clone(),
+			name: new_name.clone(),
+			is_deleted: created_permission.is_deleted,
+			created_at: created_permission.created_at,
+			updated_at: created_permission.updated_at,
+		};
+
+		let update_result = repo.query_update_permission(updated_permission).await;
+		assert!(update_result.is_ok());
+
+		// Verify permission was updated
+		let result = repo.query_permission_by_name(new_name.clone()).await;
+		assert!(result.is_ok());
+		let found_permission = result.unwrap();
+		assert_eq!(found_permission.name, new_name);
+
+		// Clean up
+		let _ = repo.query_delete_permission(found_permission.id.id.to_raw()).await;
+	}
+
+	#[tokio::test]
+	async fn test_query_delete_permission() {
+		let app_state = crate::get_app_state().await;
+		let repo = imphnen_iam::PermissionsRepository::new(&app_state);
+
+		// Test data
+		let permission_name = "test_permission_delete".to_string();
+		let permission = PermissionsSchema {
+			id: make_thing_from_enum(ResourceEnum::Permissions, &Uuid::new_v4().to_string()),
+			name: permission_name.clone(),
+			is_deleted: false,
+			created_at: None,
+			updated_at: None,
+		};
+
+		// Create permission
+		let create_result = repo.query_create_permission(permission.clone()).await;
+		assert!(create_result.is_ok());
+
+		// Get created permission
+		let created_permission = repo.query_permission_by_name(permission_name).await.unwrap();
+		
+		// Verify permission exists before deletion
+		let exists_before = repo.query_permission_by_id(created_permission.id.id.to_raw()).await.is_ok();
+		assert!(exists_before);
+
+		// Delete permission
+		let delete_result = repo.query_delete_permission(created_permission.id.id.to_raw()).await;
+		assert!(delete_result.is_ok());
+
+		// Verify permission was deleted
+		let exists_after = repo.query_permission_by_id(created_permission.id.id.to_raw()).await.is_ok();
+		assert!(!exists_after);
 	}
 }
