@@ -46,6 +46,8 @@ impl RolesDetailItemDto {
 			is_deleted: dto.is_deleted,
 			permissions: dto
 				.permissions
+				.as_ref()
+				.unwrap_or(&vec![])
 				.iter()
 				.map(PermissionsItemDto::from)
 				.collect(),
@@ -59,7 +61,7 @@ impl RolesDetailItemDto {
 pub struct RolesDetailQueryDto {
 	pub id: Thing,
 	pub name: String,
-	pub permissions: Vec<PermissionsQueryDto>,
+	pub permissions: Option<Vec<PermissionsQueryDto>>,
 	pub is_deleted: bool,
 	pub created_at: Option<String>,
 	pub updated_at: Option<String>,
@@ -70,7 +72,7 @@ impl Default for RolesDetailQueryDto {
 		Self {
 			id: Thing::from(("".to_string(), surrealdb::sql::Id::Number(0))),
 			name: String::new(),
-			permissions: Vec::new(),
+			permissions: None,
 			is_deleted: false,
 			created_at: None,
 			updated_at: None,

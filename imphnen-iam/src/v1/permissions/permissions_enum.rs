@@ -37,6 +37,7 @@ pub enum PermissionsEnum {
 	ManageAllTeams,
 	ViewAllSensitiveData,
 	AccessAdminDashboard,
+	Administrator,
 
 	// Gacha permissions
 	CreateGachaClaims,

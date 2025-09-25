@@ -112,7 +112,7 @@ mod auth_repository_test {
 			role: RolesDetailQueryDto {
 				id: make_thing("app_roles", &Uuid::new_v4().to_string()),
 				name: "Dummy Role".into(),
-				permissions: vec![],
+				permissions: Some(vec![]),
 				is_deleted: false,
 				created_at: Some(get_iso_date()),
 				updated_at: Some(get_iso_date()),

@@ -44,7 +44,7 @@ pub async fn permissions_guard(
 	};
 
 	// Check permissions from database
-	let user_permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
+	let user_permissions: Vec<String> = user.role.permissions.as_ref().unwrap_or(&vec![]).iter().map(|p| p.name.clone()).collect();
 	for required in &required_permissions {
 		let required_str = required.to_string();
 		if !user_permissions.contains(&required_str) {

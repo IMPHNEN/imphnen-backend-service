@@ -88,7 +88,7 @@ where
 				}
 			};
 			let user_permissions: Vec<String> =
-				user.role.permissions.into_iter().map(|p| p.name).collect();
+				user.role.permissions.as_ref().unwrap_or(&vec![]).iter().map(|p| p.name.clone()).collect();
 			
 			// Check if user has Administrator permission - if yes, allow access to everything
 			let has_administrator_permission = user_permissions.contains(&PermissionsEnum::Administrator.to_string());

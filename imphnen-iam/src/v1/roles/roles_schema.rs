@@ -44,6 +44,8 @@ impl RolesSchema {
 			name: dto.name,
 			permissions: dto
 				.permissions
+				.as_ref()
+				.unwrap_or(&vec![])
 				.into_iter()
 				.map(|perm| {
 					make_thing_from_enum(ResourceEnum::Permissions, &perm.id.id.to_raw())
