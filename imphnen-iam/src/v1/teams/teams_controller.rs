@@ -15,11 +15,44 @@ use axum::response::IntoResponse;
 use axum::{Extension, Json};
 use super::teams_service::{TeamsServiceTrait, TeamsService};
 
+// Helper function for endpoints requiring authentication without specific permissions
+async fn authenticated<F, Fut>(
+	headers: HeaderMap,
+	state: Extension<AppState>,
+	f: F,
+) -> impl IntoResponse
+where
+	F: FnOnce(crate::Claims, AppState) -> Fut,
+	Fut: std::future::Future<Output = impl IntoResponse> + Send,
+{
+	match permissions_guard(headers, state, vec![]).await {
+		Ok((claims, state)) => f(claims, state).await,
+		Err(response) => response,
+	}
+}
+
+// Helper function for endpoints requiring specific permissions
+async fn with_perms<F, Fut>(
+	headers: HeaderMap,
+	state: Extension<AppState>,
+	perms: Vec<String>,
+	f: F,
+) -> impl IntoResponse
+where
+	F: FnOnce(crate::Claims, AppState) -> Fut,
+	Fut: std::future::Future<Output = impl IntoResponse> + Send,
+{
+	match permissions_guard(headers, state, perms).await {
+		Ok((claims, state)) => f(claims, state).await,
+		Err(response) => response,
+	}
+}
+
 #[utoipa::path(
 	get,
 	security(
-        ("Bearer" = [])
-    ),
+		("Bearer" = [])
+	),
 	path = "/v1/teams",
 	params(
 		("page" = Option<i64>, Query, description = "Page number"),
@@ -91,8 +124,8 @@ pub async fn get_team_by_id(
 #[utoipa::path(
 	post,
 	security(
-        ("Bearer" = [])
-    ),
+		("Bearer" = [])
+	),
 	path = "/v1/teams/create",
 	request_body = TeamsCreateRequestDto,
 	responses(
@@ -105,23 +138,14 @@ pub async fn post_create_team(
 	Extension(state): Extension<AppState>,
 	Json(payload): Json<TeamsCreateRequestDto>,
 ) -> impl IntoResponse {
-	match permissions_guard(
-		headers,
-		Extension(state),
-		vec![],
-	)
-	.await
-	{
-		Ok((claims, state)) => TeamsService::create_team(&state, claims, payload).await,
-		Err(response) => response,
-	}
+	authenticated(headers, Extension(state), move |claims, state| TeamsService::create_team(&state, claims, payload)).await
 }
 
 #[utoipa::path(
 	put,
 	security(
-        ("Bearer" = [])
-    ),
+		("Bearer" = [])
+	),
 	path = "/v1/teams/update/{id}",
 	params(
 		("id" = String, Path, description = "Team ID")
@@ -138,23 +162,14 @@ pub async fn put_update_team(
 	Path(id): Path<String>,
 	Json(payload): Json<TeamsUpdateRequestDto>,
 ) -> impl IntoResponse {
-	match permissions_guard(
-		headers,
-		Extension(state),
-		vec![],
-	)
-	.await
-	{
-		Ok((claims, state)) => TeamsService::update_team(&state, claims, id, payload).await,
-		Err(response) => response,
-	}
+	authenticated(headers, Extension(state), move |claims, state| TeamsService::update_team(&state, claims, id, payload)).await
 }
 
 #[utoipa::path(
 	delete,
 	security(
-        ("Bearer" = [])
-    ),
+		("Bearer" = [])
+	),
 	path = "/v1/teams/delete/{id}",
 	params(
 		("id" = String, Path, description = "Team ID")
@@ -169,23 +184,14 @@ pub async fn delete_team(
 	Extension(state): Extension<AppState>,
 	Path(id): Path<String>,
 ) -> impl IntoResponse {
-	match permissions_guard(
-		headers,
-		Extension(state),
-		vec![],
-	)
-	.await
-	{
-		Ok((claims, state)) => TeamsService::delete_team(&state, claims, id).await,
-		Err(response) => response,
-	}
+	authenticated(headers, Extension(state), move |claims, state| TeamsService::delete_team(&state, claims, id)).await
 }
 
 #[utoipa::path(
 	post,
 	security(
-        ("Bearer" = [])
-    ),
+		("Bearer" = [])
+	),
 	path = "/v1/teams/{id}/invite",
 	params(
 		("id" = String, Path, description = "Team ID")
@@ -202,23 +208,14 @@ pub async fn post_invite_team_members(
 	Path(team_id): Path<String>,
 	Json(payload): Json<TeamInviteRequestDto>,
 ) -> impl IntoResponse {
-	match permissions_guard(
-		headers,
-		Extension(state),
-		vec![],
-	)
-	.await
-	{
-		Ok((claims, state)) => TeamsService::invite_team_members(&state, claims, team_id, payload).await,
-		Err(response) => response,
-	}
+	authenticated(headers, Extension(state), move |claims, state| TeamsService::invite_team_members(&state, claims, team_id, payload)).await
 }
 
 #[utoipa::path(
 	post,
 	security(
-        ("Bearer" = [])
-    ),
+		("Bearer" = [])
+	),
 	path = "/v1/teams/accept/{token}",
 	params(
 		("token" = String, Path, description = "Invitation token")
@@ -234,16 +231,7 @@ pub async fn post_accept_invitation(
 	Path(token): Path<String>,
 ) -> impl IntoResponse {
 	let accept_dto = TeamAcceptInvitationRequestDto { token };
-	match permissions_guard(
-		headers,
-		Extension(state),
-		vec![],
-	)
-	.await
-	{
-		Ok((claims, state)) => TeamsService::accept_invitation(&state, claims, accept_dto).await,
-		Err(response) => response,
-	}
+	authenticated(headers, Extension(state), move |claims, state| TeamsService::accept_invitation(&state, claims, accept_dto)).await
 }
 
 #[utoipa::path(
@@ -272,8 +260,8 @@ pub async fn get_public_team_search(
 #[utoipa::path(
 	get,
 	security(
-        ("Bearer" = [])
-    ),
+		("Bearer" = [])
+	),
 	path = "/v1/teams/{id}/members",
 	params(
 		("id" = String, Path, description = "Team ID")
@@ -288,23 +276,14 @@ pub async fn get_team_members(
 	Extension(state): Extension<AppState>,
 	Path(id): Path<String>,
 ) -> impl IntoResponse {
-	match permissions_guard(
-		headers,
-		Extension(state),
-		vec![],
-	)
-	.await
-	{
-		Ok((claims, state)) => TeamsService::get_team_members(&state, claims, id).await,
-		Err(response) => response,
-	}
+	authenticated(headers, Extension(state), move |claims, state| TeamsService::get_team_members(&state, claims, id)).await
 }
 
 #[utoipa::path(
 	post,
 	security(
-        ("Bearer" = [])
-    ),
+		("Bearer" = [])
+	),
 	path = "/v1/teams/{id}/leave",
 	params(
 		("id" = String, Path, description = "Team ID")
@@ -319,23 +298,14 @@ pub async fn post_leave_team(
 	Extension(state): Extension<AppState>,
 	Path(id): Path<String>,
 ) -> impl IntoResponse {
-	match permissions_guard(
-		headers,
-		Extension(state),
-		vec![],
-	)
-	.await
-	{
-		Ok((claims, state)) => TeamsService::leave_team(&state, claims, id).await,
-		Err(response) => response,
-	}
+	authenticated(headers, Extension(state), move |claims, state| TeamsService::leave_team(&state, claims, id)).await
 }
 
 #[utoipa::path(
 	post,
 	security(
-        ("Bearer" = [])
-    ),
+		("Bearer" = [])
+	),
 	path = "/v1/teams/leave-me",
 	responses(
 		(status = 200, description = "Leave current team", body = MessageResponseDto)
@@ -346,23 +316,14 @@ pub async fn post_leave_current_team(
 	headers: HeaderMap,
 	Extension(state): Extension<AppState>,
 ) -> impl IntoResponse {
-	match permissions_guard(
-		headers,
-		Extension(state),
-		vec![],
-	)
-	.await
-	{
-		Ok((claims, state)) => TeamsService::leave_current_team(&state, claims).await,
-		Err(response) => response,
-	}
+	authenticated(headers, Extension(state), |claims, state| TeamsService::leave_current_team(&state, claims)).await
 }
 
 #[utoipa::path(
 	get,
 	security(
-        ("Bearer" = [])
-    ),
+		("Bearer" = [])
+	),
 	path = "/v1/teams/admin",
 	params(
 		("page" = Option<i64>, Query, description = "Page number"),
@@ -383,23 +344,14 @@ pub async fn get_admin_team_list(
 	Extension(state): Extension<AppState>,
 	axum::extract::Query(meta): axum::extract::Query<MetaRequestDto>,
 ) -> impl IntoResponse {
-	match permissions_guard(
-			headers,
-			Extension(state),
-			vec![PermissionsEnum::ReadListTeams.to_string()],
-		)
-	.await
-	{
-		Ok((_claims, state)) => TeamsService::get_admin_team_list(&state, meta).await,
-		Err(response) => response,
-	}
+	with_perms(headers, Extension(state), vec![PermissionsEnum::ReadListTeams.to_string()], move |_claims, state| TeamsService::get_admin_team_list(&state, meta)).await
 }
 
 #[utoipa::path(
 	get,
 	security(
-        ("Bearer" = [])
-    ),
+		("Bearer" = [])
+	),
 	path = "/v1/teams/admin/{id}",
 	params(
 		("id" = String, Path, description = "Team ID")
@@ -414,23 +366,14 @@ pub async fn get_admin_team_by_id(
 	Extension(state): Extension<AppState>,
 	Path(id): Path<String>,
 ) -> impl IntoResponse {
-	match permissions_guard(
-			headers,
-			Extension(state),
-			vec![PermissionsEnum::ReadDetailTeams.to_string()],
-		)
-	.await
-	{
-		Ok((_claims, state)) => TeamsService::get_admin_team_by_id(&state, id).await,
-		Err(response) => response,
-	}
+	with_perms(headers, Extension(state), vec![PermissionsEnum::ReadDetailTeams.to_string()], move |_claims, state| TeamsService::get_admin_team_by_id(&state, id)).await
 }
 
 #[utoipa::path(
 	get,
 	security(
-        ("Bearer" = [])
-    ),
+		("Bearer" = [])
+	),
 	path = "/v1/teams/admin/{id}/members",
 	params(
 		("id" = String, Path, description = "Team ID")
@@ -445,15 +388,5 @@ pub async fn get_admin_team_members(
 	Extension(state): Extension<AppState>,
 	Path(id): Path<String>,
 ) -> impl IntoResponse {
-	match permissions_guard(
-			headers,
-			Extension(state),
-			vec![PermissionsEnum::ReadDetailTeams.to_string()],
-		)
-	.await
-	{
-		Ok((_claims, state)) => TeamsService::get_admin_team_members(&state, id).await,
-		Err(response) => response,
-	}
-}
+	with_perms(headers, Extension(state), vec![PermissionsEnum::ReadDetailTeams.to_string()], move |_claims, state| TeamsService::get_admin_team_members(&state, id)).await
 }
