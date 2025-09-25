@@ -99,3 +99,15 @@ pub async fn setup() {
 		.unwrap();
 	seed_users_for_test(&app_state.surrealdb_ws).await.unwrap();
 }
+
+pub fn get_meta_request_dto(page: u64, per_page: u64) -> imphnen_entities::MetaRequestDto {
+    imphnen_entities::MetaRequestDto {
+        page: Some(page),
+        per_page: Some(per_page),
+        search: None,
+        sort_by: None,
+        order: None,
+        filter: None,
+        filter_by: None,
+    }
+}

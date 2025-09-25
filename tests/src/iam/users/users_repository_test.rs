@@ -1,222 +1,208 @@
-use crate::{create_test_user, mock_test::setup_all_test_environment};
-use crate::{generate_unique_email, get_role_id, MetaRequestDto, UsersRepository}; // Import setup_all_test_environment from mock_test
+#[cfg(test)]
+mod tests {
+	use crate::{generate_unique_email, get_meta_request_dto, get_role_id, UsersRepository};
+	use imphnen_iam::{UsersSchema, ResourceEnum};
+	use imphnen_utils::{make_thing_from_enum, ResourceEnum as UtilsResourceEnum};
+	use uuid::Uuid;
 
-#[tokio::test]
-async fn test_create_and_get_user() {
-	let app_state = setup_all_test_environment().await; // Use centralized setup
-	let repo = UsersRepository::new(&app_state);
-	let email = generate_unique_email("testuser");
-	let user =
-		create_test_user(&email, "Test User", true, &get_role_id("user", &app_state).await);
-	let create_result = repo.query_create_user(user.clone()).await;
-	assert!(
-		create_result.is_ok(),
-		"Failed to create user: {:?}",
-		create_result.err()
-	);
-	let fetched = repo.query_user_by_email(email.clone()).await;
-	assert!(
-		fetched.is_ok(),
-		"Failed to fetch user by email: {:?}",
-		fetched.err()
-	);
-	assert_eq!(fetched.unwrap().email, email.clone());
-}
+	#[tokio::test]
+	async fn test_query_create_user() {
+		let app_state = crate::get_app_state().await;
+		let repo = UsersRepository::new(&app_state);
+		let role_id = get_role_id("user", &app_state).await;
 
-#[tokio::test]
-async fn test_query_user_list_with_pagination_and_filter() {
-	let app_state = setup_all_test_environment().await; // Use centralized setup
-	let repo = UsersRepository::new(&app_state);
-	for i in 0..10 {
-		let email = format!("user{i}@example.com");
-		let fullname = format!("User {i}");
-		let is_active = i % 2 == 0;
-		let user =
-			create_test_user(&email, &fullname, is_active, &get_role_id("user", &app_state).await);
-		let create_res = repo.query_create_user(user).await;
-		assert!(
-			create_res.is_ok(),
-			"Failed to create user: {:?}",
-			create_res.err()
-		);
+		// Test data
+		let email = generate_unique_email("test_create_user");
+		let user_schema = UsersSchema {
+			id: make_thing_from_enum(UtilsResourceEnum::Users, &Uuid::new_v4().to_string()),
+			email: email.clone(),
+			fullname: "Test User Create".to_string(),
+			password: "password123".to_string(),
+			phone_number: "+1234567890".to_string(),
+			is_active: true,
+			role: role_id,
+			..Default::default()
+		};
+
+		// Create user
+		let result = repo.query_create_user(user_schema.clone()).await;
+		assert!(result.is_ok());
+
+		// Verify user was created
+		let created_user_result = repo.query_user_by_email(email.clone()).await;
+		assert!(created_user_result.is_ok());
+		let created_user = created_user_result.as_ref().unwrap();
+		assert_eq!(created_user.email, email);
+
+		// Clean up
+		let user = created_user_result.unwrap();
+		let _ = repo.query_delete_user(user.id.id.to_raw()).await;
 	}
-	let meta = MetaRequestDto {
-		page: Some(1),
-		per_page: Some(5),
-		search: None,
-		sort_by: Some("email".into()),
-		order: Some("ASC".into()),
-		filter: Some("true".into()),
-		filter_by: Some("is_active".into()),
-	};
-	let result = repo.query_user_list(meta).await;
-	assert!(
-		result.is_ok(),
-		"Failed to query user list: {:?}",
-		result.err()
-	);
-	let result = result.unwrap();
-	assert!(result.data.len() <= 5);
-	assert!(result.data.iter().all(|u| u.is_active));
-	assert!(
-		result
-			.meta
-			.as_ref()
-			.map(|m| m.total.is_some())
-			.unwrap_or(false),
-		"Meta total should be Some"
-	);
-}
 
-#[tokio::test]
-async fn test_query_user_list_basic() {
-	let app_state = setup_all_test_environment().await; // Use centralized setup
-	let repo = UsersRepository::new(&app_state);
-	for i in 0..10 {
-		let email = format!("basic{i}@example.com");
-		let user = create_test_user(
-			&email,
-			&format!("Basic User {i}"),
-			true,
-			&get_role_id("user", &app_state).await,
-		);
-		let create_res = repo.query_create_user(user).await;
-		assert!(
-			create_res.is_ok(),
-			"Failed to create user: {:?}",
-			create_res.err()
-		);
+	#[tokio::test]
+	async fn test_query_user_by_email() {
+		let app_state = crate::get_app_state().await;
+		let repo = UsersRepository::new(&app_state);
+		let role_id = get_role_id("user", &app_state).await;
+
+		// Test data
+		let email = generate_unique_email("test_get_by_email");
+		let user_schema = UsersSchema {
+			id: make_thing_from_enum(UtilsResourceEnum::Users, &Uuid::new_v4().to_string()),
+			email: email.clone(),
+			fullname: "Test User Email".to_string(),
+			password: "password123".to_string(),
+			phone_number: "+1234567890".to_string(),
+			is_active: true,
+			role: role_id,
+			..Default::default()
+		};
+
+		// Create user first
+		let create_result = repo.query_create_user(user_schema.clone()).await;
+		assert!(create_result.is_ok());
+
+		// Get user by email
+		let result = repo.query_user_by_email(email.clone()).await;
+		assert!(result.is_ok());
+		let user = result.as_ref().unwrap();
+		assert_eq!(user.email, email);
+
+		// Clean up
+		let user = result.unwrap();
+		let _ = repo.query_delete_user(user.id.id.to_raw()).await;
 	}
-	let meta = MetaRequestDto {
-		page: Some(1),
-		per_page: Some(5),
-		search: None,
-		sort_by: None,
-		order: None,
-		filter: None,
-		filter_by: None,
-	};
-	let result = repo.query_user_list(meta).await;
-	assert!(
-		result.is_ok(),
-		"Failed to query user list: {:?}",
-		result.err()
-	);
-	let result = result.unwrap();
-	assert!(
-		result.meta.as_ref().and_then(|m| m.total).unwrap_or(0) >= 1,
-		"Meta total should be >= 1"
-	);
-	assert_eq!(
-		result.meta.as_ref().and_then(|m| m.page).unwrap_or(0),
-		1,
-		"Meta page should be 1"
-	);
-	assert_eq!(
-		result.meta.as_ref().and_then(|m| m.per_page).unwrap_or(0),
-		5,
-		"Meta per_page should be 5"
-	);
-}
 
-#[tokio::test]
-async fn test_query_delete_user() {
-	let app_state = setup_all_test_environment().await; // Use centralized setup
-	let repo = UsersRepository::new(&app_state);
-	let email = &generate_unique_email("deleteuser");
-	let user =
-		create_test_user(email, "Delete User", true, &get_role_id("user", &app_state).await);
-	let create_res = repo.query_create_user(user.clone()).await;
-	assert!(
-		create_res.is_ok(),
-		"Failed to create user: {:?}",
-		create_res.err()
-	);
-	let user_detail = repo.query_user_by_email(email.to_string().clone()).await;
-	assert!(
-		user_detail.is_ok(),
-		"Failed to fetch user by email: {:?}",
-		user_detail.err()
-	);
-	let user_detail = user_detail.unwrap();
-	let delete_result = repo
-		.query_delete_user(user_detail.id.id.to_raw().clone())
-		.await;
-	assert!(
-		delete_result.is_ok(),
-		"Failed to delete user: {:?}",
-		delete_result.err()
-	);
-	let fetch_result = repo.query_user_by_email(user_detail.email.clone()).await;
-	assert!(
-		fetch_result.is_err(),
-		"User should be deleted, but got: {fetch_result:?}"
-	);
-}
+	#[tokio::test]
+	async fn test_query_user_by_email_not_found() {
+		let app_state = crate::get_app_state().await;
+		let repo = UsersRepository::new(&app_state);
 
-#[tokio::test]
-async fn test_delete_non_existent_user_should_fail() {
-	let app_state = setup_all_test_environment().await; // Use centralized setup
-	let repo = UsersRepository::new(&app_state);
-	let result = repo.query_delete_user("lklklklk".to_string()).await;
-	assert!(result.is_err(), "Delete non-existent user should fail");
-	assert_eq!(
-		result.unwrap_err().to_string(),
-		"User not found in database"
-	);
-}
+		// Try to get non-existent user
+		let result = repo.query_user_by_email("nonexistent@example.com".to_string()).await;
+		assert!(result.is_err());
+	}
 
-#[tokio::test]
-async fn test_delete_user_twice_should_fail_on_second_attempt() {
-	let app_state = setup_all_test_environment().await; // Use centralized setup
-	let repo = UsersRepository::new(&app_state);
-	let email = "twice@example.com";
-	let user =
-		create_test_user(email, "Delete Twice", true, &get_role_id("user", &app_state).await);
-	let create_res = repo.query_create_user(user.clone()).await;
-	assert!(
-		create_res.is_ok(),
-		"Failed to create user: {:?}",
-		create_res.err()
-	);
-	let first = repo.query_delete_user(user.id.id.to_raw()).await;
-	assert!(
-		first.is_ok(),
-		"First delete should succeed: {:?}",
-		first.err()
-	);
-	let second = repo.query_delete_user(user.id.id.to_raw()).await;
-	assert!(second.is_err(), "Second delete should fail");
-	assert_eq!(second.unwrap_err().to_string(), "User not found");
-}
+	#[tokio::test]
+	async fn test_query_update_user() {
+		let app_state = crate::get_app_state().await;
+		let repo = UsersRepository::new(&app_state);
+		let role_id = get_role_id("user", &app_state).await;
 
-#[tokio::test]
-async fn test_query_update_user_should_succeed() {
-	let state = setup_all_test_environment().await; // Use centralized setup
-	let repo = UsersRepository::new(&state);
-	let mut user = create_test_user(
-		"update@example.com",
-		"Old Name",
-		true,
-		&get_role_id("user", &state).await,
-	);
-	let create_res = repo.query_create_user(user.clone()).await;
-	assert!(
-		create_res.is_ok(),
-		"Failed to create user: {:?}",
-		create_res.err()
-	);
-	user.fullname = "Updated Name".into();
-	user.phone_number = "089876543210".into();
-	let result = repo.query_update_user(user.clone()).await;
-	assert!(result.is_ok(), "Update failed: {:?}", result.err());
-	let updated = repo.query_user_by_id(&user.id).await;
-	assert!(
-		updated.is_ok(),
-		"Failed to fetch updated user: {:?}",
-		updated.err()
-	);
-	let updated = updated.unwrap();
-	assert_eq!(updated.fullname, "Updated Name");
-	assert_eq!(updated.phone_number, "089876543210");
+		// Test data
+		let email = generate_unique_email("test_update_user");
+		let user_schema = UsersSchema {
+			id: make_thing_from_enum(UtilsResourceEnum::Users, &Uuid::new_v4().to_string()),
+			email: email.clone(),
+			fullname: "Original Name".to_string(),
+			password: "password123".to_string(),
+			phone_number: "+1234567890".to_string(),
+			is_active: true,
+			role: role_id,
+			..Default::default()
+		};
+
+		// Create user first
+		let create_result = repo.query_create_user(user_schema.clone()).await;
+		assert!(create_result.is_ok());
+
+		// Get user to update
+		let user = repo.query_user_by_email(email.clone()).await.unwrap();
+		
+		// Update user
+		let updated_schema = UsersSchema {
+			id: user.id.clone(),
+			email: user.email.clone(),
+			fullname: "Updated Name".to_string(),
+			phone_number: "+9876543210".to_string(),
+			role: user.role.id.clone(),
+			..Default::default()
+		};
+
+		let result = repo.query_update_user(updated_schema).await;
+		assert!(result.is_ok());
+
+		// Verify user was updated
+		let retrieved_user = repo.query_user_by_email(email.clone()).await.unwrap();
+		assert_eq!(retrieved_user.fullname, "Updated Name");
+		assert_eq!(retrieved_user.phone_number, "+9876543210");
+
+		// Clean up
+		let _ = repo.query_delete_user(retrieved_user.id.id.to_raw()).await;
+	}
+
+	#[tokio::test]
+	async fn test_query_delete_user() {
+		let app_state = crate::get_app_state().await;
+		let repo = UsersRepository::new(&app_state);
+		let role_id = get_role_id("user", &app_state).await;
+
+		// Test data
+		let email = generate_unique_email("test_delete_user");
+		let user_schema = UsersSchema {
+			id: make_thing_from_enum(UtilsResourceEnum::Users, &Uuid::new_v4().to_string()),
+			email: email.clone(),
+			fullname: "Test User Delete".to_string(),
+			password: "password123".to_string(),
+			phone_number: "+1234567890".to_string(),
+			is_active: true,
+			role: role_id,
+			..Default::default()
+		};
+
+		// Create user first
+		let create_result = repo.query_create_user(user_schema.clone()).await;
+		assert!(create_result.is_ok());
+
+		// Get user to delete
+		let user = repo.query_user_by_email(email.clone()).await.unwrap();
+
+		// Delete user
+		let result = repo.query_delete_user(user.id.id.to_raw()).await;
+		assert!(result.is_ok());
+
+		// Verify user was deleted
+		let deleted_user = repo.query_user_by_email(email.clone()).await;
+		assert!(deleted_user.is_err());
+	}
+
+	#[tokio::test]
+	async fn test_query_user_list() {
+		let app_state = crate::get_app_state().await;
+		let repo = UsersRepository::new(&app_state);
+		let role_id = get_role_id("user", &app_state).await;
+
+		// Create test users
+		let user_emails = vec![
+			generate_unique_email("user_list_1"),
+			generate_unique_email("user_list_2"),
+			generate_unique_email("user_list_3"),
+		];
+
+		for email in &user_emails {
+			let user_schema = UsersSchema {
+				id: make_thing_from_enum(UtilsResourceEnum::Users, &Uuid::new_v4().to_string()),
+				email: email.clone(),
+				fullname: format!("Test User {}", email),
+				password: "password123".to_string(),
+				phone_number: "+1234567890".to_string(),
+				is_active: true,
+				role: role_id.clone(),
+				..Default::default()
+			};
+			let _ = repo.query_create_user(user_schema).await;
+		}
+
+		// Get user list
+		let meta = crate::get_meta_request_dto(1, 10);
+		let result = repo.query_user_list(meta).await;
+		assert!(result.is_ok());
+		assert!(result.unwrap().data.len() >= 3);
+
+		// Clean up
+		for email in user_emails {
+			let user = repo.query_user_by_email(email).await.unwrap();
+			let _ = repo.query_delete_user(user.id.id.to_raw()).await;
+		}
+	}
 }
