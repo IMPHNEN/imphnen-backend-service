@@ -1,4 +1,5 @@
-use super::{PermissionsItemDto, PermissionsSchema};
+use imphnen_entities::PermissionsItemDto;
+use super::PermissionsSchema;
 use crate::{
 	AppState, MetaRequestDto, ResourceEnum, ResponseListSuccessDto, get_id, make_thing,
 };

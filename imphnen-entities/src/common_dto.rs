@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use surrealdb::{Surreal, engine::any::Any, engine::local::Db};
 use utoipa::{IntoParams, ToSchema};
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -51,14 +50,6 @@ pub struct ResponseListSuccessDto<T: Serialize> {
 	pub meta: Option<MetaResponseDto>,
 }
 
-pub type SurrealWsClient = Surreal<Any>;
-pub type SurrealMemClient = Surreal<Db>;
-
-#[derive(Clone)]
-pub struct AppState {
-	pub surrealdb_ws: SurrealWsClient,
-	pub surrealdb_mem: SurrealMemClient,
-}
 
 #[derive(Debug, serde::Deserialize)]
 pub struct CountResult {

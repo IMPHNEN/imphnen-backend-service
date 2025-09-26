@@ -71,7 +71,7 @@ impl AuthServiceTrait for AuthService {
 		}
 
 		let user_repo = UsersRepository::new(&state);
-		let auth_repo = AuthRepository::new(&state);
+		let auth_repo = AuthRepository::new(state.surrealdb_mem.clone());
 
 		let email = &payload.email;
 		let password = &payload.password;
@@ -169,7 +169,7 @@ impl AuthServiceTrait for AuthService {
 		}
 
 		let user_repo = UsersRepository::new(&state);
-		let auth_repo = AuthRepository::new(&state);
+		let auth_repo = AuthRepository::new(state.surrealdb_mem.clone());
 
 		match user_repo.query_user_by_email(payload.email.clone()).await {
 			Ok(user) => {
@@ -269,7 +269,7 @@ impl AuthServiceTrait for AuthService {
 			return common_response(status, &message);
 		}
 		let user_repo = UsersRepository::new(&state);
-		let auth_repo = AuthRepository::new(&state);
+		let auth_repo = AuthRepository::new(state.surrealdb_mem.clone());
 		let role_repo = RolesRepository::new(&state);
 		let role = match role_repo
 			.query_role_by_name(RolesEnum::User.to_string())
@@ -378,7 +378,7 @@ impl AuthServiceTrait for AuthService {
 		{
 			return common_response(StatusCode::BAD_REQUEST, "User not found");
 		}
-		let auth_repo = AuthRepository::new(&state);
+		let auth_repo = AuthRepository::new(state.surrealdb_mem.clone());
 		let _ = auth_repo.query_get_stored_otp(payload.email.clone()).await;
 		let otp = generate_otp::OtpManager::generate_otp();
 		let message = format!("Your OTP code is {otp}");
@@ -501,7 +501,7 @@ impl AuthServiceTrait for AuthService {
 			return common_response(status, &message);
 		}
 		let user_repo = UsersRepository::new(&state);
-		let auth_repo = AuthRepository::new(&state);
+		let auth_repo = AuthRepository::new(state.surrealdb_mem.clone());
 		let email = payload.email.clone();
 		let user = match user_repo.query_user_by_email(email.clone()).await {
 			Ok(user) => user,

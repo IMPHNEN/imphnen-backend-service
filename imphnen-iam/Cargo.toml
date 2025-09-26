@@ -8,6 +8,7 @@ imphnen-libs.workspace = true
 imphnen-utils.workspace = true
 
 imphnen-entities.workspace = true
+async-trait.workspace = true
 axum.workspace = true
 serde.workspace = true
 serde_json = { workspace = true }

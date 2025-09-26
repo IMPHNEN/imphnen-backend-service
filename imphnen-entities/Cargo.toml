@@ -10,3 +10,6 @@ utoipa.workspace = true
 surrealdb.workspace = true
 anyhow.workspace = true
 thiserror.workspace = true
+uuid.workspace = true
+strum.workspace = true
+strum_macros.workspace = true

@@ -8,12 +8,13 @@ use crate::{
 	AppState, MessageResponseDto, MetaRequestDto, ResponseListSuccessDto,
 	ResponseSuccessDto,
 	v1::{
-		permissions_dto::{PermissionsItemDto, PermissionsRequestDto, PermissionsUpdateRequestDto},
+		permissions_dto::{PermissionsRequestDto, PermissionsUpdateRequestDto},
 		permissions_service::PermissionsService,
 	},
 };
 
 use super::{PermissionsEnum, permissions_guard};
+use imphnen_entities::PermissionsItemDto;
 
 #[utoipa::path(
 	get,

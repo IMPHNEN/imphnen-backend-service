@@ -1,7 +1,8 @@
 // Restore only the necessary imports to fix unresolved function errors
 use crate::{get_iso_date, hash_password};
-use imphnen_entities::AppState;
-use imphnen_iam::{PermissionsEnum, UsersSchema};
+use imphnen_libs::AppState;
+use imphnen_iam::{PermissionsEnum, UsersSchema, v1::users::users_service::UsersService, v1::auth::auth_repository::AuthRepoImpl};
+use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 use surrealdb::engine::{any, local};
@@ -50,7 +51,9 @@ pub async fn create_mock_app_state() -> AppState {
 	 
 	AppState {
 		surrealdb_ws: db_ws,
-		surrealdb_mem: db_mem,
+		surrealdb_mem: db_mem.clone(),
+		user_lookup_service: Arc::new(UsersService),
+		auth_repository: Arc::new(AuthRepoImpl { db: db_mem.clone() }),
 	}
 }
 pub async fn cleanup_db() {

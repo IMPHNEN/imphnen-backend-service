@@ -1,4 +1,4 @@
-use imphnen_iam::users::UsersSchema;
+use imphnen_iam::v1::users::UsersSchema;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::Thing;
 use utoipa::ToSchema;

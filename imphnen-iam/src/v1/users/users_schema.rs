@@ -1,4 +1,5 @@
-use super::{UsersCreateRequestDto, UsersDetailQueryDto, UsersUpdateRequestDto, ExperienceDto, EducationDto};
+use imphnen_entities::{UsersDetailQueryDto, ExperienceDto, EducationDto};
+use super::{UsersCreateRequestDto, UsersUpdateRequestDto};
 use imphnen_libs::{ResourceEnum, hash_password};
 use imphnen_utils::extract_id;
 use imphnen_utils::{get_iso_date, make_thing_from_enum};

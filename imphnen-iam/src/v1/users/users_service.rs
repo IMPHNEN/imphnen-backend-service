@@ -1,8 +1,8 @@
 use super::{
 	UsersActiveInactiveRequestDto, UsersCreateRequestDto,
 	UsersSetNewPasswordRequestDto, UsersUpdateRequestDto,
-    users_dto::UsersDetailQueryDto, // Add this line
 };
+use imphnen_entities::UsersDetailQueryDto;
 use crate::{
 	AppState, MetaRequestDto, ResponseListSuccessDto, UsersRepository, UsersSchema,
 };
@@ -22,6 +22,8 @@ use tracing::info;
 use tracing::error;
 use crate::v1::users::users_dto::{UsersDetailItemDto as UserDto, UsersCreateRequestDto as CreateUserDto};
 use serde_json::json;
+use async_trait::async_trait;
+use imphnen_libs::UserLookupService;
 
 
 pub trait UsersServiceTrait: Send + Sync + 'static {
@@ -609,5 +611,17 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
                 }
             }
         })
+    }
+}
+
+#[async_trait]
+impl UserLookupService for UsersService {
+    async fn get_user_by_id_internal(
+        &self,
+        thing_id: &surrealdb::sql::Thing,
+        state: &imphnen_libs::AppState,
+    ) -> Result<imphnen_entities::UsersDetailQueryDto, anyhow::Error> {
+        let repo = crate::UsersRepository::new(state);
+        repo.query_user_by_id(thing_id).await.map_err(|e| anyhow::anyhow!(e))
     }
 }

@@ -6,8 +6,9 @@ use crate::v1::mentors::{
 use axum::http::StatusCode;
 use axum::response::Response;
 use imphnen_entities::{
-	AppState, MetaRequestDto, ResponseListSuccessDto, ResponseSuccessDto,
+	MetaRequestDto, ResponseListSuccessDto, ResponseSuccessDto,
 };
+use imphnen_libs::AppState;
 use imphnen_iam::{
 	AuthRepository, RolesEnum, RolesRepository, UsersRepository, UsersSchema,
 };
@@ -33,7 +34,7 @@ impl MentorsService {
 		let user_repo = UsersRepository::new(state);
 		let mentor_repo = MentorsRepository::new(state);
 		let role_repo = RolesRepository::new(state);
-		let auth_repo = AuthRepository::new(state);
+		let auth_repo = AuthRepository::new(state.surrealdb_mem.clone());
 
 		let user_email = &dto.email;
 		let mut _user_to_update: Option<UsersSchema> = None;

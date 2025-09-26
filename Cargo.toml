@@ -16,6 +16,7 @@ members = [
 
 
 [workspace.dependencies]
+async-trait = "0.1.83"
 oauth2 = "5.0.0"
 reqwest = { version = "0.12.23", features = ["json"] }
 serde_json = "1.0.142"

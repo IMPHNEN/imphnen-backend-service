@@ -1,9 +1,11 @@
 use crate::enviroment::ENV;
-use crate::SurrealMemClient;
 use surrealdb::engine::any;
-use surrealdb::engine::local::Mem;
+use surrealdb::engine::local::{Db, Mem};
 use surrealdb::opt::auth::Root;
 use surrealdb::{Result, Surreal};
+
+pub type SurrealWsClient = Surreal<any::Any>;
+pub type SurrealMemClient = Surreal<Db>;
 
 pub mod resource;
 pub use resource::*;

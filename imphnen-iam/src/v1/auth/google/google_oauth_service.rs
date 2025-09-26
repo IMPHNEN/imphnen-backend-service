@@ -356,8 +356,8 @@ let refresh_token = encode_refresh_token(user.email.clone(), user.id.clone())
         };
 
         // Cache the user in auth repository for subsequent requests
-        let auth_repo = crate::v1::auth::AuthRepository::new(&app_state);
-        let user_query_dto: crate::v1::users::users_dto::UsersDetailQueryDto = (&user).into();
+        let auth_repo = crate::v1::auth::AuthRepository::new(app_state.surrealdb_mem.clone());
+        let user_query_dto: imphnen_entities::UsersDetailQueryDto = (&user).into();
         if let Err(err_store) = auth_repo.query_store_user(user_query_dto).await {
             error!(
                 "Failed to store user cache for {}: {}",

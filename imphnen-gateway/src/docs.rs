@@ -20,19 +20,19 @@ use imphnen_gacha::{
 	GachaClaimItemDto, GachaClaimRequestDto, GachaItemDto, GachaItemRequestDto,
 	GachaRollItemDto, GachaRollRequestDto, gacha_claims, gacha_items, gacha_rolls,
 };
+use imphnen_entities::{PermissionsItemDto, RolesDetailItemDto};
 use imphnen_iam::{
   AuthLoginRequestDto, AuthLoginResponsetDto, AuthNewPasswordRequestDto,
   AuthRefreshTokenRequestDto, AuthResendOtpRequestDto, AuthVerifyEmailRequestDto,
-  MessageResponseDto, MetaRequestDto, MetaResponseDto, PermissionsItemDto,
-  PermissionsRequestDto, ResponseListSuccessDto, ResponseSuccessDto,
-  RolesDetailItemDto, RolesListItemDto, RolesRequestCreateDto,
+  MessageResponseDto, MetaRequestDto, MetaResponseDto, PermissionsRequestDto,
+  ResponseListSuccessDto, ResponseSuccessDto, RolesListItemDto, RolesRequestCreateDto,
   RolesRequestUpdateDto, TokenDto, UsersCreateRequestDto, UsersDetailItemDto,
-  UsersListItemDto, UsersUpdateRequestDto, auth, permissions, roles, users,
-  TeamsCreateRequestDto, TeamsUpdateRequestDto, TeamInviteRequestDto,
-  TeamAcceptInvitationRequestDto, TeamsDetailItemDto, TeamsListItemDto,
-  TeamMemberDto, TeamInvitationDto, TeamsSearchQueryDto, teams,
+  UsersListItemDto, UsersUpdateRequestDto, TeamsCreateRequestDto, TeamsUpdateRequestDto,
+  TeamInviteRequestDto, TeamAcceptInvitationRequestDto, TeamsDetailItemDto,
+  TeamsListItemDto, TeamMemberDto, TeamInvitationDto, TeamsSearchQueryDto,
 };
-use imphnen_iam::users::users_controller::FileUploadSchema;
+use imphnen_iam::v1::{auth, permissions, roles, users, teams};
+use imphnen_iam::v1::users::users_controller::FileUploadSchema;
 use utoipa::{
 	Modify, OpenApi,
 	openapi::security::{Http, HttpAuthScheme, SecurityScheme},

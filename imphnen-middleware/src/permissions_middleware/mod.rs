@@ -3,7 +3,7 @@ use axum::{
 	http::{Request, Response, StatusCode},
 };
 use futures::future::BoxFuture;
-use imphnen_iam::{AuthRepository, PermissionsEnum};
+use imphnen_entities::PermissionsEnum;
 use imphnen_libs::AppState;
 use imphnen_utils::{common_response, extract_email, extract_email_async};
 use std::task::{Context, Poll};
@@ -77,8 +77,7 @@ where
 				}
 			};
 			
-			let auth_repo = AuthRepository::new(&app_state);
-			let user = match auth_repo.query_get_stored_user(email).await {
+			let user = match app_state.auth_repository.query_get_stored_user(email).await {
 				Ok(user) => user,
 				Err(_) => {
 					return Ok(common_response(

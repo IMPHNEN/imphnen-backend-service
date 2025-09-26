@@ -3,7 +3,7 @@ use imphnen_utils::make_thing_from_enum;
 use serde::{Deserialize, Serialize};
 use surrealdb::{Uuid, sql::Thing};
 
-use super::{PermissionsItemDto, PermissionsQueryDto};
+use imphnen_entities::{PermissionsItemDto, PermissionsQueryDto};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PermissionsSchema {

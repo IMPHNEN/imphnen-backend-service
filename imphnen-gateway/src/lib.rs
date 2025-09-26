@@ -6,10 +6,11 @@ use imphnen_cms::{
 	testimonials_public_routes,
 };
 use imphnen_dimentorin::dimentorin_router;
-use imphnen_entities::{AppState, SurrealMemClient, SurrealWsClient};
+use imphnen_libs::{AppState, SurrealMemClient, SurrealWsClient};
 use imphnen_gacha::gacha_router;
-use imphnen_iam::{iam_protected_routes, iam_public_routes};
+use imphnen_iam::{iam_protected_routes, iam_public_routes, v1::users::users_service::UsersService, v1::auth::auth_repository::AuthRepoImpl};
 use imphnen_middleware::{auth_middleware, cors_middleware};
+use std::sync::Arc;
 use utoipa_swagger_ui::SwaggerUi;
 
 pub mod docs;
@@ -21,7 +22,9 @@ pub async fn gateway_service(
 ) -> Router {
 	let state = AppState {
 		surrealdb_ws,
-		surrealdb_mem,
+		surrealdb_mem: surrealdb_mem.clone(),
+		user_lookup_service: Arc::new(UsersService),
+		auth_repository: Arc::new(AuthRepoImpl { db: surrealdb_mem }),
 	};
 
 	let public_routes = Router::new()

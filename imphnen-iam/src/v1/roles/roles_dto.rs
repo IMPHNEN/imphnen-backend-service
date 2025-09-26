@@ -1,4 +1,4 @@
-use crate::{PermissionsItemDto, PermissionsQueryDto};
+use imphnen_entities::{PermissionsItemDto, PermissionsQueryDto};
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::Thing;
 use utoipa::ToSchema;

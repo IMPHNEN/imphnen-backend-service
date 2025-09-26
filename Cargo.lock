@@ -2122,9 +2122,12 @@ dependencies = [
  "anyhow",
  "axum",
  "serde",
+ "strum 0.27.2",
+ "strum_macros 0.27.2",
  "surrealdb",
  "thiserror 2.0.14",
  "utoipa",
+ "uuid",
 ]
 
 [[package]]
@@ -2189,6 +2192,7 @@ name = "imphnen-iam"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "axum",
  "axum-extra",
  "axum-test",
@@ -2227,6 +2231,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "argon2",
+ "async-trait",
  "axum",
  "base64 0.22.1",
  "chrono",
@@ -2258,7 +2263,6 @@ dependencies = [
  "chrono",
  "futures",
  "imphnen-entities",
- "imphnen-iam",
  "imphnen-libs",
  "imphnen-utils",
  "lazy_static",

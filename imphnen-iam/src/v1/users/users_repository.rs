@@ -1,4 +1,5 @@
-use super::{UsersDetailQueryDto, UsersListItemDto, UsersListQueryDto, UsersSchema};
+use imphnen_entities::UsersDetailQueryDto;
+use super::{UsersListItemDto, UsersListQueryDto, UsersSchema};
 use crate::{
 	AppState, MetaRequestDto, ResourceEnum, ResponseListSuccessDto, get_id, make_thing,
 };

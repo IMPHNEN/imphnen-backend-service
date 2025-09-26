@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-imphnen-iam.workspace = true
 imphnen-libs.workspace = true
 imphnen-utils.workspace = true
 imphnen-entities.workspace = true
