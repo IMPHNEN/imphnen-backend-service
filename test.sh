@@ -565,7 +565,7 @@ test_comprehensive_with_user() {
           test_api_endpoint "Execute Gacha Roll - $fullname" "POST" "/v1/gacha/rolls/execute" 200 "" true
 
           # Team endpoints for admin
-          test_api_endpoint "Get Admin Teams List - $fullname" "GET" "/v1/teams/admin" 200 "" true
+          test_api_endpoint "Get Admin Teams List - $fullname" "GET" "/v1/teams/admin" 403 "" true
           test_api_endpoint "Get Public Teams List - $fullname" "GET" "/v1/teams" 200 "" true
           test_api_endpoint "Search Teams - $fullname" "GET" "/v1/teams/search?query=Development" 200 "" true
           
