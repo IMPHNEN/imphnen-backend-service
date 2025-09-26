@@ -205,7 +205,7 @@ mod tests {
 
 		// Test the query_is_team_member function instead which might be more reliable
 		let thing_id = make_thing_from_enum(ResourceEnum::Teams, &team_id);
-		let member_thing = make_thing_from_enum(ResourceEnum::Users, &member_id);
+		let _member_thing = make_thing_from_enum(ResourceEnum::Users, &member_id);
 		
 		// Skip the problematic query_is_team_member check entirely since we have more
 		// comprehensive assertions later using the working query_team_members function
@@ -243,7 +243,7 @@ mod tests {
 		}
 		
 		// For now, just make sure we didn't get an error
-		assert!(members.len() >= 0, "Should be able to query team members without error");
+		assert!(!members.is_empty(), "Should be able to query team members without error");
 
 		let _ = repo.query_delete_team(team_id).await;
 	}

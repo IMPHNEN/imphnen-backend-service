@@ -1,9 +1,8 @@
 #[cfg(test)]
 mod tests {
 	use imphnen_iam::{
-		RolesRequestCreateDto, RolesRequestUpdateDto, RolesDetailItemDto, ResourceEnum,
+		RolesRequestCreateDto, RolesRequestUpdateDto,
 	};
-	use imphnen_utils::{make_thing_from_enum};
 	use imphnen_entities::MetaRequestDto;
 
 	#[tokio::test]

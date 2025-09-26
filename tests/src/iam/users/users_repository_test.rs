@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-	use crate::{generate_unique_email, get_meta_request_dto, get_role_id, UsersRepository};
-	use imphnen_iam::{UsersSchema, ResourceEnum};
+	use crate::{generate_unique_email, get_role_id, UsersRepository};
+	use imphnen_iam::UsersSchema;
 	use imphnen_utils::{make_thing_from_enum, ResourceEnum as UtilsResourceEnum};
 	use uuid::Uuid;
 

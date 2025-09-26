@@ -15,6 +15,7 @@ mod auth_repository_test {
 	use chrono::{Duration, Utc};
 	use imphnen_iam::{AppState, UsersDetailQueryDto};
 	use imphnen_entities::RolesDetailQueryDto;
+	use imphnen_utils::generate_otp::OtpManager;
 	use surrealdb::Uuid;
 
 	async fn create_mock_user(state: &AppState, email: &str) -> UsersSchema {
@@ -148,12 +149,12 @@ mod auth_repository_test {
 	    let app_state = setup_all_test_environment().await; // Use the new setup function
 	    let repo = AuthRepository::new(app_state.surrealdb_mem.clone());
 		let email = "otp_user@example.com".to_string();
-		let otp = 123456;
-		let stored = repo.query_store_otp(email.clone(), otp).await;
+		let otp_data = OtpManager::generate_otp();
+		let stored = repo.query_store_otp(email.clone(), otp_data.clone()).await;
 		assert!(stored.is_ok(), "Failed to store OTP: {:?}", stored.err());
 		let fetched = repo.query_get_stored_otp(email.clone()).await;
 		assert!(fetched.is_ok(), "Failed to fetch OTP: {:?}", fetched.err());
-		assert_eq!(fetched.unwrap(), otp);
+		assert_eq!(fetched.unwrap(), otp_data.code);
 	}
 
 	#[tokio::test]
@@ -161,8 +162,8 @@ mod auth_repository_test {
 	    let app_state = setup_all_test_environment().await; // Use the new setup function
 	    let repo = AuthRepository::new(app_state.surrealdb_mem.clone());
 		let email = "otp_del@example.com".to_string();
-		let otp = 654321;
-		let store_res = repo.query_store_otp(email.clone(), otp).await;
+		let otp_data = OtpManager::generate_otp();
+		let store_res = repo.query_store_otp(email.clone(), otp_data.clone()).await;
 		assert!(
 			store_res.is_ok(),
 			"Failed to store OTP: {:?}",
@@ -182,13 +183,13 @@ mod auth_repository_test {
 	    let app_state = setup_all_test_environment().await; // Use the new setup function
 	    let repo = AuthRepository::new(app_state.surrealdb_mem.clone());
 		let email = "expired_otp@example.com".to_string();
-		let otp = 789012;
+		let otp_data = OtpManager::generate_otp();
 		let table = ResourceEnum::OtpCache.to_string();
 		let expires_at = Utc::now() - Duration::seconds(1);
 		let created: Result<Option<AuthOtpSchema>, surrealdb::Error> = repo
 		    .db
 		    .create((table.clone(), email.as_str()))
-		    .content(AuthOtpSchema { otp, expires_at })
+		    .content(AuthOtpSchema { otp: otp_data.code, hash: otp_data.hash, expires_at })
 		    .await;
 		assert!(
 			created.is_ok(),
@@ -245,8 +246,8 @@ mod auth_repository_test {
 	    let app_state = setup_all_test_environment().await; // Use the new setup function
 	    let repo = AuthRepository::new(app_state.surrealdb_mem.clone());
 		let email = "valid_otp@example.com";
-		let otp = 654321;
-		let store_result = repo.query_store_otp(email.into(), otp).await;
+		let otp_data = OtpManager::generate_otp();
+		let store_result = repo.query_store_otp(email.into(), otp_data.clone()).await;
 		assert!(
 			store_result.is_ok(),
 			"Failed to store valid OTP: {:?}",
@@ -258,6 +259,6 @@ mod auth_repository_test {
 			"Failed to get valid OTP: {:?}",
 			get_result.err()
 		);
-		assert_eq!(get_result.unwrap(), otp);
+		assert_eq!(get_result.unwrap(), otp_data.code);
 	}
 }

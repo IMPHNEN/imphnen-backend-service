@@ -86,7 +86,7 @@ mod tests {
 		
 		// Get created team to verify using the actual team ID
 		let team_thing = make_thing_from_enum(ResourceEnum::Teams, &team_schema.id.id.to_raw());
-		let team = repo.query_team_by_id(&team_thing).await.unwrap();
+		let _team = repo.query_team_by_id(&team_thing).await.unwrap();
 		let team_id = team_schema.id.id.to_raw();
 
 		// Get team by ID again to test retrieval
@@ -202,7 +202,7 @@ mod tests {
 		
 		// Get created team to verify using the actual team ID
 		let team_thing = make_thing_from_enum(ResourceEnum::Teams, &team_schema.id.id.to_raw());
-		let team = repo.query_team_by_id(&team_thing).await.unwrap();
+		let _team = repo.query_team_by_id(&team_thing).await.unwrap();
 		let team_id = team_schema.id.id.to_raw();
 
 		// Invite member - use different field name since 'token' is protected in SurrealDB
@@ -265,7 +265,7 @@ mod tests {
 		
 		// Get created team to verify using the actual team ID
 		let team_thing = make_thing_from_enum(ResourceEnum::Teams, &team_schema.id.id.to_raw());
-		let team = repo.query_team_by_id(&team_thing).await.unwrap();
+		let _team = repo.query_team_by_id(&team_thing).await.unwrap();
 		let team_id = team_schema.id.id.to_raw();
 
 		// Add leader as member using existing create method
@@ -341,7 +341,7 @@ mod tests {
 		
 		// Get created team to verify using the actual team ID
 		let team_thing = make_thing_from_enum(ResourceEnum::Teams, &team_schema.id.id.to_raw());
-		let team = repo.query_team_by_id(&team_thing).await.unwrap();
+		let _team = repo.query_team_by_id(&team_thing).await.unwrap();
 		let team_id = team_schema.id.id.to_raw();
 
 		let search_params = TeamsSearchQueryDto {
@@ -406,7 +406,7 @@ mod tests {
 		
 		// Get created team to verify using the actual team ID
 		let team_thing = make_thing_from_enum(ResourceEnum::Teams, &team_schema.id.id.to_raw());
-		let team = repo.query_team_by_id(&team_thing).await.unwrap();
+		let _team = repo.query_team_by_id(&team_thing).await.unwrap();
 		let team_id = team_schema.id.id.to_raw();
 
 		let get_before = repo.query_team_by_id(&team_thing).await;
@@ -465,7 +465,7 @@ mod tests {
 		
 		// Get created team to verify using the actual team ID
 		let team_thing = make_thing_from_enum(ResourceEnum::Teams, &team_schema.id.id.to_raw());
-		let original_team = repo.query_team_by_id(&team_thing).await.unwrap();
+		let _original_team = repo.query_team_by_id(&team_thing).await.unwrap();
 		let team_id = team_schema.id.id.to_raw();
 
 		// Add non-leader as member first so we can test member operations
@@ -483,7 +483,7 @@ mod tests {
 
 		// Try to remove member as non-leader (this would fail in real service layer with auth)
 		let non_leader_thing = make_thing_from_enum(ResourceEnum::Users, &non_leader.id.id.to_raw());
-		let remove_result = repo.query_remove_team_member(&team_thing, &non_leader_thing).await;
+		let _remove_result = repo.query_remove_team_member(&team_thing, &non_leader_thing).await;
 		
 		// Note: Repository layer doesn't handle authorization, so this might succeed
 		// In real scenario, service layer would check if user has permission
