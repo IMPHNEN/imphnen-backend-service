@@ -187,11 +187,11 @@ impl MentorsService {
 		let otp = imphnen_utils::generate_otp::OtpManager::generate_otp();
 
 		match auth_repo
-			.query_store_otp(final_user_email.clone(), otp)
+			.query_store_otp(final_user_email.clone(), otp.clone())
 			.await
 		{
 			Ok(_) => {
-				let message = format!("your otp code is {otp}");
+				let message = format!("your otp code is {}", otp.code);
 				if let Err(_err) =
 					imphnen_utils::send_email(&final_user_email, "OTP Verification", &message)
 				{

@@ -7,7 +7,7 @@ use crate::{surrealdb_init_mem, surrealdb_init_ws, SurrealMemClient, SurrealWsCl
 use axum::{Router, serve};
 use std::{future::Future, net::SocketAddr};
 use tokio::net::TcpListener;
-use crate::enviroment::ENV;
+use crate::environment::ENV;
 
 /// Initialize and start the Axum server with SurrealDB connections.
 ///

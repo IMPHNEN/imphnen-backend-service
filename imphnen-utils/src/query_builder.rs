@@ -1,3 +1,9 @@
+//! Query builder utilities for SurrealDB.
+//!
+//! This module provides builders for constructing SurrealDB queries with
+//! support for pagination, filtering, sorting, and binding parameters.
+//! Includes both list queries and detail queries with unique binding keys.
+
 use anyhow::Result;
 use imphnen_libs::MetaRequestDto;
 use serde_json::{Map, Value};
@@ -131,11 +137,11 @@ impl ListQueryBuilder {
 
 		format!(
 			r#"
-      SELECT {} FROM {}
-      {}
-      {}
-      LIMIT {} START {}
-      {}
+	  SELECT {} FROM {}
+	  {}
+	  {}
+	  LIMIT {} START {}
+	  {}
    "#,
 			select_clause,
 			self.resource,
@@ -166,6 +172,7 @@ pub struct DetailQueryBuilder {
 	fetch_fields: Vec<String>,
 	conditions: Vec<String>,
 	bindings: Map<String, Value>,
+	binding_counter: usize,
 }
 
 impl DetailQueryBuilder {
@@ -178,6 +185,7 @@ impl DetailQueryBuilder {
 			fetch_fields: vec![],
 			conditions: vec![],
 			bindings: Map::new(),
+			binding_counter: 0,
 		}
 	}
 
@@ -202,7 +210,6 @@ impl DetailQueryBuilder {
 		self
 	}
 
-	// Modified with_where method
 	pub fn with_where(
 		mut self,
 		field: impl Into<String>,
@@ -213,11 +220,11 @@ impl DetailQueryBuilder {
 		}
 		let field_str = field.into();
 		if let Some(val) = value {
-			// Using a distinct binding key to avoid conflicts
-			self.conditions.push(format!("{field_str} = $value_where"));
-			self
-				.bindings
-				.insert("value_where".to_string(), Value::String(val.into()));
+			// Using a unique binding key to avoid conflicts
+			let key = format!("value_where_{}", self.binding_counter);
+			self.binding_counter += 1;
+			self.conditions.push(format!("{field_str} = ${key}"));
+			self.bindings.insert(key, Value::String(val.into()));
 		} else {
 			// If no value, assume it's a direct condition string (e.g., "is_active = true")
 			self.conditions.push(field_str);
@@ -231,15 +238,15 @@ impl DetailQueryBuilder {
 	}
 
 	pub fn with_thing_equals(mut self, field: &str, thing: &Thing) -> Self {
-	    let condition = build_thing_condition(field, thing);
-	    self.conditions.push(condition);
-	    self
+		let condition = build_thing_condition(field, thing);
+		self.conditions.push(condition);
+		self
 	}
 
 	pub fn with_things_equals(mut self, conditions: &[(&str, &Thing)]) -> Self {
-	    let condition = build_multi_thing_condition(conditions);
-	    self.conditions.push(condition);
-	    self
+		let condition = build_multi_thing_condition(conditions);
+		self.conditions.push(condition);
+		self
 	}
 
 	pub fn with_select_fields(mut self, fields: Vec<&str>) -> Self {

@@ -79,7 +79,7 @@ impl TeamsService {
 	}
 
 	async fn generate_invitation_token() -> String {
-		format!("team_{}_{}", Uuid::new_v4(), OtpManager::generate_otp())
+		format!("team_{}_{}", Uuid::new_v4(), OtpManager::generate_otp().code)
 	}
 
 	async fn get_user_info_with_privacy(

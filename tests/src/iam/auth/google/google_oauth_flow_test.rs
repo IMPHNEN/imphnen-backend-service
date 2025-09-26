@@ -17,7 +17,7 @@ mod tests {
     use imphnen_iam::v1::users::users_dto::{UsersDetailItemDto, UsersCreateRequestDto}; // Corrected: removed UserDto alias, used UsersCreateRequestDto
     use imphnen_entities::error_dto::ErrorResponse;
     use imphnen_libs::jsonwebtoken::generate_jwt;
-    use imphnen_libs::enviroment::{ENV, Env}; // Import ENV and Env
+    use imphnen_libs::environment::{ENV, Env}; // Import ENV and Env
 
     mock! {
         pub GoogleOauthServiceMock {}

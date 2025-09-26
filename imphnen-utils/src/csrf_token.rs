@@ -1,9 +1,14 @@
+//! CSRF token generation and validation utilities.
+//!
+//! This module provides stateless CSRF token management using signed tokens
+//! with timestamp validation to prevent cross-site request forgery attacks.
+
 use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use sha2::{Sha256, Digest};
 use imphnen_entities::error_dto::error::Error;
-use tracing::{info, error}; // Added this line
+use tracing::error;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct CsrfPayload {
@@ -24,33 +29,28 @@ pub fn generate_csrf_token(secret: &str) -> Result<String, Error> {
         .duration_since(UNIX_EPOCH)
         .map_err(|_| Error::Auth("Failed to get timestamp".to_string()))?
         .as_secs();
-    info!("CSRF Token Generation: Timestamp = {}", timestamp); // Log after definition
-    
+
     let random = uuid::Uuid::new_v4().to_string();
-    info!("CSRF Token Generation: Random string generated."); // Log after definition
-    
+
     let payload = CsrfPayload {
         timestamp,
         random,
     };
-    
+
     let payload_json = serde_json::to_string(&payload)
-        .map_err(|e| { // Changed to capture error
+        .map_err(|e| {
             error!("CSRF Token Generation: Failed to serialize CSRF payload: {:?}", e);
             Error::Auth("Failed to serialize CSRF payload".to_string())
         })?;
-    info!("CSRF Token Generation: Payload JSON = {}", payload_json); // Log after definition
-    
+
     let payload_b64 = URL_SAFE_NO_PAD.encode(payload_json.as_bytes());
-    info!("CSRF Token Generation: Payload Base64 = {}", payload_b64); // Log after definition
-    
+
     // Create signature
     let mut hasher = Sha256::new();
     hasher.update(payload_b64.as_bytes());
     hasher.update(secret.as_bytes());
     let signature = URL_SAFE_NO_PAD.encode(hasher.finalize());
-    info!("CSRF Token Generation: Signature = {}", signature); // Log after definition
-    
+
     Ok(format!("{}.{}", payload_b64, signature))
 }
 
@@ -60,35 +60,29 @@ pub fn generate_oauth_csrf_token(secret: &str, pkce_verifier: &str) -> Result<St
         .duration_since(UNIX_EPOCH)
         .map_err(|_| Error::Auth("Failed to get timestamp".to_string()))?
         .as_secs();
-    info!("OAuth CSRF Token Generation: Timestamp = {}", timestamp); // Log after definition
-    
+
     let random = uuid::Uuid::new_v4().to_string();
-    info!("OAuth CSRF Token Generation: Random string generated."); // Log after definition
-    
+
     let payload = OAuthCsrfPayload {
         timestamp,
         random,
         pkce_verifier: pkce_verifier.to_string(),
     };
-    info!("OAuth CSRF Token Generation: PKCE Verifier = {}", pkce_verifier); // Log after use in payload
-    
+
     let payload_json = serde_json::to_string(&payload)
-        .map_err(|e| { // Changed to capture error
+        .map_err(|e| {
             error!("OAuth CSRF Token Generation: Failed to serialize payload: {:?}", e);
             Error::Auth("Failed to serialize OAuth CSRF payload".to_string())
         })?;
-    info!("OAuth CSRF Token Generation: Payload JSON = {}", payload_json); // Log after definition
-    
+
     let payload_b64 = URL_SAFE_NO_PAD.encode(payload_json.as_bytes());
-    info!("OAuth CSRF Token Generation: Payload Base64 = {}", payload_b64); // Log after definition
-    
+
     // Create signature
     let mut hasher = Sha256::new();
     hasher.update(payload_b64.as_bytes());
     hasher.update(secret.as_bytes());
     let signature = URL_SAFE_NO_PAD.encode(hasher.finalize());
-    info!("OAuth CSRF Token Generation: Signature = {}", signature); // Log after definition
-    
+
     Ok(format!("{}.{}", payload_b64, signature))
 }
 

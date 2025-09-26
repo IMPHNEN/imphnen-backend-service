@@ -3,7 +3,7 @@
 //! This module provides utilities for initializing SurrealDB connections
 //! for both WebSocket and in-memory databases, along with resource definitions.
 
-use crate::enviroment::ENV;
+use crate::environment::ENV;
 use surrealdb::engine::any;
 use surrealdb::engine::local::{Db, Mem};
 use surrealdb::opt::auth::Root;

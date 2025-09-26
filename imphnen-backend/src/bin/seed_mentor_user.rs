@@ -5,7 +5,7 @@ use surrealdb::opt::auth::Root;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-	let env = &imphnen_libs::enviroment::ENV;
+	let env = &imphnen_libs::environment::ENV;
 	use surrealdb::engine::any;
 	let db = any::connect(&env.surrealdb_url).await?;
 	db.signin(Root {

@@ -3,13 +3,14 @@ use super::UserCacheSchema;
 use imphnen_entities::{PermissionsQueryDto, RolesDetailQueryDto, UsersDetailQueryDto};
 use crate::ResourceEnum;
 use anyhow::{Result, anyhow, bail};
-use chrono::{Duration, Utc};
+use chrono::Utc;
 use surrealdb::sql::Thing;
 use tracing::instrument;
 use tracing::info;
 use async_trait::async_trait;
 use imphnen_libs::AuthRepositoryTrait;
 use imphnen_libs::SurrealMemClient;
+use imphnen_utils::generate_otp::OtpData;
 
 
 pub struct AuthRepository {
@@ -162,15 +163,13 @@ impl AuthRepository {
 		}
 	}
 
-	#[instrument(skip(self, email, otp), err)]
-	pub async fn query_store_otp(&self, email: String, otp: u32) -> Result<String> {
-		let expires_at = Utc::now() + Duration::seconds(300);
+	pub async fn query_store_otp(&self, email: String, otp: OtpData) -> Result<String> {
 		let table: String = ResourceEnum::OtpCache.to_string();
 		info!(query = %format!("CREATE {}:{}", table, email), "Executing SurrealDB query");
 		let record: Option<AuthOtpSchema> = self
 			.db
 			.create((table.as_str(), email.as_str()))
-			.content(AuthOtpSchema { otp, expires_at })
+			.content(AuthOtpSchema { otp: otp.code, hash: otp.hash, expires_at: otp.expires_at })
 			.await?;
 		match record {
 			Some(_) => Ok("Success store otp".to_string()),

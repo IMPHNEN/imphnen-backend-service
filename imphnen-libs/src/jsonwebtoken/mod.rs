@@ -4,7 +4,7 @@
 //! for authentication purposes, including access tokens, refresh tokens,
 //! and password reset tokens.
 
-use crate::enviroment::ENV;
+use crate::environment::ENV;
 use axum::http::StatusCode;
 use chrono::{Duration, TimeDelta, Utc};
 use jsonwebtoken::{

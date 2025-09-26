@@ -1,7 +1,7 @@
 use std::pin::Pin;
 use std::future::Future;
 use imphnen_utils as generate_otp;
-use imphnen_libs::enviroment;
+use imphnen_libs::environment;
 use super::{
 	AuthLoginRequestDto, AuthLoginResponsetDto, AuthNewPasswordRequestDto,
 	AuthRefreshTokenRequestDto, AuthRegisterRequestDto, AuthRepository,
@@ -310,9 +310,9 @@ impl AuthServiceTrait for AuthService {
 			phone_number: payload.phone_number,
 		};
 		let otp = generate_otp::OtpManager::generate_otp();
-		match auth_repo.query_store_otp(new_user.email.clone(), otp).await {
+		match auth_repo.query_store_otp(new_user.email.clone(), otp.clone()).await {
 			Ok(_) => {
-				let message = format!("your otp code is {otp}");
+				let message = format!("your otp code is {}", otp.code);
 				if let Err(err_send) =
 					send_email(&new_user.email, "OTP Verification", &message)
 				{
@@ -383,7 +383,7 @@ impl AuthServiceTrait for AuthService {
 		let auth_repo = AuthRepository::new(state.surrealdb_mem.clone());
 		let _ = auth_repo.query_get_stored_otp(payload.email.clone()).await;
 		let otp = generate_otp::OtpManager::generate_otp();
-		let message = format!("Your OTP code is {otp}");
+		let message = format!("Your OTP code is {}", otp.code);
 		match auth_repo.query_store_otp(payload.email.clone(), otp).await {
 			Ok(_) => match send_email(&payload.email, "OTP Verification", &message) {
 				Ok(_) => common_response(StatusCode::OK, "OTP resent successfully"),
@@ -477,7 +477,7 @@ impl AuthServiceTrait for AuthService {
                         }
                     };
 
-                    let env = &enviroment::ENV;
+                    let env = &environment::ENV;
                     let fe_url = env.fe_url.clone();
                     let message = format!(
                         "You have requested a password reset. Please click the link below to continue: {fe_url}/auth/reset-password?token={token}"

@@ -3,7 +3,7 @@
 //! This module provides functionality for sending emails through SMTP
 //! with proper error handling and logging.
 
-use crate::enviroment::ENV;
+use crate::environment::ENV;
 use lettre::message::Mailbox;
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
@@ -88,7 +88,7 @@ fn build_email_message(
     to: &str,
     subject: &str,
     body: &str,
-    env: &crate::enviroment::Env,
+    env: &crate::environment::Env,
 ) -> Result<Message, Box<dyn Error>> {
     let sender_name = env.smtp_name.replace("-", " "); // Normalize sender name
 
@@ -107,7 +107,7 @@ fn build_email_message(
 ///
 /// # Returns
 /// Configured SMTP transport or error
-fn create_smtp_transport(env: &crate::enviroment::Env) -> Result<SmtpTransport, Box<dyn Error>> {
+fn create_smtp_transport(env: &crate::environment::Env) -> Result<SmtpTransport, Box<dyn Error>> {
     let credentials = Credentials::new(
         env.smtp_email.clone(),
         env.smtp_password.replace("-", " "), // Normalize password

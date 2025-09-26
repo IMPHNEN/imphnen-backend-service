@@ -7,7 +7,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use std::sync::Arc;
-use imphnen_libs::enviroment::ENV; // Import ENV
+use imphnen_libs::environment::ENV; // Import ENV
 
 use crate::v1::auth::google::google_oauth_service::{AuthRequest, GoogleOauthService, GoogleOauthServiceImpl};
 use imphnen_entities::error_dto::error::Error;

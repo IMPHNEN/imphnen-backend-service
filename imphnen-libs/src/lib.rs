@@ -1,8 +1,25 @@
+/*!
+# imphnen-libs
+
+A collection of utility libraries and services for the imphnen project, providing integrations
+with various external services and common functionality.
+
+This crate includes modules for:
+- Password hashing with Argon2 (`argon`)
+- Axum web framework utilities (`axum`)
+- Environment configuration (`environment`)
+- JWT token handling (`jsonwebtoken`)
+- Email sending with Lettre (`lettre`)
+- MinIO object storage client (`minio`)
+- Service abstractions (`services`)
+- SurrealDB database client (`surrealdb`)
+*/
+
 use std::sync::Arc;
 
 pub mod argon;
 pub mod axum;
-pub mod enviroment;
+pub mod environment;
 pub mod jsonwebtoken;
 pub mod lettre;
 pub mod minio;
@@ -11,7 +28,7 @@ pub mod surrealdb;
 
 pub use argon::{hash_password, verify_password};
 pub use axum::axum_init;
-pub use enviroment::{ENV, Env};
+pub use environment::{ENV, Env};
 pub use imphnen_entities::{
     MessageResponseDto,
     MetaRequestDto,

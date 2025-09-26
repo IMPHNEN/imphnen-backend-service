@@ -1,3 +1,11 @@
+//! # imphnen-utils
+//!
+//! A collection of utility functions and types for the imphnen project.
+//!
+//! This crate provides various utilities including OTP generation with expiration and hashing,
+//! CSRF token management, email extraction from tokens, query building for SurrealDB,
+//! and standardized response formatting.
+
 pub mod bind_filter;
 pub mod csrf_token;
 pub mod extract_email;
@@ -6,7 +14,6 @@ pub mod generate_otp;
 pub mod get_id;
 pub mod logger;
 pub mod make_thing;
-pub mod mock_test;
 pub mod query_builder;
 pub mod query_list;
 pub mod response_format;
