@@ -1,4 +1,4 @@
-use super::GachaItemSchema;
+use crate::v1::gacha_items::gacha_items_schema::GachaItemSchema;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::Validate;

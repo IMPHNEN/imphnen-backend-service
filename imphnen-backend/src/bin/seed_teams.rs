@@ -1,4 +1,4 @@
-use imphnen_iam::TeamsSchema;
+use imphnen_iam::v1::teams::TeamsSchema;
 use imphnen_utils::get_iso_date;
 use std::error::Error;
 use surrealdb::{opt::auth::Root, sql::Thing};

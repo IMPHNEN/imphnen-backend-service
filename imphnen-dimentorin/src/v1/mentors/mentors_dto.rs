@@ -167,7 +167,7 @@ pub struct MentorUserRegisterRequestDto {
 		message = "Password must have at least 8 characters"
 	))]
 	#[validate(custom(
-		function = "imphnen_iam::auth_dto::validate_password_complexity",
+		function = "imphnen_iam::v1::auth::auth_dto::validate_password_complexity",
 		message = "Password must include uppercase, lowercase, number, and special character"
 	))]
 	pub password: String,

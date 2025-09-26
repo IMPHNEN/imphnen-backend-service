@@ -9,11 +9,31 @@ pub mod users_repository;
 pub mod users_schema;
 pub mod users_service;
 
-pub use users_controller::*;
-pub use users_dto::*;
-pub use users_repository::*;
-pub use users_schema::*;
-pub use users_service::*;
+// Export only essential types and functions from each submodule
+pub use users_controller::{
+    get_user_list,
+    get_user_by_id,
+    get_user_me,
+    post_create_user,
+    put_update_user,
+    put_update_user_me,
+    delete_user,
+    patch_user_active_status,
+    upload_file
+};
+
+pub use users_dto::{
+    UsersActiveInactiveRequestDto,
+    UsersCreateRequestDto,
+    UsersUpdateRequestDto,
+    UsersSetNewPasswordRequestDto,
+    UsersDetailItemDto,
+    UsersListItemDto,
+    UsersListQueryDto,
+};
+
+pub use users_repository::UsersRepository;
+pub use users_schema::UsersSchema;
 
 pub fn users_router() -> Router {
 	Router::new()

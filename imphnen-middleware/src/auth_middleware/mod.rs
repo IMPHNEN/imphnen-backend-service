@@ -41,28 +41,27 @@ pub async fn auth_middleware(
 
 	// Try SurrealDB mem first
 	let mem_db = &state.surrealdb_mem;
-	let mut user_data: Option<UsersDetailQueryDto> = None;
-	if let Ok(opt_user) = mem_db.select(("users", &user_id)).await {
-		if let Some(user) = opt_user {
-			let user: UsersDetailQueryDto = user;
-			if !user.is_deleted && !user.role.is_deleted {
-				user_data = Some(user);
-			}
+	let user_data = if let Ok(Some(user)) = mem_db.select::<Option<UsersDetailQueryDto>>(("users", &user_id)).await {
+		if !user.is_deleted && !user.role.is_deleted {
+			Some(user)
+		} else {
+			None
 		}
-	}
+	} else {
+		None
+	};
 
 	// Fallback to main DB if not found in mem
-	let user_data = match user_data {
-		Some(user) => user,
-		None => {
-			match state.user_lookup_service.get_user_by_id_internal(&thing_id, &state).await {
-				Ok(user) => {
-					// Optionally: insert into mem for future requests
-					let _: Result<Option<UsersDetailQueryDto>, _> = mem_db.update(("users", &user_id)).content(user.clone()).await;
-					user
-				},
-				Err(_) => return Ok(common_response(StatusCode::UNAUTHORIZED, "User not found")),
-			}
+	let user_data = if let Some(user) = user_data {
+		user
+	} else {
+		match state.user_lookup_service.get_user_by_id_internal(&thing_id, &state).await {
+			Ok(user) => {
+				// Cache in mem for future requests
+				let _: Result<Option<UsersDetailQueryDto>, _> = mem_db.update(("users", &user_id)).content(user.clone()).await;
+				user
+			},
+			Err(_) => return Ok(common_response(StatusCode::UNAUTHORIZED, "User not found")),
 		}
 	};
 

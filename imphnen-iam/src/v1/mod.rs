@@ -6,12 +6,14 @@ pub mod roles;
 pub mod teams;
 pub mod users;
 
-pub use auth::*;
-pub use permissions::*;
-pub use roles::*;
-pub use teams::*;
-pub use users::*;
+// Export only the essential router functions from each module
+pub use auth::auth_router;
+pub use permissions::{permissions_router, permissions_dto, permissions_service, permissions_guard};
+pub use roles::{roles_router, roles_service};
+pub use teams::teams_router;
+pub use users::users_router;
 
+// Main route constructors
 pub fn iam_public_routes() -> Router {
 	Router::new().nest("/auth", auth_router())
 }

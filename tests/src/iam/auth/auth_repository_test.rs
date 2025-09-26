@@ -13,7 +13,8 @@ mod auth_repository_test {
 		UsersSchema,
 	};
 	use chrono::{Duration, Utc};
-	use imphnen_iam::{AppState, RolesDetailQueryDto, UsersDetailQueryDto};
+	use imphnen_iam::{AppState, UsersDetailQueryDto};
+	use imphnen_entities::RolesDetailQueryDto;
 	use surrealdb::Uuid;
 
 	async fn create_mock_user(state: &AppState, email: &str) -> UsersSchema {
@@ -53,8 +54,8 @@ mod auth_repository_test {
 
 	#[tokio::test]
 	async fn test_store_and_get_user() {
-		let app_state = setup_all_test_environment().await; // Use the new setup function
-		let repo = AuthRepository::new(&app_state);
+	    let app_state = setup_all_test_environment().await; // Use the new setup function
+	    let repo = AuthRepository::new(app_state.surrealdb_mem.clone());
 		let email = generate_unique_email("forgot");
 		let mut user = create_mock_user(&app_state, &email).await;
 		user.role = get_role_id("user", &app_state).await;
@@ -81,8 +82,8 @@ mod auth_repository_test {
 
 	#[tokio::test]
 	async fn test_delete_stored_user() {
-		let state = setup_all_test_environment().await; // Use the new setup function
-		let auth_repo = AuthRepository::new(&state);
+	    let state = setup_all_test_environment().await; // Use the new setup function
+	    let auth_repo = AuthRepository::new(state.surrealdb_mem.clone());
 		let email = "delete_me@example.com".to_string();
 		let mock_user = UsersDetailQueryDto {
 			id: make_thing(&ResourceEnum::UsersCache.to_string(), &email),
@@ -144,8 +145,8 @@ mod auth_repository_test {
 
 	#[tokio::test]
 	async fn test_store_and_get_otp() {
-		let app_state = setup_all_test_environment().await; // Use the new setup function
-		let repo = AuthRepository::new(&app_state);
+	    let app_state = setup_all_test_environment().await; // Use the new setup function
+	    let repo = AuthRepository::new(app_state.surrealdb_mem.clone());
 		let email = "otp_user@example.com".to_string();
 		let otp = 123456;
 		let stored = repo.query_store_otp(email.clone(), otp).await;
@@ -157,8 +158,8 @@ mod auth_repository_test {
 
 	#[tokio::test]
 	async fn test_delete_stored_otp() {
-		let app_state = setup_all_test_environment().await; // Use the new setup function
-		let repo = AuthRepository::new(&app_state);
+	    let app_state = setup_all_test_environment().await; // Use the new setup function
+	    let repo = AuthRepository::new(app_state.surrealdb_mem.clone());
 		let email = "otp_del@example.com".to_string();
 		let otp = 654321;
 		let store_res = repo.query_store_otp(email.clone(), otp).await;
@@ -178,18 +179,17 @@ mod auth_repository_test {
 
 	#[tokio::test]
 	async fn test_expired_otp() {
-		let app_state = setup_all_test_environment().await; // Use the new setup function
-		let repo = AuthRepository::new(&app_state);
+	    let app_state = setup_all_test_environment().await; // Use the new setup function
+	    let repo = AuthRepository::new(app_state.surrealdb_mem.clone());
 		let email = "expired_otp@example.com".to_string();
 		let otp = 789012;
 		let table = ResourceEnum::OtpCache.to_string();
 		let expires_at = Utc::now() - Duration::seconds(1);
 		let created: Result<Option<AuthOtpSchema>, surrealdb::Error> = repo
-			.state
-			.surrealdb_mem
-			.create((table.clone(), email.as_str()))
-			.content(AuthOtpSchema { otp, expires_at })
-			.await;
+		    .db
+		    .create((table.clone(), email.as_str()))
+		    .content(AuthOtpSchema { otp, expires_at })
+		    .await;
 		assert!(
 			created.is_ok(),
 			"Failed to create expired OTP: {:?}",
@@ -210,8 +210,8 @@ mod auth_repository_test {
 
 	#[tokio::test]
 	async fn test_get_non_existent_stored_user_should_fail() {
-		let app_state = setup_all_test_environment().await; // Use the new setup function
-		let repo = AuthRepository::new(&app_state);
+	    let app_state = setup_all_test_environment().await; // Use the new setup function
+	    let repo = AuthRepository::new(app_state.surrealdb_mem.clone());
 		let result = repo
 			.query_get_stored_user("not_found@example.com".into())
 			.await;
@@ -226,8 +226,8 @@ mod auth_repository_test {
 
 	#[tokio::test]
 	async fn test_delete_non_existent_user_should_fail() {
-		let app_state = setup_all_test_environment().await; // Use the new setup function
-		let repo = AuthRepository::new(&app_state);
+	    let app_state = setup_all_test_environment().await; // Use the new setup function
+	    let repo = AuthRepository::new(app_state.surrealdb_mem.clone());
 		let result = repo
 			.query_delete_stored_user("ghost@example.com".into())
 			.await;
@@ -242,8 +242,8 @@ mod auth_repository_test {
 
 	#[tokio::test]
 	async fn test_store_and_get_valid_otp() {
-		let app_state = setup_all_test_environment().await; // Use the new setup function
-		let repo = AuthRepository::new(&app_state);
+	    let app_state = setup_all_test_environment().await; // Use the new setup function
+	    let repo = AuthRepository::new(app_state.surrealdb_mem.clone());
 		let email = "valid_otp@example.com";
 		let otp = 654321;
 		let store_result = repo.query_store_otp(email.into(), otp).await;

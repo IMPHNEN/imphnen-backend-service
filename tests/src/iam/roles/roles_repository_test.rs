@@ -8,8 +8,8 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_query_create_role() {
-		let app_state = crate::get_app_state().await;
-		let repo = imphnen_iam::RolesRepository::new(&app_state);
+	    let app_state = crate::get_app_state().await;
+	    let repo = imphnen_iam::RolesRepository::new(&app_state);
 
 		// Test data
 		let role_name = "test_role_repo_create".to_string();
@@ -35,8 +35,8 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_query_role_by_name() {
-		let app_state = crate::get_app_state().await;
-		let repo = imphnen_iam::RolesRepository::new(&app_state);
+	    let app_state = crate::get_app_state().await;
+	    let repo = imphnen_iam::RolesRepository::new(&app_state);
 
 		// Test data
 		let role_name = "test_role_repo_by_name".to_string();
@@ -66,8 +66,8 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_query_role_list() {
-		let app_state = crate::get_app_state().await;
-		let repo = imphnen_iam::RolesRepository::new(&app_state);
+	    let app_state = crate::get_app_state().await;
+	    let repo = imphnen_iam::RolesRepository::new(&app_state);
 
 		// Create test roles
 		let role_names = vec![
@@ -108,8 +108,8 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_query_update_role() {
-		let app_state = crate::get_app_state().await;
-		let repo = imphnen_iam::RolesRepository::new(&app_state);
+	    let app_state = crate::get_app_state().await;
+	    let repo = imphnen_iam::RolesRepository::new(&app_state);
 
 		// Test data
 		let original_name = "test_role_update_original".to_string();
@@ -149,8 +149,8 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_query_delete_role() {
-		let app_state = crate::get_app_state().await;
-		let repo = imphnen_iam::RolesRepository::new(&app_state);
+	    let app_state = crate::get_app_state().await;
+	    let repo = imphnen_iam::RolesRepository::new(&app_state);
 
 		// Test data
 		let role_name = "test_role_delete".to_string();

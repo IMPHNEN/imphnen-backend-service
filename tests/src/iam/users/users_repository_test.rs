@@ -7,8 +7,8 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_query_create_user() {
-		let app_state = crate::get_app_state().await;
-		let repo = UsersRepository::new(&app_state);
+	    let app_state = crate::get_app_state().await;
+	    let repo = UsersRepository::new(&app_state);
 		let role_id = get_role_id("user", &app_state).await;
 
 		// Test data
@@ -41,8 +41,8 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_query_user_by_email() {
-		let app_state = crate::get_app_state().await;
-		let repo = UsersRepository::new(&app_state);
+	    let app_state = crate::get_app_state().await;
+	    let repo = UsersRepository::new(&app_state);
 		let role_id = get_role_id("user", &app_state).await;
 
 		// Test data
@@ -75,8 +75,8 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_query_user_by_email_not_found() {
-		let app_state = crate::get_app_state().await;
-		let repo = UsersRepository::new(&app_state);
+	    let app_state = crate::get_app_state().await;
+	    let repo = UsersRepository::new(&app_state);
 
 		// Try to get non-existent user
 		let result = repo.query_user_by_email("nonexistent@example.com".to_string()).await;
@@ -85,8 +85,8 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_query_update_user() {
-		let app_state = crate::get_app_state().await;
-		let repo = UsersRepository::new(&app_state);
+	    let app_state = crate::get_app_state().await;
+	    let repo = UsersRepository::new(&app_state);
 		let role_id = get_role_id("user", &app_state).await;
 
 		// Test data
@@ -133,8 +133,8 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_query_delete_user() {
-		let app_state = crate::get_app_state().await;
-		let repo = UsersRepository::new(&app_state);
+	    let app_state = crate::get_app_state().await;
+	    let repo = UsersRepository::new(&app_state);
 		let role_id = get_role_id("user", &app_state).await;
 
 		// Test data
@@ -168,8 +168,8 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_query_user_list() {
-		let app_state = crate::get_app_state().await;
-		let repo = UsersRepository::new(&app_state);
+	    let app_state = crate::get_app_state().await;
+	    let repo = UsersRepository::new(&app_state);
 		let role_id = get_role_id("user", &app_state).await;
 
 		// Create test users

@@ -2,7 +2,8 @@ use anyhow::{Result, bail};
 use imphnen_iam::{get_id, make_thing};
 use surrealdb::sql::Thing;
 
-use crate::v1::mentors::{MentorDetailWithUserDto, MentorInsertDto, MentorSchema};
+use crate::v1::mentors::mentors_dto::MentorDetailWithUserDto;
+use crate::v1::mentors::{MentorInsertDto, MentorSchema};
 use imphnen_libs::{AppState, MetaRequestDto, ResourceEnum, ResponseListSuccessDto};
 use imphnen_utils::{DetailQueryBuilder, QueryListBuilder, get_iso_date};
 use serde_json::{Map, Value};

@@ -1,9 +1,11 @@
-use crate::{GachaRollQueryDto, ResourceEnum, make_thing};
+use crate::v1::gacha_rolls::gacha_rolls_dto::GachaRollQueryDto;
+use crate::{make_thing};
 use imphnen_iam::get_iso_date;
+use imphnen_libs::ResourceEnum;
 use serde::{Deserialize, Serialize};
 use surrealdb::{Uuid, sql::Thing};
 
-use super::GachaClaimRequestDto;
+use crate::v1::gacha_claims::gacha_claims_dto::GachaClaimRequestDto;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GachaClaimSchema {

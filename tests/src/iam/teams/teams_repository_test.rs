@@ -49,8 +49,8 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_create_team() {
-		let app_state = crate::get_app_state().await;
-		let repo = TeamsRepository::new(&app_state);
+	    let app_state = crate::get_app_state().await;
+	    let repo = TeamsRepository::new(&app_state);
 
 		let team_id = Uuid::new_v4().to_string();
 		let leader_id = Uuid::new_v4().to_string();
@@ -81,8 +81,8 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_team_list() {
-		let app_state = crate::get_app_state().await;
-		let repo = TeamsRepository::new(&app_state);
+	    let app_state = crate::get_app_state().await;
+	    let repo = TeamsRepository::new(&app_state);
 
 		let team_id = Uuid::new_v4().to_string();
 		let leader_id = Uuid::new_v4().to_string();
@@ -116,8 +116,8 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_update_team() {
-		let app_state = crate::get_app_state().await;
-		let repo = TeamsRepository::new(&app_state);
+	    let app_state = crate::get_app_state().await;
+	    let repo = TeamsRepository::new(&app_state);
 
 		let team_id = Uuid::new_v4().to_string();
 		let leader_id = Uuid::new_v4().to_string();
@@ -148,8 +148,8 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_delete_team() {
-		let app_state = crate::get_app_state().await;
-		let repo = TeamsRepository::new(&app_state);
+	    let app_state = crate::get_app_state().await;
+	    let repo = TeamsRepository::new(&app_state);
 
 		let team_id = Uuid::new_v4().to_string();
 		let leader_id = Uuid::new_v4().to_string();
@@ -175,8 +175,8 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_add_team_member() {
-		let app_state = crate::get_app_state().await;
-		let repo = TeamsRepository::new(&app_state);
+	    let app_state = crate::get_app_state().await;
+	    let repo = TeamsRepository::new(&app_state);
 
 		let team_id = Uuid::new_v4().to_string();
 		let leader_id = Uuid::new_v4().to_string();
@@ -250,8 +250,8 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_team_member_check() {
-		let app_state = crate::get_app_state().await;
-		let repo = TeamsRepository::new(&app_state);
+	    let app_state = crate::get_app_state().await;
+	    let repo = TeamsRepository::new(&app_state);
 
 		let team_id = Uuid::new_v4().to_string();
 		let leader_id = Uuid::new_v4().to_string();
@@ -296,8 +296,8 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_create_invitation() {
-		let app_state = crate::get_app_state().await;
-		let repo = TeamsRepository::new(&app_state);
+	    let app_state = crate::get_app_state().await;
+	    let repo = TeamsRepository::new(&app_state);
 
 		let team_id = Uuid::new_v4().to_string();
 		let inviter_id = Uuid::new_v4().to_string();
@@ -332,8 +332,8 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_search_teams() {
-		let app_state = crate::get_app_state().await;
-		let repo = TeamsRepository::new(&app_state);
+	    let app_state = crate::get_app_state().await;
+	    let repo = TeamsRepository::new(&app_state);
 
 		let team_id = Uuid::new_v4().to_string();
 		let leader_id = Uuid::new_v4().to_string();
@@ -366,8 +366,8 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_remove_team_member() {
-		let app_state = crate::get_app_state().await;
-		let repo = TeamsRepository::new(&app_state);
+	    let app_state = crate::get_app_state().await;
+	    let repo = TeamsRepository::new(&app_state);
 
 		let team_id = Uuid::new_v4().to_string();
 		let leader_id = Uuid::new_v4().to_string();

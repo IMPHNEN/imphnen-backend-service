@@ -1,4 +1,5 @@
-use crate::{GachaItemDto, GachaItemSchema};
+use crate::v1::gacha_items::GachaItemDto;
+use crate::v1::gacha_items::gacha_items_schema::GachaItemSchema;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::Thing;
 use utoipa::ToSchema;

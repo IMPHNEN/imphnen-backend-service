@@ -5,9 +5,11 @@ mod auth_login_tests {
 	use crate::mock_test::setup_all_test_environment;
 	use axum::http::StatusCode;
 	use imphnen_iam::{
-		v1::auth::{AuthLoginRequestDto, AuthService, AuthServiceTrait}, // Import AuthServiceTrait
+		v1::auth::AuthLoginRequestDto,
 		AppState, UsersRepository, UsersSchema,
 	};
+	use imphnen_iam::v1::auth::auth_service::AuthService;
+	use imphnen_iam::v1::auth::AuthServiceTrait;
 	use serde_json::Value; // Import the new setup function
 
 	async fn setup_test_environment() -> AppState {
@@ -343,7 +345,7 @@ mod auth_login_tests {
 		assert_eq!(parts.status, StatusCode::OK);
 
 		// Verify user was cached
-		let auth_repo = imphnen_iam::AuthRepository::new(&state);
+		let auth_repo = imphnen_iam::AuthRepository::new(state.surrealdb_mem.clone());
 		let cached_user = auth_repo.query_get_stored_user(email.clone()).await;
 		assert!(cached_user.is_ok());
 		assert_eq!(cached_user.unwrap().email, email);

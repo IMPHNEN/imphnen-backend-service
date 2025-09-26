@@ -3,9 +3,9 @@ use axum::http::HeaderMap;
 use axum::response::IntoResponse;
 use axum::{Json, extract::Path};
 use imphnen_iam::{PermissionsEnum, permissions_guard};
-use imphnen_libs::{AppState, MessageResponseDto, ResponseSuccessDto};
-
-use super::{GachaClaimItemDto, GachaClaimRequestDto, GachaClaimService};
+use crate::AppState;
+use imphnen_entities::{MessageResponseDto, ResponseSuccessDto};
+use crate::v1::gacha_claims::{GachaClaimItemDto, GachaClaimRequestDto, GachaClaimService};
 
 #[utoipa::path(
 	get,

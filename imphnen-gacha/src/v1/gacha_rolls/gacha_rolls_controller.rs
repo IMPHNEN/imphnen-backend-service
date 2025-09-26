@@ -1,7 +1,7 @@
-use crate::{
-	AppState, GachaRollItemDto, GachaRollRequestDto, GachaRollService,
-	MessageResponseDto, ResponseSuccessDto,
-};
+use crate::AppState;
+use imphnen_entities::{MessageResponseDto, ResponseSuccessDto};
+use crate::v1::gacha_rolls::gacha_rolls_dto::{GachaRollItemDto, GachaRollRequestDto};
+use crate::v1::gacha_rolls::gacha_rolls_service::GachaRollService;
 use axum::{
 	Extension, Json, extract::Path, http::HeaderMap, response::IntoResponse,
 };

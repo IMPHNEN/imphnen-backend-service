@@ -9,9 +9,9 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_create_team_service() {
-		let app_state = crate::get_app_state().await;
-		let users_repo = UsersRepository::new(&app_state);
-		let repo = TeamsRepository::new(&app_state);
+	    let app_state = crate::get_app_state().await;
+	    let users_repo = UsersRepository::new(&app_state);
+	    let repo = TeamsRepository::new(&app_state);
 
 		let email = generate_unique_email("team_creator");
 		let role_id = get_role_id("mentee", &app_state).await;
@@ -54,9 +54,9 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_get_team_service() {
-		let app_state = crate::get_app_state().await;
-		let users_repo = UsersRepository::new(&app_state);
-		let repo = TeamsRepository::new(&app_state);
+	    let app_state = crate::get_app_state().await;
+	    let users_repo = UsersRepository::new(&app_state);
+	    let repo = TeamsRepository::new(&app_state);
 
 		let email = generate_unique_email("team_getter");
 		let role_id = get_role_id("mentee", &app_state).await;
@@ -101,9 +101,9 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_update_team_service() {
-		let app_state = crate::get_app_state().await;
-		let users_repo = UsersRepository::new(&app_state);
-		let repo = TeamsRepository::new(&app_state);
+	    let app_state = crate::get_app_state().await;
+	    let users_repo = UsersRepository::new(&app_state);
+	    let repo = TeamsRepository::new(&app_state);
 
 		let email = generate_unique_email("team_updater");
 		let role_id = get_role_id("mentee", &app_state).await;
@@ -171,9 +171,9 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_invite_team_member_service() {
-		let app_state = crate::get_app_state().await;
-		let users_repo = UsersRepository::new(&app_state);
-		let repo = TeamsRepository::new(&app_state);
+	    let app_state = crate::get_app_state().await;
+	    let users_repo = UsersRepository::new(&app_state);
+	    let repo = TeamsRepository::new(&app_state);
 
 		let leader_email = generate_unique_email("team_leader");
 		let role_id = get_role_id("mentee", &app_state).await;
@@ -228,9 +228,9 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_leave_team_service() {
-		let app_state = crate::get_app_state().await;
-		let users_repo = UsersRepository::new(&app_state);
-		let repo = TeamsRepository::new(&app_state);
+	    let app_state = crate::get_app_state().await;
+	    let users_repo = UsersRepository::new(&app_state);
+	    let repo = TeamsRepository::new(&app_state);
 
 		let leader_email = generate_unique_email("leave_leader");
 		let member_email = generate_unique_email("leave_member");
@@ -309,9 +309,9 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_search_teams_service() {
-		let app_state = crate::get_app_state().await;
-		let users_repo = UsersRepository::new(&app_state);
-		let repo = TeamsRepository::new(&app_state);
+	    let app_state = crate::get_app_state().await;
+	    let users_repo = UsersRepository::new(&app_state);
+	    let repo = TeamsRepository::new(&app_state);
 
 		let email = generate_unique_email("search_creator");
 		let role_id = get_role_id("mentee", &app_state).await;
@@ -374,9 +374,9 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_delete_team_service() {
-		let app_state = crate::get_app_state().await;
-		let users_repo = UsersRepository::new(&app_state);
-		let repo = TeamsRepository::new(&app_state);
+	    let app_state = crate::get_app_state().await;
+	    let users_repo = UsersRepository::new(&app_state);
+	    let repo = TeamsRepository::new(&app_state);
 
 		let email = generate_unique_email("delete_creator");
 		let role_id = get_role_id("mentee", &app_state).await;
@@ -428,9 +428,9 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_unauthorized_operations() {
-		let app_state = crate::get_app_state().await;
-		let users_repo = UsersRepository::new(&app_state);
-		let repo = TeamsRepository::new(&app_state);
+	    let app_state = crate::get_app_state().await;
+	    let users_repo = UsersRepository::new(&app_state);
+	    let repo = TeamsRepository::new(&app_state);
 
 		let leader_email = generate_unique_email("auth_leader");
 		let non_leader_email = generate_unique_email("auth_non_leader");

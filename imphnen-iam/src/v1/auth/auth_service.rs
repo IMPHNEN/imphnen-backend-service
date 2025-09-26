@@ -1,5 +1,7 @@
 use std::pin::Pin;
 use std::future::Future;
+use imphnen_utils as generate_otp;
+use imphnen_libs::enviroment;
 use super::{
 	AuthLoginRequestDto, AuthLoginResponsetDto, AuthNewPasswordRequestDto,
 	AuthRefreshTokenRequestDto, AuthRegisterRequestDto, AuthRepository,
@@ -9,7 +11,7 @@ use crate::{
 	AppState, ResourceEnum, ResponseSuccessDto, RolesEnum, RolesRepository,
 	UsersDetailItemDto, UsersRepository, UsersSchema, common_response,
 	decode_refresh_token, encode_access_token, encode_refresh_token,
-	encode_reset_password_token, extract_email_token_async, generate_otp, get_iso_date,
+	encode_reset_password_token, extract_email_token_async, get_iso_date,
 	hash_password, make_thing, send_email, success_response, validate_request,
 	verify_password,
 };
@@ -475,7 +477,7 @@ impl AuthServiceTrait for AuthService {
                         }
                     };
 
-                    let env = &crate::enviroment::ENV;
+                    let env = &enviroment::ENV;
                     let fe_url = env.fe_url.clone();
                     let message = format!(
                         "You have requested a password reset. Please click the link below to continue: {fe_url}/auth/reset-password?token={token}"

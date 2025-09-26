@@ -1,11 +1,9 @@
-use imphnen_cms::{
-	events_controller,
-	events_dto::{EventsDetailItemDto, EventsListItemDto},
-	testimonials_controller,
-	testimonials_dto::{
-		TestimonialsCreateRequestDto, TestimonialsDetailItemDto,
-		TestimonialsListItemDto, TestimonialsUpdateRequestDto,
-	},
+use imphnen_cms::v1::landing::events::events_controller;
+use imphnen_cms::v1::landing::events::events_dto::{EventsDetailItemDto, EventsListItemDto};
+use imphnen_cms::v1::landing::testimonials::testimonials_controller;
+use imphnen_cms::v1::landing::testimonials::testimonials_dto::{
+	TestimonialsCreateRequestDto, TestimonialsDetailItemDto,
+	TestimonialsListItemDto, TestimonialsUpdateRequestDto,
 };
 use imphnen_dimentorin::v1::mentors::{
 	mentors_controller,
@@ -16,21 +14,20 @@ use imphnen_dimentorin::v1::mentors::{
 		MentoringLogistics, MentoringRate, ProfessionalProfile,
 	},
 };
-use imphnen_gacha::{
-	GachaClaimItemDto, GachaClaimRequestDto, GachaItemDto, GachaItemRequestDto,
-	GachaRollItemDto, GachaRollRequestDto, gacha_claims, gacha_items, gacha_rolls,
-};
+use imphnen_gacha::v1::gacha_claims::{gacha_claims_controller, GachaClaimItemDto, GachaClaimRequestDto};
+use imphnen_gacha::v1::gacha_items::{gacha_items_controller, GachaItemDto};
+use imphnen_gacha::v1::gacha_items::gacha_items_dto::GachaItemRequestDto;
+use imphnen_gacha::v1::gacha_rolls::{gacha_rolls_controller, GachaRollItemDto};
+use imphnen_gacha::v1::gacha_rolls::gacha_rolls_dto::GachaRollRequestDto;
 use imphnen_entities::{PermissionsItemDto, RolesDetailItemDto};
-use imphnen_iam::{
-  AuthLoginRequestDto, AuthLoginResponsetDto, AuthNewPasswordRequestDto,
-  AuthRefreshTokenRequestDto, AuthResendOtpRequestDto, AuthVerifyEmailRequestDto,
-  MessageResponseDto, MetaRequestDto, MetaResponseDto, PermissionsRequestDto,
-  ResponseListSuccessDto, ResponseSuccessDto, RolesListItemDto, RolesRequestCreateDto,
-  RolesRequestUpdateDto, TokenDto, UsersCreateRequestDto, UsersDetailItemDto,
-  UsersListItemDto, UsersUpdateRequestDto, TeamsCreateRequestDto, TeamsUpdateRequestDto,
-  TeamInviteRequestDto, TeamAcceptInvitationRequestDto, TeamsDetailItemDto,
-  TeamsListItemDto, TeamMemberDto, TeamInvitationDto, TeamsSearchQueryDto,
-};
+use imphnen_entities::{MessageResponseDto, MetaRequestDto, MetaResponseDto, ResponseListSuccessDto, ResponseSuccessDto};
+use imphnen_iam::v1::auth::auth_dto::{AuthLoginRequestDto, AuthLoginResponsetDto, AuthNewPasswordRequestDto, AuthRefreshTokenRequestDto, AuthResendOtpRequestDto, AuthVerifyEmailRequestDto, TokenDto};
+use imphnen_iam::v1::permissions::permissions_dto::PermissionsRequestDto;
+use imphnen_iam::v1::roles::RolesListItemDto;
+use imphnen_iam::v1::roles::roles_dto::{RolesRequestCreateDto, RolesRequestUpdateDto};
+use imphnen_iam::v1::users::UsersDetailItemDto;
+use imphnen_iam::v1::users::users_dto::{UsersCreateRequestDto, UsersListItemDto, UsersUpdateRequestDto};
+use imphnen_iam::v1::teams::teams_dto::{TeamsCreateRequestDto, TeamsUpdateRequestDto, TeamInviteRequestDto, TeamAcceptInvitationRequestDto, TeamsDetailItemDto, TeamsListItemDto, TeamMemberDto, TeamInvitationDto, TeamsSearchQueryDto};
 use imphnen_iam::v1::{auth, permissions, roles, users, teams};
 use imphnen_iam::v1::users::users_controller::FileUploadSchema;
 use utoipa::{
@@ -78,16 +75,16 @@ use utoipa::{
            teams::teams_controller::get_public_team_search,
            teams::teams_controller::get_team_members,
            teams::teams_controller::post_leave_team,
-     gacha_claims::get_detail_gacha_claim,
-     gacha_claims::post_create_gacha_claim,
-     gacha_items::get_gacha_item_list,
-     gacha_items::get_gacha_item_by_id,
-     gacha_items::post_create_gacha_item,
-     gacha_items::put_update_gacha_item,
-     gacha_items::delete_gacha_item,
-     gacha_rolls::get_detail_gacha_roll,
-     gacha_rolls::post_create_gacha_roll,
-     gacha_rolls::post_execute_gacha_roll,
+           gacha_claims_controller::get_detail_gacha_claim,
+           gacha_claims_controller::post_create_gacha_claim,
+           gacha_items_controller::get_gacha_item_list,
+           gacha_items_controller::get_gacha_item_by_id,
+           gacha_items_controller::post_create_gacha_item,
+           gacha_items_controller::put_update_gacha_item,
+           gacha_items_controller::delete_gacha_item,
+           gacha_rolls_controller::get_detail_gacha_roll,
+           gacha_rolls_controller::post_create_gacha_roll,
+           gacha_rolls_controller::post_execute_gacha_roll,
      events_controller::get_event_list,
      events_controller::get_event_by_id,
      events_controller::post_create_event,
@@ -209,7 +206,7 @@ use utoipa::{
 
 pub struct ApiDoc;
 
-struct SecurityAddon;
+pub struct SecurityAddon;
 
 impl Modify for SecurityAddon {
 	fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {

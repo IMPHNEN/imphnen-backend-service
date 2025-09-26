@@ -9,6 +9,7 @@ use imphnen_utils::{common_response, extract_email, extract_email_async};
 use std::task::{Context, Poll};
 use tower::{Layer, Service};
 
+/// Middleware layer for enforcing user permissions on requests.
 #[derive(Clone)]
 pub struct PermissionsMiddlewareLayer {
 	app_state: AppState,
@@ -41,6 +42,7 @@ pub struct PermissionsMiddleware<S> {
 	app_state: AppState,
 	permissions: Vec<PermissionsEnum>,
 }
+
 
 impl<S> Service<Request<Body>> for PermissionsMiddleware<S>
 where

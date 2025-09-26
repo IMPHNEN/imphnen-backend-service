@@ -2,7 +2,7 @@ use super::{
 	AuthLoginRequestDto, AuthRefreshTokenRequestDto, AuthRegisterRequestDto,
 	AuthResendOtpRequestDto, AuthVerifyEmailRequestDto,
 };
-use crate::{AppState, v1::AuthLoginResponsetDto};
+use crate::{AppState, v1::auth::AuthLoginResponsetDto};
 use crate::{AuthNewPasswordRequestDto, MessageResponseDto, ResponseSuccessDto};
 use axum::{Extension, Json, response::IntoResponse};
 use crate::v1::auth::auth_service::AuthServiceTrait;
