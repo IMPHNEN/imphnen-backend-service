@@ -48,7 +48,7 @@ pub async fn gateway_service(
         .merge(events_protected_routes())
         .merge(testimonials_protected_routes())
         .merge(dimentorin_router())
-        .merge(gacha_router())
+        .nest("/gacha", gacha_router())
         .layer(from_fn(auth_middleware));
 
     Router::new()
