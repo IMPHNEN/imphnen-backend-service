@@ -21,3 +21,17 @@ impl fmt::Display for RolesEnum {
 		write!(f, "{roles_str}")
 	}
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_roles_enum_display() {
+        assert_eq!(format!("{}", RolesEnum::Admin), "Admin");
+        assert_eq!(format!("{}", RolesEnum::Administrator), "Administrator");
+        assert_eq!(format!("{}", RolesEnum::User), "User");
+        assert_eq!(format!("{}", RolesEnum::Staff), "Staff");
+        assert_eq!(format!("{}", RolesEnum::Mentor), "Mentor");
+    }
+}

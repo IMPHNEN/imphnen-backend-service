@@ -386,4 +386,234 @@ mod tests {
 		// Clean up
 		let _ = UsersRepository::new(&app_state).query_delete_user(user.id.id.to_raw()).await;
 	}
+	#[tokio::test]
+	async fn test_create_testimonial_controller_content_boundary() {
+		let app_state = crate::get_app_state().await;
+
+		// Create test user for authentication
+		let user = UsersSchema {
+			id: make_thing_from_enum("users", &uuid::Uuid::new_v4().to_string()),
+			fullname: "Test Admin".to_string(),
+			email: "admin@example.com".to_string(),
+			..Default::default()
+		};
+		let _ = UsersRepository::new(&app_state).query_create_user(user.clone()).await;
+
+		// Test data with content exactly 500 characters (boundary test)
+		let content_500 = "A".repeat(500);
+		let testimonial_request = TestimonialsCreateRequestDto {
+			role: "Mentor".to_string(),
+			content: content_500.clone(),
+		};
+
+		// Create testimonial through controller
+		let response = TestimonialsController::create_testimonial(
+			&app_state,
+			testimonial_request.clone(),
+			&user,
+		)
+		.await;
+
+		// Should succeed (boundary)
+		assert_eq!(response.status(), StatusCode::CREATED);
+
+		// Verify testimonial was created
+		let created_testimonials = repo.query_testimonial_list(get_meta_request_dto(1, 10)).await.unwrap();
+		assert!(created_testimonials.data.iter().any(|t| t.content == testimonial_request.content));
+
+		// Clean up
+		for t in created_testimonials.data {
+			if t.content == testimonial_request.content {
+				let _ = repo.query_delete_testimonial(t.id.id.to_raw()).await;
+			}
+		}
+		let _ = UsersRepository::new(&app_state).query_delete_user(user.id.id.to_raw()).await;
+	}
+
+	#[tokio::test]
+	async fn test_create_testimonial_controller_content_too_long() {
+		let app_state = crate::get_app_state().await;
+
+		// Create test user for authentication
+		let user = UsersSchema {
+			id: make_thing_from_enum("users", &uuid::Uuid::new_v4().to_string()),
+			fullname: "Test Admin".to_string(),
+			email: "admin@example.com".to_string(),
+			..Default::default()
+		};
+		let _ = UsersRepository::new(&app_state).query_create_user(user.clone()).await;
+
+		// Test data with content over 500 characters (should fail validation)
+		let content_501 = "A".repeat(501);
+		let testimonial_request = TestimonialsCreateRequestDto {
+			role: "Mentor".to_string(),
+			content: content_501,
+		};
+
+		// Create testimonial through controller
+		let response = TestimonialsController::create_testimonial(
+			&app_state,
+			testimonial_request,
+			&user,
+		)
+		.await;
+
+		// Should fail validation
+		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+		// Clean up
+		let _ = UsersRepository::new(&app_state).query_delete_user(user.id.id.to_raw()).await;
+	}
+
+	#[tokio::test]
+	async fn test_create_testimonial_controller_empty_role() {
+		let app_state = crate::get_app_state().await;
+
+		// Create test user for authentication
+		let user = UsersSchema {
+			id: make_thing_from_enum("users", &uuid::Uuid::new_v4().to_string()),
+			fullname: "Test Admin".to_string(),
+			email: "admin@example.com".to_string(),
+			..Default::default()
+		};
+		let _ = UsersRepository::new(&app_state).query_create_user(user.clone()).await;
+
+		// Test data with empty role (should fail validation)
+		let testimonial_request = TestimonialsCreateRequestDto {
+			role: "".to_string(),
+			content: "Valid content".to_string(),
+		};
+
+		// Create testimonial through controller
+		let response = TestimonialsController::create_testimonial(
+			&app_state,
+			testimonial_request,
+			&user,
+		)
+		.await;
+
+		// Should fail validation
+		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+		// Clean up
+		let _ = UsersRepository::new(&app_state).query_delete_user(user.id.id.to_raw()).await;
+	}
+
+	#[tokio::test]
+	async fn test_update_testimonial_controller_content_boundary() {
+		let app_state = crate::get_app_state().await;
+		let repo = imphnen_cms::v1::landing::testimonials::testimonials_repository::TestimonialsRepository::new(&app_state);
+
+		// Create test user for authentication
+		let user = UsersSchema {
+			id: make_thing_from_enum("users", &uuid::Uuid::new_v4().to_string()),
+			fullname: "Test Admin".to_string(),
+			email: "admin@example.com".to_string(),
+			..Default::default()
+		};
+		let _ = UsersRepository::new(&app_state).query_create_user(user.clone()).await;
+
+		// Create test testimonial
+		let testimonial = TestimonialsSchema {
+			id: make_thing_from_enum("testimonials", &uuid::Uuid::new_v4().to_string()),
+			user: user.id,
+			role: "Mentor".to_string(),
+			content: "Original content".to_string(),
+			created_at: chrono::Utc::now().to_rfc3339(),
+			updated_at: chrono::Utc::now().to_rfc3339(),
+			is_deleted: false,
+		};
+		let create_result = repo.query_create_testimonial(testimonial.clone()).await;
+		assert!(create_result.is_ok());
+
+		// Get created testimonial to get ID
+		let created_testimonial = repo
+			.query_testimonial_by_id(testimonial.id.id.to_raw())
+			.await
+			.unwrap();
+		let testimonial_id = created_testimonial.id.id.to_raw();
+
+		// Prepare update request with content exactly 500 characters
+		let content_500 = "B".repeat(500);
+		let update_request = TestimonialsUpdateRequestDto {
+			role: Some("Updated Mentor".to_string()),
+			content: Some(content_500.clone()),
+		};
+
+		// Update testimonial through controller
+		let response = TestimonialsController::update_testimonial(
+			&app_state, update_request, testimonial_id.clone(), &user,
+		)
+		.await;
+
+		// Should succeed
+		assert_eq!(response.status(), StatusCode::OK);
+
+		// Verify testimonial was updated
+		let updated_testimonial = repo
+			.query_testimonial_by_id(testimonial_id.clone())
+			.await
+			.unwrap();
+		assert_eq!(updated_testimonial.content, content_500);
+
+		// Clean up
+		let _ = repo.query_delete_testimonial(testimonial_id).await;
+		let _ = UsersRepository::new(&app_state).query_delete_user(user.id.id.to_raw()).await;
+	}
+
+	#[tokio::test]
+	async fn test_update_testimonial_controller_content_too_long() {
+		let app_state = crate::get_app_state().await;
+		let repo = imphnen_cms::v1::landing::testimonials::testimonials_repository::TestimonialsRepository::new(&app_state);
+
+		// Create test user for authentication
+		let user = UsersSchema {
+			id: make_thing_from_enum("users", &uuid::Uuid::new_v4().to_string()),
+			fullname: "Test Admin".to_string(),
+			email: "admin@example.com".to_string(),
+			..Default::default()
+		};
+		let _ = UsersRepository::new(&app_state).query_create_user(user.clone()).await;
+
+		// Create test testimonial
+		let testimonial = TestimonialsSchema {
+			id: make_thing_from_enum("testimonials", &uuid::Uuid::new_v4().to_string()),
+			user: user.id,
+			role: "Mentor".to_string(),
+			content: "Original content".to_string(),
+			created_at: chrono::Utc::now().to_rfc3339(),
+			updated_at: chrono::Utc::now().to_rfc3339(),
+			is_deleted: false,
+		};
+		let create_result = repo.query_create_testimonial(testimonial.clone()).await;
+		assert!(create_result.is_ok());
+
+		// Get created testimonial to get ID
+		let created_testimonial = repo
+			.query_testimonial_by_id(testimonial.id.id.to_raw())
+			.await
+			.unwrap();
+		let testimonial_id = created_testimonial.id.id.to_raw();
+
+		// Prepare update request with content over 500 characters
+		let content_501 = "B".repeat(501);
+		let update_request = TestimonialsUpdateRequestDto {
+			role: Some("Updated Mentor".to_string()),
+			content: Some(content_501),
+		};
+
+		// Update testimonial through controller
+		let response = TestimonialsController::update_testimonial(
+			&app_state, update_request, testimonial_id.clone(), &user,
+		)
+		.await;
+
+		// Should fail validation
+		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+		// Clean up
+		let _ = repo.query_delete_testimonial(testimonial_id).await;
+		let _ = UsersRepository::new(&app_state).query_delete_user(user.id.id.to_raw()).await;
+	}
+}
 }

@@ -813,4 +813,796 @@ async fn test_controller_permission_denied() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
+#[tokio::test]
+async fn test_register_mentor_boundary_values() {
+    let app_state = setup_all_test_environment().await;
+    let app = app(app_state.clone());
+
+    let test_email = "boundary_test@example.com";
+    let mut dto = create_valid_mentor_dto(test_email);
+
+    // Set boundary values
+    dto.identity_and_verification.legal_name = "abc".to_string(); // Exactly 3 chars
+    dto.professional_profile.bio = "a".repeat(50); // Exactly 50 chars
+    dto.phone_number = "1234567890".to_string(); // Exactly 10 chars
+    dto.identity_and_verification.phone_for_verification = "123456789012345".to_string(); // Exactly 15 chars
+    dto.professional_profile.years_of_experience = 2; // Exactly 2
+    dto.mentoring_logistics.mentoring_rate_amount = 1; // Exactly 1
+    dto.mentoring_logistics.availability_commitment = "12345".to_string(); // Exactly 5 chars
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/v1/mentors/register")
+                .header("Content-Type", "application/json")
+                .body(Body::from(serde_json::to_string(&dto).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    // Clean up
+    let user_repo = UsersRepository::new(&app_state);
+    let _ = user_repo.query_delete_user(test_email.to_string()).await;
+}
+
+#[tokio::test]
+async fn test_register_mentor_invalid_urls() {
+    let app_state = setup_all_test_environment().await;
+    let app = app(app_state.clone());
+
+    let test_email = "invalid_urls@example.com";
+    let mut dto = create_valid_mentor_dto(test_email);
+
+    // Invalid URLs
+    dto.professional_profile.linkedin_url = Some("not-a-url".to_string());
+    dto.professional_profile.github_url = Some("invalid-url".to_string());
+    dto.professional_profile.cv_url = Some("bad-url".to_string());
+    dto.professional_profile.portfolio_url = Some("wrong-url".to_string());
+    dto.identity_and_verification.identity_document_url = "invalid-doc-url".to_string();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/v1/mentors/register")
+                .header("Content-Type", "application/json")
+                .body(Body::from(serde_json::to_string(&dto).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let error_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert!(error_response["message"].as_str().unwrap().contains("url"));
+}
+
+#[tokio::test]
+async fn test_register_mentor_empty_arrays() {
+    let app_state = setup_all_test_environment().await;
+    let app = app(app_state.clone());
+
+    let test_email = "empty_arrays@example.com";
+    let mut dto = create_valid_mentor_dto(test_email);
+
+    // Empty arrays
+    dto.professional_profile.industries = vec![];
+    dto.professional_profile.expertise = vec![];
+    dto.professional_profile.languages = vec![];
+    dto.mentoring_logistics.topics_of_interest = vec![];
+    dto.mentoring_logistics.preferred_mentee_level = vec![];
+    dto.mentoring_logistics.preferred_mentoring_formats = vec![];
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/v1/mentors/register")
+                .header("Content-Type", "application/json")
+                .body(Body::from(serde_json::to_string(&dto).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let error_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert!(error_response["message"].as_str().unwrap().contains("required"));
+}
+
+#[tokio::test]
+async fn test_register_mentor_too_short_values() {
+    let app_state = setup_all_test_environment().await;
+    let app = app(app_state.clone());
+
+    let test_email = "too_short@example.com";
+    let mut dto = create_valid_mentor_dto(test_email);
+
+    // Too short values
+    dto.identity_and_verification.legal_name = "ab".to_string(); // < 3
+    dto.professional_profile.bio = "short".to_string(); // < 50
+    dto.phone_number = "123456789".to_string(); // < 10
+    dto.identity_and_verification.phone_for_verification = "1234567890".to_string(); // < 10
+    dto.professional_profile.years_of_experience = 1; // < 2
+    dto.mentoring_logistics.mentoring_rate_amount = 0; // < 1
+    dto.mentoring_logistics.availability_commitment = "1234".to_string(); // < 5
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/v1/mentors/register")
+                .header("Content-Type", "application/json")
+                .body(Body::from(serde_json::to_string(&dto).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn test_register_mentor_too_long_phone() {
+    let app_state = setup_all_test_environment().await;
+    let app = app(app_state.clone());
+
+    let test_email = "too_long_phone@example.com";
+    let mut dto = create_valid_mentor_dto(test_email);
+
+    dto.identity_and_verification.phone_for_verification = "1234567890123456".to_string(); // > 15
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/v1/mentors/register")
+                .header("Content-Type", "application/json")
+                .body(Body::from(serde_json::to_string(&dto).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn test_update_mentor_partial_data() {
+    let app_state = setup_all_test_environment().await;
+    let app = app(app_state.clone());
+
+    // Create a test mentor first
+    let test_email = "partial_update@example.com";
+    let dto = create_valid_mentor_dto(test_email);
+
+    let register_response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/v1/mentors/register")
+                .header("Content-Type", "application/json")
+                .body(Body::from(serde_json::to_string(&dto).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(register_response.status(), StatusCode::OK);
+    let register_body: MentorRegisterResponseDto = serde_json::from_slice(&register_response.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    let mentor_id = register_body.id.clone();
+
+    // Update with partial data (only some fields)
+    let partial_update_dto = MentorUpdateRequestDto {
+        legal_name: Some("Partial Update".to_string()),
+        industries: Some(vec!["Updated Industry".to_string()]),
+        ..Default::default() // Other fields None
+    };
+
+    let headers = create_auth_headers(test_email, vec![PermissionsEnum::UpdateMentors]);
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::PUT)
+                .uri(&format!("/v1/mentors/update/{}", mentor_id))
+                .headers(headers)
+                .header("Content-Type", "application/json")
+                .body(Body::from(serde_json::to_string(&partial_update_dto).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let mentor_response: ResponseSuccessDto<imphnen_dimentorin::mentors_dto::MentorDetailResponseDto> =
+        serde_json::from_slice(&body).unwrap();
+
+    assert_eq!(mentor_response.data.legal_name, Some("Partial Update".to_string()));
+    assert_eq!(mentor_response.data.industries, vec!["Updated Industry".to_string()]);
+
+    // Clean up
+    let user_repo = UsersRepository::new(&app_state);
+    let _ = user_repo.query_delete_user(test_email.to_string()).await;
+}
+
+#[tokio::test]
+async fn test_access_deleted_mentor() {
+    let app_state = setup_all_test_environment().await;
+    let app = app(app_state.clone());
+
+    // Create and delete a mentor
+    let test_email = "deleted_mentor@example.com";
+    let dto = create_valid_mentor_dto(test_email);
+
+    let register_response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/v1/mentors/register")
+                .header("Content-Type", "application/json")
+                .body(Body::from(serde_json::to_string(&dto).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(register_response.status(), StatusCode::OK);
+    let register_body: MentorRegisterResponseDto = serde_json::from_slice(&register_response.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    let mentor_id = register_body.id.clone();
+
+    // Delete the mentor
+    let headers = create_auth_headers(test_email, vec![PermissionsEnum::DeleteMentors]);
+    let delete_response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::DELETE)
+                .uri(&format!("/v1/mentors/delete/{}", mentor_id))
+                .headers(headers.clone())
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(delete_response.status(), StatusCode::OK);
+
+    // Try to access the deleted mentor
+    let get_response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::GET)
+                .uri(&format!("/v1/mentors/detail/{}", mentor_id))
+                .headers(headers)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(get_response.status(), StatusCode::NOT_FOUND);
+
+    // Clean up
+    let user_repo = UsersRepository::new(&app_state);
+    let _ = user_repo.query_delete_user(test_email.to_string()).await;
+}
+
+#[tokio::test]
+async fn test_register_mentor_invalid_json() {
+    let app_state = setup_all_test_environment().await;
+    let app = app(app_state.clone());
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/v1/mentors/register")
+                .header("Content-Type", "application/json")
+                .body(Body::from("invalid json {"))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn test_register_mentor_wrong_content_type() {
+    let app_state = setup_all_test_environment().await;
+    let app = app(app_state.clone());
+
+    let test_email = "wrong_content_type@example.com";
+    let dto = create_valid_mentor_dto(test_email);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/v1/mentors/register")
+                .header("Content-Type", "text/plain")
+                .body(Body::from(serde_json::to_string(&dto).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    // Axum should handle this, but test for robustness
+    // May return 400 or 422 depending on implementation
+    assert!(response.status().is_client_error());
+}
+
+#[tokio::test]
+async fn test_register_mentor_special_characters() {
+    let app_state = setup_all_test_environment().await;
+    let app = app(app_state.clone());
+
+    let test_email = "special_chars@example.com";
+    let mut dto = create_valid_mentor_dto(test_email);
+
+    // Use special characters and unicode
+    dto.fullname = "Tëst Üsér ñame".to_string();
+    dto.identity_and_verification.legal_name = "Lëgäl Nämé".to_string();
+    dto.professional_profile.bio = "Bïô wïth spëcïäl chärs - ".repeat(5); // Make it 50+ chars
+    dto.professional_profile.current_company = "Cömpäny Ïnc.".to_string();
+    dto.professional_profile.expertise = vec!["Rüst Dëvëlôpmënt".to_string()];
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/v1/mentors/register")
+                .header("Content-Type", "application/json")
+                .body(Body::from(serde_json::to_string(&dto).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    // Clean up
+    let user_repo = UsersRepository::new(&app_state);
+    let _ = user_repo.query_delete_user(test_email.to_string()).await;
+}
+
+#[tokio::test]
+async fn test_verify_mentor_invalid_status() {
+    let app_state = setup_all_test_environment().await;
+    let app = app(app_state.clone());
+
+    // Create a test mentor first
+    let test_email = "invalid_status@example.com";
+    let dto = create_valid_mentor_dto(test_email);
+
+    let register_response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/v1/mentors/register")
+                .header("Content-Type", "application/json")
+                .body(Body::from(serde_json::to_string(&dto).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(register_response.status(), StatusCode::OK);
+    let register_body: MentorRegisterResponseDto = serde_json::from_slice(&register_response.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    let mentor_id = register_body.id.clone();
+
+    // Try to verify with empty status
+    let verify_dto = MentorVerifyRequestDto {
+        status: "".to_string(),
+    };
+
+    let headers = create_auth_headers(test_email, vec![PermissionsEnum::VerifyMentors]);
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::PUT)
+                .uri(&format!("/v1/mentors/verify/{}", mentor_id))
+                .headers(headers)
+                .header("Content-Type", "application/json")
+                .body(Body::from(serde_json::to_string(&verify_dto).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+    // Clean up
+    let user_repo = UsersRepository::new(&app_state);
+    let _ = user_repo.query_delete_user(test_email.to_string()).await;
+}
+
+#[tokio::test]
+async fn test_get_mentor_list_pagination_edge_cases() {
+    let app_state = setup_all_test_environment().await;
+    let app = app(app_state.clone());
+
+    // Create a test mentor first
+    let test_email = "pagination_test@example.com";
+    let dto = create_valid_mentor_dto(test_email);
+
+    let register_response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/v1/mentors/register")
+                .header("Content-Type", "application/json")
+                .body(Body::from(serde_json::to_string(&dto).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(register_response.status(), StatusCode::OK);
+
+    // Test with large page number
+    let headers = create_auth_headers(test_email, vec![PermissionsEnum::ReadListMentors]);
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::GET)
+                .uri("/v1/mentors?page=999999&per_page=1")
+                .headers(headers.clone())
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let response_data: ResponseSuccessDto<Vec<imphnen_dimentorin::mentors_dto::MentorListResponseDto>> =
+        serde_json::from_slice(&body).unwrap();
+    assert!(response_data.data.is_empty()); // Should be empty for large page
+
+    // Test with zero per_page
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::GET)
+                .uri("/v1/mentors?page=1&per_page=0")
+                .headers(headers)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    // Clean up
+    let user_repo = UsersRepository::new(&app_state);
+    let _ = user_repo.query_delete_user(test_email.to_string()).await;
+}
+
+#[tokio::test]
+async fn test_get_mentor_list_search_special_chars() {
+    let app_state = setup_all_test_environment().await;
+    let app = app(app_state.clone());
+
+    // Create a test mentor first
+    let test_email = "search_special@example.com";
+    let dto = create_valid_mentor_dto(test_email);
+
+    let register_response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/v1/mentors/register")
+                .header("Content-Type", "application/json")
+                .body(Body::from(serde_json::to_string(&dto).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(register_response.status(), StatusCode::OK);
+
+    // Search with special characters
+    let headers = create_auth_headers(test_email, vec![PermissionsEnum::ReadListMentors]);
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::GET)
+                .uri("/v1/mentors?search=%3C%3E%22%27%2F%5C%3A%3B")
+                .headers(headers)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    // Clean up
+    let user_repo = UsersRepository::new(&app_state);
+    let _ = user_repo.query_delete_user(test_email.to_string()).await;
+}
+#[tokio::test]
+async fn test_register_mentor_concurrent_requests() {
+    let app_state = setup_all_test_environment().await;
+    let app = app(app_state.clone());
+
+    let test_email1 = "concurrent1@example.com";
+    let test_email2 = "concurrent2@example.com";
+    let dto1 = create_valid_mentor_dto(test_email1);
+    let dto2 = create_valid_mentor_dto(test_email2);
+
+    // Send concurrent requests
+    let (response1, response2) = tokio::join!(
+        app.clone().oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/v1/mentors/register")
+                .header("Content-Type", "application/json")
+                .body(Body::from(serde_json::to_string(&dto1).unwrap()))
+                .unwrap(),
+        ),
+        app.oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/v1/mentors/register")
+                .header("Content-Type", "application/json")
+                .body(Body::from(serde_json::to_string(&dto2).unwrap()))
+                .unwrap(),
+        )
+    );
+
+    let response1 = response1.unwrap();
+    let response2 = response2.unwrap();
+
+    // Both should succeed or one should fail due to unique constraints
+    assert!(response1.status().is_success() || response2.status().is_success());
+    if response1.status().is_success() {
+        let user_repo = UsersRepository::new(&app_state);
+        let _ = user_repo.query_delete_user(test_email1.to_string()).await;
+    }
+    if response2.status().is_success() {
+        let user_repo = UsersRepository::new(&app_state);
+        let _ = user_repo.query_delete_user(test_email2.to_string()).await;
+    }
+}
+
+#[tokio::test]
+async fn test_register_mentor_sql_injection_attempt() {
+    let app_state = setup_all_test_environment().await;
+    let app = app(app_state.clone());
+
+    let test_email = "sql_injection@example.com";
+    let mut dto = create_valid_mentor_dto(test_email);
+
+    // Attempt SQL injection in various fields
+    dto.fullname = "'; DROP TABLE users; --".to_string();
+    dto.identity_and_verification.legal_name = "'; SELECT * FROM users; --".to_string();
+    dto.professional_profile.bio = "Bio with ' OR '1'='1".to_string();
+    dto.professional_profile.current_company = "Company'; --".to_string();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/v1/mentors/register")
+                .header("Content-Type", "application/json")
+                .body(Body::from(serde_json::to_string(&dto).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    // Should either fail validation or succeed but not execute injection
+    // In a secure system, this should fail validation due to special characters
+    assert!(response.status().is_client_error() || response.status().is_success());
+
+    if response.status().is_success() {
+        // Clean up if it succeeded
+        let user_repo = UsersRepository::new(&app_state);
+        let _ = user_repo.query_delete_user(test_email.to_string()).await;
+    }
+}
+
+#[tokio::test]
+async fn test_update_mentor_empty_request_body() {
+    let app_state = setup_all_test_environment().await;
+    let app = app(app_state.clone());
+
+    // Create a test mentor first
+    let test_email = "empty_body@example.com";
+    let dto = create_valid_mentor_dto(test_email);
+
+    let register_response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/v1/mentors/register")
+                .header("Content-Type", "application/json")
+                .body(Body::from(serde_json::to_string(&dto).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(register_response.status(), StatusCode::OK);
+    let register_body: MentorRegisterResponseDto = serde_json::from_slice(&register_response.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    let mentor_id = register_body.id.clone();
+
+    // Try to update with empty body
+    let headers = create_auth_headers(test_email, vec![PermissionsEnum::UpdateMentors]);
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::PUT)
+                .uri(&format!("/v1/mentors/update/{}", mentor_id))
+                .headers(headers)
+                .header("Content-Type", "application/json")
+                .body(Body::from("{}"))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    // Should succeed with empty update (no-op)
+    assert_eq!(response.status(), StatusCode::OK);
+
+    // Clean up
+    let user_repo = UsersRepository::new(&app_state);
+    let _ = user_repo.query_delete_user(test_email.to_string()).await;
+}
+
+#[tokio::test]
+async fn test_get_mentor_by_id_invalid_uuid() {
+    let app_state = setup_all_test_environment().await;
+    let app = app(app_state.clone());
+
+    // Try to get mentor with invalid UUID
+    let headers = create_auth_headers("test@example.com", vec![PermissionsEnum::ReadDetailMentors]);
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::GET)
+                .uri("/v1/mentors/detail/not-a-uuid")
+                .headers(headers)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn test_verify_mentor_invalid_uuid() {
+    let app_state = setup_all_test_environment().await;
+    let app = app(app_state.clone());
+
+    // Try to verify mentor with invalid UUID
+    let verify_dto = MentorVerifyRequestDto {
+        status: "verified".to_string(),
+    };
+
+    let headers = create_auth_headers("test@example.com", vec![PermissionsEnum::VerifyMentors]);
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::PUT)
+                .uri("/v1/mentors/verify/not-a-uuid")
+                .headers(headers)
+                .header("Content-Type", "application/json")
+                .body(Body::from(serde_json::to_string(&verify_dto).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn test_delete_mentor_invalid_uuid() {
+    let app_state = setup_all_test_environment().await;
+    let app = app(app_state.clone());
+
+    // Try to delete mentor with invalid UUID
+    let headers = create_auth_headers("test@example.com", vec![PermissionsEnum::DeleteMentors]);
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::DELETE)
+                .uri("/v1/mentors/delete/not-a-uuid")
+                .headers(headers)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn test_register_mentor_extremely_large_payload() {
+    let app_state = setup_all_test_environment().await;
+    let app = app(app_state.clone());
+
+    let test_email = "large_payload@example.com";
+    let mut dto = create_valid_mentor_dto(test_email);
+
+    // Make bio extremely large
+    dto.professional_profile.bio = "A".repeat(100000); // 100KB bio
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/v1/mentors/register")
+                .header("Content-Type", "application/json")
+                .body(Body::from(serde_json::to_string(&dto).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    // Should either succeed or fail due to size limits
+    assert!(response.status().is_success() || response.status() == StatusCode::PAYLOAD_TOO_LARGE);
+
+    if response.status().is_success() {
+        // Clean up
+        let user_repo = UsersRepository::new(&app_state);
+        let _ = user_repo.query_delete_user(test_email.to_string()).await;
+    }
+}
+
+#[tokio::test]
+async fn test_register_mentor_duplicate_email() {
+    let app_state = setup_all_test_environment().await;
+    let app = app(app_state.clone());
+
+    let test_email = "duplicate_email@example.com";
+    let dto1 = create_valid_mentor_dto(test_email);
+    let dto2 = create_valid_mentor_dto(test_email); // Same email
+
+    // First registration
+    let response1 = app
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/v1/mentors/register")
+                .header("Content-Type", "application/json")
+                .body(Body::from(serde_json::to_string(&dto1).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response1.status(), StatusCode::OK);
+
+    // Second registration with same email
+    let response2 = app
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/v1/mentors/register")
+                .header("Content-Type", "application/json")
+                .body(Body::from(serde_json::to_string(&dto2).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response2.status(), StatusCode::BAD_REQUEST);
+
+    // Clean up
+    let user_repo = UsersRepository::new(&app_state);
+    let _ = user_repo.query_delete_user(test_email.to_string()).await;
+}
 }

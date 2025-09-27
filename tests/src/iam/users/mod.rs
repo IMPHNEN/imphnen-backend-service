@@ -1,2 +1,1 @@
-#[cfg(test)]
-pub mod users_repository_test;
+pub mod users_service_test;

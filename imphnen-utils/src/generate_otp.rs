@@ -43,3 +43,45 @@ impl OtpManager {
         user_hash == stored.hash
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_generate_otp() {
+        let otp = OtpManager::generate_otp();
+        assert!(otp.code >= 100_000 && otp.code < 1_000_000);
+        assert!(!otp.hash.is_empty());
+        assert!(otp.expires_at > Utc::now());
+        assert!(otp.expires_at <= Utc::now() + chrono::Duration::minutes(5));
+    }
+
+    #[test]
+    fn test_validate_otp_valid() {
+        let otp = OtpManager::generate_otp();
+        assert!(OtpManager::validate_otp(&otp, otp.code));
+    }
+
+    #[test]
+    fn test_validate_otp_invalid_code() {
+        let otp = OtpManager::generate_otp();
+        assert!(!OtpManager::validate_otp(&otp, 123456)); // Wrong code
+    }
+
+    #[test]
+    fn test_validate_otp_expired() {
+        let mut otp = OtpManager::generate_otp();
+        otp.expires_at = Utc::now() - chrono::Duration::seconds(1); // Expired
+        assert!(!OtpManager::validate_otp(&otp, otp.code));
+    }
+
+    #[test]
+    fn test_otp_uniqueness() {
+        let otp1 = OtpManager::generate_otp();
+        let otp2 = OtpManager::generate_otp();
+        // Codes should be different (high probability)
+        assert_ne!(otp1.code, otp2.code);
+        assert_ne!(otp1.hash, otp2.hash);
+    }
+}

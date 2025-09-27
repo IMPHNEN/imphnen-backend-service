@@ -1,26 +1,25 @@
 #[cfg(test)]
 mod tests {
-	use crate::{generate_unique_email, get_role_id, UsersRepository};
-	use axum::{http::StatusCode, response::Response};
-	use imphnen_iam::{
-		RolesCreateRequestDto, RolesUpdateRequestDto, RolesSchema, ResourceEnum,
-	};
-	use imphnen_utils::{make_thing_from_enum, ResourceEnum as UtilsResourceEnum};
+	use axum::http::StatusCode;
+	use imphnen_entities::MessageResponseDto;
+	use serde_json;
+	use imphnen_iam::MetaRequestDto;
+	use imphnen_iam::v1::roles::{RolesRepository, RolesRequestCreateDto, RolesRequestUpdateDto, roles_service::RolesService};
 
 	#[tokio::test]
 	async fn test_create_role_service() {
 		let app_state = crate::get_app_state().await;
-		let repo = imphnen_iam::RolesRepository::new(&app_state);
+		let repo = RolesRepository::new(&app_state);
 
 		// Test data
 		let role_name = "test_role_service".to_string();
-		let role_request = RolesCreateRequestDto {
+		let role_request = RolesRequestCreateDto {
 			name: role_name.clone(),
-			description: Some("Test role for service".to_string()),
+			permissions: vec![], // Empty permissions for simplicity
 		};
 
 		// Create role through service
-		let response = imphnen_iam::RolesService::create_role(
+		let response = RolesService::create_role(
 			&app_state,
 			role_request.clone(),
 		)
@@ -31,115 +30,38 @@ mod tests {
 
 		// Verify role was created in database
 		let created_role = repo
-			.query_role_by_name(role_name)
+			.query_role_by_name(role_name.clone())
 			.await
 			.unwrap();
 		assert_eq!(created_role.name, role_name);
 
 		// Clean up
-		let _ = repo.query_delete_role(created_role.id.id.to_raw()).await;
-	}
-
-	#[tokio::test]
-	async fn test_create_role_service_duplicate() {
-		let app_state = crate::get_app_state().await;
-		let repo = imphnen_iam::RolesRepository::new(&app_state);
-
-		// Test data
-		let role_name = "test_role_duplicate_service".to_string();
-		let role_request = RolesCreateRequestDto {
-			name: role_name.clone(),
-			description: Some("Test role for duplicate check in service".to_string()),
-		};
-
-		// Create role first time
-		let response1 = imphnen_iam::RolesService::create_role(
-			&app_state,
-			role_request.clone(),
-		)
-		.await;
-		assert_eq!(response1.status(), StatusCode::CREATED);
-
-		// Try to create same role again
-		let response2 = imphnen_iam::RolesService::create_role(
-			&app_state,
-			role_request,
-		)
-		.await;
-
-		// Verify conflict response
-		assert_eq!(response2.status(), StatusCode::CONFLICT);
-
-		// Clean up
-		let created_role = repo
-			.query_role_by_name(role_name)
-			.await
-			.unwrap();
-		let _ = repo.query_delete_role(created_role.id.id.to_raw()).await;
-	}
-
-	#[tokio::test]
-	async fn test_get_role_list_service() {
-		let app_state = crate::get_app_state().await;
-		let repo = imphnen_iam::RolesRepository::new(&app_state);
-
-		// Create test roles
-		let role_names = vec![
-			"test_role_list_service_1".to_string(),
-			"test_role_list_service_2".to_string(),
-			"test_role_list_service_3".to_string(),
-		];
-
-		for name in &role_names {
-			let role = RolesSchema {
-				name: name.clone(),
-				description: Some(format!("Description for {}", name)),
-				..Default::default()
-			};
-			let _ = repo.query_create_role(role).await;
-		}
-
-		// Get role list through service
-		let response = imphnen_iam::RolesService::get_role_list(
-			&app_state,
-			crate::get_meta_request_dto(1, 10),
-		)
-		.await;
-
-		// Verify response
-		assert_eq!(response.status(), StatusCode::OK);
-
-		// Clean up
-		for name in role_names {
-			let role = repo.query_role_by_name(name).await.unwrap();
-			let _ = repo.query_delete_role(role.id.id.to_raw()).await;
-		}
+		let _ = repo.query_delete_role(created_role.id).await;
 	}
 
 	#[tokio::test]
 	async fn test_get_role_by_id_service() {
 		let app_state = crate::get_app_state().await;
-		let repo = imphnen_iam::RolesRepository::new(&app_state);
+		let repo = RolesRepository::new(&app_state);
 
 		// Create test role
 		let role_name = "test_role_by_id_service".to_string();
-		let role = RolesSchema {
+		let role_request = RolesRequestCreateDto {
 			name: role_name.clone(),
-			description: Some("Test role for by ID test in service".to_string()),
-			..Default::default()
+			permissions: vec![],
 		};
-		let create_result = repo.query_create_role(role.clone()).await;
-		assert!(create_result.is_ok());
+		let create_response = RolesService::create_role(&app_state, role_request).await;
+		assert_eq!(create_response.status(), StatusCode::CREATED);
 
 		// Get created role to get ID
 		let created_role = repo
 			.query_role_by_name(role_name)
 			.await
 			.unwrap();
-		let role_id = created_role.id.id.to_raw();
+		let role_id = created_role.id;
 
 		// Get role by ID through service
-		let response = imphnen_iam::RolesService::get_role_by_id(
+		let response = RolesService::get_role_by_id(
 			&app_state, role_id.clone(),
 		)
 		.await;
@@ -152,54 +74,37 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn test_get_role_by_id_service_not_found() {
-		let app_state = crate::get_app_state().await;
-
-		// Use non-existent ID
-		let non_existent_id = "non-existent-uuid-123456789".to_string();
-
-		// Get non-existent role by ID through service
-		let response = imphnen_iam::RolesService::get_role_by_id(
-			&app_state, non_existent_id,
-		)
-		.await;
-
-		// Verify not found response
-		assert_eq!(response.status(), StatusCode::NOT_FOUND);
-	}
-
-	#[tokio::test]
 	async fn test_update_role_service() {
 		let app_state = crate::get_app_state().await;
-		let repo = imphnen_iam::RolesRepository::new(&app_state);
+		let repo = RolesRepository::new(&app_state);
 
 		// Create test role
 		let original_name = "test_role_update_original_service".to_string();
 		let new_name = "test_role_update_updated_service".to_string();
-		
-		let role = RolesSchema {
+
+		let role_request = RolesRequestCreateDto {
 			name: original_name.clone(),
-			description: Some("Original description for service test".to_string()),
-			..Default::default()
+			permissions: vec![],
 		};
-		let create_result = repo.query_create_role(role.clone()).await;
-		assert!(create_result.is_ok());
+		let create_response = RolesService::create_role(&app_state, role_request).await;
+		assert_eq!(create_response.status(), StatusCode::CREATED);
 
 		// Get created role to get ID
 		let created_role = repo
 			.query_role_by_name(original_name)
 			.await
 			.unwrap();
-		let role_id = created_role.id.id.to_raw();
+		let role_id = created_role.id;
 
 		// Prepare update request
-		let update_request = RolesUpdateRequestDto {
+		let update_request = RolesRequestUpdateDto {
 			name: Some(new_name.clone()),
-			description: Some("Updated description for service test".to_string()),
+			permissions: None,
+			overwrite: None,
 		};
 
 		// Update role through service
-		let response = imphnen_iam::RolesService::update_role(
+		let response = RolesService::update_role(
 			&app_state, role_id.clone(), update_request,
 		)
 		.await;
@@ -213,63 +118,38 @@ mod tests {
 			.await
 			.unwrap();
 		assert_eq!(updated_role.name, new_name);
-		assert_eq!(updated_role.description, Some("Updated description for service test".to_string()));
 
 		// Clean up
 		let _ = repo.query_delete_role(role_id).await;
 	}
 
 	#[tokio::test]
-	async fn test_update_role_service_not_found() {
-		let app_state = crate::get_app_state().await;
-
-		// Use non-existent ID
-		let non_existent_id = "non-existent-uuid-123456789".to_string();
-
-		// Prepare update request
-		let update_request = RolesUpdateRequestDto {
-			name: Some("new_name".to_string()),
-			description: Some("new description".to_string()),
-		};
-
-		// Update non-existent role through service
-		let response = imphnen_iam::RolesService::update_role(
-			&app_state, non_existent_id, update_request,
-		)
-		.await;
-
-		// Verify not found response
-		assert_eq!(response.status(), StatusCode::NOT_FOUND);
-	}
-
-	#[tokio::test]
 	async fn test_delete_role_service() {
 		let app_state = crate::get_app_state().await;
-		let repo = imphnen_iam::RolesRepository::new(&app_state);
+		let repo = RolesRepository::new(&app_state);
 
 		// Create test role
 		let role_name = "test_role_delete_service".to_string();
-		let role = RolesSchema {
+		let role_request = RolesRequestCreateDto {
 			name: role_name.clone(),
-			description: Some("Test role for delete test in service".to_string()),
-			..Default::default()
+			permissions: vec![],
 		};
-		let create_result = repo.query_create_role(role.clone()).await;
-		assert!(create_result.is_ok());
+		let create_response = RolesService::create_role(&app_state, role_request).await;
+		assert_eq!(create_response.status(), StatusCode::CREATED);
 
 		// Get created role to get ID
 		let created_role = repo
 			.query_role_by_name(role_name)
 			.await
 			.unwrap();
-		let role_id = created_role.id.id.to_raw();
+		let role_id = created_role.id;
 
 		// Verify role exists before deletion
 		let exists_before = repo.query_role_by_id(role_id.clone()).await.is_ok();
 		assert!(exists_before);
 
 		// Delete role through service
-		let response = imphnen_iam::RolesService::delete_role(
+		let response = RolesService::delete_role(
 			&app_state, role_id.clone(),
 		)
 		.await;
@@ -283,6 +163,187 @@ mod tests {
 	}
 
 	#[tokio::test]
+	async fn test_get_role_list_service() {
+		let app_state = crate::get_app_state().await;
+		let repo = RolesRepository::new(&app_state);
+
+		// Create test role
+		let role_name = "test_role_list_service".to_string();
+		let role_request = RolesRequestCreateDto {
+			name: role_name.clone(),
+			permissions: vec![],
+		};
+		let create_response = RolesService::create_role(&app_state, role_request).await;
+		assert_eq!(create_response.status(), StatusCode::CREATED);
+
+		// Get role list through service
+		let meta = MetaRequestDto {
+			page: Some(1),
+			per_page: Some(10),
+			..Default::default()
+		};
+		let response = RolesService::get_role_list(
+			&app_state, meta,
+		)
+		.await;
+
+		// Verify response
+		assert_eq!(response.status(), StatusCode::OK);
+
+		// Clean up
+		let created_role = repo
+			.query_role_by_name(role_name.clone())
+			.await
+			.unwrap();
+		let _ = repo.query_delete_role(created_role.id).await;
+	}
+
+	#[tokio::test]
+	async fn test_create_role_service_duplicate_name() {
+		let app_state = crate::get_app_state().await;
+		let repo = RolesRepository::new(&app_state);
+
+		// Test data
+		let role_name = "test_role_duplicate_service".to_string();
+		let role_request = RolesRequestCreateDto {
+			name: role_name.clone(),
+			permissions: vec![],
+		};
+
+		// Create role first
+		let response1 = RolesService::create_role(
+			&app_state,
+			role_request.clone(),
+		)
+		.await;
+		assert_eq!(response1.status(), StatusCode::CREATED);
+
+		// Try to create again with same name
+		let response2 = RolesService::create_role(
+			&app_state,
+			role_request,
+		)
+		.await;
+
+		// Verify response - should fail
+		assert_eq!(response2.status(), StatusCode::CONFLICT);
+
+		let body = response2.into_body();
+		let body_bytes = axum::body::to_bytes(body, 1024).await.unwrap();
+		let body_str = std::str::from_utf8(&body_bytes).unwrap();
+		let error_response: MessageResponseDto = serde_json::from_str(body_str).unwrap();
+		assert_eq!(error_response.message, "Role name already exists");
+
+		// Clean up
+		let created_role = repo
+			.query_role_by_name(role_name)
+			.await
+			.unwrap();
+		let _ = repo.query_delete_role(created_role.id).await;
+	}
+
+	#[tokio::test]
+	async fn test_update_role_service_duplicate_name() {
+		let app_state = crate::get_app_state().await;
+		let repo = RolesRepository::new(&app_state);
+
+		// Create two test roles
+		let role_name1 = "test_role_update_dup1_service".to_string();
+		let role_name2 = "test_role_update_dup2_service".to_string();
+
+		let role_request1 = RolesRequestCreateDto {
+			name: role_name1.clone(),
+			permissions: vec![],
+		};
+		let role_request2 = RolesRequestCreateDto {
+			name: role_name2.clone(),
+			permissions: vec![],
+		};
+
+		let create_response1 = RolesService::create_role(&app_state, role_request1).await;
+		assert_eq!(create_response1.status(), StatusCode::CREATED);
+		let create_response2 = RolesService::create_role(&app_state, role_request2).await;
+		assert_eq!(create_response2.status(), StatusCode::CREATED);
+
+		// Get created roles
+		let created_role1 = repo
+			.query_role_by_name(role_name1.clone())
+			.await
+			.unwrap();
+		let role_id1 = created_role1.id;
+
+		// Try to update role1 to have same name as role2
+		let update_request = RolesRequestUpdateDto {
+			name: Some(role_name2.clone()),
+			permissions: None,
+			overwrite: None,
+		};
+
+		let response = RolesService::update_role(
+			&app_state, role_id1.clone(), update_request,
+		)
+		.await;
+
+		// Verify response - should fail
+		assert_eq!(response.status(), StatusCode::CONFLICT);
+
+		let body = response.into_body();
+		let body_bytes = axum::body::to_bytes(body, 1024).await.unwrap();
+		let body_str = std::str::from_utf8(&body_bytes).unwrap();
+		let error_response: MessageResponseDto = serde_json::from_str(body_str).unwrap();
+		assert_eq!(error_response.message, "Role name already exists");
+
+		// Clean up
+		let _ = repo.query_delete_role(role_id1).await;
+		let created_role2 = repo
+			.query_role_by_name(role_name2)
+			.await
+			.unwrap();
+		let _ = repo.query_delete_role(created_role2.id).await;
+	}
+
+	#[tokio::test]
+	async fn test_get_role_by_id_service_not_found() {
+		let app_state = crate::get_app_state().await;
+
+		// Use non-existent ID
+		let non_existent_id = "non-existent-uuid-123456789".to_string();
+
+		// Get non-existent role by ID through service
+		let response = RolesService::get_role_by_id(
+			&app_state, non_existent_id,
+		)
+		.await;
+
+		// Verify not found response
+		assert_eq!(response.status(), StatusCode::NOT_FOUND);
+	}
+
+	#[tokio::test]
+	async fn test_update_role_service_not_found() {
+		let app_state = crate::get_app_state().await;
+
+		// Use non-existent ID
+		let non_existent_id = "non-existent-uuid-123456789".to_string();
+
+		// Prepare update request
+		let update_request = RolesRequestUpdateDto {
+			name: Some("new_name".to_string()),
+			permissions: None,
+			overwrite: None,
+		};
+
+		// Update non-existent role through service
+		let response = RolesService::update_role(
+			&app_state, non_existent_id, update_request,
+		)
+		.await;
+
+		// Verify not found response
+		assert_eq!(response.status(), StatusCode::NOT_FOUND);
+	}
+
+	#[tokio::test]
 	async fn test_delete_role_service_not_found() {
 		let app_state = crate::get_app_state().await;
 
@@ -290,7 +351,7 @@ mod tests {
 		let non_existent_id = "non-existent-uuid-123456789".to_string();
 
 		// Delete non-existent role through service
-		let response = imphnen_iam::RolesService::delete_role(
+		let response = RolesService::delete_role(
 			&app_state, non_existent_id,
 		)
 		.await;

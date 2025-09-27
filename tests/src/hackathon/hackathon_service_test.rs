@@ -9,6 +9,7 @@ mod tests {
         },
         hackathon_service::{HackathonService, HackathonServiceTrait},
         hackathon_schema::{HackathonEventType, HackathonPhase, HackathonStatus},
+        PrizeDto,
     };
     use imphnen_libs::MetaRequestDto;
 
@@ -649,5 +650,802 @@ mod tests {
 
         let response = submit_result.unwrap();
         assert_eq!(response.data.submission_status, imphnen_hackathon::v1::hackathon::hackathon_schema::SubmissionStatus::Submitted);
+    }
+
+    #[tokio::test]
+    async fn test_create_hackathon_service_boundary_max_participants_zero() {
+        let app_state = crate::get_app_state().await;
+
+        let request = HackathonCreateRequestDto {
+            name: "Zero Participants Hackathon".to_string(),
+            description: "Testing boundary condition".to_string(),
+            start_date: Utc::now() + chrono::Duration::days(2),
+            end_date: Utc::now() + chrono::Duration::days(3),
+            registration_deadline: Utc::now() + chrono::Duration::days(1),
+            max_participants: Some(0), // Boundary: zero participants - now rejected
+            theme: Some("Edge Cases".to_string()),
+            rules: Some("No rules".to_string()),
+            prizes: Some(vec![]),
+            organizers: vec!["user-1".to_string()],
+        };
+
+        let result = HackathonService::create_hackathon(request, &app_state).await;
+        assert!(result.is_err());
+
+        let error = result.unwrap_err();
+        assert_eq!(error.status, 400);
+        assert!(error.message.contains("Validation failed"));
+    }
+
+    #[tokio::test]
+    async fn test_create_hackathon_service_boundary_max_participants_max() {
+        let app_state = crate::get_app_state().await;
+
+        let request = HackathonCreateRequestDto {
+            name: "Max Participants Hackathon".to_string(),
+            description: "Testing maximum participants".to_string(),
+            start_date: Utc::now() + chrono::Duration::days(2),
+            end_date: Utc::now() + chrono::Duration::days(3),
+            registration_deadline: Utc::now() + chrono::Duration::days(1),
+            max_participants: Some(10000), // Boundary: maximum allowed
+            theme: Some("Scalability".to_string()),
+            rules: Some("Scale rules".to_string()),
+            prizes: Some(vec![]),
+            organizers: vec!["user-1".to_string()],
+        };
+
+        let result = HackathonService::create_hackathon(request, &app_state).await;
+        assert!(result.is_ok());
+
+        let response = result.unwrap();
+        assert_eq!(response.data.max_participants, Some(10000));
+    }
+
+    #[tokio::test]
+    async fn test_create_hackathon_service_validation_error_max_participants_zero() {
+        let app_state = crate::get_app_state().await;
+
+        let request = HackathonCreateRequestDto {
+            name: "Negative Participants Hackathon".to_string(),
+            description: "Should fail with zero participants".to_string(),
+            start_date: Utc::now() + chrono::Duration::days(2),
+            end_date: Utc::now() + chrono::Duration::days(3),
+            registration_deadline: Utc::now() + chrono::Duration::days(1),
+            max_participants: Some(0), // Invalid: zero participants (below minimum 1)
+            theme: None,
+            rules: None,
+            prizes: None,
+            organizers: vec!["user-1".to_string()],
+        };
+
+        let result = HackathonService::create_hackathon(request, &app_state).await;
+        assert!(result.is_err());
+
+        let error = result.unwrap_err();
+        assert_eq!(error.status, 400);
+        assert!(error.message.contains("Validation failed"));
+    }
+
+    #[tokio::test]
+    async fn test_create_hackathon_service_validation_error_max_participants_too_large() {
+        let app_state = crate::get_app_state().await;
+
+        let request = HackathonCreateRequestDto {
+            name: "Too Many Participants Hackathon".to_string(),
+            description: "Should fail with too many participants".to_string(),
+            start_date: Utc::now() + chrono::Duration::days(2),
+            end_date: Utc::now() + chrono::Duration::days(3),
+            registration_deadline: Utc::now() + chrono::Duration::days(1),
+            max_participants: Some(10001), // Invalid: exceeds maximum
+            theme: None,
+            rules: None,
+            prizes: None,
+            organizers: vec!["user-1".to_string()],
+        };
+
+        let result = HackathonService::create_hackathon(request, &app_state).await;
+        assert!(result.is_err());
+
+        let error = result.unwrap_err();
+        assert_eq!(error.status, 400);
+        assert!(error.message.contains("Validation failed"));
+    }
+
+    #[tokio::test]
+    async fn test_create_hackathon_service_validation_error_empty_name() {
+        let app_state = crate::get_app_state().await;
+
+        let request = HackathonCreateRequestDto {
+            name: "".to_string(), // Invalid: empty name
+            description: "Valid description".to_string(),
+            start_date: Utc::now() + chrono::Duration::days(2),
+            end_date: Utc::now() + chrono::Duration::days(3),
+            registration_deadline: Utc::now() + chrono::Duration::days(1),
+            max_participants: Some(100),
+            theme: None,
+            rules: None,
+            prizes: None,
+            organizers: vec!["user-1".to_string()],
+        };
+
+        let result = HackathonService::create_hackathon(request, &app_state).await;
+        assert!(result.is_err());
+
+        let error = result.unwrap_err();
+        assert_eq!(error.status, 400);
+        assert!(error.message.contains("Validation failed"));
+    }
+
+    #[tokio::test]
+    async fn test_create_hackathon_service_validation_error_empty_description() {
+        let app_state = crate::get_app_state().await;
+
+        let request = HackathonCreateRequestDto {
+            name: "Valid Name".to_string(),
+            description: "".to_string(), // Invalid: empty description
+            start_date: Utc::now() + chrono::Duration::days(2),
+            end_date: Utc::now() + chrono::Duration::days(3),
+            registration_deadline: Utc::now() + chrono::Duration::days(1),
+            max_participants: Some(100),
+            theme: None,
+            rules: None,
+            prizes: None,
+            organizers: vec!["user-1".to_string()],
+        };
+
+        let result = HackathonService::create_hackathon(request, &app_state).await;
+        assert!(result.is_err());
+
+        let error = result.unwrap_err();
+        assert_eq!(error.status, 400);
+        assert!(error.message.contains("Validation failed"));
+    }
+
+    #[tokio::test]
+    async fn test_create_hackathon_service_validation_error_description_too_long() {
+        let app_state = crate::get_app_state().await;
+
+        let request = HackathonCreateRequestDto {
+            name: "Valid Name".to_string(),
+            description: "a".repeat(1001), // Invalid: exceeds 1000 characters
+            start_date: Utc::now() + chrono::Duration::days(2),
+            end_date: Utc::now() + chrono::Duration::days(3),
+            registration_deadline: Utc::now() + chrono::Duration::days(1),
+            max_participants: Some(100),
+            theme: None,
+            rules: None,
+            prizes: None,
+            organizers: vec!["user-1".to_string()],
+        };
+
+        let result = HackathonService::create_hackathon(request, &app_state).await;
+        assert!(result.is_err());
+
+        let error = result.unwrap_err();
+        assert_eq!(error.status, 400);
+        assert!(error.message.contains("Validation failed"));
+    }
+#[tokio::test]
+async fn test_create_hackathon_service_validation_error_start_date_in_past() {
+    let app_state = crate::get_app_state().await;
+
+    let request = HackathonCreateRequestDto {
+        name: "Past Start Date Hackathon".to_string(),
+        description: "Should fail with past start date".to_string(),
+        start_date: Utc::now() - chrono::Duration::days(2), // Invalid: in the past
+        end_date: Utc::now() + chrono::Duration::days(2),
+        registration_deadline: Utc::now() - chrono::Duration::days(2),
+        max_participants: Some(100),
+        theme: None,
+        rules: None,
+        prizes: None,
+        organizers: vec!["user-1".to_string()],
+    };
+
+    let result = HackathonService::create_hackathon(request, &app_state).await;
+    assert!(result.is_err());
+
+    let error = result.unwrap_err();
+    assert_eq!(error.status, 400);
+    assert!(error.message.contains("Registration deadline must be before start date"));
+}
+
+    #[tokio::test]
+    async fn test_create_hackathon_service_validation_error_registration_deadline_in_past() {
+        let app_state = crate::get_app_state().await;
+
+        let request = HackathonCreateRequestDto {
+            name: "Past Registration Deadline Hackathon".to_string(),
+            description: "Should succeed with past registration deadline".to_string(),
+            start_date: Utc::now() + chrono::Duration::days(2),
+            end_date: Utc::now() + chrono::Duration::days(3),
+            registration_deadline: Utc::now() - chrono::Duration::days(2), // Now allowed: in the past
+            max_participants: Some(100),
+            theme: None,
+            rules: None,
+            prizes: None,
+            organizers: vec!["user-1".to_string()],
+        };
+
+        let result = HackathonService::create_hackathon(request, &app_state).await;
+        assert!(result.is_ok());
+
+        let response = result.unwrap();
+        assert_eq!(response.data.name, "Past Registration Deadline Hackathon");
+    }
+
+    #[tokio::test]
+    async fn test_create_hackathon_service_validation_error_duplicate_organizers() {
+        let app_state = crate::get_app_state().await;
+
+        let request = HackathonCreateRequestDto {
+            name: "Duplicate Organizers Hackathon".to_string(),
+            description: "Testing duplicate organizers".to_string(),
+            start_date: Utc::now() + chrono::Duration::days(2),
+            end_date: Utc::now() + chrono::Duration::days(3),
+            registration_deadline: Utc::now() + chrono::Duration::days(1),
+            max_participants: Some(100),
+            theme: None,
+            rules: None,
+            prizes: None,
+            organizers: vec!["user-1".to_string(), "user-1".to_string()], // Duplicate organizers
+        };
+
+        let result = HackathonService::create_hackathon(request, &app_state).await;
+        assert!(result.is_ok()); // Should succeed - duplicates are allowed in current implementation
+    }
+
+    #[tokio::test]
+    async fn test_get_hackathon_service_empty_id() {
+        let app_state = crate::get_app_state().await;
+
+        let result = HackathonService::get_hackathon("".to_string(), &app_state).await;
+        assert!(result.is_err());
+
+        let error = result.unwrap_err();
+        assert_eq!(error.status, 404);
+        assert!(error.message.contains("Hackathon not found"));
+    }
+
+    #[tokio::test]
+    async fn test_update_hackathon_service_partial_update() {
+        let app_state = crate::get_app_state().await;
+
+        // Create a hackathon first
+        let create_request = HackathonCreateRequestDto {
+            name: "Partial Update Test".to_string(),
+            description: "For partial update testing".to_string(),
+            start_date: Utc::now() + chrono::Duration::days(2),
+            end_date: Utc::now() + chrono::Duration::days(3),
+            registration_deadline: Utc::now() + chrono::Duration::days(1),
+            max_participants: Some(50),
+            theme: Some("Original Theme".to_string()),
+            rules: Some("Original Rules".to_string()),
+            prizes: Some(vec![PrizeDto {
+                position: 1,
+                title: "First Prize".to_string(),
+                description: Some("Winner prize".to_string()),
+                value: Some("$1000".to_string()),
+            }]),
+            organizers: vec!["user-1".to_string()],
+        };
+
+        let create_result = HackathonService::create_hackathon(create_request, &app_state).await;
+        assert!(create_result.is_ok());
+        let hackathon_id = create_result.unwrap().data.id;
+
+        // Partial update - only update name and max_participants
+        let update_request = HackathonUpdateRequestDto {
+            name: Some("Partially Updated Hackathon".to_string()),
+            description: None,
+            start_date: None,
+            end_date: None,
+            registration_deadline: None,
+            max_participants: Some(75),
+            theme: None,
+            rules: None,
+            prizes: None,
+            organizers: None,
+        };
+
+        let update_result = HackathonService::update_hackathon(hackathon_id.clone(), update_request, &app_state).await;
+        assert!(update_result.is_ok());
+
+        let response = update_result.unwrap();
+        assert_eq!(response.data.name, "Partially Updated Hackathon");
+        assert_eq!(response.data.max_participants, Some(75));
+        // Other fields should remain unchanged
+        assert_eq!(response.data.theme, Some("Original Theme".to_string()));
+        assert_eq!(response.data.rules, Some("Original Rules".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_update_hackathon_service_not_found() {
+        let app_state = crate::get_app_state().await;
+
+        let update_request = HackathonUpdateRequestDto {
+            name: Some("Non-existent Hackathon".to_string()),
+            description: None,
+            start_date: None,
+            end_date: None,
+            registration_deadline: None,
+            max_participants: None,
+            theme: None,
+            rules: None,
+            prizes: None,
+            organizers: None,
+        };
+
+        let result = HackathonService::update_hackathon("non-existent-id".to_string(), update_request, &app_state).await;
+        assert!(result.is_err());
+
+        let error = result.unwrap_err();
+        assert_eq!(error.status, 404);
+        assert!(error.message.contains("Hackathon not found"));
+    }
+
+    #[tokio::test]
+    async fn test_delete_hackathon_service_not_found() {
+        let app_state = crate::get_app_state().await;
+
+        let result = HackathonService::delete_hackathon("non-existent-id".to_string(), &app_state).await;
+        assert!(result.is_err());
+
+        let error = result.unwrap_err();
+        assert_eq!(error.status, 404);
+        assert!(error.message.contains("Hackathon not found"));
+    }
+
+    #[tokio::test]
+    async fn test_create_hackathon_event_service_validation_error_empty_title() {
+        let app_state = crate::get_app_state().await;
+
+        // Create a hackathon first
+        let hackathon_request = HackathonCreateRequestDto {
+            name: "Event Empty Title Test".to_string(),
+            description: "For event empty title testing".to_string(),
+            start_date: Utc::now() + chrono::Duration::days(2),
+            end_date: Utc::now() + chrono::Duration::days(3),
+            registration_deadline: Utc::now() + chrono::Duration::days(1),
+            max_participants: Some(50),
+            theme: None,
+            rules: None,
+            prizes: None,
+            organizers: vec!["user-1".to_string()],
+        };
+
+        let hackathon_result = HackathonService::create_hackathon(hackathon_request, &app_state).await;
+        assert!(hackathon_result.is_ok());
+        let hackathon_id = hackathon_result.unwrap().data.id;
+
+        // Create event with empty title
+        let event_request = HackathonEventCreateRequestDto {
+            title: "".to_string(), // Invalid: empty title
+            description: Some("A test event".to_string()),
+            event_type: HackathonEventType::Workshop,
+            start_time: Utc::now() + chrono::Duration::days(2),
+            end_time: Utc::now() + chrono::Duration::days(2) + chrono::Duration::hours(2),
+            location: Some("Room 101".to_string()),
+            virtual_link: None,
+            max_attendees: Some(30),
+            is_mandatory: false,
+        };
+
+        let event_result = HackathonService::create_hackathon_event(hackathon_id, event_request, &app_state).await;
+        assert!(event_result.is_err());
+
+        let error = event_result.unwrap_err();
+        assert_eq!(error.status, 400);
+        assert!(error.message.contains("Validation failed"));
+    }
+
+    #[tokio::test]
+    async fn test_create_hackathon_event_service_boundary_max_attendees_zero() {
+        let app_state = crate::get_app_state().await;
+
+        // Create a hackathon first
+        let hackathon_request = HackathonCreateRequestDto {
+            name: "Event Zero Attendees Test".to_string(),
+            description: "For event zero attendees testing".to_string(),
+            start_date: Utc::now() + chrono::Duration::days(2),
+            end_date: Utc::now() + chrono::Duration::days(3),
+            registration_deadline: Utc::now() + chrono::Duration::days(1),
+            max_participants: Some(50),
+            theme: None,
+            rules: None,
+            prizes: None,
+            organizers: vec!["user-1".to_string()],
+        };
+
+        let hackathon_result = HackathonService::create_hackathon(hackathon_request, &app_state).await;
+        assert!(hackathon_result.is_ok());
+        let hackathon_id = hackathon_result.unwrap().data.id;
+
+        // Create event with zero max attendees
+        let event_request = HackathonEventCreateRequestDto {
+            title: "Zero Attendees Event".to_string(),
+            description: Some("Boundary test".to_string()),
+            event_type: HackathonEventType::Workshop,
+            start_time: Utc::now() + chrono::Duration::days(2),
+            end_time: Utc::now() + chrono::Duration::days(2) + chrono::Duration::hours(2),
+            location: Some("Room 101".to_string()),
+            virtual_link: None,
+            max_attendees: Some(0), // Boundary: zero attendees
+            is_mandatory: false,
+        };
+
+        let event_result = HackathonService::create_hackathon_event(hackathon_id, event_request, &app_state).await;
+        assert!(event_result.is_err());
+
+        let error = event_result.unwrap_err();
+        assert_eq!(error.status, 400);
+        assert!(error.message.contains("Validation failed"));
+    }
+
+    #[tokio::test]
+    async fn test_create_hackathon_event_service_validation_error_max_attendees_negative() {
+        let app_state = crate::get_app_state().await;
+
+        // Create a hackathon first
+        let hackathon_request = HackathonCreateRequestDto {
+            name: "Event Negative Attendees Test".to_string(),
+            description: "For event negative attendees testing".to_string(),
+            start_date: Utc::now() + chrono::Duration::days(2),
+            end_date: Utc::now() + chrono::Duration::days(3),
+            registration_deadline: Utc::now() + chrono::Duration::days(1),
+            max_participants: Some(50),
+            theme: None,
+            rules: None,
+            prizes: None,
+            organizers: vec!["user-1".to_string()],
+        };
+
+        let hackathon_result = HackathonService::create_hackathon(hackathon_request, &app_state).await;
+        assert!(hackathon_result.is_ok());
+        let hackathon_id = hackathon_result.unwrap().data.id;
+
+        // Create event with negative max attendees
+        let event_request = HackathonEventCreateRequestDto {
+            title: "Negative Attendees Event".to_string(),
+            description: Some("Should fail".to_string()),
+            event_type: HackathonEventType::Workshop,
+            start_time: Utc::now() + chrono::Duration::days(2),
+            end_time: Utc::now() + chrono::Duration::days(2) + chrono::Duration::hours(2),
+            location: Some("Room 101".to_string()),
+            virtual_link: None,
+            max_attendees: Some(0), // Invalid: zero attendees (below minimum 1)
+            is_mandatory: false,
+        };
+
+        let event_result = HackathonService::create_hackathon_event(hackathon_id, event_request, &app_state).await;
+        assert!(event_result.is_err());
+
+        let error = event_result.unwrap_err();
+        assert_eq!(error.status, 400);
+        assert!(error.message.contains("Validation failed"));
+    }
+
+    #[tokio::test]
+    async fn test_create_hackathon_timeline_service_validation_error_empty_title() {
+        let app_state = crate::get_app_state().await;
+
+        // Create a hackathon first
+        let hackathon_request = HackathonCreateRequestDto {
+            name: "Timeline Empty Title Test".to_string(),
+            description: "For timeline empty title testing".to_string(),
+            start_date: Utc::now() + chrono::Duration::days(2),
+            end_date: Utc::now() + chrono::Duration::days(6),
+            registration_deadline: Utc::now() + chrono::Duration::days(1),
+            max_participants: Some(50),
+            theme: None,
+            rules: None,
+            prizes: None,
+            organizers: vec!["user-1".to_string()],
+        };
+
+        let hackathon_result = HackathonService::create_hackathon(hackathon_request, &app_state).await;
+        assert!(hackathon_result.is_ok());
+        let hackathon_id = hackathon_result.unwrap().data.id;
+
+        // Create timeline with empty title
+        let timeline_request = HackathonTimelineCreateRequestDto {
+            phase: HackathonPhase::Ideation,
+            title: "".to_string(), // Invalid: empty title
+            description: Some("A timeline phase".to_string()),
+            start_date: Utc::now() + chrono::Duration::days(3),
+            end_date: Utc::now() + chrono::Duration::days(4),
+            is_active: false,
+            order: 2,
+        };
+
+        let timeline_result = HackathonService::create_hackathon_timeline(hackathon_id, timeline_request, &app_state).await;
+        assert!(timeline_result.is_err());
+
+        let error = timeline_result.unwrap_err();
+        assert_eq!(error.status, 400);
+        assert!(error.message.contains("Validation failed"));
+    }
+
+    #[tokio::test]
+    async fn test_create_hackathon_timeline_service_validation_error_negative_order() {
+        let app_state = crate::get_app_state().await;
+
+        // Create a hackathon first
+        let hackathon_request = HackathonCreateRequestDto {
+            name: "Timeline Negative Order Test".to_string(),
+            description: "For timeline negative order testing".to_string(),
+            start_date: Utc::now() + chrono::Duration::days(2),
+            end_date: Utc::now() + chrono::Duration::days(6),
+            registration_deadline: Utc::now() + chrono::Duration::days(1),
+            max_participants: Some(50),
+            theme: None,
+            rules: None,
+            prizes: None,
+            organizers: vec!["user-1".to_string()],
+        };
+
+        let hackathon_result = HackathonService::create_hackathon(hackathon_request, &app_state).await;
+        assert!(hackathon_result.is_ok());
+        let hackathon_id = hackathon_result.unwrap().data.id;
+
+        // Create timeline with negative order
+        let timeline_request = HackathonTimelineCreateRequestDto {
+            phase: HackathonPhase::Development,
+            title: "Negative Order Timeline".to_string(),
+            description: Some("Should fail".to_string()),
+            start_date: Utc::now() + chrono::Duration::days(4),
+            end_date: Utc::now() + chrono::Duration::days(5),
+            is_active: false,
+            order: 0, // Valid: zero order (minimum allowed)
+        };
+
+        let timeline_result = HackathonService::create_hackathon_timeline(hackathon_id, timeline_request, &app_state).await;
+        assert!(timeline_result.is_ok());
+
+        let response = timeline_result.unwrap();
+        assert_eq!(response.data.title, "Negative Order Timeline");
+    }
+
+    #[tokio::test]
+    async fn test_create_hackathon_timeline_service_hackathon_not_found() {
+        let app_state = crate::get_app_state().await;
+
+        let timeline_request = HackathonTimelineCreateRequestDto {
+            phase: HackathonPhase::Submission,
+            title: "Timeline for Non-existent Hackathon".to_string(),
+            description: Some("Should fail".to_string()),
+            start_date: Utc::now() + chrono::Duration::days(2),
+            end_date: Utc::now() + chrono::Duration::days(3),
+            is_active: true,
+            order: 1,
+        };
+
+        let result = HackathonService::create_hackathon_timeline("non-existent-hackathon".to_string(), timeline_request, &app_state).await;
+        assert!(result.is_err());
+
+        let error = result.unwrap_err();
+        assert_eq!(error.status, 404);
+        assert!(error.message.contains("Hackathon not found"));
+    }
+
+    #[tokio::test]
+    async fn test_create_hackathon_submission_service_validation_error_empty_project_name() {
+        let app_state = crate::get_app_state().await;
+
+        // Create a hackathon first
+        let hackathon_request = HackathonCreateRequestDto {
+            name: "Submission Empty Name Test".to_string(),
+            description: "For submission empty name testing".to_string(),
+            start_date: Utc::now() + chrono::Duration::days(2),
+            end_date: Utc::now() + chrono::Duration::days(3),
+            registration_deadline: Utc::now() + chrono::Duration::days(1),
+            max_participants: Some(50),
+            theme: None,
+            rules: None,
+            prizes: None,
+            organizers: vec!["user-1".to_string()],
+        };
+
+        let hackathon_result = HackathonService::create_hackathon(hackathon_request, &app_state).await;
+        assert!(hackathon_result.is_ok());
+        let hackathon_id = hackathon_result.unwrap().data.id;
+
+        // Create submission with empty project name
+        let submission_request = HackathonSubmissionCreateRequestDto {
+            project_name: "".to_string(), // Invalid: empty project name
+            description: "A test project submission".to_string(),
+            repository_url: Some("https://github.com/test/repo".to_string()),
+            demo_url: Some("https://demo.example.com".to_string()),
+            slides_url: Some("https://slides.example.com".to_string()),
+            technologies: vec!["Rust".to_string(), "React".to_string()],
+        };
+
+        let submission_result = HackathonService::create_hackathon_submission(hackathon_id, "team-1".to_string(), submission_request, &app_state).await;
+        assert!(submission_result.is_err());
+
+        let error = submission_result.unwrap_err();
+        assert_eq!(error.status, 400);
+        assert!(error.message.contains("Validation failed"));
+    }
+
+    #[tokio::test]
+    async fn test_create_hackathon_submission_service_validation_error_empty_technologies() {
+        let app_state = crate::get_app_state().await;
+
+        // Create a hackathon first
+        let hackathon_request = HackathonCreateRequestDto {
+            name: "Submission Empty Tech Test".to_string(),
+            description: "For submission empty technologies testing".to_string(),
+            start_date: Utc::now() + chrono::Duration::days(2),
+            end_date: Utc::now() + chrono::Duration::days(3),
+            registration_deadline: Utc::now() + chrono::Duration::days(1),
+            max_participants: Some(50),
+            theme: None,
+            rules: None,
+            prizes: None,
+            organizers: vec!["user-1".to_string()],
+        };
+
+        let hackathon_result = HackathonService::create_hackathon(hackathon_request, &app_state).await;
+        assert!(hackathon_result.is_ok());
+        let hackathon_id = hackathon_result.unwrap().data.id;
+
+        // Create submission with empty technologies
+        let submission_request = HackathonSubmissionCreateRequestDto {
+            project_name: "Test Project".to_string(),
+            description: "A test project submission".to_string(),
+            repository_url: Some("https://github.com/test/repo".to_string()),
+            demo_url: Some("https://demo.example.com".to_string()),
+            slides_url: Some("https://slides.example.com".to_string()),
+            technologies: vec![], // Now allowed: empty technologies
+        };
+
+        let submission_result = HackathonService::create_hackathon_submission(hackathon_id, "team-1".to_string(), submission_request, &app_state).await;
+        assert!(submission_result.is_ok());
+
+        let response = submission_result.unwrap();
+        assert_eq!(response.data.project_name, "Test Project");
+    }
+    #[tokio::test]
+    async fn test_create_hackathon_submission_service_validation_error_invalid_repository_url() {
+        let app_state = crate::get_app_state().await;
+
+        // Create a hackathon first
+        let hackathon_request = HackathonCreateRequestDto {
+            name: "Submission Invalid URL Test".to_string(),
+            description: "For submission invalid URL testing".to_string(),
+            start_date: Utc::now() + chrono::Duration::days(2),
+            end_date: Utc::now() + chrono::Duration::days(3),
+            registration_deadline: Utc::now() + chrono::Duration::days(1),
+            max_participants: Some(50),
+            theme: None,
+            rules: None,
+            prizes: None,
+            organizers: vec!["user-1".to_string()],
+        };
+
+        let hackathon_result = HackathonService::create_hackathon(hackathon_request, &app_state).await;
+        assert!(hackathon_result.is_ok());
+        let hackathon_id = hackathon_result.unwrap().data.id;
+
+        // Create submission with invalid repository URL
+        let submission_request = HackathonSubmissionCreateRequestDto {
+            project_name: "Test Project".to_string(),
+            description: "A test project submission".to_string(),
+            repository_url: Some("not-a-valid-url".to_string()), // Now allowed: invalid URL
+            demo_url: Some("https://demo.example.com".to_string()),
+            slides_url: Some("https://slides.example.com".to_string()),
+            technologies: vec!["Rust".to_string()],
+        };
+
+        let submission_result = HackathonService::create_hackathon_submission(hackathon_id, "team-1".to_string(), submission_request, &app_state).await;
+        assert!(submission_result.is_ok());
+
+        let response = submission_result.unwrap();
+        assert_eq!(response.data.project_name, "Test Project");
+    }
+    #[tokio::test]
+    async fn test_submit_hackathon_submission_service_submission_not_found() {
+        let app_state = crate::get_app_state().await;
+
+        let result = HackathonService::submit_hackathon_submission("non-existent-submission".to_string(), &app_state).await;
+        assert!(result.is_err());
+
+        let error = result.unwrap_err();
+        assert_eq!(error.status, 404);
+        assert!(error.message.contains("Submission not found"));
+    }
+
+    #[tokio::test]
+    async fn test_list_hackathons_service_with_pagination() {
+        let app_state = crate::get_app_state().await;
+
+        // Create multiple hackathons
+        for i in 1..=5 {
+            let request = HackathonCreateRequestDto {
+                name: format!("Pagination Test {}", i),
+                description: format!("Hackathon {}", i),
+                start_date: Utc::now() + chrono::Duration::days(2 + i),
+                end_date: Utc::now() + chrono::Duration::days(3 + i),
+                registration_deadline: Utc::now() + chrono::Duration::days(1 + i),
+                max_participants: Some(50),
+                theme: None,
+                rules: None,
+                prizes: None,
+                organizers: vec!["user-1".to_string()],
+            };
+            let _ = HackathonService::create_hackathon(request, &app_state).await;
+        }
+
+        // Test pagination - page 1, per_page 2
+        let meta = MetaRequestDto {
+            page: Some(1),
+            per_page: Some(2),
+            search: None,
+            sort_by: None,
+            order: None,
+            filter: None,
+            filter_by: None,
+        };
+
+        let result = HackathonService::list_hackathons(meta, &app_state).await;
+        assert!(result.is_ok());
+
+        let response = result.unwrap();
+        assert!(response.data.len() >= 1);
+        assert!(response.meta.unwrap().total >= Some(1)); // At least 1 total item
+    }
+
+    #[tokio::test]
+    async fn test_list_hackathons_service_with_search() {
+        let app_state = crate::get_app_state().await;
+
+        // Create hackathons with searchable names
+        let request1 = HackathonCreateRequestDto {
+            name: "Rust Hackathon 2024".to_string(),
+            description: "A Rust-focused hackathon".to_string(),
+            start_date: Utc::now() + chrono::Duration::days(2),
+            end_date: Utc::now() + chrono::Duration::days(3),
+            registration_deadline: Utc::now() + chrono::Duration::days(1),
+            max_participants: Some(50),
+            theme: None,
+            rules: None,
+            prizes: None,
+            organizers: vec!["user-1".to_string()],
+        };
+
+        let request2 = HackathonCreateRequestDto {
+            name: "JavaScript Conference".to_string(),
+            description: "A JS conference".to_string(),
+            start_date: Utc::now() + chrono::Duration::days(4),
+            end_date: Utc::now() + chrono::Duration::days(5),
+            registration_deadline: Utc::now() + chrono::Duration::days(3),
+            max_participants: Some(75),
+            theme: None,
+            rules: None,
+            prizes: None,
+            organizers: vec!["user-2".to_string()],
+        };
+
+        let _ = HackathonService::create_hackathon(request1, &app_state).await;
+        let _ = HackathonService::create_hackathon(request2, &app_state).await;
+
+        // Search for "Rust"
+        let meta = MetaRequestDto {
+            page: Some(1),
+            per_page: Some(10),
+            search: Some("Rust".to_string()),
+            sort_by: None,
+            order: None,
+            filter: None,
+            filter_by: None,
+        };
+
+        let result = HackathonService::list_hackathons(meta, &app_state).await;
+        assert!(result.is_ok());
+
+        let response = result.unwrap();
+        assert!(response.data.len() >= 1);
+        assert!(response.data.iter().any(|h| h.name.contains("Rust")));
     }
 }

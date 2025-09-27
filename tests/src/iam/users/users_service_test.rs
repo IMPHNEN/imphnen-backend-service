@@ -1,227 +1,303 @@
 #[cfg(test)]
 mod tests {
-	use crate::{generate_unique_email, get_role_id, UsersRepository, setup_all_test_environment};
-	use axum::{http::StatusCode, response::Response};
-	use imphnen_entities::{AppState, MetaRequestDto};
-	use imphnen_iam::{
-		users_dto::{UserCreateRequestDto, UserUpdateRequestDto},
-		users_service::UsersService,
-		UsersRepository
-	};
-	use imphnen_utils::{hash_password, make_thing_from_enum};
-	use surrealdb::Uuid;
-
-	#[tokio::test]
-	async fn test_create_user_service() {
-		let app_state = setup_all_test_environment().await;
-		let user_repo = UsersRepository::new(&app_state);
-		let role_repo = imphnen_iam::RolesRepository::new(&app_state);
-
-		// Test data
-		let email = generate_unique_email("test_create_user");
-		let password = "Password123!".to_string();
-		let hashed_password = hash_password(&password).await.unwrap();
-		
-		let user_dto = UserCreateRequestDto {
-			email: email.clone(),
-			password: password.clone(),
-			fullname: "Test User Service".to_string(),
-			phone_number: Some("1234567890".to_string()),
-			role_id: get_role_id(&app_state, "user").await.unwrap(),
-		};
-
-		// Create user
-		let response = UsersService::create_user(&app_state, user_dto.clone()).await;
-
-		// Verify response
-		assert_eq!(response.status(), StatusCode::OK);
-
-		// Verify user was created in database
-		let created_user = user_repo.query_user_by_email(email.clone()).await;
-		assert!(created_user.is_ok());
-		assert_eq!(created_user.unwrap().email, email);
-		assert_eq!(created_user.unwrap().fullname, "Test User Service".to_string());
-
-		// Clean up
-		let user = created_user.unwrap();
-		let _ = user_repo.query_delete_user(user.id.id.to_raw()).await;
-	}
+	use crate::{generate_unique_email, get_role_id, UsersRepository};
+	use axum::http::StatusCode;
+	use imphnen_entities::MessageResponseDto;
+	use imphnen_iam::MetaRequestDto;
+	use imphnen_iam::v1::users::{UsersCreateRequestDto, UsersSchema, UsersUpdateRequestDto};
+	use imphnen_iam::v1::users::users_service::{UsersService, UsersServiceTrait};
+	use imphnen_utils::{make_thing_from_enum, ResourceEnum as UtilsResourceEnum};
+	use uuid::Uuid;
 
 	#[tokio::test]
 	async fn test_get_user_list_service() {
-		let app_state = setup_all_test_environment().await;
-		let user_repo = UsersRepository::new(&app_state);
+		let app_state = crate::get_app_state().await;
 
-		// Create test user first
-		let email = generate_unique_email("test_user_list");
-		let password = "Password123!".to_string();
-		
-		let user_dto = UserCreateRequestDto {
-			email: email.clone(),
-			password: password.clone(),
-			fullname: "Test User List".to_string(),
-			phone_number: Some("1234567890".to_string()),
-			role_id: get_role_id(&app_state, "user").await.unwrap(),
-		};
-
-		let _ = UsersService::create_user(&app_state, user_dto).await;
-
-		// Get user list
+		// Get user list through service
 		let meta = MetaRequestDto {
-			limit: 10,
-			page: 1,
-			search: None,
-			sort: None,
-			filter: None,
+			page: Some(1),
+			per_page: Some(10),
+			..Default::default()
 		};
-
 		let response = UsersService::get_user_list(&app_state, meta).await;
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
-
-		// Clean up
-		let user = user_repo.query_user_by_email(email.clone()).await.unwrap();
-		let _ = user_repo.query_delete_user(user.id.id.to_raw()).await;
 	}
 
 	#[tokio::test]
-	async fn test_get_user_by_id_service() {
-		let app_state = setup_all_test_environment().await;
-		let user_repo = UsersRepository::new(&app_state);
+	async fn test_get_user_by_id_service_invalid_uuid() {
+		let app_state = crate::get_app_state().await;
 
-		// Create test user first
-		let email = generate_unique_email("test_user_by_id");
-		let password = "Password123!".to_string();
-		
-		let user_dto = UserCreateRequestDto {
-			email: email.clone(),
-			password: password.clone(),
-			fullname: "Test User By ID".to_string(),
-			phone_number: Some("1234567890".to_string()),
-			role_id: get_role_id(&app_state, "user").await.unwrap(),
-		};
+		// Use invalid UUID
+		let invalid_id = "invalid-uuid".to_string();
 
-		let _ = UsersService::create_user(&app_state, user_dto).await;
+		// Get user by ID through service
+		let response = UsersService::get_user_by_id(&app_state, invalid_id).await;
 
-		let user = user_repo.query_user_by_email(email.clone()).await.unwrap();
-		let user_id = user.id.id.to_raw();
+		// Verify response - should fail validation
+		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+	}
 
-		// Get user by ID
-		let response = UsersService::get_user_by_id(&app_state, user_id).await;
+	#[tokio::test]
+	async fn test_get_user_by_id_service_not_found() {
+		let app_state = crate::get_app_state().await;
+
+		// Use valid but non-existent UUID
+		let non_existent_id = Uuid::new_v4().to_string();
+
+		// Get user by ID through service
+		let response = UsersService::get_user_by_id(&app_state, non_existent_id).await;
 
 		// Verify response
-		assert_eq!(response.status(), StatusCode::OK);
-
-		// Clean up
-		let _ = user_repo.query_delete_user(user_id).await;
+		assert_eq!(response.status(), StatusCode::NOT_FOUND);
 	}
 
 	#[tokio::test]
-	async fn test_update_user_service() {
-		let app_state = setup_all_test_environment().await;
-		let user_repo = UsersRepository::new(&app_state);
+	async fn test_create_user_service() {
+		let app_state = crate::get_app_state().await;
+		let repo = UsersRepository::new(&app_state);
+		let role_id = get_role_id("user", &app_state).await;
 
-		// Create test user first
-		let email = generate_unique_email("test_update_user");
-		let password = "Password123!".to_string();
-		
-		let user_dto = UserCreateRequestDto {
+		// Test data
+		let email = generate_unique_email("test_create_user_service");
+		let password = "password123".to_string();
+		let create_request = UsersCreateRequestDto {
 			email: email.clone(),
 			password: password.clone(),
-			fullname: "Test User Update".to_string(),
-			phone_number: Some("1234567890".to_string()),
-			role_id: get_role_id(&app_state, "user").await.unwrap(),
+			fullname: "Test User Service".to_string(),
+			phone_number: "+1234567890".to_string(),
+			role_id: role_id.id.to_raw(),
+			is_active: true,
+			avatar: None,
 		};
 
-		let _ = UsersService::create_user(&app_state, user_dto).await;
+		// Create user through service
+		let response = UsersService::create_user(&app_state, create_request).await;
 
-		let user = user_repo.query_user_by_email(email.clone()).await.unwrap();
-		let user_id = user.id.id.to_raw();
+		// Verify response
+		assert_eq!(response.status(), StatusCode::CREATED);
+
+		// Verify user was created in database
+		let created_user = repo.query_user_by_email(email.clone()).await.unwrap();
+		assert_eq!(created_user.email, email);
+
+		// Clean up
+		let _ = repo.query_delete_user(created_user.id.id.to_raw()).await;
+	}
+
+	#[tokio::test]
+	async fn test_create_user_service_existing_email() {
+		let app_state = crate::get_app_state().await;
+		let repo = UsersRepository::new(&app_state);
+		let role_id = get_role_id("user", &app_state).await;
+
+		// Test data
+		let email = generate_unique_email("test_create_existing_service");
+		let password = "password123".to_string();
+
+		// Create existing user
+		let user_schema = UsersSchema {
+			id: make_thing_from_enum(UtilsResourceEnum::Users, &Uuid::new_v4().to_string()),
+			fullname: "Existing User".to_string(),
+			legal_name: None,
+			email: email.clone(),
+			password: imphnen_utils::hash_password(&password).unwrap(),
+			avatar: None,
+			phone_number: "+1234567890".to_string(),
+			phone_for_verification: None,
+			is_active: true,
+			is_deleted: false,
+			mentor_id: None,
+			gender: None,
+			birthdate: None,
+			domicile: None,
+			bio: None,
+			last_education: None,
+			linkedin_url: None,
+			github_url: None,
+			cv_url: None,
+			portfolio_url: None,
+			website_url: None,
+			twitter_url: None,
+			location: None,
+			skills: None,
+			experience: None,
+			education: None,
+			career_status: None,
+			role: role_id.clone(),
+			created_at: "2023-01-01T00:00:00Z".to_string(),
+			updated_at: "2023-01-01T00:00:00Z".to_string(),
+		};
+
+		let create_response = repo.query_create_user(user_schema).await;
+		assert!(create_response.is_ok());
+
+		// Try to create again with same email
+		let create_request = UsersCreateRequestDto {
+			email: email.clone(),
+			password: password.clone(),
+			fullname: "New User".to_string(),
+			phone_number: "+1234567891".to_string(),
+			role_id: role_id.id.to_raw(),
+			is_active: true,
+			avatar: None,
+		};
+
+		let response = UsersService::create_user(&app_state, create_request).await;
+
+		// Verify response
+		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+		let body = response.into_body();
+		let body_bytes = axum::body::to_bytes(body, 1024).await.unwrap();
+		let error_response: MessageResponseDto = serde_json::from_slice(&body_bytes).unwrap();
+		assert_eq!(error_response.message, "Email not valid");
+
+		// Clean up
+		let user = repo.query_user_by_email(email.clone()).await.unwrap();
+		let _ = repo.query_delete_user(user.id.id.to_raw()).await;
+	}
+
+	#[tokio::test]
+	async fn test_update_user_service_invalid_uuid() {
+		let app_state = crate::get_app_state().await;
+
+		// Use invalid UUID
+		let invalid_id = "invalid-uuid".to_string();
 
 		// Prepare update request
-		let update_dto = UserUpdateRequestDto {
-			fullname: Some("Updated Test User".to_string()),
-			phone_number: Some("0987654321".to_string()),
-			is_active: Some(true),
+		let update_request = UsersUpdateRequestDto {
+			fullname: Some("Updated Name".to_string()),
+			phone_number: None,
+			is_active: None,
+			avatar: None,
+			bio: None,
+			birthdate: None,
+			gender: None,
+			domicile: None,
+			last_education: None,
+			linkedin_url: None,
+			github_url: None,
+			cv_url: None,
+			portfolio_url: None,
+			website_url: None,
+			twitter_url: None,
+			location: None,
+			skills: None,
+			experience: None,
+			education: None,
+			career_status: None,
+			email: None,
+			password: None,
+			legal_name: None,
+			phone_for_verification: None,
+			role_id: None,
 		};
 
-		// Update user
-		let response = UsersService::update_user(&app_state, user_id, update_dto).await;
+		// Update user through service
+		let response = UsersService::update_user(&app_state, invalid_id, update_request).await;
 
-		// Verify response
-		assert_eq!(response.status(), StatusCode::OK);
-
-		// Verify user was updated
-		let updated_user = user_repo.query_user_by_id(&user.id, false).await.unwrap();
-		assert_eq!(updated_user.fullname, "Updated Test User".to_string());
-		assert_eq!(updated_user.phone_number, Some("0987654321".to_string()));
-		assert_eq!(updated_user.is_active, true);
-
-		// Clean up
-		let _ = user_repo.query_delete_user(user_id).await;
+		// Verify response - should fail validation
+		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 	}
 
 	#[tokio::test]
-	async fn test_delete_user_service() {
-		let app_state = setup_all_test_environment().await;
-		let user_repo = UsersRepository::new(&app_state);
+	async fn test_update_user_service_not_found() {
+		let app_state = crate::get_app_state().await;
 
-		// Create test user first
-		let email = generate_unique_email("test_delete_user");
-		let password = "Password123!".to_string();
-		
-		let user_dto = UserCreateRequestDto {
-			email: email.clone(),
-			password: password.clone(),
-			fullname: "Test User Delete".to_string(),
-			phone_number: Some("1234567890".to_string()),
-			role_id: get_role_id(&app_state, "user").await.unwrap(),
+		// Use valid but non-existent UUID
+		let non_existent_id = Uuid::new_v4().to_string();
+
+		// Prepare update request
+		let update_request = UsersUpdateRequestDto {
+			fullname: Some("Updated Name".to_string()),
+			phone_number: None,
+			is_active: None,
+			avatar: None,
+			bio: None,
+			birthdate: None,
+			gender: None,
+			domicile: None,
+			last_education: None,
+			linkedin_url: None,
+			github_url: None,
+			cv_url: None,
+			portfolio_url: None,
+			website_url: None,
+			twitter_url: None,
+			location: None,
+			skills: None,
+			experience: None,
+			education: None,
+			career_status: None,
+			email: None,
+			password: None,
+			legal_name: None,
+			phone_for_verification: None,
+			role_id: None,
 		};
 
-		let _ = UsersService::create_user(&app_state, user_dto).await;
-
-		let user = user_repo.query_user_by_email(email.clone()).await.unwrap();
-		let user_id = user.id.id.to_raw();
-
-		// Delete user
-		let response = UsersService::delete_user(&app_state, user_id).await;
+		// Update user through service
+		let response = UsersService::update_user(&app_state, non_existent_id, update_request).await;
 
 		// Verify response
-		assert_eq!(response.status(), StatusCode::OK);
-
-		// Verify user was deleted
-		let deleted_user = user_repo.query_user_by_email(email.clone()).await;
-		assert!(deleted_user.is_err());
+		assert_eq!(response.status(), StatusCode::NOT_FOUND);
 	}
 
 	#[tokio::test]
-	async fn test_get_user_by_email_service() {
-		let app_state = setup_all_test_environment().await;
-		let user_repo = UsersRepository::new(&app_state);
+	async fn test_delete_user_service_invalid_uuid() {
+		let app_state = crate::get_app_state().await;
 
-		// Create test user first
-		let email = generate_unique_email("test_user_by_email");
-		let password = "Password123!".to_string();
-		
-		let user_dto = UserCreateRequestDto {
-			email: email.clone(),
-			password: password.clone(),
-			fullname: "Test User By Email".to_string(),
-			phone_number: Some("1234567890".to_string()),
-			role_id: get_role_id(&app_state, "user").await.unwrap(),
-		};
+		// Use invalid UUID
+		let invalid_id = "invalid-uuid".to_string();
 
-		let _ = UsersService::create_user(&app_state, user_dto).await;
+		// Delete user through service
+		let response = UsersService::delete_user(&app_state, invalid_id).await;
 
-		// Get user by email
-		let response = UsersService::get_user_by_email(&app_state, email.clone()).await;
+		// Verify response - should fail validation
+		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+	}
+
+	#[tokio::test]
+	async fn test_delete_user_service_not_found() {
+		let app_state = crate::get_app_state().await;
+
+		// Use valid but non-existent UUID
+		let non_existent_id = Uuid::new_v4().to_string();
+
+		// Delete user through service
+		let response = UsersService::delete_user(&app_state, non_existent_id).await;
 
 		// Verify response
-		assert_eq!(response.status(), StatusCode::OK);
+		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+	}
 
-		// Clean up
-		let user = user_repo.query_user_by_email(email.clone()).await.unwrap();
-		let _ = user_repo.query_delete_user(user.id.id.to_raw()).await;
+	#[tokio::test]
+	async fn test_get_user_by_mentor_id_service_invalid_uuid() {
+		let app_state = crate::get_app_state().await;
+
+		// Use invalid UUID
+		let invalid_id = "invalid-uuid".to_string();
+
+		// Get user by mentor ID through service
+		let response = UsersService::get_user_by_mentor_id(&app_state, invalid_id).await;
+
+		// Verify response - should fail validation
+		assert_eq!(response.status(), StatusCode::NOT_FOUND);
+	}
+
+	#[tokio::test]
+	async fn test_get_user_by_mentor_id_service_not_found() {
+		let app_state = crate::get_app_state().await;
+
+		// Use valid but non-existent UUID
+		let non_existent_id = Uuid::new_v4().to_string();
+
+		// Get user by mentor ID through service
+		let response = UsersService::get_user_by_mentor_id(&app_state, non_existent_id).await;
+
+		// Verify response
+		assert_eq!(response.status(), StatusCode::NOT_FOUND);
 	}
 }

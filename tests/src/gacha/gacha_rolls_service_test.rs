@@ -1,75 +1,277 @@
-use imphnen_gacha::v1::gacha_rolls::gacha_rolls_service::{self, GachaRollsRepository, GachaCreditsRepository};
-use imphnen_gacha::v1::gacha_rolls::gacha_rolls_dto::{CreateGachaRollDto, GachaRollResponse};
-use mockall::mock;
-use std::sync::Arc;
+#[cfg(test)]
+mod tests {
+	use crate::{generate_unique_email, get_role_id, setup_all_test_environment, UsersRepository};
+	use axum::{http::{HeaderMap, StatusCode}, response::Response};
+	use imphnen_entities::{AppState, MetaRequestDto};
+	use imphnen_gacha::v1::gacha_rolls::gacha_rolls_service::GachaRollService;
+	use imphnen_gacha::v1::gacha_rolls::gacha_rolls_dto::GachaRollRequestDto;
+	use imphnen_gacha::v1::gacha_items::gacha_items_service::GachaItemService;
+	use imphnen_gacha::v1::gacha_items::gacha_items_dto::GachaItemRequestDto;
+	use imphnen_gacha::GachaRollRepository;
+	use imphnen_iam::users_service::UsersService;
+	use imphnen_utils::hash_password;
+	use serde_json;
 
-mock! {
-    pub GachaRollsRepositoryMock {}
-    #[async_trait]
-    impl GachaRollsRepository for GachaRollsRepositoryMock {
-        async fn create(&self, roll: &CreateGachaRollDto) -> Result<GachaRollResponse, String>;
-        async fn find_by_id(&self, roll_id: &str) -> Result<Option<GachaRollResponse>, String>;
-        async fn find_by_user(&self, user_id: &str) -> Result<Vec<GachaRollResponse>, String>;
-        async fn find_all(&self) -> Result<Vec<GachaRollResponse>, String>;
-        async fn update(&self, roll_id: &str, status: &str) -> Result<GachaRollResponse, String>;
-        async fn delete(&self, roll_id: &str) -> Result<(), String>;
-    }
+	#[tokio::test]
+	async fn test_get_gacha_roll_by_id_service() {
+		let app_state = setup_all_test_environment().await;
+		let roll_repo = GachaRollRepository::new(&app_state);
+
+		// Create test item first
+		let item_dto = GachaItemRequestDto {
+			name: "Test Item".to_string(),
+			image_url: "https://example.com/item.png".to_string(),
+		};
+		let _ = GachaItemService::create_gacha_item(&app_state, item_dto).await;
+		let item = roll_repo.query_all_active_rolls().await.unwrap().into_iter().find(|r| r.item.name == "Test Item").unwrap().item.clone();
+
+		// Create test roll
+		let roll_dto = GachaRollRequestDto {
+			item_id: item.id.id.to_raw(),
+			weight: 1.0,
+			quantity: 10,
+		};
+		let _ = GachaRollService::create_gacha_roll(&app_state, roll_dto).await;
+		let roll = roll_repo.query_all_active_rolls().await.unwrap().into_iter().find(|r| r.item.name == "Test Item").unwrap();
+
+		// Test get by id
+		let response = GachaRollService::get_gacha_roll_by_id(&app_state, roll.id.id.to_raw()).await;
+
+		// Verify response
+		assert_eq!(response.status(), StatusCode::OK);
+
+		// Clean up
+		let _ = roll_repo.query_soft_delete_gacha_roll(roll.id.id.to_raw()).await;
+	}
+
+	#[tokio::test]
+	async fn test_get_gacha_roll_by_id_not_found() {
+		let app_state = setup_all_test_environment().await;
+
+		// Test get by non-existent id
+		let response = GachaRollService::get_gacha_roll_by_id(&app_state, "nonexistent".to_string()).await;
+
+		// Verify response
+		assert_eq!(response.status(), StatusCode::NOT_FOUND);
+	}
+
+	#[tokio::test]
+	async fn test_create_gacha_roll_service() {
+		let app_state = setup_all_test_environment().await;
+		let roll_repo = GachaRollRepository::new(&app_state);
+
+		// Create test item first
+		let item_dto = GachaItemRequestDto {
+			name: "Test Item Create".to_string(),
+			image_url: "https://example.com/item.png".to_string(),
+		};
+		let _ = GachaItemService::create_gacha_item(&app_state, item_dto).await;
+		let item = roll_repo.query_all_active_rolls().await.unwrap().into_iter().find(|r| r.item.name == "Test Item Create").unwrap().item.clone();
+
+		// Test data
+		let roll_dto = GachaRollRequestDto {
+			item_id: item.id.id.to_raw(),
+			weight: 1.0,
+			quantity: 10,
+		};
+
+		// Create roll via service
+		let response = GachaRollService::create_gacha_roll(&app_state, roll_dto.clone()).await;
+
+		// Verify response
+		assert_eq!(response.status(), StatusCode::CREATED);
+
+		// Verify roll was created in database
+		let rolls = roll_repo.query_all_active_rolls().await.unwrap();
+		assert!(rolls.iter().any(|r| r.item.name == "Test Item Create" && r.weight == 1.0 && r.quantity == 10));
+
+		// Clean up
+		for roll in rolls {
+			let _ = roll_repo.query_soft_delete_gacha_roll(roll.id.id.to_raw()).await;
+		}
+	}
+
+	#[tokio::test]
+	async fn test_create_gacha_roll_invalid_input() {
+		let app_state = setup_all_test_environment().await;
+
+		// Test with empty item_id
+		let roll_dto = GachaRollRequestDto {
+			item_id: "".to_string(),
+			weight: 1.0,
+			quantity: 10,
+		};
+
+		let response = GachaRollService::create_gacha_roll(&app_state, roll_dto).await;
+
+		// Verify response
+		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+	}
+
+	#[tokio::test]
+	async fn test_create_gacha_roll_zero_quantity() {
+		let app_state = setup_all_test_environment().await;
+
+		// Create test item first
+		let item_dto = GachaItemRequestDto {
+			name: "Test Item Zero".to_string(),
+			image_url: "https://example.com/item.png".to_string(),
+		};
+		let _ = GachaItemService::create_gacha_item(&app_state, item_dto).await;
+		let roll_repo = GachaRollRepository::new(&app_state);
+		let item = roll_repo.query_all_active_rolls().await.unwrap().into_iter().find(|r| r.item.name == "Test Item Zero").unwrap().item.clone();
+
+		// Test with quantity = 0
+		let roll_dto = GachaRollRequestDto {
+			item_id: item.id.id.to_raw(),
+			weight: 1.0,
+			quantity: 0,
+		};
+
+		let response = GachaRollService::create_gacha_roll(&app_state, roll_dto).await;
+
+		// Verify response - should fail validation
+		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+	}
+
+	#[tokio::test]
+	async fn test_execute_roll_once_happy_path() {
+		let app_state = setup_all_test_environment().await;
+		let roll_repo = GachaRollRepository::new(&app_state);
+		let user_repo = UsersRepository::new(&app_state);
+
+		// Create test user
+		let email = generate_unique_email("test_execute_roll_once");
+		let password = "Password123!".to_string();
+		let user_dto = imphnen_iam::users_dto::UserCreateRequestDto {
+			email: email.clone(),
+			password: password.clone(),
+			fullname: "Test Execute Roll".to_string(),
+			phone_number: Some("1234567890".to_string()),
+			role_id: get_role_id(&app_state, "user").await.unwrap(),
+		};
+		let _ = UsersService::create_user(&app_state, user_dto).await;
+		let user = user_repo.query_user_by_email(email.clone()).await.unwrap();
+
+		// Create test item
+		let item_dto = GachaItemRequestDto {
+			name: "Test Item Roll".to_string(),
+			image_url: "https://example.com/item.png".to_string(),
+		};
+		let _ = GachaItemService::create_gacha_item(&app_state, item_dto).await;
+
+		// Create test roll
+		let rolls = roll_repo.query_all_active_rolls().await.unwrap();
+		let item = rolls.iter().find(|r| r.item.name == "Test Item Roll").unwrap().item.clone();
+		let roll_dto = GachaRollRequestDto {
+			item_id: item.id.id.to_raw(),
+			weight: 1.0,
+			quantity: 10,
+		};
+		let _ = GachaRollService::create_gacha_roll(&app_state, roll_dto).await;
+
+		// Create auth header
+		let mut headers = HeaderMap::new();
+		headers.insert("authorization", format!("Bearer {}", email).parse().unwrap());
+
+		// Execute roll once
+		let response = GachaRollService::execute_roll_once(headers, &app_state).await;
+
+		// Verify response
+		assert_eq!(response.status(), StatusCode::OK);
+
+		// Clean up
+		let _ = user_repo.query_delete_user(user.id.id.to_raw()).await;
+		let rolls = roll_repo.query_all_active_rolls().await.unwrap();
+		for roll in rolls {
+			let _ = roll_repo.query_soft_delete_gacha_roll(roll.id.id.to_raw()).await;
+		}
+	}
+
+	#[tokio::test]
+	async fn test_execute_roll_once_no_active_rolls() {
+		let app_state = setup_all_test_environment().await;
+		let user_repo = UsersRepository::new(&app_state);
+
+		// Create test user
+		let email = generate_unique_email("test_no_active_rolls");
+		let password = "Password123!".to_string();
+		let user_dto = imphnen_iam::users_dto::UserCreateRequestDto {
+			email: email.clone(),
+			password: password.clone(),
+			fullname: "Test No Active Rolls".to_string(),
+			phone_number: Some("1234567890".to_string()),
+			role_id: get_role_id(&app_state, "user").await.unwrap(),
+		};
+		let _ = UsersService::create_user(&app_state, user_dto).await;
+
+		// Create auth header
+		let mut headers = HeaderMap::new();
+		headers.insert("authorization", format!("Bearer {}", email).parse().unwrap());
+
+		// Execute roll once with no active rolls
+		let response = GachaRollService::execute_roll_once(headers, &app_state).await;
+
+		// Verify response
+		assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+		// Clean up
+		let user = user_repo.query_user_by_email(email).await.unwrap();
+		let _ = user_repo.query_delete_user(user.id.id.to_raw()).await;
+	}
+
+	#[tokio::test]
+	async fn test_execute_roll_once_unauthorized() {
+		let app_state = setup_all_test_environment().await;
+
+		// Execute roll once without auth header
+		let headers = HeaderMap::new();
+		let response = GachaRollService::execute_roll_once(headers, &app_state).await;
+
+		// Verify response
+		assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+	}
+
+	#[tokio::test]
+	async fn test_soft_delete_gacha_roll_service() {
+		let app_state = setup_all_test_environment().await;
+		let roll_repo = GachaRollRepository::new(&app_state);
+
+		// Create test item and roll first
+		let item_dto = GachaItemRequestDto {
+			name: "Test Item Delete".to_string(),
+			image_url: "https://example.com/item.png".to_string(),
+		};
+		let _ = GachaItemService::create_gacha_item(&app_state, item_dto).await;
+		let rolls = roll_repo.query_all_active_rolls().await.unwrap();
+		let item = rolls.iter().find(|r| r.item.name == "Test Item Delete").unwrap().item.clone();
+		let roll_dto = GachaRollRequestDto {
+			item_id: item.id.id.to_raw(),
+			weight: 1.0,
+			quantity: 10,
+		};
+		let _ = GachaRollService::create_gacha_roll(&app_state, roll_dto).await;
+		let roll = roll_repo.query_all_active_rolls().await.unwrap().into_iter().find(|r| r.item.name == "Test Item Delete").unwrap();
+
+		// Soft delete roll
+		let response = GachaRollService::soft_delete_gacha_roll(&app_state, roll.id.id.to_raw()).await;
+
+		// Verify response
+		assert_eq!(response.status(), StatusCode::OK);
+
+		// Verify roll is deleted
+		let deleted_roll = roll_repo.query_gacha_roll_by_id(roll.id.id.to_raw()).await;
+		assert!(deleted_roll.is_err());
+	}
+
+	#[tokio::test]
+	async fn test_soft_delete_gacha_roll_not_found() {
+		let app_state = setup_all_test_environment().await;
+
+		// Try to delete non-existent roll
+		let response = GachaRollService::soft_delete_gacha_roll(&app_state, "nonexistent".to_string()).await;
+
+		// Verify response
+		assert_eq!(response.status(), StatusCode::NOT_FOUND);
+	}
 }
-
-mock! {
-    pub GachaCreditsRepositoryMock {}
-    #[async_trait]
-    impl GachaCreditsRepository for GachaCreditsRepositoryMock {
-        async fn deduct_credits(&self, user_id: &str, amount: i32) -> Result<(), String>;
-        async fn add_credits(&self, user_id: &str, amount: i32) -> Result<(), String>;
-        async fn get_balance(&self, user_id: &str) -> Result<i32, String>;
-    }
-}
-
-#[tokio::test]
-async fn test_create_roll_happy_path() {
-    let mock_roll_repo = MockGachaRollsRepositoryMock::new();
-    let mock_credits_repo = MockGachaCreditsRepositoryMock::new();
-    let service = gacha_rolls_service::GachaRollsService::new(Arc::new(mock_roll_repo), Arc::new(mock_credits_repo));
-    
-    let create_dto = CreateGachaRollDto { user_id: "user123".to_string(), credits_used: 10 };
-    let expected = GachaRollResponse { id: "roll789".to_string(), user_id: "user123".to_string(), credits_used: 10, items_won: vec!["item456".to_string()], status: "completed".to_string(), created_at: "2024-01-01T00:00:00Z".to_string() };
-
-    mock_credits_repo.expect_deduct_credits().withf(|u, a| u == "user123" && a == 10).returning(|_, _| Ok(()));
-    mock_roll_repo.expect_create().withf(|r| r.user_id == create_dto.user_id && r.credits_used == create_dto.credits_used).returning(|_| Ok(expected.clone()));
-    
-    let result = service.create_roll(&create_dto).await;
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap().id, expected.id);
-}
-
-#[tokio::test]
-async fn test_create_roll_insufficient_credits() {
-    let mock_roll_repo = MockGachaRollsRepositoryMock::new();
-    let mock_credits_repo = MockGachaCreditsRepositoryMock::new();
-    let service = gacha_rolls_service::GachaRollsService::new(Arc::new(mock_roll_repo), Arc::new(mock_credits_repo));
-    
-    let create_dto = CreateGachaRollDto { user_id: "user123".to_string(), credits_used: 100 };
-    let error_msg = "Insufficient credits";
-
-    mock_credits_repo.expect_deduct_credits().withf(|u, a| u == "user123" && a == 100).returning(|_, _| Err(error_msg.to_string()));
-    
-    let result = service.create_roll(&create_dto).await;
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), error_msg);
-}
-
-#[tokio::test]
-async fn test_get_user_rolls_empty_case() {
-    let mock_roll_repo = MockGachaRollsRepositoryMock::new();
-    let mock_credits_repo = MockGachaCreditsRepositoryMock::new();
-    let service = gacha_rolls_service::GachaRollsService::new(Arc::new(mock_roll_repo), Arc::new(mock_credits_repo));
-
-    mock_roll_repo.expect_find_by_user().withf(|u| u == "user123").returning(|| Ok(Vec::new()));
-    
-    let result = service.get_user_rolls("user123").await;
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap().len(), 0);
-}
-
-// Additional tests for get by id, update, delete, get all rolls operations...
