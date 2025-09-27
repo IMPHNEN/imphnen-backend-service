@@ -408,6 +408,29 @@ pub async fn list_hackathon_submissions(
 }
 
 #[utoipa::path(
+    get,
+    path = "/v1/hackathons/submissions/{id}",
+    params(
+        ("id" = String, Path, description = "Submission ID")
+    ),
+    responses(
+        (status = 200, description = "Submission retrieved successfully", body = ResponseSuccessDto<HackathonSubmissionDto>),
+        (status = 404, description = "Submission not found", body = ErrorDto),
+        (status = 500, description = "Internal server error", body = ErrorDto)
+    ),
+    tag = "Hackathon Submissions"
+)]
+pub async fn get_hackathon_submission(
+    Extension(state): Extension<AppState>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    match HackathonService::get_hackathon_submission(id, &state).await {
+        Ok(response) => (axum::http::StatusCode::OK, Json(response)).into_response(),
+        Err(error) => (StatusCode::from_u16(error.status).unwrap(), Json(error)).into_response(),
+    }
+}
+
+#[utoipa::path(
     put,
     path = "/v1/hackathons/submissions/{id}",
     params(
@@ -503,6 +526,7 @@ pub fn hackathon_routes() -> Router {
         // Hackathon Submissions routes
         .route("/{hackathon_id}/teams/{team_id}/submissions", post(create_hackathon_submission))
         .route("/{hackathon_id}/submissions", get(list_hackathon_submissions))
+        .route("/submissions/{id}", get(get_hackathon_submission))
         .route("/submissions/{id}", put(update_hackathon_submission))
         .route("/submissions/{id}/submit", post(submit_hackathon_submission))
         .route("/submissions/{id}", delete(delete_hackathon_submission))

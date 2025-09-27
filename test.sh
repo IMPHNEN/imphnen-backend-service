@@ -12,6 +12,9 @@ declare -A ALL_USERS=(
     ["admin@example.com"]="Admin"
     ["staff@example.com"]="Staff"
     ["user@example.com"]="User"
+    ["testuser1@example.com"]="Test User 1"
+    ["testuser2@example.com"]="Test User 2"
+    ["testuser3@example.com"]="Test User 3"
     ["mentor@example.com"]="Mentor User"
 )
 
@@ -840,6 +843,65 @@ test_team_endpoints() {
   fi
 }
 
+test_hackathon_endpoints() {
+  printf "\n${CYAN}=== Menguji Hackathon Endpoints ===${NC}\n"
+  test_api_endpoint "Get Hackathons List" "GET" "/v1/hackathons" 200 "" true
+  test_api_endpoint "Get Hackathons with Pagination" "GET" "/v1/hackathons?page=1&per_page=5" 200 "" true
+  test_api_endpoint "Search Hackathons" "GET" "/v1/hackathons?search=test" 200 "" true
+
+  # Test specific hackathon by ID (assuming test hackathon exists from seeder)
+  local test_hackathon_id="test-hackathon-001"
+  test_api_endpoint "Get Hackathon By ID" "GET" "/v1/hackathons/$test_hackathon_id" 200 "" true
+
+  # Test submission endpoints
+  test_api_endpoint "Get Submissions List" "GET" "/v1/hackathons/$test_hackathon_id/submissions" 200 "" true
+  test_api_endpoint "Get Submissions with Pagination" "GET" "/v1/hackathons/$test_hackathon_id/submissions?page=1&per_page=5" 200 "" true
+
+  # Test creating a submission (assuming test user is logged in)
+  local submission_data
+  submission_data=$(jq -n --arg hackathon_id "$test_hackathon_id" --arg team_id "test-team-001" '{
+    hackathon_id: $hackathon_id,
+    team_id: $team_id,
+    project_name: "Test Project Submission",
+    description: "This is a test project submission for hackathon testing",
+    technologies: ["Rust", "React", "PostgreSQL"],
+    repository_url: "https://github.com/test/test-project",
+    demo_url: "https://demo.test.com",
+    presentation_url: "https://slides.test.com"
+  }')
+  local create_response
+  create_response=$(test_api_endpoint "Create Hackathon Submission" "POST" "/v1/hackathons/$test_hackathon_id/teams/test-team-001/submissions" 201 "$submission_data" true)
+  local test_submission_id=$(echo "$create_response" | jq -r '.data.id // empty')
+
+  # Test getting submission by ID
+  if [ -n "$test_submission_id" ]; then
+    test_api_endpoint "Get Submission By ID" "GET" "/v1/hackathons/submissions/$test_submission_id" 200 "" true
+  else
+    write_test_log "WARN" "✗ Get Submission By ID - Dilewati: Failed to capture submission ID from creation response"
+  fi
+
+  # Test updating submission
+  if [ -n "$test_submission_id" ]; then
+    local update_submission_data
+    update_submission_data=$(jq -n --arg hackathon_id "$test_hackathon_id" --arg team_id "test-team-001" '{
+      hackathon_id: $hackathon_id,
+      team_id: $team_id,
+      project_name: "Updated Test Project Submission",
+      description: "This is an updated test project submission for hackathon testing",
+      technologies: ["Rust", "React", "PostgreSQL", "Docker"],
+      repository_url: "https://github.com/test/updated-test-project",
+      demo_url: "https://updated-demo.test.com",
+      presentation_url: "https://updated-slides.test.com"
+    }')
+    test_api_endpoint "Update Hackathon Submission" "PUT" "/v1/hackathons/submissions/$test_submission_id" 200 "$update_submission_data" true
+
+    # Test deleting submission
+    test_api_endpoint "Delete Hackathon Submission" "DELETE" "/v1/hackathons/submissions/$test_submission_id" 200 "" true
+  else
+    write_test_log "WARN" "✗ Update/Delete Submission tests - Dilewati: Failed to capture submission ID from creation response"
+  fi
+}
+
 test_advanced_scenarios() {
   printf "\n${CYAN}=== Menguji Advanced Scenarios ===${NC}\n"
   
@@ -952,12 +1014,22 @@ if [ "$SKIP_SEED" = true ]; then
     exit 1
   fi
   write_test_log "SUCCESS" "Gacha rolls seeded."
+  if ! RUST_LOG=debug cargo run --bin seed_test_submission; then
+    write_test_log "ERROR" "Gagal menjalankan seed test submission."
+    exit 1
+  fi
+  write_test_log "SUCCESS" "Test submission seeded."
 else
   if ! RUST_LOG=debug cargo run --bin seeder; then
     write_test_log "ERROR" "Gagal menjalankan seeder roles permissions."
     exit 1
   fi
   write_test_log "SUCCESS" "Seeders selesai."
+  if ! RUST_LOG=debug cargo run --bin seed_test_submission; then
+    write_test_log "ERROR" "Gagal menjalankan seed test submission."
+    exit 1
+  fi
+  write_test_log "SUCCESS" "Test submission seeded."
 fi
 
 
@@ -996,6 +1068,7 @@ if [[ "$SKIP_COMPREHENSIVE" = false && -n "$AUTH_TOKEN" ]]; then
   test_testimonials_endpoints # This will now use TEST_TESTIMONIAL_ID
   test_gacha_endpoints
   test_team_endpoints
+  test_hackathon_endpoints
 fi
 
 test_advanced_scenarios

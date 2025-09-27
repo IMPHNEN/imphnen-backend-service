@@ -87,6 +87,10 @@ pub trait HackathonServiceTrait: Send + Sync + 'static {
         payload: HackathonSubmissionCreateRequestDto,
         state: &AppState,
     ) -> Pin<Box<dyn Future<Output = Result<ResponseSuccessDto<HackathonSubmissionDto>, ErrorDto>> + Send>>;
+    fn get_hackathon_submission(
+        id: String,
+        state: &AppState,
+    ) -> Pin<Box<dyn Future<Output = Result<ResponseSuccessDto<HackathonSubmissionDto>, ErrorDto>> + Send>>;
     fn list_hackathon_submissions(
         meta: MetaRequestDto,
         hackathon_id: String,
@@ -681,6 +685,31 @@ impl HackathonServiceTrait for HackathonService {
                     Err(ErrorDto {
                         status: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
                         message: "Failed to create hackathon submission".to_string(),
+                        details: None,
+                    })
+                }
+            }
+        })
+    }
+
+    fn get_hackathon_submission(
+        id: String,
+        state: &AppState,
+    ) -> Pin<Box<dyn Future<Output = Result<ResponseSuccessDto<HackathonSubmissionDto>, ErrorDto>> + Send>> {
+        let state = state.to_owned();
+        Box::pin(async move {
+            let repo = HackathonRepository::new(&state);
+
+            match repo.get_hackathon_submission_by_id(id).await {
+                Ok(submission) => {
+                    let dto = HackathonSubmissionDto::from(submission);
+                    Ok(ResponseSuccessDto { data: dto })
+                }
+                Err(e) => {
+                    error!("Failed to get hackathon submission: {}", e);
+                    Err(ErrorDto {
+                        status: StatusCode::NOT_FOUND.as_u16(),
+                        message: "Submission not found".to_string(),
                         details: None,
                     })
                 }
