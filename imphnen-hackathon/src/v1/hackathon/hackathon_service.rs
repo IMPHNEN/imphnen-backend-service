@@ -770,6 +770,57 @@ impl HackathonServiceTrait for HackathonService {
         Box::pin(async move {
             let repo = HackathonRepository::new(&state);
 
+            // Get submission to extract hackathon_id for timeline validation
+            let submission = match repo.get_hackathon_submission_by_id(id.clone()).await {
+                Ok(sub) => sub,
+                Err(e) => {
+                    let error_msg = e.to_string();
+                    if error_msg.contains("not found") {
+                        return Err(ErrorDto {
+                            status: StatusCode::NOT_FOUND.as_u16(),
+                            message: "Submission not found".to_string(),
+                            details: None,
+                        });
+                    } else {
+                        error!("Failed to get submission for validation: {}", e);
+                        return Err(ErrorDto {
+                            status: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+                            message: "Failed to validate submission".to_string(),
+                            details: None,
+                        });
+                    }
+                }
+            };
+
+            // Check submission timeline phase
+            match repo.get_submission_timeline_phase(submission.hackathon_id.id.to_raw()).await {
+                Ok(Some(timeline_phase)) => {
+                    let current_time = chrono::Utc::now();
+                    if current_time < timeline_phase.start_date || current_time > timeline_phase.end_date {
+                        return Err(ErrorDto {
+                            status: StatusCode::BAD_REQUEST.as_u16(),
+                            message: "Submission is not allowed outside the designated submission period".to_string(),
+                            details: Some(serde_json::json!({
+                                "start_date": timeline_phase.start_date,
+                                "end_date": timeline_phase.end_date,
+                                "current_time": current_time
+                            })),
+                        });
+                    }
+                }
+                Ok(None) => {
+                    // If no timeline phase defined, allow submission (backward compatibility)
+                }
+                Err(e) => {
+                    error!("Failed to get submission timeline phase: {}", e);
+                    return Err(ErrorDto {
+                        status: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+                        message: "Failed to validate submission period".to_string(),
+                        details: None,
+                    });
+                }
+            }
+
             match repo.submit_hackathon_submission(id).await {
                 Ok(submission) => {
                     let dto = HackathonSubmissionDto::from(submission);

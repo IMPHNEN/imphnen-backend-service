@@ -549,6 +549,28 @@ impl<'a> HackathonRepository<'a> {
     }
 
     #[instrument(skip(self, id), err)]
+    pub async fn get_hackathon_submission_by_id(&self, id: String) -> Result<HackathonSubmissionsSchema> {
+        let table = ResourceEnum::HackathonSubmissions.to_string();
+        info!(query = %format!("SELECT * FROM {} WHERE id = '{}'", table, id), "Executing SurrealDB query");
+
+        let record: Option<HackathonSubmissionsSchema> = self
+            .state
+            .surrealdb_ws
+            .select((table, id))
+            .await?;
+
+        match record {
+            Some(s) => {
+                if s.is_deleted {
+                    bail!("Submission not found");
+                }
+                Ok(s)
+            }
+            None => bail!("Submission not found"),
+        }
+    }
+
+    #[instrument(skip(self, id), err)]
     pub async fn submit_hackathon_submission(&self, id: String) -> Result<HackathonSubmissionsSchema> {
         let table = ResourceEnum::HackathonSubmissions.to_string();
 
@@ -596,5 +618,18 @@ impl<'a> HackathonRepository<'a> {
             Some(_) => Ok("Submission deleted successfully".to_string()),
             None => bail!("Failed to delete submission"),
         }
+    }
+    #[instrument(skip(self, hackathon_id), err)]
+    pub async fn get_submission_timeline_phase(&self, hackathon_id: String) -> Result<Option<HackathonTimelineSchema>> {
+        let table = ResourceEnum::HackathonTimeline.to_string();
+
+        info!(query = %format!("SELECT * FROM {} WHERE hackathon_id = 'app_hackathons:{}' AND phase = 'Submission' AND is_deleted = false LIMIT 1", table, hackathon_id), "Executing SurrealDB query");
+
+        let mut response = self.state.surrealdb_ws
+            .query(format!("SELECT * FROM {} WHERE hackathon_id = 'app_hackathons:{}' AND phase = 'Submission' AND is_deleted = false LIMIT 1", table, hackathon_id))
+            .await?;
+
+        let timeline: Option<HackathonTimelineSchema> = response.take(0)?;
+        Ok(timeline)
     }
 }
