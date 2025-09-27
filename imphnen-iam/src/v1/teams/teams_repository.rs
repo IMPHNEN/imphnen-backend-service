@@ -38,6 +38,7 @@ impl<'a> TeamsRepository<'a> {
 			.with_condition("is_deleted = false AND is_active = true")
 			.search_field("name")
 			.select_fields(vec!["*"])
+			.fetch_fields(vec![])
 			.build()
 			.await?;
 		let elapsed = now.elapsed();

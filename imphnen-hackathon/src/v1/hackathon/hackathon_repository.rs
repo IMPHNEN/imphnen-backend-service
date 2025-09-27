@@ -266,7 +266,7 @@ impl<'a> HackathonRepository<'a> {
 
         let builder = QueryListBuilder::new(&self.state.surrealdb_ws, &table, &meta)
             .with_condition("is_deleted = false")
-            .with_condition(&format!("hackathon_id = app_hackathons:{}", hackathon_id))
+            .with_condition(&format!("hackathon_id = type::thing('app_hackathons', '{}')", hackathon_id))
             .search_field("title")
             .select_fields(vec!["*"]);
 
@@ -394,7 +394,7 @@ impl<'a> HackathonRepository<'a> {
 
         let builder = QueryListBuilder::new(&self.state.surrealdb_ws, &table, &meta)
             .with_condition("is_deleted = false")
-            .with_condition(&format!("hackathon_id = app_hackathons:{}", hackathon_id))
+            .with_condition(&format!("hackathon_id = type::thing('app_hackathons', '{}')", hackathon_id))
             .search_field("title")
             .select_fields(vec!["*"]);
 
@@ -517,7 +517,7 @@ impl<'a> HackathonRepository<'a> {
 
         let builder = QueryListBuilder::new(&self.state.surrealdb_ws, &table, &meta)
             .with_condition("is_deleted = false")
-            .with_condition(&format!("hackathon_id = app_hackathons:{}", hackathon_id))
+            .with_condition(&format!("hackathon_id = type::thing('app_hackathons', '{}')", hackathon_id))
             .search_field("project_name")
             .select_fields(vec!["*"]);
 

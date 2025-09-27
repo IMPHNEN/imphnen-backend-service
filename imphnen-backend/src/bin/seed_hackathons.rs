@@ -216,6 +216,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             theme,
             rules,
             prizes,
+            previous_winners: None,
             organizers,
             is_deleted: false,
             created_at: Some(get_iso_date()),

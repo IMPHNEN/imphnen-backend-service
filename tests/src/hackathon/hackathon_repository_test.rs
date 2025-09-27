@@ -30,6 +30,7 @@ mod tests {
             theme: Some("AI/ML".to_string()),
             rules: Some("No cheating".to_string()),
             prizes: Some(vec![]),
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -60,6 +61,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -104,6 +106,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -117,6 +120,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-2".to_string()],
         };
 
@@ -156,6 +160,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -173,6 +178,7 @@ mod tests {
             theme: Some("Updated Theme".to_string()),
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: None,
         };
 
@@ -205,6 +211,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -237,6 +244,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -284,6 +292,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -347,6 +356,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -411,6 +421,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -457,6 +468,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -503,6 +515,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -562,6 +575,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -622,6 +636,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -666,6 +681,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -711,6 +727,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -768,6 +785,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -828,6 +846,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -874,6 +893,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -916,6 +936,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: None,
         };
 
@@ -1061,6 +1082,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -1108,6 +1130,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 

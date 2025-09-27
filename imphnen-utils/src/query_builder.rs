@@ -44,6 +44,13 @@ impl ListQueryBuilder {
 		builder
 	}
 
+	pub fn with_additional_conditions(mut self, additional_conditions: &[String]) -> Self {
+		for condition in additional_conditions {
+			self.conditions.push(condition.clone());
+		}
+		self
+	}
+
 	pub fn new(resource: impl Into<String>) -> Self {
 		Self {
 			resource: resource.into(),

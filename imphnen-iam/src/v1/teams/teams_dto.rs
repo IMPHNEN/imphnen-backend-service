@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use surrealdb::sql::Thing;
 use utoipa::ToSchema;
 use validator::Validate;
+use imphnen_entities::users::UsersDetailQueryDto;
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Validate)]
 pub struct TeamsCreateRequestDto {
@@ -219,13 +220,13 @@ pub struct TeamsDetailQueryDto {
     pub created_at: String,
     pub updated_at: String,
 }
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TeamsListQueryDto {
     pub id: Thing,
     pub name: String,
     pub description: Option<String>,
     pub leader_id: Thing,
+    pub leader: Option<UsersDetailQueryDto>,
     pub is_open: bool,
     pub max_members: Option<i32>,
     pub skills_required: Option<Vec<String>>,
@@ -353,11 +354,19 @@ impl TeamsListItemDto {
 
 impl TeamsListQueryDto {
     pub fn into_list_item_dto(self) -> TeamsListItemDto {
-        TeamsListItemDto {
-            id: self.id.id.to_raw(),
-            name: self.name,
-            description: self.description,
-            leader: TeamMemberDto {
+        let leader_dto = if let Some(leader_user) = self.leader {
+            TeamMemberDto {
+                id: String::new(),
+                user_id: leader_user.id.id.to_raw(),
+                fullname: leader_user.fullname,
+                email: Some(leader_user.email),
+                avatar: leader_user.avatar,
+                role: "leader".to_string(),
+                skills: leader_user.skills,
+                joined_at: self.created_at.clone(),
+            }
+        } else {
+            TeamMemberDto {
                 id: String::new(),
                 user_id: self.leader_id.id.to_raw(),
                 fullname: String::new(),
@@ -366,7 +375,14 @@ impl TeamsListQueryDto {
                 role: "leader".to_string(),
                 skills: None,
                 joined_at: self.created_at.clone(),
-            },
+            }
+        };
+
+        TeamsListItemDto {
+            id: self.id.id.to_raw(),
+            name: self.name,
+            description: self.description,
+            leader: leader_dto,
             is_open: self.is_open,
             current_member_count: 1,
             max_members: self.max_members,

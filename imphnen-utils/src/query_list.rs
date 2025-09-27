@@ -76,7 +76,7 @@ impl<'a> QueryListBuilder<'a> {
             &self.search_field,
             self.select_fields,
             self.fetch_fields,
-        );
+        ).with_additional_conditions(&self.conditions);
         let data_sql = data_query_builder.build();
 
         // --- Count Query ---
@@ -86,7 +86,7 @@ impl<'a> QueryListBuilder<'a> {
             &self.search_field,
             None, // No select fields for count
             None, // No fetch fields for count
-        );
+        ).with_additional_conditions(&self.conditions);
         let count_sql = count_query_builder.build_count();
 
         // Combine both queries into a single query string within a transaction for a single database call
@@ -129,6 +129,11 @@ impl<'a> QueryListBuilder<'a> {
         let count_result: Vec<CountResult> = response.take(1)?; // Second result is the count
 
         let total = count_result.first().map(|c| c.count);
+        // Debug logging
+        if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string()) == "development" {
+            println!("QueryListBuilder: data length = {}, total from count = {:?}", raw.len(), total);
+            println!("Combined SQL: {}", combined_sql);
+        }
 
         Ok(ResponseListSuccessDto {
             data: raw,

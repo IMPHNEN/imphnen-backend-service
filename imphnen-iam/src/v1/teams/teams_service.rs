@@ -135,7 +135,8 @@ impl TeamsServiceTrait for TeamsService {
 			let thing_id = make_thing_from_enum(ResourceEnum::Teams, &id);
 			match repo.query_team_by_id(&thing_id).await {
 				Ok(team) if !team.is_deleted => {
-					let members = repo.query_team_members(&team.id).await.unwrap_or_default();
+					let team_thing = make_thing_from_enum(ResourceEnum::Teams, &team.id.id.to_raw());
+						let members = repo.query_team_members(&team_thing).await.unwrap_or_default();
 					let members_len = members.len();
 					
 					// For public team details, only show sensitive info if user is authenticated and part of the team
@@ -201,7 +202,8 @@ impl TeamsServiceTrait for TeamsService {
 			let thing_id = make_thing_from_enum(ResourceEnum::Teams, &id);
 			match repo.query_team_by_id(&thing_id).await {
 				Ok(team) if !team.is_deleted => {
-					let members = repo.query_team_members(&team.id).await.unwrap_or_default();
+					let team_thing = make_thing_from_enum(ResourceEnum::Teams, &team.id.id.to_raw());
+						let members = repo.query_team_members(&team_thing).await.unwrap_or_default();
 					let members_len = members.len();
 					
 					// For member team details, include all information including members list
@@ -279,7 +281,14 @@ impl TeamsServiceTrait for TeamsService {
 		Box::pin(async move {
 			let repo = TeamsRepository::new(&state);
 			match repo.query_team_list(meta).await {
-				Ok(data) => {
+				Ok(mut data) => {
+					// Calculate actual member count for each team
+					for team in &mut data.data {
+						let team_thing = make_thing_from_enum(ResourceEnum::Teams, &team.id);
+						let members = repo.query_team_members(&team_thing).await.unwrap_or_default();
+						team.current_member_count = members.len() as i32 + 1; // +1 for leader
+					}
+
 					let response = ResponseListSuccessDto {
 						data: data.data,
 						meta: data.meta,
@@ -301,7 +310,8 @@ impl TeamsServiceTrait for TeamsService {
 			let thing_id = make_thing_from_enum(ResourceEnum::Teams, &id);
 			match repo.query_team_by_id(&thing_id).await {
 				Ok(team) if !team.is_deleted => {
-					let members = repo.query_team_members(&team.id).await.unwrap_or_default();
+					let team_thing = make_thing_from_enum(ResourceEnum::Teams, &team.id.id.to_raw());
+						let members = repo.query_team_members(&team_thing).await.unwrap_or_default();
 					let members_len = members.len();
 					
 					// For public team details, only show sensitive info if user is authenticated and part of the team
@@ -794,7 +804,8 @@ impl TeamsServiceTrait for TeamsService {
 			let thing_id = make_thing_from_enum(ResourceEnum::Teams, &id);
 			match repo.query_team_by_id(&thing_id).await {
 				Ok(team) if !team.is_deleted => {
-					let members = repo.query_team_members(&team.id).await.unwrap_or_default();
+					let team_thing = make_thing_from_enum(ResourceEnum::Teams, &team.id.id.to_raw());
+						let members = repo.query_team_members(&team_thing).await.unwrap_or_default();
 					let mut member_dtos = Vec::new();
 					
 					for member in members {

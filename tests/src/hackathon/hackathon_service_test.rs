@@ -27,6 +27,7 @@ mod tests {
             theme: Some("AI/ML".to_string()),
             rules: Some("Be nice".to_string()),
             prizes: Some(vec![]),
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -52,6 +53,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -77,6 +79,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -102,6 +105,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec![], // Empty organizers
         };
 
@@ -127,6 +131,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -153,6 +158,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -196,6 +202,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -209,6 +216,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-2".to_string()],
         };
 
@@ -247,6 +255,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -265,6 +274,7 @@ mod tests {
             theme: Some("Updated Theme".to_string()),
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: None,
         };
 
@@ -292,6 +302,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -310,6 +321,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: None,
         };
 
@@ -336,6 +348,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -370,6 +383,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -413,6 +427,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -480,6 +495,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -522,6 +538,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -563,6 +580,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -624,6 +642,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -666,6 +685,7 @@ mod tests {
             theme: Some("Edge Cases".to_string()),
             rules: Some("No rules".to_string()),
             prizes: Some(vec![]),
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -691,6 +711,7 @@ mod tests {
             theme: Some("Scalability".to_string()),
             rules: Some("Scale rules".to_string()),
             prizes: Some(vec![]),
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -715,6 +736,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -740,6 +762,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -765,6 +788,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -790,6 +814,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -815,6 +840,7 @@ mod tests {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -839,7 +865,8 @@ async fn test_create_hackathon_service_validation_error_start_date_in_past() {
         theme: None,
         rules: None,
         prizes: None,
-        organizers: vec!["user-1".to_string()],
+        previous_winners: None,
+            organizers: vec!["user-1".to_string()],
     };
 
     let result = HackathonService::create_hackathon(request, &app_state).await;
@@ -864,6 +891,7 @@ async fn test_create_hackathon_service_validation_error_start_date_in_past() {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -888,6 +916,7 @@ async fn test_create_hackathon_service_validation_error_start_date_in_past() {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string(), "user-1".to_string()], // Duplicate organizers
         };
 
@@ -927,6 +956,7 @@ async fn test_create_hackathon_service_validation_error_start_date_in_past() {
                 description: Some("Winner prize".to_string()),
                 value: Some("$1000".to_string()),
             }]),
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -945,6 +975,7 @@ async fn test_create_hackathon_service_validation_error_start_date_in_past() {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: None,
         };
 
@@ -973,6 +1004,7 @@ async fn test_create_hackathon_service_validation_error_start_date_in_past() {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: None,
         };
 
@@ -1011,6 +1043,7 @@ async fn test_create_hackathon_service_validation_error_start_date_in_past() {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -1054,6 +1087,7 @@ async fn test_create_hackathon_service_validation_error_start_date_in_past() {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -1097,6 +1131,7 @@ async fn test_create_hackathon_service_validation_error_start_date_in_past() {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -1140,6 +1175,7 @@ async fn test_create_hackathon_service_validation_error_start_date_in_past() {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -1181,6 +1217,7 @@ async fn test_create_hackathon_service_validation_error_start_date_in_past() {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -1243,6 +1280,7 @@ async fn test_create_hackathon_service_validation_error_start_date_in_past() {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -1283,6 +1321,7 @@ async fn test_create_hackathon_service_validation_error_start_date_in_past() {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -1321,6 +1360,7 @@ async fn test_create_hackathon_service_validation_error_start_date_in_past() {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -1372,6 +1412,7 @@ async fn test_create_hackathon_service_validation_error_start_date_in_past() {
                 theme: None,
                 rules: None,
                 prizes: None,
+                previous_winners: None,
                 organizers: vec!["user-1".to_string()],
             };
             let _ = HackathonService::create_hackathon(request, &app_state).await;
@@ -1411,6 +1452,7 @@ async fn test_create_hackathon_service_validation_error_start_date_in_past() {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-1".to_string()],
         };
 
@@ -1424,6 +1466,7 @@ async fn test_create_hackathon_service_validation_error_start_date_in_past() {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec!["user-2".to_string()],
         };
 
