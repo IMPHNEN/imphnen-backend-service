@@ -484,26 +484,26 @@ pub fn hackathon_routes() -> Router {
         // Hackathon routes
         .route("/", post(create_hackathon))
         .route("/", get(list_hackathons))
-        .route("/:id", get(get_hackathon))
-        .route("/:id", put(update_hackathon))
-        .route("/:id", delete(delete_hackathon))
+        .route("/{id}", get(get_hackathon))
+        .route("/{id}", put(update_hackathon))
+        .route("/{id}", delete(delete_hackathon))
 
         // Hackathon Events routes
-        .route("/:hackathon_id/events", post(create_hackathon_event))
-        .route("/:hackathon_id/events", get(list_hackathon_events))
-        .route("/events/:id", put(update_hackathon_event))
-        .route("/events/:id", delete(delete_hackathon_event))
+        .route("/{hackathon_id}/events", post(create_hackathon_event))
+        .route("/{hackathon_id}/events", get(list_hackathon_events))
+        .route("/events/{id}", put(update_hackathon_event))
+        .route("/events/{id}", delete(delete_hackathon_event))
 
         // Hackathon Timeline routes
-        .route("/:hackathon_id/timeline", post(create_hackathon_timeline))
-        .route("/:hackathon_id/timeline", get(list_hackathon_timeline))
-        .route("/timeline/:id", put(update_hackathon_timeline))
-        .route("/timeline/:id", delete(delete_hackathon_timeline))
+        .route("/{hackathon_id}/timeline", post(create_hackathon_timeline))
+        .route("/{hackathon_id}/timeline", get(list_hackathon_timeline))
+        .route("/timeline/{id}", put(update_hackathon_timeline))
+        .route("/timeline/{id}", delete(delete_hackathon_timeline))
 
         // Hackathon Submissions routes
-        .route("/:hackathon_id/teams/:team_id/submissions", post(create_hackathon_submission))
-        .route("/:hackathon_id/submissions", get(list_hackathon_submissions))
-        .route("/submissions/:id", put(update_hackathon_submission))
-        .route("/submissions/:id/submit", post(submit_hackathon_submission))
-        .route("/submissions/:id", delete(delete_hackathon_submission))
+        .route("/{hackathon_id}/teams/{team_id}/submissions", post(create_hackathon_submission))
+        .route("/{hackathon_id}/submissions", get(list_hackathon_submissions))
+        .route("/submissions/{id}", put(update_hackathon_submission))
+        .route("/submissions/{id}/submit", post(submit_hackathon_submission))
+        .route("/submissions/{id}", delete(delete_hackathon_submission))
 }
