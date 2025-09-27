@@ -900,4 +900,227 @@ mod tests {
         // Cleanup hackathon
         let _ = repo.delete_hackathon(hackathon_id).await;
     }
+
+    #[tokio::test]
+    async fn test_update_hackathon_not_found_repository() {
+        let app_state = crate::get_app_state().await;
+        let repo = HackathonRepository::new(&app_state);
+
+        let update_request = HackathonUpdateRequestDto {
+            name: Some("Updated Name".to_string()),
+            description: None,
+            start_date: None,
+            end_date: None,
+            registration_deadline: None,
+            max_participants: None,
+            theme: None,
+            rules: None,
+            prizes: None,
+            organizers: None,
+        };
+
+        let result = repo.update_hackathon("non-existent-id".to_string(), update_request).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Hackathon not found"));
+    }
+
+    #[tokio::test]
+    async fn test_delete_hackathon_not_found_repository() {
+        let app_state = crate::get_app_state().await;
+        let repo = HackathonRepository::new(&app_state);
+
+        let result = repo.delete_hackathon("non-existent-id".to_string()).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Failed to delete hackathon"));
+    }
+
+    #[tokio::test]
+    async fn test_update_hackathon_event_not_found_repository() {
+        let app_state = crate::get_app_state().await;
+        let repo = HackathonRepository::new(&app_state);
+
+        let update_request = HackathonEventUpdateRequestDto {
+            title: Some("Updated Event".to_string()),
+            description: None,
+            event_type: None,
+            start_time: None,
+            end_time: None,
+            location: None,
+            virtual_link: None,
+            max_attendees: None,
+            is_mandatory: None,
+        };
+
+        let result = repo.update_hackathon_event("non-existent-id".to_string(), update_request).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Event not found"));
+    }
+
+    #[tokio::test]
+    async fn test_delete_hackathon_event_not_found_repository() {
+        let app_state = crate::get_app_state().await;
+        let repo = HackathonRepository::new(&app_state);
+
+        let result = repo.delete_hackathon_event("non-existent-id".to_string()).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Failed to delete event"));
+    }
+
+    #[tokio::test]
+    async fn test_update_hackathon_timeline_not_found_repository() {
+        let app_state = crate::get_app_state().await;
+        let repo = HackathonRepository::new(&app_state);
+
+        let update_request = HackathonTimelineUpdateRequestDto {
+            phase: Some(HackathonPhase::Ideation),
+            title: Some("Updated Timeline".to_string()),
+            description: None,
+            start_date: None,
+            end_date: None,
+            is_active: None,
+            order: None,
+        };
+
+        let result = repo.update_hackathon_timeline("non-existent-id".to_string(), update_request).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Timeline not found"));
+    }
+
+    #[tokio::test]
+    async fn test_delete_hackathon_timeline_not_found_repository() {
+        let app_state = crate::get_app_state().await;
+        let repo = HackathonRepository::new(&app_state);
+
+        let result = repo.delete_hackathon_timeline("non-existent-id".to_string()).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Failed to delete timeline"));
+    }
+
+    #[tokio::test]
+    async fn test_update_hackathon_submission_not_found_repository() {
+        let app_state = crate::get_app_state().await;
+        let repo = HackathonRepository::new(&app_state);
+
+        let update_request = HackathonSubmissionUpdateRequestDto {
+            project_name: Some("Updated Project".to_string()),
+            description: None,
+            repository_url: None,
+            demo_url: None,
+            slides_url: None,
+            technologies: None,
+        };
+
+        let result = repo.update_hackathon_submission("non-existent-id".to_string(), update_request).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Submission not found"));
+    }
+
+    #[tokio::test]
+    async fn test_submit_hackathon_submission_not_found_repository() {
+        let app_state = crate::get_app_state().await;
+        let repo = HackathonRepository::new(&app_state);
+
+        let result = repo.submit_hackathon_submission("non-existent-id".to_string()).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Submission not found"));
+    }
+
+    #[tokio::test]
+    async fn test_delete_hackathon_submission_not_found_repository() {
+        let app_state = crate::get_app_state().await;
+        let repo = HackathonRepository::new(&app_state);
+
+        let result = repo.delete_hackathon_submission("non-existent-id".to_string()).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Failed to delete submission"));
+    }
+
+    #[tokio::test]
+    async fn test_get_hackathon_submission_by_id_not_found_repository() {
+        let app_state = crate::get_app_state().await;
+        let repo = HackathonRepository::new(&app_state);
+
+        let result = repo.get_hackathon_submission_by_id("non-existent-id".to_string()).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Submission not found"));
+    }
+
+    #[tokio::test]
+    async fn test_get_submission_timeline_phase_repository() {
+        let app_state = crate::get_app_state().await;
+        let repo = HackathonRepository::new(&app_state);
+
+        // Create test hackathon
+        let hackathon_request = HackathonCreateRequestDto {
+            name: "Timeline Phase Test".to_string(),
+            description: "Hackathon for timeline phase testing".to_string(),
+            start_date: Utc::now() + chrono::Duration::days(1),
+            end_date: Utc::now() + chrono::Duration::days(5),
+            registration_deadline: Utc::now() + chrono::Duration::hours(12),
+            max_participants: Some(50),
+            theme: None,
+            rules: None,
+            prizes: None,
+            organizers: vec!["user-1".to_string()],
+        };
+
+        let hackathon = repo.create_hackathon(hackathon_request).await.unwrap();
+        let hackathon_id = hackathon.id.id.to_raw();
+
+        // Create submission timeline
+        let timeline_request = HackathonTimelineCreateRequestDto {
+            phase: HackathonPhase::Submission,
+            title: "Submission Phase".to_string(),
+            description: Some("Submit your projects".to_string()),
+            start_date: Utc::now() + chrono::Duration::days(3),
+            end_date: Utc::now() + chrono::Duration::days(4),
+            is_active: true,
+            order: 3,
+        };
+
+        let _timeline = repo.create_hackathon_timeline(hackathon_id.clone(), timeline_request).await.unwrap();
+
+        // Test get submission timeline phase
+        let result = repo.get_submission_timeline_phase(hackathon_id.clone()).await;
+        assert!(result.is_ok());
+        let timeline_option = result.unwrap();
+        assert!(timeline_option.is_some());
+        let timeline = timeline_option.unwrap();
+        assert_eq!(timeline.phase, HackathonPhase::Submission);
+
+        // Cleanup
+        let _ = repo.delete_hackathon(hackathon_id).await;
+    }
+
+    #[tokio::test]
+    async fn test_get_submission_timeline_phase_not_found_repository() {
+        let app_state = crate::get_app_state().await;
+        let repo = HackathonRepository::new(&app_state);
+
+        // Create test hackathon without submission timeline
+        let hackathon_request = HackathonCreateRequestDto {
+            name: "No Submission Timeline Test".to_string(),
+            description: "Hackathon without submission timeline".to_string(),
+            start_date: Utc::now() + chrono::Duration::days(1),
+            end_date: Utc::now() + chrono::Duration::days(5),
+            registration_deadline: Utc::now() + chrono::Duration::hours(12),
+            max_participants: Some(50),
+            theme: None,
+            rules: None,
+            prizes: None,
+            organizers: vec!["user-1".to_string()],
+        };
+
+        let hackathon = repo.create_hackathon(hackathon_request).await.unwrap();
+        let hackathon_id = hackathon.id.id.to_raw();
+
+        // Test get submission timeline phase when none exists
+        let result = repo.get_submission_timeline_phase(hackathon_id.clone()).await;
+        assert!(result.is_ok());
+        let timeline_option = result.unwrap();
+        assert!(timeline_option.is_none());
+
+        // Cleanup
+        let _ = repo.delete_hackathon(hackathon_id).await;
+    }
 }

@@ -5,7 +5,7 @@ use super::hackathon_dto::{
     HackathonTimelineUpdateRequestDto, HackathonUpdateRequestDto,
 };
 use super::hackathon_schema::{
-    HackathonEventsSchema, HackathonSchema, HackathonSubmissionsSchema, HackathonTimelineSchema,
+    HackathonEventsSchema, HackathonPhase, HackathonSchema, HackathonSubmissionsSchema, HackathonTimelineSchema,
     Prize,
 };
 use imphnen_libs::ResourceEnum;
@@ -625,11 +625,15 @@ impl<'a> HackathonRepository<'a> {
 
         info!(query = %format!("SELECT * FROM {} WHERE hackathon_id = 'app_hackathons:{}' AND phase = 'Submission' AND is_deleted = false LIMIT 1", table, hackathon_id), "Executing SurrealDB query");
 
-        let mut response = self.state.surrealdb_ws
-            .query(format!("SELECT * FROM {} WHERE hackathon_id = 'app_hackathons:{}' AND phase = 'Submission' AND is_deleted = false LIMIT 1", table, hackathon_id))
+        let mut result = self.state.surrealdb_ws
+            .query("SELECT * FROM type::table($table) WHERE hackathon_id = type::thing('app_hackathons', $hackathon_id) AND phase = $phase AND is_deleted = false LIMIT 1")
+            .bind(("table", table))
+            .bind(("hackathon_id", hackathon_id))
+            .bind(("phase", HackathonPhase::Submission))
             .await?;
 
-        let timeline: Option<HackathonTimelineSchema> = response.take(0)?;
+        let timeline: Option<HackathonTimelineSchema> = result.take(0)?;
+
         Ok(timeline)
     }
 }
