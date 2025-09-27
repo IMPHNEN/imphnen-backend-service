@@ -1,21 +1,19 @@
 [package]
-name = "imphnen-gateway"
+name = "imphnen-hackathon"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-imphnen-iam.workspace = true
 imphnen-libs.workspace = true
 imphnen-utils.workspace = true
-imphnen-gacha.workspace = true
+
 imphnen-entities.workspace = true
-imphnen-middleware.workspace = true
-imphnen-cms.workspace = true
-imphnen-dimentorin.workspace = true
-imphnen-hackathon.workspace = true
+async-trait.workspace = true
 axum.workspace = true
 serde.workspace = true
-serde_json.workspace = true
+serde_json = { workspace = true }
+oauth2 = { workspace = true }
+reqwest = { workspace = true, features = ["json"] }
 utoipa.workspace = true
 lazy_static.workspace = true
 regex.workspace = true
@@ -28,3 +26,16 @@ chrono.workspace = true
 anyhow.workspace = true
 tower-http.workspace = true
 utoipa-swagger-ui.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
+log.workspace = true
+once_cell.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+axum-extra.workspace = true
+
+[dev-dependencies]
+dotenvy.workspace = true
+tokio-test = { workspace = true }
+mockall = { workspace = true }
+http-body-util.workspace = true

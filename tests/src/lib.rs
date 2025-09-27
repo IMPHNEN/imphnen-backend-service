@@ -57,6 +57,7 @@ pub fn create_test_user(
 
 #[cfg(test)]
 pub mod iam;
+pub mod hackathon;
 pub mod mock_test;
 
 pub use mock_test::{

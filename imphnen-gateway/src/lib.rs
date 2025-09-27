@@ -13,6 +13,7 @@ use imphnen_cms::{
 };
 use imphnen_dimentorin::dimentorin_router;
 use imphnen_gacha::gacha_router;
+use imphnen_hackathon::v1::hackathon_protected_routes;
 use imphnen_iam::{
     iam_protected_routes,
     iam_public_routes,
@@ -48,6 +49,7 @@ pub async fn gateway_service(
         .merge(events_protected_routes())
         .merge(testimonials_protected_routes())
         .merge(dimentorin_router())
+        .merge(hackathon_protected_routes())
         .nest("/gacha", gacha_router())
         .layer(from_fn(auth_middleware));
 

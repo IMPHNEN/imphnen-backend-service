@@ -19,6 +19,15 @@ use imphnen_gacha::v1::gacha_items::{gacha_items_controller, GachaItemDto};
 use imphnen_gacha::v1::gacha_items::gacha_items_dto::GachaItemRequestDto;
 use imphnen_gacha::v1::gacha_rolls::{gacha_rolls_controller, GachaRollItemDto};
 use imphnen_gacha::v1::gacha_rolls::gacha_rolls_dto::GachaRollRequestDto;
+use imphnen_hackathon::v1::hackathon::{
+    hackathon_controller,
+    hackathon_dto::{
+        HackathonCreateRequestDto, HackathonDto, HackathonEventCreateRequestDto, HackathonEventDto,
+        HackathonEventUpdateRequestDto, HackathonSubmissionCreateRequestDto,
+        HackathonSubmissionDto, HackathonSubmissionUpdateRequestDto, HackathonTimelineCreateRequestDto,
+        HackathonTimelineDto, HackathonTimelineUpdateRequestDto, HackathonUpdateRequestDto,
+    },
+};
 use imphnen_entities::{PermissionsItemDto, RolesDetailItemDto};
 use imphnen_entities::{MessageResponseDto, MetaRequestDto, MetaResponseDto, ResponseListSuccessDto, ResponseSuccessDto};
 use imphnen_iam::v1::auth::auth_dto::{AuthLoginRequestDto, AuthLoginResponsetDto, AuthNewPasswordRequestDto, AuthRefreshTokenRequestDto, AuthResendOtpRequestDto, AuthVerifyEmailRequestDto, TokenDto};
@@ -104,6 +113,24 @@ use utoipa::{
      mentors_controller::put_update_mentor,
      mentors_controller::put_verify_mentor,
      mentors_controller::delete_mentor,
+     hackathon_controller::create_hackathon,
+     hackathon_controller::get_hackathon,
+     hackathon_controller::list_hackathons,
+     hackathon_controller::update_hackathon,
+     hackathon_controller::delete_hackathon,
+     hackathon_controller::create_hackathon_event,
+     hackathon_controller::list_hackathon_events,
+     hackathon_controller::update_hackathon_event,
+     hackathon_controller::delete_hackathon_event,
+     hackathon_controller::create_hackathon_timeline,
+     hackathon_controller::list_hackathon_timeline,
+     hackathon_controller::update_hackathon_timeline,
+     hackathon_controller::delete_hackathon_timeline,
+     hackathon_controller::create_hackathon_submission,
+     hackathon_controller::list_hackathon_submissions,
+     hackathon_controller::update_hackathon_submission,
+     hackathon_controller::submit_hackathon_submission,
+     hackathon_controller::delete_hackathon_submission,
     ),
     components(
         schemas(
@@ -175,6 +202,26 @@ use utoipa::{
                        TeamsSearchQueryDto,
                        ResponseListSuccessDto<Vec<TeamsListItemDto>>,
                        ResponseSuccessDto<TeamsDetailItemDto>,
+                       HackathonCreateRequestDto,
+                       HackathonDto,
+                       HackathonEventCreateRequestDto,
+                       HackathonEventDto,
+                       HackathonEventUpdateRequestDto,
+                       HackathonSubmissionCreateRequestDto,
+                       HackathonSubmissionDto,
+                       HackathonSubmissionUpdateRequestDto,
+                       HackathonTimelineCreateRequestDto,
+                       HackathonTimelineDto,
+                       HackathonTimelineUpdateRequestDto,
+                       HackathonUpdateRequestDto,
+                       ResponseListSuccessDto<Vec<HackathonDto>>,
+                       ResponseSuccessDto<HackathonDto>,
+                       ResponseListSuccessDto<Vec<HackathonEventDto>>,
+                       ResponseSuccessDto<HackathonEventDto>,
+                       ResponseListSuccessDto<Vec<HackathonSubmissionDto>>,
+                       ResponseSuccessDto<HackathonSubmissionDto>,
+                       ResponseListSuccessDto<Vec<HackathonTimelineDto>>,
+                       ResponseSuccessDto<HackathonTimelineDto>,
         )
     ),
     info(
@@ -201,6 +248,10 @@ use utoipa::{
         (name = "Mentors", description = "Mentor Management Endpoints"),
         (name = "Mentors - Admin", description = "Mentor Admin Management Endpoints (Admin Access Required)"),
         (name = "Gacha", description = "Gacha System Endpoints"),
+        (name = "Hackathons", description = "Hackathon Management Endpoints"),
+        (name = "Hackathon Events", description = "Hackathon Event Management Endpoints"),
+        (name = "Hackathon Timeline", description = "Hackathon Timeline Management Endpoints"),
+        (name = "Hackathon Submissions", description = "Hackathon Submission Management Endpoints"),
     )
 )]
 

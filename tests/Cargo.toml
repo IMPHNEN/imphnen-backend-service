@@ -12,6 +12,7 @@ imphnen-dimentorin.workspace = true
 imphnen-entities.workspace = true
 imphnen-libs.workspace = true
 imphnen-utils.workspace = true
+imphnen-hackathon.workspace = true
 http-body-util.workspace = true 
 hyper.workspace = true 
 hyper-util.workspace = true 

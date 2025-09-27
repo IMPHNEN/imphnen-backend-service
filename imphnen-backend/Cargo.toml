@@ -40,8 +40,12 @@ name = "seed_roles_permissions"
 path = "src/bin/seed_roles_permissions.rs"
 
 [[bin]]
-name = "seed_users"
-path = "src/bin/seed_users.rs"
+name = "seed_teams"
+path = "src/bin/seed_teams.rs"
+
+[[bin]]
+name = "seed_hackathons"
+path = "src/bin/seed_hackathons.rs"
 
 [dependencies]
 imphnen-libs.workspace = true
@@ -51,6 +55,7 @@ imphnen-entities.workspace = true
 imphnen-iam.workspace = true
 imphnen-cms.workspace = true
 imphnen-dimentorin.workspace = true
+imphnen-hackathon.workspace = true
 axum.workspace = true
 serde.workspace = true
 serde_json.workspace = true

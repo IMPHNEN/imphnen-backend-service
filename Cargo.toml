@@ -10,6 +10,7 @@ members = [
   "imphnen-cms",       # Content management, depends on core services
   "imphnen-gacha",     # Game mechanics, depends on core services
   "imphnen-dimentorin",# Learning platform, depends on core services
+  "imphnen-hackathon", # Hackathon service, depends on core services
   "imphnen-gateway",   # API gateway, depends on all services
   "imphnen-backend",   # Main application, depends on all services
 ]
@@ -79,6 +80,7 @@ imphnen-gateway = { path = "./imphnen-gateway" }
 imphnen-backend = { path = "./imphnen-backend" }
 imphnen-entities = { path = "./imphnen-entities" }
 imphnen-dimentorin = { path = "./imphnen-dimentorin" }
+imphnen-hackathon = { path = "./imphnen-hackathon" }
 imphnen-middleware = { path = "./imphnen-middleware" }
 
 [profile.release]

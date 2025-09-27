@@ -20,6 +20,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 	run_seed("seed_roles_permissions")?;
 	run_seed("seed_users")?;
 	run_seed("seed_events")?;
+	run_seed("seed_hackathons")?;
 	run_seed("seed_gacha_rolls")?;
 	run_seed("seed_mentor_user")?;
 	println!("\n✅ All seeding completed successfully.");

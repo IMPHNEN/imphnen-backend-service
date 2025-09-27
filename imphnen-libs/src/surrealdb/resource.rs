@@ -43,6 +43,14 @@ pub enum ResourceEnum {
     TeamMembers,
     /// Team invitations table for pending invitations
     TeamInvitations,
+    /// Hackathons table for hackathon events
+    Hackathons,
+    /// Hackathon events table for hackathon-specific events
+    HackathonEvents,
+    /// Hackathon timeline table for schedule milestones
+    HackathonTimeline,
+    /// Hackathon submissions table for project submissions
+    HackathonSubmissions,
 }
 
 impl fmt::Display for ResourceEnum {
@@ -64,6 +72,10 @@ impl fmt::Display for ResourceEnum {
             ResourceEnum::Teams => "app_teams",
             ResourceEnum::TeamMembers => "app_team_members",
             ResourceEnum::TeamInvitations => "app_team_invitations",
+            ResourceEnum::Hackathons => "app_hackathons",
+            ResourceEnum::HackathonEvents => "app_hackathon_events",
+            ResourceEnum::HackathonTimeline => "app_hackathon_timeline",
+            ResourceEnum::HackathonSubmissions => "app_hackathon_submissions",
         };
         write!(f, "{}", table_name)
     }
@@ -100,6 +112,10 @@ impl ResourceEnum {
             ResourceEnum::Teams => "app_teams",
             ResourceEnum::TeamMembers => "app_team_members",
             ResourceEnum::TeamInvitations => "app_team_invitations",
+            ResourceEnum::Hackathons => "app_hackathons",
+            ResourceEnum::HackathonEvents => "app_hackathon_events",
+            ResourceEnum::HackathonTimeline => "app_hackathon_timeline",
+            ResourceEnum::HackathonSubmissions => "app_hackathon_submissions",
         }
     }
 
@@ -122,6 +138,20 @@ impl ResourceEnum {
                 | ResourceEnum::GachaClaims
                 | ResourceEnum::GachaRolls
                 | ResourceEnum::GachaCredits
+        )
+    }
+
+    /// Check if this resource is hackathon-related.
+    ///
+    /// # Returns
+    /// true if the resource is part of the hackathon system, false otherwise
+    pub fn is_hackathon(&self) -> bool {
+        matches!(
+            self,
+            ResourceEnum::Hackathons
+                | ResourceEnum::HackathonEvents
+                | ResourceEnum::HackathonTimeline
+                | ResourceEnum::HackathonSubmissions
         )
     }
 
