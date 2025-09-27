@@ -19,6 +19,7 @@ pub struct HackathonSchema {
     pub theme: Option<String>,
     pub rules: Option<String>,
     pub prizes: Option<Vec<Prize>>,
+    pub previous_winners: Option<Vec<Winner>>,
     pub organizers: Vec<String>, // User IDs
     pub is_deleted: bool,
     pub created_at: Option<String>,
@@ -84,6 +85,13 @@ pub struct Prize {
     pub description: Option<String>,
     pub value: Option<String>,
 }
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Winner {
+    pub position: u32,
+    pub team_id: String,
+    pub project_name: String,
+    pub team_name: Option<String>,
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, utoipa::ToSchema)]
 pub enum HackathonStatus {
@@ -143,6 +151,7 @@ impl Default for HackathonSchema {
             theme: None,
             rules: None,
             prizes: None,
+            previous_winners: None,
             organizers: vec![],
             is_deleted: false,
             created_at: Some(get_iso_date()),

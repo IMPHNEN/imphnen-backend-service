@@ -27,6 +27,7 @@ pub struct HackathonCreateRequestDto {
     pub theme: Option<String>,
     pub rules: Option<String>,
     pub prizes: Option<Vec<PrizeDto>>,
+    pub previous_winners: Option<Vec<WinnerDto>>,
     pub organizers: Vec<String>,
 }
 
@@ -55,6 +56,8 @@ pub struct HackathonUpdateRequestDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prizes: Option<Vec<PrizeDto>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub previous_winners: Option<Vec<WinnerDto>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub organizers: Option<Vec<String>>,
 }
 
@@ -74,6 +77,7 @@ pub struct HackathonDto {
     pub theme: Option<String>,
     pub rules: Option<String>,
     pub prizes: Option<Vec<PrizeDto>>,
+    pub previous_winners: Option<Vec<WinnerDto>>,
     pub organizers: Vec<String>,
     pub is_deleted: bool,
     pub created_at: Option<String>,
@@ -88,6 +92,15 @@ pub struct PrizeDto {
     pub title: String,
     pub description: Option<String>,
     pub value: Option<String>,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Validate)]
+pub struct WinnerDto {
+    #[validate(range(min = 1, message = "Position must be at least 1"))]
+    pub position: u32,
+    pub team_id: String,
+    #[validate(length(min = 1, message = "Project name cannot be empty"))]
+    pub project_name: String,
+    pub team_name: Option<String>,
 }
 
 // Hackathon Events DTOs
@@ -328,6 +341,17 @@ impl From<HackathonSchema> for HackathonDto {
                         title: p.title,
                         description: p.description,
                         value: p.value,
+                    })
+                    .collect()
+            }),
+            previous_winners: schema.previous_winners.map(|winners| {
+                winners
+                    .into_iter()
+                    .map(|w| WinnerDto {
+                        position: w.position,
+                        team_id: w.team_id,
+                        project_name: w.project_name,
+                        team_name: w.team_name,
                     })
                     .collect()
             }),

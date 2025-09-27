@@ -46,6 +46,16 @@ impl<'a> HackathonRepository<'a> {
                 })
                 .collect()
         });
+        let previous_winners: Option<Vec<super::hackathon_schema::Winner>> = hackathon.previous_winners.map(|w| {
+            w.into_iter()
+                .map(|winner| super::hackathon_schema::Winner {
+                    position: winner.position,
+                    team_id: winner.team_id,
+                    project_name: winner.project_name,
+                    team_name: winner.team_name,
+                })
+                .collect()
+        });
 
         let schema = HackathonSchema {
             id: Thing::from((table.clone(), id.clone())),
@@ -59,6 +69,7 @@ impl<'a> HackathonRepository<'a> {
             theme: hackathon.theme,
             rules: hackathon.rules,
             prizes,
+            previous_winners,
             organizers: hackathon.organizers,
             is_deleted: false,
             created_at: Some(get_iso_date()),
@@ -156,6 +167,18 @@ impl<'a> HackathonRepository<'a> {
                 })
                 .collect();
             existing.prizes = Some(prizes_schema);
+        if let Some(previous_winners) = updates.previous_winners {
+            let winners_schema: Vec<super::hackathon_schema::Winner> = previous_winners
+                .into_iter()
+                .map(|w| super::hackathon_schema::Winner {
+                    position: w.position,
+                    team_id: w.team_id,
+                    project_name: w.project_name,
+                    team_name: w.team_name,
+                })
+                .collect();
+            existing.previous_winners = Some(winners_schema);
+        }
         }
         if let Some(organizers) = updates.organizers {
             existing.organizers = organizers;
