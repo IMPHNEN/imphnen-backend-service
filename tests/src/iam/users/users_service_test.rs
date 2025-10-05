@@ -31,12 +31,14 @@ mod tests {
 			let list: imphnen_entities::ResponseListSuccessDto<Vec<imphnen_iam::v1::users::users_dto::UsersListItemDto>> =
 				serde_json::from_value(inner.clone()).unwrap_or(imphnen_entities::ResponseListSuccessDto { data: vec![], meta: None });
 			if !list.data.is_empty() {
-				assert!(!list.data[0].id.is_empty());
+				assert!(!list.data[0].id.is_empty(), "User list items must have non-empty id");
+				assert!(!list.data[0].email.is_empty(), "User list items must have non-empty email");
 			}
 		} else if v.is_array() {
 			let arr: Vec<imphnen_iam::v1::users::users_dto::UsersListItemDto> = serde_json::from_value(v).unwrap_or_default();
 			if !arr.is_empty() {
-				assert!(!arr[0].id.is_empty());
+				assert!(!arr[0].id.is_empty(), "User list items must have non-empty id");
+				assert!(!arr[0].email.is_empty(), "User list items must have non-empty email");
 			}
 		} else {
 			// other shapes (object without data) — accept for now
@@ -104,17 +106,20 @@ mod tests {
 		// Verify response
 		assert_eq!(response.status(), StatusCode::CREATED);
 
-		// Verify response body contains success message
-		let created_msg: imphnen_entities::MessageResponseDto =
-			crate::common::response_helpers::parse_response(response, 4096).await;
-		assert!(created_msg.message.to_lowercase().contains("created") || created_msg.message.to_lowercase().contains("success"));
+		// Verify response body contains user data
+		let created_user: imphnen_iam::v1::users::users_dto::UsersDetailItemDto =
+			crate::common::response_helpers::parse_response_data(response, 4096).await;
+		assert!(!created_user.id.is_empty(), "Created user must have non-empty id");
+		assert_eq!(created_user.email, email, "Created user email must match request");
+		assert_eq!(created_user.fullname, "Test User Service", "Created user fullname must match request");
+		assert_eq!(created_user.is_active, true, "Created user must be active");
 
 		// Verify user was created in database
-		let created_user = repo.query_user_by_email(email.clone()).await.unwrap();
-		assert_eq!(created_user.email, email);
+		let db_user = repo.query_user_by_email(email.clone()).await.unwrap();
+		assert_eq!(db_user.email, email);
 
 		// Clean up
-		let _ = repo.query_delete_user(created_user.id.id.to_raw()).await;
+		let _ = repo.query_delete_user(db_user.id.id.to_raw()).await;
 	}
 
 	#[tokio::test]

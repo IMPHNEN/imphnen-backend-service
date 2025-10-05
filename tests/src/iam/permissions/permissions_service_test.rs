@@ -29,10 +29,11 @@ mod tests {
 		// Verify response
 		assert_eq!(response.status(), StatusCode::CREATED);
 
-		// Verify response body contains created permission
+		// Verify response body contains created permission data
 		let created: PermissionsSchema =
 			crate::common::response_helpers::parse_response(response, 1024).await;
-		assert_eq!(created.name, permission_name);
+		assert!(!created.id.is_empty(), "Created permission must have non-empty id");
+		assert_eq!(created.name, permission_name, "Created permission name must match request");
 
 		// Verify permission was created in database
 		let created_permission = repo
@@ -76,10 +77,12 @@ mod tests {
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
 
-		// Verify response body contains permission
+		// Verify response body contains permission data
 		let body: PermissionsSchema =
 			crate::common::response_helpers::parse_response(response, 1024).await;
-		assert_eq!(body.id.id.to_raw(), permission_id);
+		assert!(!body.id.id.to_raw().is_empty(), "Permission must have non-empty id");
+		assert_eq!(body.id.id.to_raw(), permission_id, "Permission ID must match");
+		assert_eq!(body.name, permission_name, "Permission name must match");
 
 		// Clean up
 		let _ = repo.query_delete_permission(permission_id).await;
@@ -122,10 +125,11 @@ mod tests {
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
 
-		// Verify response body contains updated permission
+		// Verify response body contains updated permission data
 		let body: PermissionsSchema =
 			crate::common::response_helpers::parse_response(response, 1024).await;
-		assert_eq!(body.name, new_name);
+		assert!(!body.id.id.to_raw().is_empty(), "Updated permission must have non-empty id");
+		assert_eq!(body.name, new_name, "Updated permission name must match request");
 
 		// Verify permission was updated in database
 		let updated_permission = repo

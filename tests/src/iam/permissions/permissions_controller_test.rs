@@ -29,19 +29,20 @@ mod tests {
 		// Verify response
 		assert_eq!(response.status(), StatusCode::CREATED);
 
-		// Verify response body contains success message
-		let msg: imphnen_entities::MessageResponseDto =
+		// Verify response body contains permission data
+		let created_permission: PermissionsSchema =
 			crate::common::response_helpers::parse_response(response, 1024).await;
-		assert!(msg.message.to_lowercase().contains("created") || msg.message.to_lowercase().contains("success"));
+		assert!(!created_permission.id.id.to_raw().is_empty(), "Created permission must have non-empty id");
+		assert_eq!(created_permission.name, permission_name, "Created permission name must match request");
 
 		// Verify permission was created in database
-		let created_permission = repo
+		let db_permission = repo
 			.query_permission_by_name(permission_name)
 			.await
 			.unwrap();
-		assert_eq!(created_permission.name, permission_name);
+		assert_eq!(db_permission.name, permission_name);
 
 		// Clean up
-		let _ = repo.query_delete_permission(created_permission.id.id.to_raw()).await;
+		let _ = repo.query_delete_permission(db_permission.id.id.to_raw()).await;
 	}
 }

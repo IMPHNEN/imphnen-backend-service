@@ -2,11 +2,12 @@
 mod tests {
 	use crate::{generate_unique_email, get_role_id, setup_all_test_environment, UsersRepository};
 	use axum::{http::StatusCode, response::Response};
-	use imphnen_entities::{AppState, MetaRequestDto};
+	use imphnen_entities::{AppState, MetaRequestDto, ResponseSuccessDto, ResponseListSuccessDto};
 	use imphnen_gacha::{
 		gacha_credits_controller::GachaCreditsController,
 		gacha_credits_dto::{GachaCreditsCreateRequestDto, GachaCreditsUpdateRequestDto},
 	};
+	use serde_json::json;
 	use imphnen_iam::users_service::UsersService;
 	use imphnen_utils::{generate_otp, hash_password, make_thing_from_enum, get_iso_date};
 	use surrealdb::Uuid;
@@ -45,6 +46,10 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
+		
+		// Parse and verify JSON content
+		let response_body: serde_json::Value = response.json().await.unwrap();
+		assert!(response_body["message"].is_string(), "Success message should be a string");
 
 		// Clean up
 		let _ = user_repo.query_delete_user(user.id.id.to_raw()).await;
@@ -94,6 +99,10 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
+		
+		// Parse and verify JSON content
+		let response_body: ResponseListSuccessDto<serde_json::Value> = response.json().await.unwrap();
+		assert!(!response_body.data.is_null(), "Response data should not be null");
 
 		// Clean up
 		let _ = user_repo.query_delete_user(user.id.id.to_raw()).await;
@@ -138,6 +147,10 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
+		
+		// Parse and verify JSON content
+		let response_body: ResponseSuccessDto<serde_json::Value> = response.json().await.unwrap();
+		assert!(!response_body.data.is_null(), "Response data should not be null");
 
 		// Clean up
 		let _ = user_repo.query_delete_user(user.id.id.to_raw()).await;
@@ -189,6 +202,18 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
+		
+		// Parse and verify JSON content
+		let response_body: serde_json::Value = response.json().await.unwrap();
+		assert!(response_body["message"].is_string(), "Success message should be a string");
+		
+		// Parse and verify JSON content
+		let response_body: serde_json::Value = response.json().await.unwrap();
+		assert!(response_body["message"].is_string(), "Success message should be a string");
+		
+		// Parse and verify JSON content
+		let response_body: serde_json::Value = response.json().await.unwrap();
+		assert!(response_body["message"].is_string(), "Success message should be a string");
 
 		// Clean up
 		let _ = user_repo.query_delete_user(user.id.id.to_raw()).await;

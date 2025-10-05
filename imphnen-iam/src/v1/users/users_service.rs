@@ -5,11 +5,10 @@ use super::{
 use imphnen_entities::UsersDetailQueryDto;
 use crate::{
 	AppState, MetaRequestDto, ResponseListSuccessDto, UsersRepository, UsersSchema,
-};
-use crate::{
 	ResponseSuccessDto, common_response, success_list_response,
 	success_response, validate_request,
 };
+use imphnen_utils::success_created_response;
 use axum::{http::StatusCode, response::Response, extract::Multipart};
 use imphnen_libs::{ResourceEnum, hash_password, verify_password, MinioConfig, FileType, decode_base64_file, extract_content_type_from_data_url, create_minio_service_from_config};
 use imphnen_utils::make_thing_from_enum;
@@ -130,8 +129,16 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
 		{
 			return common_response(StatusCode::BAD_REQUEST, "User already exists");
 		}
-		match repo.query_create_user(UsersSchema::create(new_user)).await {
-			Ok(msg) => common_response(StatusCode::CREATED, &msg),
+		match repo.query_create_user(UsersSchema::create(new_user.clone())).await {
+			Ok(_msg) => {
+				// After successful creation, fetch the created user
+				match repo.query_user_by_email(new_user.email).await {
+					Ok(created_user) => success_created_response(ResponseSuccessDto {
+						data: UserDto::from(&created_user),
+					}),
+					Err(e) => common_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+				}
+			}
 			Err(err) => {
 				common_response(StatusCode::INTERNAL_SERVER_ERROR, &err.to_string())
 			}

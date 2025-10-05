@@ -67,9 +67,14 @@ mod tests {
 
 	let login_response: ResponseSuccessDto = crate::common::response_helpers::parse_response(response, 8192).await;
 	let data_val = login_response.data.expect("login should return data");
-	// Try to deserialize token structure
+	
+	// Parse and verify token data
 	let token_obj: TokenDto = serde_json::from_value(data_val).expect("login data must be TokenDto");
-	assert!(!token_obj.access_token.is_empty(), "access_token must be present");
+	assert!(!token_obj.access_token.is_empty(), "access_token must be present and non-empty");
+	assert!(!token_obj.refresh_token.is_empty(), "refresh_token must be present and non-empty");
+	assert!(!token_obj.user.id.is_empty(), "user id must be present and non-empty");
+	assert_eq!(token_obj.user.email, email, "user email must match login email");
+	assert_eq!(token_obj.user.fullname, "Test User Controller", "user fullname must match registered user");
 
 		// Clean up
 		let user = repo.query_user_by_email(email.clone()).await.unwrap();

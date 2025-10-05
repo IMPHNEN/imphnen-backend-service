@@ -121,11 +121,13 @@ async fn test_admin_team_endpoints_sensitive_data_exposure() {
     
     // Verify sensitive fields are present in admin response
     assert!(response_json.data.iter().any(|team| {
-        team.is_deleted == false &&  // Should show is_deleted field
-        team.is_active == true &&    // Should show is_active field
-        team.website_url.is_some() && // Should show website_url
-        team.github_url.is_some()     // Should show github_url
-    }), "Admin team list should expose sensitive fields");
+    team.is_deleted == false &&  // Should show is_deleted field
+    team.is_active == true &&    // Should show is_active field
+    team.website_url.is_some() && // Should show website_url
+    team.github_url.is_some() && // Should show github_url
+    !team.id.is_empty() &&       // Should have non-empty id
+    !team.name.is_empty()        // Should have non-empty name
+   }), "Admin team list should expose sensitive fields and required data");
 
     // Test 2: Admin team detail endpoint should expose sensitive fields and full member info
     let response = imphnen_iam::teams_controller::get_admin_team_by_id(
@@ -142,6 +144,8 @@ async fn test_admin_team_endpoints_sensitive_data_exposure() {
     let admin_team = response_json.data;
     
     // Verify sensitive fields are present
+    assert!(!admin_team.id.is_empty(), "Admin team detail should have non-empty id");
+    assert!(!admin_team.name.is_empty(), "Admin team detail should have non-empty name");
     assert!(admin_team.is_deleted == false, "Admin team detail should show is_deleted field");
     assert!(admin_team.is_active == true, "Admin team detail should show is_active field");
     assert!(admin_team.website_url.is_some(), "Admin team detail should show website_url");
@@ -150,10 +154,11 @@ async fn test_admin_team_endpoints_sensitive_data_exposure() {
     
     // Verify all members have sensitive info (email should be present for admins)
     let has_all_member_info = admin_team.members.iter().all(|member| {
-        member.email.is_some() &&  // Admin should see member emails
-        member.fullname != "" &&   // Admin should see fullnames
-        member.role != ""          // Admin should see roles
-    });
+    member.email.is_some() &&  // Admin should see member emails
+    !member.fullname.is_empty() &&   // Admin should see fullnames
+    !member.role.is_empty() &&       // Admin should see roles
+    !member.id.is_empty()            // Admin should see member ids
+   });
     
     assert!(has_all_member_info, "Admin team detail should expose all member sensitive information");
 
@@ -173,10 +178,11 @@ async fn test_admin_team_endpoints_sensitive_data_exposure() {
     
     // Verify all members have sensitive info
     let has_all_member_info = admin_members.iter().all(|member| {
-        member.email.is_some() &&  // Admin should see member emails
-        member.fullname != "" &&   // Admin should see fullnames
-        member.role != ""          // Admin should see roles
-    });
+    member.email.is_some() &&  // Admin should see member emails
+    !member.fullname.is_empty() &&   // Admin should see fullnames
+    !member.role.is_empty() &&       // Admin should see roles
+    !member.id.is_empty()            // Admin should see member ids
+   });
     
     assert!(has_all_member_info, "Admin team members endpoint should expose all member sensitive information");
 

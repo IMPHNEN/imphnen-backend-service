@@ -6,7 +6,8 @@ mod tests {
 		mentors_service::MentorsService,
 		mentors_dto::{
 			MentorUserRegisterRequestDto, MentorUpdateRequestDto, MentorVerifyRequestDto,
-			IdentityAndVerification, ProfessionalProfile, MentoringLogistics
+			IdentityAndVerification, ProfessionalProfile, MentoringLogistics,
+			MentorRegisterResponseDto, MentorListResponseDto, MentorDetailResponseDto
 		},
 		MentorsRepository
 	};
@@ -67,6 +68,13 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
+		
+		// Parse and verify JSON response
+		let mentor_response: MentorRegisterResponseDto = response.json().await.unwrap();
+		assert!(!mentor_response.id.is_empty(), "Response ID should not be empty");
+		assert_eq!(mentor_response.status, "pending", "Expected mentor status to be 'pending'");
+		assert!(!mentor_response.created_at.is_empty(), "Created at should not be empty");
+		assert!(!mentor_response.updated_at.is_empty(), "Updated at should not be empty");
 
 		// Verify mentor was created in database
 		let mentor = mentor_repo.query_mentor_by_email(email.clone(), false).await;
@@ -143,6 +151,16 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
+		
+		// Parse and verify JSON response
+		let mentor_list: Vec<MentorListResponseDto> = response.json().await.unwrap();
+		assert!(!mentor_list.is_empty(), "Mentor list should not be empty");
+		
+		let mentor = &mentor_list[0];
+		assert!(!mentor.id.is_empty(), "Mentor ID should not be empty");
+		assert_eq!(mentor.status, "pending", "Expected mentor status to be 'pending'");
+		assert!(!mentor.created_at.is_empty(), "Created at should not be empty");
+		assert!(!mentor.updated_at.is_empty(), "Updated at should not be empty");
 
 		// Clean up
 		let user = user_repo.query_user_by_email(email.clone()).await.unwrap();
@@ -205,6 +223,15 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
+		
+		// Parse and verify JSON response
+		let mentor_response: MentorDetailResponseDto = response.json().await.unwrap();
+		assert!(!mentor_response.id.is_empty(), "Mentor ID should not be empty");
+		assert!(!mentor_response.user_id.is_empty(), "User ID should not be empty");
+		assert_eq!(mentor_response.status, "pending", "Expected mentor status to be 'pending'");
+		assert!(!mentor_response.created_at.is_empty(), "Created at should not be empty");
+		assert!(!mentor_response.updated_at.is_empty(), "Updated at should not be empty");
+		assert_eq!(mentor_response.current_role, "Senior Engineer", "Expected current role to be 'Senior Engineer'");
 
 		// Clean up
 		let user = user_repo.query_user_by_email(email.clone()).await.unwrap();
@@ -291,6 +318,14 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
+		
+		// Parse and verify JSON response
+		let mentor_response: MentorDetailResponseDto = response.json().await.unwrap();
+		assert!(!mentor_response.id.is_empty(), "Mentor ID should not be empty");
+		assert!(!mentor_response.user_id.is_empty(), "User ID should not be empty");
+		assert_eq!(mentor_response.status, "pending", "Expected mentor status to be 'pending'");
+		assert_eq!(mentor_response.current_role, "Lead Engineer", "Expected current role to be 'Lead Engineer' after update");
+		assert_eq!(mentor_response.legal_name, Some("Updated Legal Name".to_string()), "Expected legal name to be updated");
 
 		// Verify mentor was updated
 		let updated_mentor = mentor_repo.query_mentor_by_id(&mentor.id, false).await.unwrap();
@@ -423,6 +458,11 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
+		
+		// Parse and verify JSON response
+		let mentor_response: MentorDetailResponseDto = response.json().await.unwrap();
+		assert!(!mentor_response.id.is_empty(), "Mentor ID should not be empty");
+		assert_eq!(mentor_response.status, "verified", "Expected mentor status to be 'verified'");
 
 		// Verify mentor was verified
 		let updated_mentor = mentor_repo.query_mentor_by_id(&mentor.id, false).await.unwrap();
@@ -441,6 +481,10 @@ mod tests {
 
 		// Should return forbidden (mentor profile not found)
 		assert_eq!(response.status(), StatusCode::FORBIDDEN);
+		
+		// Verify error response structure
+		let error_response: serde_json::Value = response.json().await.unwrap();
+		assert!(error_response.is_object(), "Error response should be an object");
 	}
 
 	#[tokio::test]
@@ -457,6 +501,10 @@ mod tests {
 
 		// Should return forbidden
 		assert_eq!(response.status(), StatusCode::FORBIDDEN);
+		
+		// Verify error response structure
+		let error_response: serde_json::Value = response.json().await.unwrap();
+		assert!(error_response.is_object(), "Error response should be an object");
 	}
 
 	#[tokio::test]
@@ -479,6 +527,14 @@ mod tests {
 
 		// Should return not found
 		assert_eq!(response.status(), StatusCode::NOT_FOUND);
+		
+		// Verify error response structure
+		let error_response: serde_json::Value = response.json().await.unwrap();
+		assert!(error_response.is_object(), "Error response should be an object");
+		
+		// Verify error response structure
+		let error_response: serde_json::Value = response.json().await.unwrap();
+		assert!(error_response.is_object(), "Error response should be an object");
 	}
 
 	#[tokio::test]
@@ -741,6 +797,11 @@ mod tests {
 
 		let response = MentorsService::register_mentor(&app_state, mentor_dto).await;
 		assert_eq!(response.status(), StatusCode::OK);
+		
+		// Parse and verify JSON response
+		let mentor_response: MentorRegisterResponseDto = response.json().await.unwrap();
+		assert!(!mentor_response.id.is_empty(), "Response ID should not be empty");
+		assert_eq!(mentor_response.status, "pending", "Expected mentor status to be 'pending'");
 
 		// Clean up
 		let user = user_repo.query_user_by_email(email.clone()).await.unwrap();
@@ -792,6 +853,13 @@ mod tests {
 
 		let response = MentorsService::register_mentor(&app_state, mentor_dto).await;
 		assert_eq!(response.status(), StatusCode::OK);
+		
+		// Parse and verify JSON response
+		let mentor_response: MentorDetailResponseDto = response.json().await.unwrap();
+		assert!(!mentor_response.id.is_empty(), "Mentor ID should not be empty");
+		assert!(!mentor_response.user_id.is_empty(), "User ID should not be empty");
+		assert_eq!(mentor_response.legal_name, Some("Updated Name".to_string()), "Expected legal name to be updated");
+		assert_eq!(mentor_response.current_role, "Lead Engineer".to_string(), "Expected current role to be updated");
 
 		// Clean up
 		let user = user_repo.query_user_by_email(email.clone()).await.unwrap();

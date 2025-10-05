@@ -47,7 +47,11 @@ mod tests {
 	assert_eq!(response.status(), StatusCode::OK);
 
 	let login_response: ResponseSuccessDto = crate::common::response_helpers::parse_response(response, 8192).await;
-	assert!(login_response.data.is_some());
+	assert!(login_response.data.is_some(), "Login response must contain data");
+	
+	let token_data: TokenDto = serde_json::from_value(login_response.data.clone().unwrap()).expect("Login data must be TokenDto");
+	assert!(!token_data.access_token.is_empty(), "Access token must be present");
+	assert!(!token_data.refresh_token.is_empty(), "Refresh token must be present");
 
 		// Clean up
 		let user = repo.query_user_by_email(email.clone()).await.unwrap();
@@ -103,8 +107,10 @@ mod tests {
 		// Verify user was created in database (should be inactive until OTP verification)
 		let repo = UsersRepository::new(&app_state);
 		let created_user = repo.query_user_by_email(email.clone()).await.unwrap();
-		assert_eq!(created_user.email, email);
-		assert_eq!(created_user.is_active, false);
+		assert_eq!(created_user.email, email, "Registered user email must match");
+		assert_eq!(created_user.fullname, "Test User Service", "Registered user fullname must match");
+		assert_eq!(created_user.is_active, false, "Registered user should be inactive until verification");
+		assert!(!created_user.id.id.to_raw().is_empty(), "Registered user must have non-empty id");
 
 		// Clean up
 		let _ = repo.query_delete_user(created_user.id.id.to_raw()).await;
@@ -145,7 +151,8 @@ mod tests {
 
 		// Verify user was activated in database
 		let updated_user = repo.query_user_by_email(email.clone()).await.unwrap();
-		assert_eq!(updated_user.is_active, true);
+		assert_eq!(updated_user.is_active, true, "User should be activated after verification");
+		assert_eq!(updated_user.email, email, "User email should remain unchanged");
 
 		// Clean up
 		let _ = repo.query_delete_user(updated_user.id.id.to_raw()).await;

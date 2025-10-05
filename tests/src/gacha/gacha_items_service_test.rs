@@ -2,9 +2,10 @@
 mod tests {
 	use crate::setup_all_test_environment;
 	use axum::http::StatusCode;
-	use imphnen_entities::{AppState, MetaRequestDto};
+	use imphnen_entities::{AppState, MetaRequestDto, ResponseSuccessDto, ResponseListSuccessDto};
 	use imphnen_gacha::v1::gacha_items::gacha_items_service::GachaItemService;
 	use imphnen_gacha::v1::gacha_items::gacha_items_dto::{GachaItemRequestDto, GachaItemUpdateRequestDto};
+	use imphnen_gacha::v1::gacha_items::gacha_items_dto::GachaItemDto;
 	use imphnen_gacha::GachaItemRepository;
 
 	#[tokio::test]
@@ -32,6 +33,12 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
+		
+		// Parse and verify JSON content
+		let response_body: ResponseListSuccessDto<Vec<GachaItemDto>> = response.json().await.unwrap();
+		assert!(!response_body.data.is_empty(), "Response data should not be empty");
+		assert!(response_body.data.iter().any(|item| item.name == "Test Item List"), "Expected item not found in response");
+		assert!(response_body.data.iter().all(|item| !item.id.is_empty() && !item.name.is_empty()), "Required fields should not be empty");
 
 		// Clean up
 		let items = item_repo.query_gacha_item_list(MetaRequestDto::default()).await.unwrap().data;
@@ -58,6 +65,12 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
+		
+		// Parse and verify JSON content
+		let response_body: ResponseSuccessDto<GachaItemDto> = response.json().await.unwrap();
+		assert!(!response_body.data.id.is_empty(), "ID should not be empty");
+		assert_eq!(response_body.data.name, "Test Item By ID", "Item name should match");
+		assert!(!response_body.data.is_deleted, "Item should not be deleted");
 
 		// Clean up
 		let _ = item_repo.query_delete_gacha_item(item.id.id.to_raw()).await;
@@ -72,6 +85,10 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::NOT_FOUND);
+		
+		// Parse and verify error JSON content
+		let response_body: serde_json::Value = response.json().await.unwrap();
+		assert!(response_body["message"].is_string(), "Error message should be a string");
 	}
 
 	#[tokio::test]
@@ -90,6 +107,10 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::CREATED);
+		
+		// Parse and verify JSON content
+		let response_body: serde_json::Value = response.json().await.unwrap();
+		assert!(response_body["message"].is_string(), "Success message should be a string");
 
 		// Verify item was created
 		let items = item_repo.query_gacha_item_list(MetaRequestDto::default()).await.unwrap().data;
@@ -115,6 +136,14 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+		
+		// Parse and verify error JSON content
+		let response_body: serde_json::Value = response.json().await.unwrap();
+		assert!(response_body["message"].is_string(), "Error message should be a string");
+		
+		// Parse and verify error JSON content
+		let response_body: serde_json::Value = response.json().await.unwrap();
+		assert!(response_body["message"].is_string(), "Error message should be a string");
 	}
 
 	#[tokio::test]
@@ -156,6 +185,12 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
+		
+		// Parse and verify JSON content
+		let response_body: ResponseSuccessDto<GachaItemDto> = response.json().await.unwrap();
+		assert!(!response_body.data.id.is_empty(), "ID should not be empty");
+		assert_eq!(response_body.data.name, "Updated Test Item", "Updated item name should match");
+		assert_eq!(response_body.data.image_url, "https://example.com/updated.png", "Updated image URL should match");
 
 		// Verify item was updated
 		let updated_item = item_repo.query_gacha_item_by_id(item.id.id.to_raw()).await.unwrap();
@@ -179,6 +214,14 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::NOT_FOUND);
+		
+		// Parse and verify error JSON content
+		let response_body: serde_json::Value = response.json().await.unwrap();
+		assert!(response_body["message"].is_string(), "Error message should be a string");
+		
+		// Parse and verify error JSON content
+		let response_body: serde_json::Value = response.json().await.unwrap();
+		assert!(response_body["message"].is_string(), "Error message should be a string");
 	}
 
 	#[tokio::test]
@@ -204,6 +247,10 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+		
+		// Parse and verify error JSON content
+		let response_body: serde_json::Value = response.json().await.unwrap();
+		assert!(response_body["message"].is_string(), "Error message should be a string");
 
 		// Clean up
 		let _ = item_repo.query_delete_gacha_item(item.id.id.to_raw()).await;

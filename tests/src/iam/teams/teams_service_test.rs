@@ -26,7 +26,9 @@ mod tests {
 		let arr = list_val.as_array().expect("team list should be an array");
 		if !arr.is_empty() {
 			let first = &arr[0];
-			assert!(first.get("id").is_some() || first.get("name").is_some(), "team items should have id or name");
+			assert!(first.get("id").is_some(), "team items must have id");
+			assert!(first.get("name").is_some(), "team items must have name");
+			assert!(first.get("name").and_then(|n| n.as_str()).map_or(false, |s| !s.is_empty()), "team name must not be empty");
 		}
 	}
 
@@ -50,7 +52,9 @@ mod tests {
 		let arr = list_val.as_array().expect("public team list should be an array");
 		if !arr.is_empty() {
 			let first = &arr[0];
-			assert!(first.get("id").is_some() || first.get("name").is_some(), "public team items should have id or name");
+			assert!(first.get("id").is_some(), "public team items must have id");
+			assert!(first.get("name").is_some(), "public team items must have name");
+			assert!(first.get("name").and_then(|n| n.as_str()).map_or(false, |s| !s.is_empty()), "public team name must not be empty");
 		}
 	}
 
@@ -149,7 +153,9 @@ mod tests {
 		let arr = list_val.as_array().expect("search should return array");
 		if !arr.is_empty() {
 			let first = &arr[0];
-			assert!(first.get("id").is_some() || first.get("name").is_some(), "search item should have id or name");
+			assert!(first.get("id").is_some(), "search result items must have id");
+			assert!(first.get("name").is_some(), "search result items must have name");
+			assert!(first.get("name").and_then(|n| n.as_str()).map_or(false, |s| !s.is_empty()), "search result name must not be empty");
 		}
 	}
 

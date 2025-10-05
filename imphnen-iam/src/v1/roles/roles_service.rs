@@ -3,6 +3,7 @@ use crate::{
 	AppState, MetaRequestDto, ResponseListSuccessDto, ResponseSuccessDto,
 	common_response, success_list_response, success_response, validate_request,
 };
+use imphnen_utils::success_created_response;
 use axum::{http::StatusCode, response::Response};
 
 pub struct RolesService;
@@ -48,7 +49,7 @@ impl RolesService {
 			}
 		}
 		match repo.query_create_role(payload).await {
-			Ok(msg) => common_response(StatusCode::CREATED, &msg),
+			Ok(created_role) => success_created_response(ResponseSuccessDto { data: created_role }),
 			Err(e) => common_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
 		}
 	}

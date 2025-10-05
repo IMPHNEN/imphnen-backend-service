@@ -29,19 +29,22 @@ mod tests {
 		// Verify response
 		assert_eq!(response.status(), StatusCode::CREATED);
 
-		let msg: imphnen_entities::MessageResponseDto =
+		// Verify response body contains role data
+		let created_role: imphnen_iam::v1::roles::roles_dto::RolesDetailItemDto =
 			crate::common::response_helpers::parse_response(response, 1024).await;
-		assert!(msg.message.to_lowercase().contains("created") || msg.message.to_lowercase().contains("success"));
+		assert!(!created_role.id.is_empty(), "Created role must have non-empty id");
+		assert_eq!(created_role.name, role_name, "Created role name must match request");
+		assert_eq!(created_role.description, Some("Test role for controller".to_string()), "Created role description must match request");
 
 		// Verify role was created in database
-		let created_role = repo
+		let db_role = repo
 			.query_role_by_name(role_name)
 			.await
 			.unwrap();
-		assert_eq!(created_role.name, role_name);
+		assert_eq!(db_role.name, role_name);
 
 		// Clean up
-		let _ = repo.query_delete_role(created_role.id.id.to_raw()).await;
+		let _ = repo.query_delete_role(db_role.id.id.to_raw()).await;
 	}
 
 	#[tokio::test]
@@ -121,6 +124,15 @@ mod tests {
 		// Expect wrapped { data: [...] } or raw array. Normalize to array and check created roles are present
 		let list_val = if let Some(d) = v.get("data") { d.clone() } else { v };
 		let arr = list_val.as_array().expect("role list should be an array");
+		
+		// Verify all items have required fields
+		for item in arr.iter() {
+			assert!(item.get("id").is_some(), "Role list items must have id");
+			assert!(item.get("name").is_some(), "Role list items must have name");
+			let name = item.get("name").and_then(|n| n.as_str()).expect("Role name must be string");
+			assert!(!name.is_empty(), "Role name must not be empty");
+		}
+
 		let names: Vec<String> = arr.iter().filter_map(|it| it.get("name").and_then(|n| n.as_str()).map(|s| s.to_string())).collect();
 		for name in ["test_role_list_1", "test_role_list_2", "test_role_list_3"].iter() {
 			assert!(names.contains(&name.to_string()), "expected role {} in list", name);
@@ -164,11 +176,13 @@ mod tests {
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
 
-	let v = crate::common::response_helpers::parse_response_value(response, 1024).await;
-	// Expect wrapped { data: {...} } or direct object. Extract and assert name
-	let obj = if let Some(d) = v.get("data") { d.clone() } else { v };
-	let name = obj.get("name").and_then(|n| n.as_str()).expect("role object must have name");
-	assert_eq!(name, "test_role_by_id");
+		// Parse and verify role data
+		let role: imphnen_iam::v1::roles::roles_dto::RolesDetailItemDto =
+			crate::common::response_helpers::parse_response(response, 1024).await;
+		
+		assert!(!role.id.is_empty(), "Role must have non-empty id");
+		assert_eq!(role.name, role_name, "Role name must match created role");
+		assert_eq!(role.description, Some("Test role for by ID test".to_string()), "Role description must match created role");
 
 		// Clean up
 		let _ = repo.query_delete_role(role_id).await;

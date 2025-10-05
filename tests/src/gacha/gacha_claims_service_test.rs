@@ -2,13 +2,14 @@
 mod tests {
 	use crate::{generate_unique_email, get_role_id, setup_all_test_environment, UsersRepository};
 	use axum::http::StatusCode;
-	use imphnen_entities::AppState;
+	use imphnen_entities::{AppState, ResponseSuccessDto};
 	use imphnen_gacha::v1::gacha_claims::gacha_claims_service::GachaClaimService;
-	use imphnen_gacha::v1::gacha_claims::gacha_claims_dto::GachaClaimRequestDto;
+	use imphnen_gacha::v1::gacha_claims::gacha_claims_dto::{GachaClaimItemDto, GachaClaimRequestDto};
 	use imphnen_gacha::v1::gacha_items::gacha_items_service::GachaItemService;
 	use imphnen_gacha::v1::gacha_items::gacha_items_dto::GachaItemRequestDto;
 	use imphnen_gacha::GachaClaimRepository;
 	use imphnen_iam::users_service::UsersService;
+	use serde_json::json;
 
 	#[tokio::test]
 	async fn test_get_gacha_claim_by_id_service() {
@@ -47,6 +48,10 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::NOT_FOUND);
+		
+		// Parse and verify error JSON content
+		let response_body: serde_json::Value = response.json().await.unwrap();
+		assert!(response_body["message"].is_string(), "Error message should be a string");
 
 		// Clean up
 		let _ = user_repo.query_delete_user(user.id.id.to_raw()).await;
@@ -88,6 +93,10 @@ mod tests {
 
 		// Since item doesn't exist, it should fail
 		assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+		
+		// Parse and verify error JSON content
+		let response_body: serde_json::Value = response.json().await.unwrap();
+		assert!(response_body["message"].is_string(), "Error message should be a string");
 
 		// Clean up
 		let _ = user_repo.query_delete_user(user.id.id.to_raw()).await;
@@ -107,6 +116,14 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+		
+		// Parse and verify error JSON content
+		let response_body: serde_json::Value = response.json().await.unwrap();
+		assert!(response_body["message"].is_string(), "Error message should be a string");
+		
+		// Parse and verify error JSON content
+		let response_body: serde_json::Value = response.json().await.unwrap();
+		assert!(response_body["message"].is_string(), "Error message should be a string");
 	}
 
 	#[tokio::test]

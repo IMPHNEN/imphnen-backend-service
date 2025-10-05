@@ -42,12 +42,12 @@ mod tests {
 		// Verify response
 		assert_eq!(response.status(), StatusCode::CREATED);
 
-		// Expect a response with data containing the created team id and stats
-		let v = crate::common::response_helpers::parse_response_value(response, 2048).await;
-		// If wrapped in { "data": ... }, extract
-		let data = if let Some(d) = v.get("data") { d.clone() } else { v };
-		assert!(data.get("team_id").is_some(), "create response must include team_id");
-		assert!(data.get("invitations_sent").is_some(), "create response should report invitations_sent");
+		// Parse and verify response contains team data
+		let team_response: imphnen_iam::v1::teams::teams_dto::TeamsCreateResponseDto =
+			crate::common::response_helpers::parse_response(response, 2048).await;
+		
+		assert!(!team_response.team_id.is_empty(), "Created team must have non-empty team_id");
+		assert_eq!(team_response.invitations_sent, 0, "No invitations should be sent for empty member list");
 
 		// Verify team was created in database
 		let team_thing = make_thing_from_enum(ResourceEnum::Teams, &user.id.id.to_raw());
@@ -325,14 +325,22 @@ mod tests {
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
 
-		let body_json: serde_json::Value = crate::common::response_helpers::parse_response_value(response, 2048).await;
-		// Expect a list wrapper with data -> array
-		let list = if let Some(d) = body_json.get("data") { d } else { &body_json };
-		assert!(list.is_array(), "search should return array of teams");
-		let found = list.as_array().unwrap().iter().any(|item| {
-			if let Some(name) = item.get("name") { name == "Searchable Test Team" } else { false }
-		});
-		assert!(found, "created team should appear in search results");
+		// Parse and verify search results
+		let search_response: imphnen_entities::ResponseListSuccessDto<Vec<imphnen_iam::v1::teams::teams_dto::TeamsListItemDto>> =
+			crate::common::response_helpers::parse_response(response, 2048).await;
+		
+		assert!(!search_response.data.is_empty(), "Search should return at least one team");
+		
+		// Verify all results have required fields
+		for team in &search_response.data {
+			assert!(!team.id.is_empty(), "Search result team must have non-empty id");
+			assert!(!team.name.is_empty(), "Search result team must have non-empty name");
+		}
+
+		// Verify our team is in results
+		let found_team = search_response.data.iter().find(|t| t.name == "Searchable Test Team");
+		assert!(found_team.is_some(), "Created team should appear in search results");
+		assert_eq!(found_team.unwrap().is_open, true, "Found team should be open");
 
 		// Clean up
 		let _ = repo.query_delete_team(team_id).await;

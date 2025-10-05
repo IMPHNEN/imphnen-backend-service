@@ -37,20 +37,24 @@ mod tests {
 		// Verify response
 		assert_eq!(response.status(), StatusCode::CREATED);
 
-		let msg: imphnen_entities::MessageResponseDto =
+		// Verify response body contains user data
+		let created_user: imphnen_iam::v1::users::users_dto::UsersDetailItemDto =
 			crate::common::response_helpers::parse_response(response, 4096).await;
-		assert!(msg.message.to_lowercase().contains("created") || msg.message.to_lowercase().contains("success"));
+		assert!(!created_user.id.is_empty(), "Created user must have non-empty id");
+		assert_eq!(created_user.email, email, "Created user email must match request");
+		assert_eq!(created_user.fullname, "Test User Controller", "Created user fullname must match request");
+		assert_eq!(created_user.is_active, true, "Created user must be active");
 
 		// Verify user was created in database
-		let created_user = repo
+		let db_user = repo
 			.query_user_by_email(email.clone())
 			.await
 			.unwrap();
-		assert_eq!(created_user.email, email);
-		assert_eq!(created_user.fullname, "Test User Controller");
-		assert_eq!(created_user.is_active, true);
+		assert_eq!(db_user.email, email);
+		assert_eq!(db_user.fullname, "Test User Controller");
+		assert_eq!(db_user.is_active, true);
 
 		// Clean up
-		let _ = repo.query_delete_user(created_user.id.id.to_raw()).await;
+		let _ = repo.query_delete_user(db_user.id.id.to_raw()).await;
 	}
 }

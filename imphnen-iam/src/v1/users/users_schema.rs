@@ -247,7 +247,7 @@ impl UsersSchema {
 			password,
 			phone_number: user.phone_number,
 			phone_for_verification: None,
-			is_active: false,
+			is_active: user.is_active,
 			mentor_id: None, // Regular users should not have a mentor_id by default
 			gender: None,
 			birthdate: None,

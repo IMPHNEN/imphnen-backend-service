@@ -28,20 +28,21 @@ mod tests {
 		// Verify response
 		assert_eq!(response.status(), StatusCode::CREATED);
 
-		// Verify response body contains success message
-		let msg: MessageResponseDto =
-			crate::common::response_helpers::parse_response(response, 1024).await;
-		assert!(msg.message.to_lowercase().contains("created") || msg.message.to_lowercase().contains("success"));
+		// Verify response body contains role data
+		let created_role: imphnen_iam::v1::roles::roles_dto::RolesDetailItemDto =
+			crate::common::response_helpers::parse_response_data(response, 1024).await;
+		assert!(!created_role.id.is_empty(), "Created role must have non-empty id");
+		assert_eq!(created_role.name, role_name, "Created role name must match request");
 
 		// Verify role was created in database
-		let created_role = repo
+		let db_role = repo
 			.query_role_by_name(role_name.clone())
 			.await
 			.unwrap();
-		assert_eq!(created_role.name, role_name);
+		assert_eq!(db_role.name, role_name);
 
 		// Clean up
-		let _ = repo.query_delete_role(created_role.id).await;
+		let _ = repo.query_delete_role(db_role.id).await;
 	}
 
 	#[tokio::test]
@@ -60,9 +61,9 @@ mod tests {
 
 		// Get created role to get ID
 		let created_role = repo
-			.query_role_by_name(role_name)
-			.await
-			.unwrap();
+		    .query_role_by_name(role_name.clone())
+		    .await
+		    .unwrap();
 		let role_id = created_role.id;
 
 		// Get role by ID through service
@@ -74,17 +75,17 @@ mod tests {
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
 
-		// parse response value and handle wrapped {"data": ...} or object
-	let v = crate::common::response_helpers::parse_response_value(response, 1024).await;
-		if let Some(inner) = v.get("data") {
-			// attempt to deserialize into detail DTO if present
-			let _role: imphnen_iam::v1::roles::roles_dto::RolesDetailItemDto =
-				serde_json::from_value(inner.clone()).unwrap_or_else(|_| {
-					panic!("Response 'data' couldn't be deserialized into RolesDetailItemDto: {}", inner)
-				});
+		// Parse response and verify role data
+		let v = crate::common::response_helpers::parse_response_value(response, 1024).await;
+		let role_data = if let Some(inner) = v.get("data") {
+			serde_json::from_value(inner.clone()).expect("Response 'data' must deserialize into RolesDetailItemDto")
 		} else {
-			assert!(v.is_object());
-		}
+			serde_json::from_value(v).expect("Response must deserialize into RolesDetailItemDto")
+		};
+		let role: imphnen_iam::v1::roles::roles_dto::RolesDetailItemDto = role_data;
+		
+		assert!(!role.id.is_empty(), "Role must have non-empty id");
+		assert_eq!(role.name, role_name, "Role name must match created role");
 
 		// Clean up
 		let _ = repo.query_delete_role(role_id).await;
@@ -108,9 +109,9 @@ mod tests {
 
 		// Get created role to get ID
 		let created_role = repo
-			.query_role_by_name(original_name)
-			.await
-			.unwrap();
+		    .query_role_by_name(original_name.clone())
+		    .await
+		    .unwrap();
 		let role_id = created_role.id;
 
 		// Prepare update request
@@ -160,9 +161,9 @@ mod tests {
 
 		// Get created role to get ID
 		let created_role = repo
-			.query_role_by_name(role_name)
-			.await
-			.unwrap();
+		    .query_role_by_name(role_name.clone())
+		    .await
+		    .unwrap();
 		let role_id = created_role.id;
 
 		// Verify role exists before deletion
@@ -220,12 +221,14 @@ mod tests {
 			let list: imphnen_entities::ResponseListSuccessDto<Vec<imphnen_iam::v1::roles::roles_dto::RolesListItemDto>> =
 				serde_json::from_value(inner.clone()).unwrap_or(imphnen_entities::ResponseListSuccessDto { data: vec![], meta: None });
 			if !list.data.is_empty() {
-				assert!(!list.data[0].id.is_empty());
+				assert!(!list.data[0].id.is_empty(), "Role list items must have non-empty id");
+				assert!(!list.data[0].name.is_empty(), "Role list items must have non-empty name");
 			}
 		} else if v.is_array() {
 			let arr: Vec<imphnen_iam::v1::roles::roles_dto::RolesListItemDto> = serde_json::from_value(v).unwrap_or_default();
 			if !arr.is_empty() {
-				assert!(!arr[0].id.is_empty());
+				assert!(!arr[0].id.is_empty(), "Role list items must have non-empty id");
+				assert!(!arr[0].name.is_empty(), "Role list items must have non-empty name");
 			}
 		} else {
 			// accept other object shapes
@@ -275,9 +278,9 @@ mod tests {
 
 		// Clean up
 		let created_role = repo
-			.query_role_by_name(role_name)
-			.await
-			.unwrap();
+		    .query_role_by_name(role_name.clone())
+		    .await
+		    .unwrap();
 		let _ = repo.query_delete_role(created_role.id).await;
 	}
 
@@ -333,9 +336,9 @@ mod tests {
 		// Clean up
 		let _ = repo.query_delete_role(role_id1).await;
 		let created_role2 = repo
-			.query_role_by_name(role_name2)
-			.await
-			.unwrap();
+		    .query_role_by_name(role_name2.clone())
+		    .await
+		    .unwrap();
 		let _ = repo.query_delete_role(created_role2.id).await;
 	}
 

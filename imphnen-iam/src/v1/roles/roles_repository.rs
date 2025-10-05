@@ -116,7 +116,7 @@ impl<'a> RolesRepository<'a> {
 	pub async fn query_create_role(
 		&self,
 		payload: RolesRequestCreateDto,
-	) -> Result<String> {
+	) -> Result<RolesDetailItemDto> {
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
 		let role_id = Uuid::new_v4().to_string();
@@ -134,7 +134,7 @@ impl<'a> RolesRepository<'a> {
 			updated_at: Some(crate::get_iso_date()),
 		};
 		let _: Option<RolesSchema> = db
-			.create((&ResourceEnum::Roles.to_string(), role_id))
+			.create((&ResourceEnum::Roles.to_string(), role_id.clone()))
 			.content(role)
 			.await?;
 		let elapsed = now.elapsed();
@@ -143,7 +143,8 @@ impl<'a> RolesRepository<'a> {
 		{
 			println!("Query 'query_create_role' took: {elapsed:.2?}");
 		}
-		Ok("Role with permissions created successfully".into())
+		// After successful creation, fetch the created role
+		self.query_role_by_id(role_id).await
 	}
 
 	#[instrument(skip(self, id, data), err)]
