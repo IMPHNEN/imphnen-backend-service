@@ -504,11 +504,9 @@ pub async fn delete_hackathon_submission(
 
 pub fn hackathon_routes() -> Router {
     Router::new()
-        // Hackathon routes
-        .route("/", post(create_hackathon))
-        .route("/", get(list_hackathons))
-        .route("/{id}", get(get_hackathon))
-        .route("/{id}", put(update_hackathon))
+            // Hackathon routes
+            .route("/", post(create_hackathon))
+    .route("/{id}", put(update_hackathon))
         .route("/{id}", delete(delete_hackathon))
 
         // Hackathon Events routes

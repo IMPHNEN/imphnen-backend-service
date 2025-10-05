@@ -88,8 +88,26 @@ where
 					));
 				}
 			};
-			let user_permissions: Vec<String> =
-			user.role.permissions.as_ref().unwrap_or(&vec![]).iter().filter_map(|p| p.as_ref().and_then(|pp| pp.name.clone())).collect();
+			// Collect both permission names and permission ids (raw) so checks work
+			// whether permissions were stored as names or as Thing ids in the role.
+			let user_permissions: Vec<String> = user
+				.role
+				.permissions
+				.as_ref()
+				.unwrap_or(&vec![])
+				.iter()
+				.filter_map(|p| p.as_ref())
+				.flat_map(|pp| {
+					let mut res: Vec<String> = Vec::new();
+					if let Some(name) = pp.name.clone() {
+						res.push(name);
+					}
+					if let Some(id) = pp.id.as_ref().map(|id| id.id.to_raw()) {
+						res.push(id);
+					}
+					res
+				})
+				.collect();
 
 			// Check if user has Administrator permission - accept either the permission name or the well-known id
 			let admin_name = PermissionsEnum::Administrator.to_string();

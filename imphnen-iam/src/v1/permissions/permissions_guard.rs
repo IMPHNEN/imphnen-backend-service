@@ -43,8 +43,26 @@ pub async fn permissions_guard(
 		}
 	};
 
-	// Check permissions from database
-	let user_permissions: Vec<String> = user.role.permissions.as_ref().unwrap_or(&vec![]).iter().filter_map(|p| p.as_ref().and_then(|pp| pp.name.clone())).collect();
+	// Check permissions from database: collect both names and raw ids so checks
+	// succeed whether permissions are stored by name or by Thing id.
+	let user_permissions: Vec<String> = user
+		.role
+		.permissions
+		.as_ref()
+		.unwrap_or(&vec![])
+		.iter()
+		.filter_map(|p| p.as_ref())
+		.flat_map(|pp| {
+			let mut res: Vec<String> = Vec::new();
+			if let Some(name) = pp.name.clone() {
+				res.push(name);
+			}
+			if let Some(id) = pp.id.as_ref().map(|id| id.id.to_raw()) {
+				res.push(id);
+			}
+			res
+		})
+		.collect();
 
 	// If user has Administrator permission, allow all.
 	// Accept either the permission name or the canonical permission id.

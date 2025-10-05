@@ -13,7 +13,7 @@ use imphnen_cms::{
 };
 use imphnen_dimentorin::dimentorin_router;
 use imphnen_gacha::gacha_router;
-use imphnen_hackathon::v1::hackathon_protected_routes;
+use imphnen_hackathon::v1::{hackathon_protected_routes, hackathon_public_routes};
 use imphnen_iam::{
     iam_protected_routes,
     iam_public_routes,
@@ -41,6 +41,7 @@ pub async fn gateway_service(
 
     let public_routes = Router::new()
         .merge(iam_public_routes())
+        .merge(hackathon_public_routes())
         .merge(testimonials_public_routes())
         .merge(events_public_routes());
 
