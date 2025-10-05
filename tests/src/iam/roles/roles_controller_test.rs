@@ -32,9 +32,15 @@ mod tests {
 		// Verify response body contains role data
 		let created_role: imphnen_iam::v1::roles::roles_dto::RolesDetailItemDto =
 			crate::common::response_helpers::parse_response(response, 1024).await;
+		
+		// Validate all required fields in RolesDetailItemDto
 		assert!(!created_role.id.is_empty(), "Created role must have non-empty id");
 		assert_eq!(created_role.name, role_name, "Created role name must match request");
 		assert_eq!(created_role.description, Some("Test role for controller".to_string()), "Created role description must match request");
+		assert!(created_role.is_deleted == false, "Created role should not be marked as deleted");
+		assert!(created_role.permissions.len() >= 0, "Created role must have permissions array");
+		assert!(created_role.created_at.is_some(), "Created role must have created_at timestamp");
+		assert!(created_role.updated_at.is_some(), "Created role must have updated_at timestamp");
 
 		// Verify role was created in database
 		let db_role = repo
@@ -125,12 +131,15 @@ mod tests {
 		let list_val = if let Some(d) = v.get("data") { d.clone() } else { v };
 		let arr = list_val.as_array().expect("role list should be an array");
 		
-		// Verify all items have required fields
+		// Verify all items have required fields in RolesListItemDto
 		for item in arr.iter() {
 			assert!(item.get("id").is_some(), "Role list items must have id");
 			assert!(item.get("name").is_some(), "Role list items must have name");
 			let name = item.get("name").and_then(|n| n.as_str()).expect("Role name must be string");
 			assert!(!name.is_empty(), "Role name must not be empty");
+			assert!(item.get("permissions_count").is_some(), "Role list items must have permissions_count");
+			assert!(item.get("created_at").is_some(), "Role list items must have created_at timestamp");
+			assert!(item.get("updated_at").is_some(), "Role list items must have updated_at timestamp");
 		}
 
 		let names: Vec<String> = arr.iter().filter_map(|it| it.get("name").and_then(|n| n.as_str()).map(|s| s.to_string())).collect();
@@ -180,9 +189,14 @@ mod tests {
 		let role: imphnen_iam::v1::roles::roles_dto::RolesDetailItemDto =
 			crate::common::response_helpers::parse_response(response, 1024).await;
 		
+		// Validate all required fields in RolesDetailItemDto
 		assert!(!role.id.is_empty(), "Role must have non-empty id");
 		assert_eq!(role.name, role_name, "Role name must match created role");
 		assert_eq!(role.description, Some("Test role for by ID test".to_string()), "Role description must match created role");
+		assert!(role.is_deleted == false, "Role should not be marked as deleted");
+		assert!(role.permissions.len() >= 0, "Role must have permissions array");
+		assert!(role.created_at.is_some(), "Role must have created_at timestamp");
+		assert!(role.updated_at.is_some(), "Role must have updated_at timestamp");
 
 		// Clean up
 		let _ = repo.query_delete_role(role_id).await;

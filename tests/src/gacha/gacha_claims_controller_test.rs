@@ -32,6 +32,13 @@ async fn test_create_claim_happy_path() {
     let response = server.post("/gacha/claims").json(&create_dto).await;
     assert_eq!(response.status(), 201);
     let body: GachaClaimResponse = response.json().await.unwrap();
+    
+    // Verify all fields in response are not empty
+    assert!(!body.id.is_empty(), "GachaClaimResponse.id should not be empty");
+    assert!(!body.user_id.is_empty(), "GachaClaimResponse.user_id should not be empty");
+    assert!(!body.item_id.is_empty(), "GachaClaimResponse.item_id should not be empty");
+    assert!(!body.status.is_empty(), "GachaClaimResponse.status should not be empty");
+    assert!(!body.created_at.is_empty(), "GachaClaimResponse.created_at should not be empty");
     assert_eq!(body.id, expected.id);
 }
 

@@ -103,6 +103,17 @@ mod tests {
 		// Parse and verify JSON content
 		let response_body: ResponseListSuccessDto<serde_json::Value> = response.json().await.unwrap();
 		assert!(!response_body.data.is_null(), "Response data should not be null");
+		
+		// Verify all fields in response are not empty
+		let credits_array = response_body.data.as_array().unwrap();
+		for credit in credits_array {
+			assert!(credit["id"].is_string() && !credit["id"].as_str().unwrap().is_empty(), "Response credit.id should not be empty");
+			assert!(credit["user"].is_object(), "Response credit.user should be an object");
+			assert!(credit["available_rolls"].is_i64(), "Response credit.available_rolls should be present");
+			assert!(credit["is_deleted"].is_bool(), "Response credit.is_deleted should be present");
+			assert!(credit["created_at"].is_string(), "Response credit.created_at should be present");
+			assert!(credit["updated_at"].is_string(), "Response credit.updated_at should be present");
+		}
 
 		// Clean up
 		let _ = user_repo.query_delete_user(user.id.id.to_raw()).await;
@@ -151,6 +162,15 @@ mod tests {
 		// Parse and verify JSON content
 		let response_body: ResponseSuccessDto<serde_json::Value> = response.json().await.unwrap();
 		assert!(!response_body.data.is_null(), "Response data should not be null");
+		
+		// Verify all fields in response are not empty
+		let credit = response_body.data.as_object().unwrap();
+		assert!(credit["id"].is_string() && !credit["id"].as_str().unwrap().is_empty(), "Response credit.id should not be empty");
+		assert!(credit["user"].is_object(), "Response credit.user should be an object");
+		assert!(credit["available_rolls"].is_i64(), "Response credit.available_rolls should be present");
+		assert!(credit["is_deleted"].is_bool(), "Response credit.is_deleted should be present");
+		assert!(credit["created_at"].is_string(), "Response credit.created_at should be present");
+		assert!(credit["updated_at"].is_string(), "Response credit.updated_at should be present");
 
 		// Clean up
 		let _ = user_repo.query_delete_user(user.id.id.to_raw()).await;

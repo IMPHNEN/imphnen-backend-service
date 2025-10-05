@@ -32,6 +32,14 @@ async fn test_create_item_happy_path() {
     let response = server.post("/gacha/items").json(&create_dto).await;
     assert_eq!(response.status(), 201);
     let body: GachaItemResponse = response.json().await.unwrap();
+    
+    // Verify all fields in response are not empty
+    assert!(!body.id.is_empty(), "GachaItemResponse.id should not be empty");
+    assert!(!body.name.is_empty(), "GachaItemResponse.name should not be empty");
+    assert!(!body.rarity.is_empty(), "GachaItemResponse.rarity should not be empty");
+    assert!(!body.image_url.is_empty(), "GachaItemResponse.image_url should not be empty");
+    assert!(body.value > 0, "GachaItemResponse.value should be positive");
+    assert!(!body.created_at.is_empty(), "GachaItemResponse.created_at should not be empty");
     assert_eq!(body.id, expected.id);
 }
 
@@ -52,6 +60,16 @@ async fn test_get_all_items_happy_path() {
     assert_eq!(response.status(), 200);
     let body: Vec<GachaItemResponse> = response.json().await.unwrap();
     assert_eq!(body.len(), 2);
+    
+    // Verify all fields in all responses are not empty
+    for item in &body {
+        assert!(!item.id.is_empty(), "GachaItemResponse.id should not be empty");
+        assert!(!item.name.is_empty(), "GachaItemResponse.name should not be empty");
+        assert!(!item.rarity.is_empty(), "GachaItemResponse.rarity should not be empty");
+        assert!(!item.image_url.is_empty(), "GachaItemResponse.image_url should not be empty");
+        assert!(item.value > 0, "GachaItemResponse.value should be positive");
+        assert!(!item.created_at.is_empty(), "GachaItemResponse.created_at should not be empty");
+    }
     assert_eq!(body[0].id, "item123");
     assert_eq!(body[1].id, "item456");
 }

@@ -46,8 +46,20 @@ mod tests {
 		let team_response: imphnen_iam::v1::teams::teams_dto::TeamsCreateResponseDto =
 			crate::common::response_helpers::parse_response(response, 2048).await;
 		
+		// Validate all required fields in TeamsCreateResponseDto
 		assert!(!team_response.team_id.is_empty(), "Created team must have non-empty team_id");
 		assert_eq!(team_response.invitations_sent, 0, "No invitations should be sent for empty member list");
+		assert!(team_response.team.is_some(), "Created team must include team data");
+		
+		// Validate nested team data in response
+		let team = team_response.team.as_ref().unwrap();
+		assert!(!team.id.is_empty(), "Team must have non-empty id");
+		assert!(!team.name.is_empty(), "Team must have non-empty name");
+		assert!(team.description.is_some(), "Team must have description field");
+		assert!(team.leader.is_some(), "Team must have leader field");
+		assert!(team.is_open != false, "Team must have is_open field");
+		assert!(team.current_member_count >= 0, "Team must have current_member_count");
+		assert!(team.created_at.is_some(), "Team must have created_at timestamp");
 
 		// Verify team was created in database
 		let team_thing = make_thing_from_enum(ResourceEnum::Teams, &user.id.id.to_raw());
@@ -109,7 +121,32 @@ mod tests {
 		let inner = v.get("data").expect("get team should return data field").clone();
 		let team: imphnen_iam::v1::teams::teams_dto::TeamsDetailResponseDto =
 			serde_json::from_value(inner).expect("response data must deserialize to TeamsDetailResponseDto");
+		
+		// Validate all required fields in TeamsDetailResponseDto
+		assert!(!team.id.is_empty(), "Team must have non-empty id");
 		assert_eq!(team.name, "Test Get Team");
+		assert!(team.description.is_some(), "Team must have description field");
+		assert!(team.leader.is_some(), "Team must have leader field");
+		assert!(team.is_open != false, "Team must have is_open field");
+		assert!(team.current_member_count >= 0, "Team must have current_member_count");
+		assert!(team.max_members.is_some(), "Team must have max_members field");
+		assert!(team.skills_required.is_some(), "Team must have skills_required field");
+		assert!(team.location.is_some(), "Team must have location field");
+		assert!(team.avatar.is_some(), "Team must have avatar field");
+		assert!(team.website_url.is_some(), "Team must have website_url field");
+		assert!(team.github_url.is_some(), "Team must have github_url field");
+		assert!(team.members.is_some(), "Team must have members field");
+		assert!(team.is_active != false, "Team must have is_active field");
+		assert!(team.created_at.is_some(), "Team must have created_at timestamp");
+		assert!(team.updated_at.is_some(), "Team must have updated_at timestamp");
+		
+		// Validate leader object
+		let leader = team.leader.as_ref().unwrap();
+		assert!(!leader.id.is_empty(), "Leader must have non-empty id");
+		assert!(!leader.user_id.is_empty(), "Leader must have non-empty user_id");
+		assert!(!leader.fullname.is_empty(), "Leader must have non-empty fullname");
+		assert!(leader.role.is_some(), "Leader must have role field");
+		assert!(leader.joined_at.is_some(), "Leader must have joined_at timestamp");
 
 		// Clean up
 		let _ = repo.query_delete_team(team_id).await;
@@ -331,10 +368,27 @@ mod tests {
 		
 		assert!(!search_response.data.is_empty(), "Search should return at least one team");
 		
-		// Verify all results have required fields
+		// Verify all results have required fields in TeamsListItemDto
 		for team in &search_response.data {
 			assert!(!team.id.is_empty(), "Search result team must have non-empty id");
 			assert!(!team.name.is_empty(), "Search result team must have non-empty name");
+			assert!(team.description.is_some(), "Search result team must have description field");
+			assert!(team.leader.is_some(), "Search result team must have leader field");
+			assert!(team.is_open != false, "Search result team must have is_open field");
+			assert!(team.current_member_count >= 0, "Search result team must have current_member_count");
+			assert!(team.max_members.is_some(), "Search result team must have max_members field");
+			assert!(team.skills_required.is_some(), "Search result team must have skills_required field");
+			assert!(team.location.is_some(), "Search result team must have location field");
+			assert!(team.avatar.is_some(), "Search result team must have avatar field");
+			assert!(team.created_at.is_some(), "Search result team must have created_at timestamp");
+			
+			// Validate leader object in search results
+			let leader = team.leader.as_ref().unwrap();
+			assert!(!leader.id.is_empty(), "Search result leader must have non-empty id");
+			assert!(!leader.user_id.is_empty(), "Search result leader must have non-empty user_id");
+			assert!(!leader.fullname.is_empty(), "Search result leader must have non-empty fullname");
+			assert!(leader.role.is_some(), "Search result leader must have role field");
+			assert!(leader.joined_at.is_some(), "Search result leader must have joined_at timestamp");
 		}
 
 		// Verify our team is in results

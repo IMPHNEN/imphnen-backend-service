@@ -50,8 +50,19 @@ mod tests {
 	assert!(login_response.data.is_some(), "Login response must contain data");
 	
 	let token_data: TokenDto = serde_json::from_value(login_response.data.clone().unwrap()).expect("Login data must be TokenDto");
+	
+	// Validate ALL fields in TokenDto response
 	assert!(!token_data.access_token.is_empty(), "Access token must be present");
 	assert!(!token_data.refresh_token.is_empty(), "Refresh token must be present");
+	assert!(token_data.token_type.is_some(), "Token type must be present");
+	assert!(token_data.expires_in.is_some(), "Token expires_in must be present");
+	assert!(token_data.not_before.is_some(), "Token not_before must be present");
+	assert!(token_data.issued_at.is_some(), "Token issued_at must be present");
+	assert!(token_data.jwt_id.is_some(), "Token jwt_id must be present");
+	assert!(token_data.subject.is_some(), "Token subject must be present");
+	assert!(token_data.audience.is_some(), "Token audience must be present");
+	assert!(token_data.issuer.is_some(), "Token issuer must be present");
+	assert!(token_data.refresh_expires_in.is_some(), "Token refresh_expires_in must be present");
 
 		// Clean up
 		let user = repo.query_user_by_email(email.clone()).await.unwrap();
@@ -107,10 +118,22 @@ mod tests {
 		// Verify user was created in database (should be inactive until OTP verification)
 		let repo = UsersRepository::new(&app_state);
 		let created_user = repo.query_user_by_email(email.clone()).await.unwrap();
+		
+		// Validate ALL required fields in UsersSchema response
 		assert_eq!(created_user.email, email, "Registered user email must match");
 		assert_eq!(created_user.fullname, "Test User Service", "Registered user fullname must match");
 		assert_eq!(created_user.is_active, false, "Registered user should be inactive until verification");
 		assert!(!created_user.id.id.to_raw().is_empty(), "Registered user must have non-empty id");
+		assert!(!created_user.phone_number.unwrap().is_empty(), "Registered user must have non-empty phone_number");
+		assert!(!created_user.role.id.id.to_raw().is_empty(), "Registered user must have non-empty role id");
+		assert!(!created_user.role.name.is_empty(), "Registered user must have non-empty role name");
+		assert!(created_user.created_at.is_some(), "Registered user must have created_at timestamp");
+		assert!(created_user.updated_at.is_some(), "Registered user must have updated_at timestamp");
+		assert!(created_user.is_deleted == false, "Registered user should not be deleted");
+		assert!(created_user.avatar.is_some(), "Registered user must have avatar field");
+		assert!(created_user.bio.is_some(), "Registered user must have bio field");
+		assert!(created_user.gender.is_some(), "Registered user must have gender field");
+		assert!(created_user.birthdate.is_some(), "Registered user must have birthdate field");
 
 		// Clean up
 		let _ = repo.query_delete_user(created_user.id.id.to_raw()).await;
@@ -349,8 +372,19 @@ mod tests {
 	let response_data: ResponseSuccessDto = crate::common::response_helpers::parse_response(response, 8192).await;
 	assert!(response_data.data.is_some());
 	let token_data = response_data.data.as_ref().unwrap();
-	assert!(token_data.access_token.is_some());
-	assert!(token_data.refresh_token.is_some());
+	
+	// Validate ALL fields in TokenDto response
+	assert!(token_data.access_token.is_some(), "Refresh token response must have access_token");
+	assert!(token_data.refresh_token.is_some(), "Refresh token response must have refresh_token");
+	assert!(token_data.token_type.is_some(), "Refresh token response must have token_type");
+	assert!(token_data.expires_in.is_some(), "Refresh token response must have expires_in");
+	assert!(token_data.not_before.is_some(), "Refresh token response must have not_before");
+	assert!(token_data.issued_at.is_some(), "Refresh token response must have issued_at");
+	assert!(token_data.jwt_id.is_some(), "Refresh token response must have jwt_id");
+	assert!(token_data.subject.is_some(), "Refresh token response must have subject");
+	assert!(token_data.audience.is_some(), "Refresh token response must have audience");
+	assert!(token_data.issuer.is_some(), "Refresh token response must have issuer");
+	assert!(token_data.refresh_expires_in.is_some(), "Refresh token response must have refresh_expires_in");
 
 		// Clean up
 		let user = repo.query_user_by_email(email.clone()).await.unwrap();

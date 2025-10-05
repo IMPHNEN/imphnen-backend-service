@@ -119,15 +119,28 @@ async fn test_admin_team_endpoints_sensitive_data_exposure() {
     let response_json: ResponseListSuccessDto<Vec<AdminTeamsListItemDto>> =
         serde_json::from_value(v).unwrap();
     
-    // Verify sensitive fields are present in admin response
+    // Verify ALL fields are present and not empty in admin response (AdminTeamsListItemDto)
     assert!(response_json.data.iter().any(|team| {
-    team.is_deleted == false &&  // Should show is_deleted field
-    team.is_active == true &&    // Should show is_active field
-    team.website_url.is_some() && // Should show website_url
-    team.github_url.is_some() && // Should show github_url
-    !team.id.is_empty() &&       // Should have non-empty id
-    !team.name.is_empty()        // Should have non-empty name
-   }), "Admin team list should expose sensitive fields and required data");
+        !team.id.is_empty() &&               // Required: non-empty id
+        !team.name.is_empty() &&             // Required: non-empty name
+        team.description.is_some() &&        // Required: description field exists
+        team.leader.is_some() &&             // Required: leader field exists
+        team.leader.as_ref().map_or(false, |l| !l.id.is_empty()) && // Leader has id
+        team.leader.as_ref().map_or(false, |l| !l.user_id.is_empty()) && // Leader has user_id
+        team.leader.as_ref().map_or(false, |l| !l.fullname.is_empty()) && // Leader has fullname
+        team.leader.as_ref().map_or(false, |l| !l.role.is_empty()) && // Leader has role
+        team.is_open != false &&             // Required: is_open field exists
+        team.current_member_count >= 0 &&    // Required: current_member_count exists
+        team.max_members.is_some() &&        // Required: max_members field exists
+        team.skills_required.is_some() &&    // Required: skills_required field exists
+        team.location.is_some() &&           // Required: location field exists
+        team.avatar.is_some() &&             // Required: avatar field exists
+        team.website_url.is_some() &&        // Required: website_url field exists
+        team.github_url.is_some() &&         // Required: github_url field exists
+        team.is_active != false &&           // Required: is_active field exists
+        team.is_deleted != false &&          // Required: is_deleted field exists
+        team.created_at.is_some()            // Required: created_at field exists
+    }), "Admin team list should expose ALL required fields and sensitive data");
 
     // Test 2: Admin team detail endpoint should expose sensitive fields and full member info
     let response = imphnen_iam::teams_controller::get_admin_team_by_id(
@@ -143,22 +156,45 @@ async fn test_admin_team_endpoints_sensitive_data_exposure() {
         serde_json::from_value(v).unwrap();
     let admin_team = response_json.data;
     
-    // Verify sensitive fields are present
+    // Verify ALL fields are present and not empty in admin team detail response (AdminTeamsDetailItemDto)
     assert!(!admin_team.id.is_empty(), "Admin team detail should have non-empty id");
     assert!(!admin_team.name.is_empty(), "Admin team detail should have non-empty name");
-    assert!(admin_team.is_deleted == false, "Admin team detail should show is_deleted field");
-    assert!(admin_team.is_active == true, "Admin team detail should show is_active field");
+    assert!(admin_team.description.is_some(), "Admin team detail should have description field");
+    assert!(admin_team.leader.is_some(), "Admin team detail should have leader field");
+    
+    // Validate leader object
+    let leader = admin_team.leader.as_ref().unwrap();
+    assert!(!leader.id.is_empty(), "Admin team leader should have non-empty id");
+    assert!(!leader.user_id.is_empty(), "Admin team leader should have non-empty user_id");
+    assert!(!leader.fullname.is_empty(), "Admin team leader should have non-empty fullname");
+    assert!(leader.role.is_some(), "Admin team leader should have role field");
+    assert!(leader.joined_at.is_some(), "Admin team leader should have joined_at field");
+    
+    assert!(admin_team.is_open != false, "Admin team detail should show is_open field");
+    assert!(admin_team.current_member_count >= 0, "Admin team detail should show current_member_count");
+    assert!(admin_team.max_members.is_some(), "Admin team detail should show max_members field");
+    assert!(admin_team.skills_required.is_some(), "Admin team detail should show skills_required field");
+    assert!(admin_team.location.is_some(), "Admin team detail should show location field");
+    assert!(admin_team.avatar.is_some(), "Admin team detail should show avatar field");
     assert!(admin_team.website_url.is_some(), "Admin team detail should show website_url");
     assert!(admin_team.github_url.is_some(), "Admin team detail should show github_url");
     assert!(admin_team.members.len() >= 2, "Admin team detail should show all members");
+    assert!(admin_team.is_active != false, "Admin team detail should show is_active field");
+    assert!(admin_team.is_deleted != false, "Admin team detail should show is_deleted field");
+    assert!(admin_team.created_at.is_some(), "Admin team detail should show created_at field");
+    assert!(admin_team.updated_at.is_some(), "Admin team detail should show updated_at field");
     
-    // Verify all members have sensitive info (email should be present for admins)
+    // Verify ALL member fields are present and not empty (TeamMemberDto)
     let has_all_member_info = admin_team.members.iter().all(|member| {
-    member.email.is_some() &&  // Admin should see member emails
-    !member.fullname.is_empty() &&   // Admin should see fullnames
-    !member.role.is_empty() &&       // Admin should see roles
-    !member.id.is_empty()            // Admin should see member ids
-   });
+        !member.id.is_empty() &&               // Required: non-empty id
+        !member.user_id.is_empty() &&          // Required: non-empty user_id
+        !member.fullname.is_empty() &&         // Required: non-empty fullname
+        member.email.is_some() &&              // Required: email field exists (admin can see emails)
+        !member.role.is_empty() &&             // Required: non-empty role
+        member.skills.is_some() &&             // Required: skills field exists
+        member.joined_at.is_some() &&          // Required: joined_at field exists
+        member.avatar.is_some()                // Required: avatar field exists
+    });
     
     assert!(has_all_member_info, "Admin team detail should expose all member sensitive information");
 
@@ -176,13 +212,17 @@ async fn test_admin_team_endpoints_sensitive_data_exposure() {
         serde_json::from_value(v).unwrap();
     let admin_members = response_json.data;
     
-    // Verify all members have sensitive info
+    // Verify ALL member fields are present and not empty (TeamMemberDto)
     let has_all_member_info = admin_members.iter().all(|member| {
-    member.email.is_some() &&  // Admin should see member emails
-    !member.fullname.is_empty() &&   // Admin should see fullnames
-    !member.role.is_empty() &&       // Admin should see roles
-    !member.id.is_empty()            // Admin should see member ids
-   });
+        !member.id.is_empty() &&               // Required: non-empty id
+        !member.user_id.is_empty() &&          // Required: non-empty user_id
+        !member.fullname.is_empty() &&         // Required: non-empty fullname
+        member.email.is_some() &&              // Required: email field exists (admin can see emails)
+        !member.role.is_empty() &&             // Required: non-empty role
+        member.skills.is_some() &&             // Required: skills field exists
+        member.joined_at.is_some() &&          // Required: joined_at field exists
+        member.avatar.is_some()                // Required: avatar field exists
+    });
     
     assert!(has_all_member_info, "Admin team members endpoint should expose all member sensitive information");
 

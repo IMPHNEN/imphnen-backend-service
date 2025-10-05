@@ -32,8 +32,14 @@ mod tests {
 		// Verify response body contains created permission data
 		let created: PermissionsSchema =
 			crate::common::response_helpers::parse_response(response, 1024).await;
+		
+		// Validate all required fields in PermissionsSchema
 		assert!(!created.id.is_empty(), "Created permission must have non-empty id");
 		assert_eq!(created.name, permission_name, "Created permission name must match request");
+		assert!(created.created_at.is_some(), "Created permission must have created_at timestamp");
+		assert!(created.updated_at.is_some(), "Created permission must have updated_at timestamp");
+		assert!(created.is_active == true, "Created permission should be active by default");
+		assert!(created.is_deleted == false, "Created permission should not be deleted by default");
 
 		// Verify permission was created in database
 		let created_permission = repo
@@ -80,9 +86,15 @@ mod tests {
 		// Verify response body contains permission data
 		let body: PermissionsSchema =
 			crate::common::response_helpers::parse_response(response, 1024).await;
+		
+		// Validate all required fields in PermissionsSchema
 		assert!(!body.id.id.to_raw().is_empty(), "Permission must have non-empty id");
 		assert_eq!(body.id.id.to_raw(), permission_id, "Permission ID must match");
 		assert_eq!(body.name, permission_name, "Permission name must match");
+		assert!(body.created_at.is_some(), "Permission must have created_at timestamp");
+		assert!(body.updated_at.is_some(), "Permission must have updated_at timestamp");
+		assert!(body.is_active == true, "Permission should be active");
+		assert!(body.is_deleted == false, "Permission should not be deleted");
 
 		// Clean up
 		let _ = repo.query_delete_permission(permission_id).await;
@@ -128,8 +140,14 @@ mod tests {
 		// Verify response body contains updated permission data
 		let body: PermissionsSchema =
 			crate::common::response_helpers::parse_response(response, 1024).await;
+		
+		// Validate all required fields in PermissionsSchema
 		assert!(!body.id.id.to_raw().is_empty(), "Updated permission must have non-empty id");
 		assert_eq!(body.name, new_name, "Updated permission name must match request");
+		assert!(body.created_at.is_some(), "Updated permission must have created_at timestamp");
+		assert!(body.updated_at.is_some(), "Updated permission must have updated_at timestamp");
+		assert!(body.is_active == true, "Updated permission should be active");
+		assert!(body.is_deleted == false, "Updated permission should not be deleted");
 
 		// Verify permission was updated in database
 		let updated_permission = repo

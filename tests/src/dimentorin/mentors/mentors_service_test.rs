@@ -72,6 +72,9 @@ mod tests {
 		// Parse and verify JSON response
 		let mentor_response: MentorRegisterResponseDto = response.json().await.unwrap();
 		assert!(!mentor_response.id.is_empty(), "Response ID should not be empty");
+		assert!(!mentor_response.user_id.is_empty(), "User ID should not be empty");
+		assert!(mentor_response.email.is_some(), "Email should be present");
+		assert!(!mentor_response.email.unwrap().is_empty(), "Email should not be empty");
 		assert_eq!(mentor_response.status, "pending", "Expected mentor status to be 'pending'");
 		assert!(!mentor_response.created_at.is_empty(), "Created at should not be empty");
 		assert!(!mentor_response.updated_at.is_empty(), "Updated at should not be empty");
@@ -158,6 +161,10 @@ mod tests {
 		
 		let mentor = &mentor_list[0];
 		assert!(!mentor.id.is_empty(), "Mentor ID should not be empty");
+		assert!(mentor.fullname.is_some(), "Fullname should be present");
+		assert!(!mentor.fullname.unwrap().is_empty(), "Fullname should not be empty");
+		assert!(mentor.email.is_some(), "Email should be present");
+		assert!(!mentor.email.unwrap().is_empty(), "Email should not be empty");
 		assert_eq!(mentor.status, "pending", "Expected mentor status to be 'pending'");
 		assert!(!mentor.created_at.is_empty(), "Created at should not be empty");
 		assert!(!mentor.updated_at.is_empty(), "Updated at should not be empty");
@@ -226,12 +233,65 @@ mod tests {
 		
 		// Parse and verify JSON response
 		let mentor_response: MentorDetailResponseDto = response.json().await.unwrap();
+		
+		// Core required fields
 		assert!(!mentor_response.id.is_empty(), "Mentor ID should not be empty");
 		assert!(!mentor_response.user_id.is_empty(), "User ID should not be empty");
+		assert!(mentor_response.fullname.is_some(), "Fullname should be present");
+		assert!(!mentor_response.fullname.unwrap().is_empty(), "Fullname should not be empty");
+		assert!(mentor_response.email.is_some(), "Email should be present");
+		assert!(!mentor_response.email.unwrap().is_empty(), "Email should not be empty");
+		assert!(mentor_response.legal_name.is_some(), "Legal name should be present");
+		assert!(!mentor_response.legal_name.unwrap().is_empty(), "Legal name should not be empty");
+		assert!(mentor_response.phone_for_verification.is_some(), "Phone for verification should be present");
+		assert!(!mentor_response.phone_for_verification.unwrap().is_empty(), "Phone for verification should not be empty");
+		assert!(mentor_response.bio.is_some(), "Bio should be present");
+		assert!(!mentor_response.bio.unwrap().is_empty(), "Bio should not be empty");
+		
+		// Professional profile fields
+		assert!(!mentor_response.current_company.is_empty(), "Current company should not be empty");
+		assert!(!mentor_response.current_role.is_empty(), "Current role should not be empty");
+		assert!(mentor_response.years_of_experience >= 2, "Years of experience should be at least 2");
+		assert!(!mentor_response.industries.is_empty(), "Industries should not be empty");
+		assert!(!mentor_response.expertise.is_empty(), "Expertise should not be empty");
+		assert!(!mentor_response.languages.is_empty(), "Languages should not be empty");
+		assert!(!mentor_response.topics_of_interest.is_empty(), "Topics of interest should not be empty");
+		assert!(!mentor_response.preferred_mentee_level.is_empty(), "Preferred mentee level should not be empty");
+		assert!(!mentor_response.preferred_mentoring_formats.is_empty(), "Preferred mentoring formats should not be empty");
+		assert!(!mentor_response.availability_commitment.is_empty(), "Availability commitment should not be empty");
+		
+		// Mentoring rate validation
+		assert!(mentor_response.mentoring_rate.amount > 0, "Mentoring rate amount should be greater than 0");
+		assert!(!mentor_response.mentoring_rate.currency.is_empty(), "Mentoring rate currency should not be empty");
+		assert!(!mentor_response.mentoring_rate.per_duration.is_empty(), "Mentoring rate per duration should not be empty");
+		
+		// Status and timestamps
 		assert_eq!(mentor_response.status, "pending", "Expected mentor status to be 'pending'");
 		assert!(!mentor_response.created_at.is_empty(), "Created at should not be empty");
 		assert!(!mentor_response.updated_at.is_empty(), "Updated at should not be empty");
-		assert_eq!(mentor_response.current_role, "Senior Engineer", "Expected current role to be 'Senior Engineer'");
+		
+		// Optional fields (check if present, then validate)
+		if let Some(gender) = &mentor_response.gender {
+			assert!(!gender.is_empty(), "Gender should not be empty if present");
+		}
+		if let Some(domicile) = &mentor_response.domicile {
+			assert!(!domicile.is_empty(), "Domicile should not be empty if present");
+		}
+		if let Some(last_education) = &mentor_response.last_education {
+			assert!(!last_education.is_empty(), "Last education should not be empty if present");
+		}
+		if let Some(linkedin_url) = &mentor_response.linkedin_url {
+			assert!(linkedin_url.starts_with("http"), "LinkedIn URL should be valid");
+		}
+		if let Some(github_url) = &mentor_response.github_url {
+			assert!(github_url.starts_with("http"), "GitHub URL should be valid");
+		}
+		if let Some(cv_url) = &mentor_response.cv_url {
+			assert!(cv_url.starts_with("http"), "CV URL should be valid");
+		}
+		if let Some(portfolio_url) = &mentor_response.portfolio_url {
+			assert!(portfolio_url.starts_with("http"), "Portfolio URL should be valid");
+		}
 
 		// Clean up
 		let user = user_repo.query_user_by_email(email.clone()).await.unwrap();
@@ -321,11 +381,70 @@ mod tests {
 		
 		// Parse and verify JSON response
 		let mentor_response: MentorDetailResponseDto = response.json().await.unwrap();
+		
+		// Core required fields
 		assert!(!mentor_response.id.is_empty(), "Mentor ID should not be empty");
 		assert!(!mentor_response.user_id.is_empty(), "User ID should not be empty");
-		assert_eq!(mentor_response.status, "pending", "Expected mentor status to be 'pending'");
+		assert!(mentor_response.fullname.is_some(), "Fullname should be present");
+		assert!(!mentor_response.fullname.unwrap().is_empty(), "Fullname should not be empty");
+		assert!(mentor_response.email.is_some(), "Email should be present");
+		assert!(!mentor_response.email.unwrap().is_empty(), "Email should not be empty");
+		assert!(mentor_response.legal_name.is_some(), "Legal name should be present");
+		assert!(!mentor_response.legal_name.unwrap().is_empty(), "Legal name should not be empty");
+		assert!(mentor_response.phone_for_verification.is_some(), "Phone for verification should be present");
+		assert!(!mentor_response.phone_for_verification.unwrap().is_empty(), "Phone for verification should not be empty");
+		assert!(mentor_response.bio.is_some(), "Bio should be present");
+		assert!(!mentor_response.bio.unwrap().is_empty(), "Bio should not be empty");
+		
+		// Professional profile fields
+		assert!(!mentor_response.current_company.is_empty(), "Current company should not be empty");
+		assert!(!mentor_response.current_role.is_empty(), "Current role should not be empty");
 		assert_eq!(mentor_response.current_role, "Lead Engineer", "Expected current role to be 'Lead Engineer' after update");
+		assert!(mentor_response.years_of_experience >= 2, "Years of experience should be at least 2");
+		assert!(!mentor_response.industries.is_empty(), "Industries should not be empty");
+		assert!(!mentor_response.expertise.is_empty(), "Expertise should not be empty");
+		assert!(!mentor_response.languages.is_empty(), "Languages should not be empty");
+		assert!(!mentor_response.topics_of_interest.is_empty(), "Topics of interest should not be empty");
+		assert!(!mentor_response.preferred_mentee_level.is_empty(), "Preferred mentee level should not be empty");
+		assert!(!mentor_response.preferred_mentoring_formats.is_empty(), "Preferred mentoring formats should not be empty");
+		assert!(!mentor_response.availability_commitment.is_empty(), "Availability commitment should not be empty");
+		
+		// Mentoring rate validation
+		assert!(mentor_response.mentoring_rate.amount > 0, "Mentoring rate amount should be greater than 0");
+		assert!(!mentor_response.mentoring_rate.currency.is_empty(), "Mentoring rate currency should not be empty");
+		assert!(!mentor_response.mentoring_rate.per_duration.is_empty(), "Mentoring rate per duration should not be empty");
+		
+		// Status and timestamps
+		assert_eq!(mentor_response.status, "pending", "Expected mentor status to be 'pending'");
+		assert!(!mentor_response.created_at.is_empty(), "Created at should not be empty");
+		assert!(!mentor_response.updated_at.is_empty(), "Updated at should not be empty");
+		
+		// Updated fields validation
 		assert_eq!(mentor_response.legal_name, Some("Updated Legal Name".to_string()), "Expected legal name to be updated");
+		assert_eq!(mentor_response.current_role, "Lead Engineer".to_string(), "Expected current role to be updated");
+		
+		// Optional fields (check if present, then validate)
+		if let Some(gender) = &mentor_response.gender {
+			assert!(!gender.is_empty(), "Gender should not be empty if present");
+		}
+		if let Some(domicile) = &mentor_response.domicile {
+			assert!(!domicile.is_empty(), "Domicile should not be empty if present");
+		}
+		if let Some(last_education) = &mentor_response.last_education {
+			assert!(!last_education.is_empty(), "Last education should not be empty if present");
+		}
+		if let Some(linkedin_url) = &mentor_response.linkedin_url {
+			assert!(linkedin_url.starts_with("http"), "LinkedIn URL should be valid");
+		}
+		if let Some(github_url) = &mentor_response.github_url {
+			assert!(github_url.starts_with("http"), "GitHub URL should be valid");
+		}
+		if let Some(cv_url) = &mentor_response.cv_url {
+			assert!(cv_url.starts_with("http"), "CV URL should be valid");
+		}
+		if let Some(portfolio_url) = &mentor_response.portfolio_url {
+			assert!(portfolio_url.starts_with("http"), "Portfolio URL should be valid");
+		}
 
 		// Verify mentor was updated
 		let updated_mentor = mentor_repo.query_mentor_by_id(&mentor.id, false).await.unwrap();
@@ -461,8 +580,65 @@ mod tests {
 		
 		// Parse and verify JSON response
 		let mentor_response: MentorDetailResponseDto = response.json().await.unwrap();
+		
+		// Core required fields
 		assert!(!mentor_response.id.is_empty(), "Mentor ID should not be empty");
+		assert!(!mentor_response.user_id.is_empty(), "User ID should not be empty");
+		assert!(mentor_response.fullname.is_some(), "Fullname should be present");
+		assert!(!mentor_response.fullname.unwrap().is_empty(), "Fullname should not be empty");
+		assert!(mentor_response.email.is_some(), "Email should be present");
+		assert!(!mentor_response.email.unwrap().is_empty(), "Email should not be empty");
+		assert!(mentor_response.legal_name.is_some(), "Legal name should be present");
+		assert!(!mentor_response.legal_name.unwrap().is_empty(), "Legal name should not be empty");
+		assert!(mentor_response.phone_for_verification.is_some(), "Phone for verification should be present");
+		assert!(!mentor_response.phone_for_verification.unwrap().is_empty(), "Phone for verification should not be empty");
+		assert!(mentor_response.bio.is_some(), "Bio should be present");
+		assert!(!mentor_response.bio.unwrap().is_empty(), "Bio should not be empty");
+		
+		// Professional profile fields
+		assert!(!mentor_response.current_company.is_empty(), "Current company should not be empty");
+		assert!(!mentor_response.current_role.is_empty(), "Current role should not be empty");
+		assert!(mentor_response.years_of_experience >= 2, "Years of experience should be at least 2");
+		assert!(!mentor_response.industries.is_empty(), "Industries should not be empty");
+		assert!(!mentor_response.expertise.is_empty(), "Expertise should not be empty");
+		assert!(!mentor_response.languages.is_empty(), "Languages should not be empty");
+		assert!(!mentor_response.topics_of_interest.is_empty(), "Topics of interest should not be empty");
+		assert!(!mentor_response.preferred_mentee_level.is_empty(), "Preferred mentee level should not be empty");
+		assert!(!mentor_response.preferred_mentoring_formats.is_empty(), "Preferred mentoring formats should not be empty");
+		assert!(!mentor_response.availability_commitment.is_empty(), "Availability commitment should not be empty");
+		
+		// Mentoring rate validation
+		assert!(mentor_response.mentoring_rate.amount > 0, "Mentoring rate amount should be greater than 0");
+		assert!(!mentor_response.mentoring_rate.currency.is_empty(), "Mentoring rate currency should not be empty");
+		assert!(!mentor_response.mentoring_rate.per_duration.is_empty(), "Mentoring rate per duration should not be empty");
+		
+		// Status and timestamps
 		assert_eq!(mentor_response.status, "verified", "Expected mentor status to be 'verified'");
+		assert!(!mentor_response.created_at.is_empty(), "Created at should not be empty");
+		assert!(!mentor_response.updated_at.is_empty(), "Updated at should not be empty");
+		
+		// Optional fields (check if present, then validate)
+		if let Some(gender) = &mentor_response.gender {
+			assert!(!gender.is_empty(), "Gender should not be empty if present");
+		}
+		if let Some(domicile) = &mentor_response.domicile {
+			assert!(!domicile.is_empty(), "Domicile should not be empty if present");
+		}
+		if let Some(last_education) = &mentor_response.last_education {
+			assert!(!last_education.is_empty(), "Last education should not be empty if present");
+		}
+		if let Some(linkedin_url) = &mentor_response.linkedin_url {
+			assert!(linkedin_url.starts_with("http"), "LinkedIn URL should be valid");
+		}
+		if let Some(github_url) = &mentor_response.github_url {
+			assert!(github_url.starts_with("http"), "GitHub URL should be valid");
+		}
+		if let Some(cv_url) = &mentor_response.cv_url {
+			assert!(cv_url.starts_with("http"), "CV URL should be valid");
+		}
+		if let Some(portfolio_url) = &mentor_response.portfolio_url {
+			assert!(portfolio_url.starts_with("http"), "Portfolio URL should be valid");
+		}
 
 		// Verify mentor was verified
 		let updated_mentor = mentor_repo.query_mentor_by_id(&mentor.id, false).await.unwrap();

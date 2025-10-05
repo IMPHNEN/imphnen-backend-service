@@ -26,9 +26,26 @@ mod tests {
 		let arr = list_val.as_array().expect("team list should be an array");
 		if !arr.is_empty() {
 			let first = &arr[0];
+			// Validate all required fields in TeamsListItemDto
 			assert!(first.get("id").is_some(), "team items must have id");
 			assert!(first.get("name").is_some(), "team items must have name");
 			assert!(first.get("name").and_then(|n| n.as_str()).map_or(false, |s| !s.is_empty()), "team name must not be empty");
+			assert!(first.get("description").is_some(), "team items must have description");
+			assert!(first.get("leader").is_some(), "team items must have leader");
+			
+			// Validate leader object (TeamMemberDto)
+			let leader = first.get("leader").expect("leader should exist").as_object().expect("leader should be an object");
+			assert!(leader.get("id").is_some(), "leader must have id");
+			assert!(leader.get("user_id").is_some(), "leader must have user_id");
+			assert!(leader.get("fullname").is_some(), "leader must have fullname");
+			assert!(leader.get("fullname").and_then(|n| n.as_str()).map_or(false, |s| !s.is_empty()), "leader fullname must not be empty");
+			assert!(leader.get("role").is_some(), "leader must have role");
+			assert!(leader.get("role").and_then(|n| n.as_str()).map_or(false, |s| !s.is_empty()), "leader role must not be empty");
+			assert!(leader.get("joined_at").is_some(), "leader must have joined_at");
+			
+			assert!(first.get("is_open").is_some(), "team items must have is_open");
+			assert!(first.get("current_member_count").is_some(), "team items must have current_member_count");
+			assert!(first.get("created_at").is_some(), "team items must have created_at");
 		}
 	}
 

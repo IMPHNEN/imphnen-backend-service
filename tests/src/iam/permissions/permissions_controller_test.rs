@@ -32,8 +32,14 @@ mod tests {
 		// Verify response body contains permission data
 		let created_permission: PermissionsSchema =
 			crate::common::response_helpers::parse_response(response, 1024).await;
+		
+		// Validate all required fields in PermissionsSchema
 		assert!(!created_permission.id.id.to_raw().is_empty(), "Created permission must have non-empty id");
 		assert_eq!(created_permission.name, permission_name, "Created permission name must match request");
+		assert!(created_permission.created_at.is_some(), "Created permission must have created_at timestamp");
+		assert!(created_permission.updated_at.is_some(), "Created permission must have updated_at timestamp");
+		assert!(created_permission.is_active == true, "Created permission should be active by default");
+		assert!(created_permission.is_deleted == false, "Created permission should not be deleted by default");
 
 		// Verify permission was created in database
 		let db_permission = repo

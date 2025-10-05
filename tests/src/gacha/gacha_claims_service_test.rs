@@ -52,6 +52,7 @@ mod tests {
 		// Parse and verify error JSON content
 		let response_body: serde_json::Value = response.json().await.unwrap();
 		assert!(response_body["message"].is_string(), "Error message should be a string");
+		assert!(!response_body["message"].as_str().unwrap().is_empty(), "Error message should not be empty");
 
 		// Clean up
 		let _ = user_repo.query_delete_user(user.id.id.to_raw()).await;
@@ -97,6 +98,7 @@ mod tests {
 		// Parse and verify error JSON content
 		let response_body: serde_json::Value = response.json().await.unwrap();
 		assert!(response_body["message"].is_string(), "Error message should be a string");
+		assert!(!response_body["message"].as_str().unwrap().is_empty(), "Error message should not be empty");
 
 		// Clean up
 		let _ = user_repo.query_delete_user(user.id.id.to_raw()).await;
@@ -120,6 +122,7 @@ mod tests {
 		// Parse and verify error JSON content
 		let response_body: serde_json::Value = response.json().await.unwrap();
 		assert!(response_body["message"].is_string(), "Error message should be a string");
+		assert!(!response_body["message"].as_str().unwrap().is_empty(), "Error message should not be empty");
 		
 		// Parse and verify error JSON content
 		let response_body: serde_json::Value = response.json().await.unwrap();

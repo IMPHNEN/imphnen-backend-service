@@ -38,7 +38,15 @@ mod tests {
 		let response_body: ResponseListSuccessDto<Vec<GachaItemDto>> = response.json().await.unwrap();
 		assert!(!response_body.data.is_empty(), "Response data should not be empty");
 		assert!(response_body.data.iter().any(|item| item.name == "Test Item List"), "Expected item not found in response");
-		assert!(response_body.data.iter().all(|item| !item.id.is_empty() && !item.name.is_empty()), "Required fields should not be empty");
+		
+		// Verify all fields in GachaItemDto are not empty
+		for item in &response_body.data {
+			assert!(!item.id.is_empty(), "GachaItemDto.id should not be empty");
+			assert!(!item.name.is_empty(), "GachaItemDto.name should not be empty");
+			assert!(!item.is_deleted.to_string().is_empty(), "GachaItemDto.is_deleted should not be empty");
+			assert!(item.created_at.is_some(), "GachaItemDto.created_at should be present");
+			assert!(item.updated_at.is_some(), "GachaItemDto.updated_at should be present");
+		}
 
 		// Clean up
 		let items = item_repo.query_gacha_item_list(MetaRequestDto::default()).await.unwrap().data;
@@ -68,9 +76,13 @@ mod tests {
 		
 		// Parse and verify JSON content
 		let response_body: ResponseSuccessDto<GachaItemDto> = response.json().await.unwrap();
-		assert!(!response_body.data.id.is_empty(), "ID should not be empty");
-		assert_eq!(response_body.data.name, "Test Item By ID", "Item name should match");
-		assert!(!response_body.data.is_deleted, "Item should not be deleted");
+		
+		// Verify all fields in GachaItemDto are not empty
+		assert!(!response_body.data.id.is_empty(), "GachaItemDto.id should not be empty");
+		assert_eq!(response_body.data.name, "Test Item By ID", "GachaItemDto.name should match");
+		assert!(!response_body.data.is_deleted.to_string().is_empty(), "GachaItemDto.is_deleted should not be empty");
+		assert!(response_body.data.created_at.is_some(), "GachaItemDto.created_at should be present");
+		assert!(response_body.data.updated_at.is_some(), "GachaItemDto.updated_at should be present");
 
 		// Clean up
 		let _ = item_repo.query_delete_gacha_item(item.id.id.to_raw()).await;
@@ -188,9 +200,14 @@ mod tests {
 		
 		// Parse and verify JSON content
 		let response_body: ResponseSuccessDto<GachaItemDto> = response.json().await.unwrap();
-		assert!(!response_body.data.id.is_empty(), "ID should not be empty");
-		assert_eq!(response_body.data.name, "Updated Test Item", "Updated item name should match");
-		assert_eq!(response_body.data.image_url, "https://example.com/updated.png", "Updated image URL should match");
+		
+		// Verify all fields in GachaItemDto are not empty
+		assert!(!response_body.data.id.is_empty(), "GachaItemDto.id should not be empty");
+		assert_eq!(response_body.data.name, "Updated Test Item", "GachaItemDto.name should match");
+		assert_eq!(response_body.data.image_url, "https://example.com/updated.png", "GachaItemDto.image_url should match");
+		assert!(!response_body.data.is_deleted.to_string().is_empty(), "GachaItemDto.is_deleted should not be empty");
+		assert!(response_body.data.created_at.is_some(), "GachaItemDto.created_at should be present");
+		assert!(response_body.data.updated_at.is_some(), "GachaItemDto.updated_at should be present");
 
 		// Verify item was updated
 		let updated_item = item_repo.query_gacha_item_by_id(item.id.id.to_raw()).await.unwrap();

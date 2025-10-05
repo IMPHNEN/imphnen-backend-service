@@ -75,6 +75,10 @@ mod tests {
 	assert!(!token_obj.user.id.is_empty(), "user id must be present and non-empty");
 	assert_eq!(token_obj.user.email, email, "user email must match login email");
 	assert_eq!(token_obj.user.fullname, "Test User Controller", "user fullname must match registered user");
+	assert!(!token_obj.user.status.is_empty(), "user status must be present and non-empty");
+	assert_eq!(token_obj.user.phone_number, Some("+1234567890".to_string()), "user phone_number must match registered phone number");
+	assert!(!token_obj.user.created_at.is_empty(), "user created_at must be present and non-empty");
+	assert!(!token_obj.user.updated_at.is_empty(), "user updated_at must be present and non-empty");
 
 		// Clean up
 		let user = repo.query_user_by_email(email.clone()).await.unwrap();

@@ -68,9 +68,17 @@ mod tests {
     let hackathon: imphnen_hackathon::v1::hackathon::hackathon_dto::HackathonDto =
         crate::common::response_helpers::parse_response_data(response, 4096).await;
 
-    // Basic field asserts to ensure response contains expected values
+    // Assert all required fields are present and not empty
+    assert!(!hackathon.id.is_empty(), "Hackathon ID should not be empty");
     assert_eq!(hackathon.name, "Controller Test Hackathon");
     assert_eq!(hackathon.description, "Testing controller endpoints");
+    assert!(!hackathon.start_date.to_rfc3339().is_empty(), "Start date should not be empty");
+    assert!(!hackathon.end_date.to_rfc3339().is_empty(), "End date should not be empty");
+    assert!(!hackathon.registration_deadline.to_rfc3339().is_empty(), "Registration deadline should not be empty");
+    assert!(hackathon.max_participants.is_some(), "Max participants should be present");
+    assert!(!hackathon.status.to_string().is_empty(), "Status should not be empty");
+    assert!(hackathon.organizers.len() > 0, "Organizers list should not be empty");
+    assert_eq!(hackathon.is_deleted, false, "Hackathon should not be marked as deleted");
     }
 
     #[tokio::test]
@@ -165,9 +173,19 @@ mod tests {
     let list: Vec<imphnen_hackathon::v1::hackathon::hackathon_dto::HackathonDto> =
         crate::common::response_helpers::parse_response_data(response, 4096).await;
 
-    // if non-empty, ensure items have required fields
+    // if non-empty, ensure items have all required fields
     if !list.is_empty() {
-        assert!(!list[0].id.is_empty());
+        let hackathon = &list[0];
+        assert!(!hackathon.id.is_empty(), "Hackathon ID should not be empty");
+        assert!(!hackathon.name.is_empty(), "Hackathon name should not be empty");
+        assert!(!hackathon.description.is_empty(), "Hackathon description should not be empty");
+        assert!(!hackathon.start_date.to_rfc3339().is_empty(), "Start date should not be empty");
+        assert!(!hackathon.end_date.to_rfc3339().is_empty(), "End date should not be empty");
+        assert!(!hackathon.registration_deadline.to_rfc3339().is_empty(), "Registration deadline should not be empty");
+        assert!(hackathon.max_participants.is_some(), "Max participants should be present");
+        assert!(!hackathon.status.to_string().is_empty(), "Status should not be empty");
+        assert!(hackathon.organizers.len() > 0, "Organizers list should not be empty");
+        assert_eq!(hackathon.is_deleted, false, "Hackathon should not be marked as deleted");
     }
     }
 
@@ -262,7 +280,15 @@ mod tests {
             // parse created event and assert fields
             let event: imphnen_hackathon::v1::hackathon::hackathon_dto::HackathonEventDto =
                 crate::common::response_helpers::parse_response_data(response, 2048).await;
+            // Assert all required fields are present and not empty
+            assert!(!event.id.is_empty(), "Event ID should not be empty");
+            assert!(!event.hackathon_id.is_empty(), "Hackathon ID should not be empty");
             assert_eq!(event.title, "Controller Event Test");
+            assert!(!event.start_time.to_rfc3339().is_empty(), "Start time should not be empty");
+            assert!(!event.end_time.to_rfc3339().is_empty(), "End time should not be empty");
+            assert!(!event.event_type.to_string().is_empty(), "Event type should not be empty");
+            assert_eq!(event.is_mandatory, false, "Is mandatory should be false by default");
+            assert_eq!(event.is_deleted, false, "Event should not be marked as deleted");
         } else {
             assert!(status == StatusCode::NOT_FOUND || status == StatusCode::BAD_REQUEST);
         }
@@ -342,8 +368,24 @@ mod tests {
             .unwrap();
 
         let response = router.oneshot(request).await.unwrap();
-        // This will likely fail due to invalid hackathon ID, but tests the endpoint structure
-        assert!(response.status() == StatusCode::CREATED || response.status() == StatusCode::NOT_FOUND || response.status() == StatusCode::BAD_REQUEST);
+        let status = response.status();
+        if status == StatusCode::CREATED {
+            // Parse created timeline and assert all fields are present
+            let timeline: imphnen_hackathon::v1::hackathon::hackathon_dto::HackathonTimelineDto =
+                crate::common::response_helpers::parse_response_data(response, 2048).await;
+            
+            // Assert all required fields are present and not empty
+            assert!(!timeline.id.is_empty(), "Timeline ID should not be empty");
+            assert!(!timeline.hackathon_id.is_empty(), "Hackathon ID should not be empty");
+            assert!(!timeline.phase.to_string().is_empty(), "Phase should not be empty");
+            assert!(!timeline.title.is_empty(), "Timeline title should not be empty");
+            assert!(!timeline.start_date.to_rfc3339().is_empty(), "Start date should not be empty");
+            assert!(!timeline.end_date.to_rfc3339().is_empty(), "End date should not be empty");
+            assert!(timeline.order > 0, "Order should be positive");
+            assert_eq!(timeline.is_deleted, false, "Timeline should not be marked as deleted");
+        } else {
+            assert!(status == StatusCode::NOT_FOUND || status == StatusCode::BAD_REQUEST);
+        }
     }
 
     #[tokio::test]
@@ -424,7 +466,16 @@ mod tests {
         if status == StatusCode::CREATED {
             let submission: imphnen_hackathon::v1::hackathon::hackathon_dto::HackathonSubmissionDto =
                 crate::common::response_helpers::parse_response_data(response, 2048).await;
+            // Assert all required fields are present and not empty
+            assert!(!submission.id.is_empty(), "Submission ID should not be empty");
+            assert!(!submission.hackathon_id.is_empty(), "Hackathon ID should not be empty");
+            assert!(!submission.team_id.is_empty(), "Team ID should not be empty");
             assert_eq!(submission.project_name, "Controller Submission Test");
+            assert!(!submission.description.is_empty(), "Description should not be empty");
+            assert!(submission.technologies.len() > 0, "Technologies list should not be empty");
+            assert!(!submission.submission_status.to_string().is_empty(), "Submission status should not be empty");
+            assert!(!submission.submitted_at.to_rfc3339().is_empty(), "Submitted at should not be empty");
+            assert_eq!(submission.is_deleted, false, "Submission should not be marked as deleted");
         } else {
             assert!(status == StatusCode::NOT_FOUND || status == StatusCode::BAD_REQUEST);
         }
@@ -446,7 +497,16 @@ mod tests {
             let list: Vec<imphnen_hackathon::v1::hackathon::hackathon_dto::HackathonSubmissionDto> =
                 crate::common::response_helpers::parse_response_data(response, 4096).await;
             if !list.is_empty() {
-                assert!(!list[0].id.is_empty());
+                let submission = &list[0];
+                assert!(!submission.id.is_empty(), "Submission ID should not be empty");
+                assert!(!submission.hackathon_id.is_empty(), "Hackathon ID should not be empty");
+                assert!(!submission.team_id.is_empty(), "Team ID should not be empty");
+                assert!(!submission.project_name.is_empty(), "Project name should not be empty");
+                assert!(!submission.description.is_empty(), "Description should not be empty");
+                assert!(submission.technologies.len() > 0, "Technologies list should not be empty");
+                assert!(!submission.submission_status.to_string().is_empty(), "Submission status should not be empty");
+                assert!(!submission.submitted_at.to_rfc3339().is_empty(), "Submitted at should not be empty");
+                assert_eq!(submission.is_deleted, false, "Submission should not be marked as deleted");
             }
         } else {
             assert_eq!(status, StatusCode::NOT_FOUND);

@@ -93,7 +93,7 @@ pub struct Winner {
     pub team_name: Option<String>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, utoipa::ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, utoipa::ToSchema, strum::Display)]
 pub enum HackathonStatus {
     Draft,
     RegistrationOpen,
@@ -104,7 +104,7 @@ pub enum HackathonStatus {
     Cancelled,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, utoipa::ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, utoipa::ToSchema, strum::Display)]
 pub enum HackathonEventType {
     Workshop,
     Keynote,
@@ -114,7 +114,7 @@ pub enum HackathonEventType {
     Other,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, utoipa::ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, utoipa::ToSchema, strum::Display)]
 pub enum HackathonPhase {
     Registration,
     Ideation,
@@ -124,7 +124,7 @@ pub enum HackathonPhase {
     Awards,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, utoipa::ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, utoipa::ToSchema, strum::Display)]
 pub enum SubmissionStatus {
     Draft,
     Submitted,

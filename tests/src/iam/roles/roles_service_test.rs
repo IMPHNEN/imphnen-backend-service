@@ -31,8 +31,14 @@ mod tests {
 		// Verify response body contains role data
 		let created_role: imphnen_iam::v1::roles::roles_dto::RolesDetailItemDto =
 			crate::common::response_helpers::parse_response_data(response, 1024).await;
+		
+		// Validate all required fields in RolesDetailItemDto
 		assert!(!created_role.id.is_empty(), "Created role must have non-empty id");
 		assert_eq!(created_role.name, role_name, "Created role name must match request");
+		assert!(created_role.is_deleted == false, "Created role should not be marked as deleted");
+		assert!(created_role.permissions.len() >= 0, "Created role must have permissions array");
+		assert!(created_role.created_at.is_some(), "Created role must have created_at timestamp");
+		assert!(created_role.updated_at.is_some(), "Created role must have updated_at timestamp");
 
 		// Verify role was created in database
 		let db_role = repo
@@ -84,8 +90,13 @@ mod tests {
 		};
 		let role: imphnen_iam::v1::roles::roles_dto::RolesDetailItemDto = role_data;
 		
+		// Validate all required fields in RolesDetailItemDto
 		assert!(!role.id.is_empty(), "Role must have non-empty id");
 		assert_eq!(role.name, role_name, "Role name must match created role");
+		assert!(role.is_deleted == false, "Role should not be marked as deleted");
+		assert!(role.permissions.len() >= 0, "Role must have permissions array");
+		assert!(role.created_at.is_some(), "Role must have created_at timestamp");
+		assert!(role.updated_at.is_some(), "Role must have updated_at timestamp");
 
 		// Clean up
 		let _ = repo.query_delete_role(role_id).await;
@@ -221,14 +232,24 @@ mod tests {
 			let list: imphnen_entities::ResponseListSuccessDto<Vec<imphnen_iam::v1::roles::roles_dto::RolesListItemDto>> =
 				serde_json::from_value(inner.clone()).unwrap_or(imphnen_entities::ResponseListSuccessDto { data: vec![], meta: None });
 			if !list.data.is_empty() {
-				assert!(!list.data[0].id.is_empty(), "Role list items must have non-empty id");
-				assert!(!list.data[0].name.is_empty(), "Role list items must have non-empty name");
+				let role = &list.data[0];
+				// Validate all required fields in RolesListItemDto
+				assert!(!role.id.is_empty(), "Role list items must have non-empty id");
+				assert!(!role.name.is_empty(), "Role list items must have non-empty name");
+				assert!(role.permissions_count >= 0, "Role list items must have permissions_count");
+				assert!(role.created_at.is_some(), "Role list items must have created_at timestamp");
+				assert!(role.updated_at.is_some(), "Role list items must have updated_at timestamp");
 			}
 		} else if v.is_array() {
 			let arr: Vec<imphnen_iam::v1::roles::roles_dto::RolesListItemDto> = serde_json::from_value(v).unwrap_or_default();
 			if !arr.is_empty() {
-				assert!(!arr[0].id.is_empty(), "Role list items must have non-empty id");
-				assert!(!arr[0].name.is_empty(), "Role list items must have non-empty name");
+				let role = &arr[0];
+				// Validate all required fields in RolesListItemDto
+				assert!(!role.id.is_empty(), "Role list items must have non-empty id");
+				assert!(!role.name.is_empty(), "Role list items must have non-empty name");
+				assert!(role.permissions_count >= 0, "Role list items must have permissions_count");
+				assert!(role.created_at.is_some(), "Role list items must have created_at timestamp");
+				assert!(role.updated_at.is_some(), "Role list items must have updated_at timestamp");
 			}
 		} else {
 			// accept other object shapes
