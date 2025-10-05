@@ -29,6 +29,10 @@ mod tests {
 		// Verify response
 		assert_eq!(response.status(), StatusCode::CREATED);
 
+		let msg: imphnen_entities::MessageResponseDto =
+			crate::common::response_helpers::parse_response(response, 1024).await;
+		assert!(msg.message.to_lowercase().contains("created") || msg.message.to_lowercase().contains("success"));
+
 		// Verify role was created in database
 		let created_role = repo
 			.query_role_by_name(role_name)
@@ -70,6 +74,10 @@ mod tests {
 		// Verify conflict response
 		assert_eq!(response2.status(), StatusCode::CONFLICT);
 
+		let err: imphnen_entities::MessageResponseDto =
+			crate::common::response_helpers::parse_response(response2, 1024).await;
+		assert!(err.message.to_lowercase().contains("already exists") || err.message.to_lowercase().contains("duplicate"));
+
 		// Clean up
 		let created_role = repo
 			.query_role_by_name(role_name)
@@ -109,6 +117,15 @@ mod tests {
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
 
+	let v = crate::common::response_helpers::parse_response_value(response, 2048).await;
+		// Expect wrapped { data: [...] } or raw array. Normalize to array and check created roles are present
+		let list_val = if let Some(d) = v.get("data") { d.clone() } else { v };
+		let arr = list_val.as_array().expect("role list should be an array");
+		let names: Vec<String> = arr.iter().filter_map(|it| it.get("name").and_then(|n| n.as_str()).map(|s| s.to_string())).collect();
+		for name in ["test_role_list_1", "test_role_list_2", "test_role_list_3"].iter() {
+			assert!(names.contains(&name.to_string()), "expected role {} in list", name);
+		}
+
 		// Clean up
 		for name in role_names {
 			let role = repo.query_role_by_name(name).await.unwrap();
@@ -147,6 +164,12 @@ mod tests {
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
 
+	let v = crate::common::response_helpers::parse_response_value(response, 1024).await;
+	// Expect wrapped { data: {...} } or direct object. Extract and assert name
+	let obj = if let Some(d) = v.get("data") { d.clone() } else { v };
+	let name = obj.get("name").and_then(|n| n.as_str()).expect("role object must have name");
+	assert_eq!(name, "test_role_by_id");
+
 		// Clean up
 		let _ = repo.query_delete_role(role_id).await;
 	}
@@ -166,6 +189,10 @@ async fn test_get_role_by_id_controller_not_found() {
 
 		// Verify not found response
 		assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+		let err: imphnen_entities::MessageResponseDto =
+			crate::common::response_helpers::parse_response(response, 1024).await;
+		assert!(err.message.to_lowercase().contains("not found"));
 	}
 
 	#[tokio::test]
@@ -207,6 +234,10 @@ async fn test_get_role_by_id_controller_not_found() {
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
 
+		let msg: imphnen_entities::MessageResponseDto =
+			crate::common::response_helpers::parse_response(response, 1024).await;
+		assert!(msg.message.to_lowercase().contains("updated") || msg.message.to_lowercase().contains("success"));
+
 		// Verify role was updated in database
 		let updated_role = repo
 			.query_role_by_id(role_id.clone())
@@ -240,6 +271,10 @@ async fn test_get_role_by_id_controller_not_found() {
 
 		// Verify not found response
 		assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+		let err: imphnen_entities::MessageResponseDto =
+			crate::common::response_helpers::parse_response(response, 1024).await;
+		assert!(err.message.to_lowercase().contains("not found"));
 	}
 
 	#[tokio::test]
@@ -277,6 +312,10 @@ async fn test_get_role_by_id_controller_not_found() {
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
 
+		let msg: imphnen_entities::MessageResponseDto =
+			crate::common::response_helpers::parse_response(response, 1024).await;
+		assert!(msg.message.to_lowercase().contains("deleted") || msg.message.to_lowercase().contains("success"));
+
 		// Verify role was deleted from database
 		let exists_after = repo.query_role_by_id(role_id).await.is_ok();
 		assert!(!exists_after);
@@ -297,5 +336,9 @@ async fn test_get_role_by_id_controller_not_found() {
 
 		// Verify not found response
 		assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+		let err: imphnen_entities::MessageResponseDto =
+			crate::common::response_helpers::parse_response(response, 1024).await;
+		assert!(err.message.to_lowercase().contains("not found"));
 	}
 }

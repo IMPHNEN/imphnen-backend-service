@@ -16,6 +16,9 @@ mod tests {
 		let response = EventsService::get_event_list(&app_state, get_meta_request_dto(1, 10))
 			.await;
 		assert_eq!(response.status(), 200);
+		let body_json: serde_json::Value = crate::common::response_helpers::parse_response_value(response, 8192).await;
+		let list = if let Some(d) = body_json.get("data") { d } else { &body_json };
+		assert!(list.is_array(), "expected event list to be an array");
 	}
 
 	#[tokio::test]
@@ -54,6 +57,9 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), 200);
+		let body_json: serde_json::Value = crate::common::response_helpers::parse_response_value(response, 4096).await;
+		let data = body_json.get("data").expect("expected data in OK response").clone();
+		assert_eq!(data["name"].as_str().unwrap(), "Test Event");
 
 		// Clean up
 		let _ = repo.query_delete_event(event_id).await;
@@ -72,6 +78,8 @@ mod tests {
 
 		// Verify not found response
 		assert_eq!(response.status(), 404);
+		let v = crate::common::response_helpers::parse_response_value(response, 2048).await;
+		assert!(v.get("message").and_then(|m| m.as_str()).is_some(), "expected message in NOT_FOUND response");
 	}
 
 	#[tokio::test]
@@ -97,6 +105,8 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), 201);
+		let v = crate::common::response_helpers::parse_response_value(response, 4096).await;
+		assert!(v.get("data").is_some() || v.get("message").is_some(), "expected data or message in CREATED response");
 
 		// Verify event was created in database
 		let created_events = repo.query_event_list(get_meta_request_dto(1, 10)).await.unwrap();
@@ -133,6 +143,8 @@ mod tests {
 
 		// Verify bad request response (validation error)
 		assert_eq!(response.status(), 400);
+		let v = crate::common::response_helpers::parse_response_value(response, 2048).await;
+		assert!(v.get("message").and_then(|m| m.as_str()).is_some(), "expected message in BAD_REQUEST response");
 	}
 
 	#[tokio::test]
@@ -186,6 +198,8 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), 200);
+		let v = crate::common::response_helpers::parse_response_value(response, 4096).await;
+		assert!(v.get("message").and_then(|m| m.as_str()).is_some() || v.get("data").is_some(), "expected message or data in OK response");
 
 		// Verify event was updated in database
 		let updated_event = repo
@@ -225,6 +239,8 @@ mod tests {
 
 		// Verify not found response
 		assert_eq!(response.status(), 400);
+		let v = crate::common::response_helpers::parse_response_value(response, 2048).await;
+		assert!(v.get("message").and_then(|m| m.as_str()).is_some(), "expected message in BAD_REQUEST response");
 	}
 
 	#[tokio::test]
@@ -267,6 +283,8 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), 200);
+		let v = crate::common::response_helpers::parse_response_value(response, 2048).await;
+		assert!(v.get("message").and_then(|m| m.as_str()).is_some() || v.get("data").is_some(), "expected message or data in OK response");
 
 		// Verify event was soft-deleted from database
 		let deleted_event = repo.query_event_by_id(event_id.clone()).await;
@@ -288,5 +306,7 @@ mod tests {
 
 		// Verify not found response
 		assert_eq!(response.status(), 400);
+		let v = crate::common::response_helpers::parse_response_value(response, 2048).await;
+		assert!(v.get("message").and_then(|m| m.as_str()).is_some(), "expected message in BAD_REQUEST response");
 	}
 }

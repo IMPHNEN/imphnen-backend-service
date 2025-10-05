@@ -42,6 +42,13 @@ mod tests {
 		// Verify response
 		assert_eq!(response.status(), StatusCode::CREATED);
 
+		// Expect a response with data containing the created team id and stats
+		let v = crate::common::response_helpers::parse_response_value(response, 2048).await;
+		// If wrapped in { "data": ... }, extract
+		let data = if let Some(d) = v.get("data") { d.clone() } else { v };
+		assert!(data.get("team_id").is_some(), "create response must include team_id");
+		assert!(data.get("invitations_sent").is_some(), "create response should report invitations_sent");
+
 		// Verify team was created in database
 		let team_thing = make_thing_from_enum(ResourceEnum::Teams, &user.id.id.to_raw());
 		let teams = repo.query_user_teams(&team_thing).await.unwrap();
@@ -98,6 +105,12 @@ mod tests {
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
 
+		let v = crate::common::response_helpers::parse_response_value(response, 2048).await;
+		let inner = v.get("data").expect("get team should return data field").clone();
+		let team: imphnen_iam::v1::teams::teams_dto::TeamsDetailResponseDto =
+			serde_json::from_value(inner).expect("response data must deserialize to TeamsDetailResponseDto");
+		assert_eq!(team.name, "Test Get Team");
+
 		// Clean up
 		let _ = repo.query_delete_team(team_id).await;
 		let _ = users_repo.query_delete_user(user.id.id.to_raw()).await;
@@ -117,6 +130,10 @@ mod tests {
 
 		// Verify not found response
 		assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+		let err: imphnen_entities::MessageResponseDto =
+			crate::common::response_helpers::parse_response(response, 1024).await;
+		assert!(err.message.to_lowercase().contains("not found") || err.message.to_lowercase().contains("team not found"));
 	}
 }
 
@@ -175,6 +192,10 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
+
+		let msg: imphnen_entities::MessageResponseDto =
+			crate::common::response_helpers::parse_response(response, 2048).await;
+		assert!(msg.message.to_lowercase().contains("updated") || msg.message.to_lowercase().contains("success"));
 
 		// Verify team was updated in database
 		let updated_team = repo.query_team_by_id(&team_thing).await.unwrap();
@@ -240,6 +261,10 @@ mod tests {
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
 
+		let msg: imphnen_entities::MessageResponseDto =
+			crate::common::response_helpers::parse_response(response, 1024).await;
+		assert!(msg.message.to_lowercase().contains("deleted") || msg.message.to_lowercase().contains("success"));
+
 		// Verify team was deleted from database
 		let exists_after = repo.query_team_by_id(&team_thing).await.is_ok();
 		assert!(!exists_after);
@@ -299,6 +324,15 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
+
+		let body_json: serde_json::Value = crate::common::response_helpers::parse_response_value(response, 2048).await;
+		// Expect a list wrapper with data -> array
+		let list = if let Some(d) = body_json.get("data") { d } else { &body_json };
+		assert!(list.is_array(), "search should return array of teams");
+		let found = list.as_array().unwrap().iter().any(|item| {
+			if let Some(name) = item.get("name") { name == "Searchable Test Team" } else { false }
+		});
+		assert!(found, "created team should appear in search results");
 
 		// Clean up
 		let _ = repo.query_delete_team(team_id).await;

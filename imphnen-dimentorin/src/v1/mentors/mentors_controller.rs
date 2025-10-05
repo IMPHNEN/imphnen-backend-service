@@ -6,13 +6,12 @@ use crate::v1::mentors::mentors_dto::MentorRegisterResponseDto;
 use ::axum::{
 	extract::{Extension, Json, Path, Query},
 	http::HeaderMap,
-	response::{IntoResponse, Response},
+	response::Response,
 };
 use imphnen_entities::MetaRequestDto;
 use imphnen_libs::AppState;
 use imphnen_iam::{PermissionsEnum, permissions_guard};
 use imphnen_utils::extract_email;
-use serde_json::json;
 
 #[utoipa::path(
     post,
@@ -236,14 +235,10 @@ pub async fn get_mentor_me(
 			let email = match extract_email(&headers) {
 				Some(email) => email,
 				None => {
-					return (
+					return imphnen_utils::common_response(
 						axum::http::StatusCode::UNAUTHORIZED,
-						Json(json!({
-								"error": "Unauthorized",
-								"message": "Token tidak valid"
-						})),
-					)
-						.into_response();
+						"Token tidak valid",
+					);
 				}
 			};
 			MentorsService::get_mentor_me(&app_state, &email).await
@@ -340,14 +335,10 @@ pub async fn get_mentor_status(
 			let email = match extract_email(&headers) {
 				Some(email) => email,
 				None => {
-					return (
+					return imphnen_utils::common_response(
 						axum::http::StatusCode::UNAUTHORIZED,
-						Json(json!({
-								"error": "Unauthorized",
-								"message": "Token tidak valid"
-						})),
-					)
-						.into_response();
+						"Token tidak valid",
+					);
 				}
 			};
 			MentorsService::get_mentor_status(&app_state, &email).await

@@ -115,13 +115,9 @@ async fn test_admin_team_endpoints_sensitive_data_exposure() {
 
     assert!(response.status().is_success(), "Admin team list should return success");
     
-    let response_body = match response.into_body().into_string().await {
-        Ok(body) => body,
-        Err(e) => panic!("Failed to read response body: {}", e),
-    };
-    
-    let response_json: ResponseListSuccessDto<Vec<AdminTeamsListItemDto>> = 
-        serde_json::from_str(&response_body).unwrap();
+    let v = crate::common::response_helpers::parse_response_value(response, 8192).await;
+    let response_json: ResponseListSuccessDto<Vec<AdminTeamsListItemDto>> =
+        serde_json::from_value(v).unwrap();
     
     // Verify sensitive fields are present in admin response
     assert!(response_json.data.iter().any(|team| {
@@ -140,14 +136,9 @@ async fn test_admin_team_endpoints_sensitive_data_exposure() {
 
     assert!(response.status().is_success(), "Admin team detail should return success");
     
-    let response_body = match response.into_body().into_string().await {
-        Ok(body) => body,
-        Err(e) => panic!("Failed to read response body: {}", e),
-    };
-    
-    let response_json: ResponseSuccessDto<AdminTeamsDetailItemDto> = 
-        serde_json::from_str(&response_body).unwrap();
-    
+    let v = crate::common::response_helpers::parse_response_value(response, 8192).await;
+    let response_json: ResponseSuccessDto<AdminTeamsDetailItemDto> =
+        serde_json::from_value(v).unwrap();
     let admin_team = response_json.data;
     
     // Verify sensitive fields are present
@@ -175,14 +166,9 @@ async fn test_admin_team_endpoints_sensitive_data_exposure() {
 
     assert!(response.status().is_success(), "Admin team members should return success");
     
-    let response_body = match response.into_body().into_string().await {
-        Ok(body) => body,
-        Err(e) => panic!("Failed to read response body: {}", e),
-    };
-    
-    let response_json: ResponseSuccessDto<Vec<TeamMemberDto>> = 
-        serde_json::from_str(&response_body).unwrap();
-    
+    let v = crate::common::response_helpers::parse_response_value(response, 8192).await;
+    let response_json: ResponseSuccessDto<Vec<TeamMemberDto>> =
+        serde_json::from_value(v).unwrap();
     let admin_members = response_json.data;
     
     // Verify all members have sensitive info
@@ -264,6 +250,12 @@ async fn test_admin_team_endpoints_permission_guard() {
     ).await;
 
     assert_eq!(response.status().as_u16(), 403, "Regular user should get forbidden for admin endpoints");
+    // Also assert response body contains a permission/forbidden message
+    let v = crate::common::response_helpers::parse_response_value(response, 1024).await;
+    let msg = v.get("message").and_then(|m| m.as_str()).unwrap_or("");
+    let msg_l = msg.to_lowercase();
+    assert!(msg_l.contains("forbidden") || msg_l.contains("permission") || msg_l.contains("not authorized") || msg_l.contains("unauthorized"),
+        "permission guard response should include a forbidden/permission message");
 
     // Clean up
     let _ = repo.query_delete_team(team_id).await;

@@ -19,6 +19,15 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
+
+		let v = crate::common::response_helpers::parse_response_value(response, 4096).await;
+		// normalize { data: [...] } or raw array
+		let list_val = if let Some(d) = v.get("data") { d.clone() } else { v };
+		let arr = list_val.as_array().expect("team list should be an array");
+		if !arr.is_empty() {
+			let first = &arr[0];
+			assert!(first.get("id").is_some() || first.get("name").is_some(), "team items should have id or name");
+		}
 	}
 
 	#[tokio::test]
@@ -35,6 +44,14 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
+
+		let v = crate::common::response_helpers::parse_response_value(response, 4096).await;
+		let list_val = if let Some(d) = v.get("data") { d.clone() } else { v };
+		let arr = list_val.as_array().expect("public team list should be an array");
+		if !arr.is_empty() {
+			let first = &arr[0];
+			assert!(first.get("id").is_some() || first.get("name").is_some(), "public team items should have id or name");
+		}
 	}
 
 	#[tokio::test]
@@ -49,6 +66,10 @@ mod tests {
 
 		// Verify response - should fail validation
 		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+		let err: imphnen_entities::MessageResponseDto =
+			crate::common::response_helpers::parse_response(response, 1024).await;
+		assert!(err.message.to_lowercase().contains("invalid") || err.message.to_lowercase().contains("uuid"));
 	}
 
 	#[tokio::test]
@@ -63,6 +84,10 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+		let err: imphnen_entities::MessageResponseDto =
+			crate::common::response_helpers::parse_response(response, 1024).await;
+		assert!(err.message.to_lowercase().contains("not found"));
 	}
 
 	#[tokio::test]
@@ -77,6 +102,10 @@ mod tests {
 
 		// Verify response - should fail validation
 		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+		let err: imphnen_entities::MessageResponseDto =
+			crate::common::response_helpers::parse_response(response, 1024).await;
+		assert!(err.message.to_lowercase().contains("invalid") || err.message.to_lowercase().contains("uuid"));
 	}
 
 	#[tokio::test]
@@ -91,6 +120,10 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+		let err: imphnen_entities::MessageResponseDto =
+			crate::common::response_helpers::parse_response(response, 1024).await;
+		assert!(err.message.to_lowercase().contains("not found"));
 	}
 
 	#[tokio::test]
@@ -110,6 +143,14 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
+
+		let v = crate::common::response_helpers::parse_response_value(response, 4096).await;
+		let list_val = if let Some(d) = v.get("data") { d.clone() } else { v };
+		let arr = list_val.as_array().expect("search should return array");
+		if !arr.is_empty() {
+			let first = &arr[0];
+			assert!(first.get("id").is_some() || first.get("name").is_some(), "search item should have id or name");
+		}
 	}
 
 	#[tokio::test]
@@ -126,6 +167,11 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
+
+		// Expect admin list response body contains array data
+		let v = crate::common::response_helpers::parse_response_value(response, 4096).await;
+		let list_val = if let Some(d) = v.get("data") { d.clone() } else { v };
+		let _arr = list_val.as_array().expect("admin team list should be an array");
 	}
 
 	#[tokio::test]

@@ -37,6 +37,10 @@ mod tests {
 		// Verify response
 		assert_eq!(response.status(), StatusCode::CREATED);
 
+		let msg: imphnen_entities::MessageResponseDto =
+			crate::common::response_helpers::parse_response(response, 4096).await;
+		assert!(msg.message.to_lowercase().contains("created") || msg.message.to_lowercase().contains("success"));
+
 		// Verify user was created in database
 		let created_user = repo
 			.query_user_by_email(email.clone())

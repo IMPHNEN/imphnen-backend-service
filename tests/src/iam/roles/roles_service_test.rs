@@ -28,6 +28,11 @@ mod tests {
 		// Verify response
 		assert_eq!(response.status(), StatusCode::CREATED);
 
+		// Verify response body contains success message
+		let msg: MessageResponseDto =
+			crate::common::response_helpers::parse_response(response, 1024).await;
+		assert!(msg.message.to_lowercase().contains("created") || msg.message.to_lowercase().contains("success"));
+
 		// Verify role was created in database
 		let created_role = repo
 			.query_role_by_name(role_name.clone())
@@ -68,6 +73,18 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
+
+		// parse response value and handle wrapped {"data": ...} or object
+	let v = crate::common::response_helpers::parse_response_value(response, 1024).await;
+		if let Some(inner) = v.get("data") {
+			// attempt to deserialize into detail DTO if present
+			let _role: imphnen_iam::v1::roles::roles_dto::RolesDetailItemDto =
+				serde_json::from_value(inner.clone()).unwrap_or_else(|_| {
+					panic!("Response 'data' couldn't be deserialized into RolesDetailItemDto: {}", inner)
+				});
+		} else {
+			assert!(v.is_object());
+		}
 
 		// Clean up
 		let _ = repo.query_delete_role(role_id).await;
@@ -111,6 +128,10 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
+
+		let msg: MessageResponseDto =
+			crate::common::response_helpers::parse_response(response, 1024).await;
+		assert!(msg.message.to_lowercase().contains("updated") || msg.message.to_lowercase().contains("success"));
 
 		// Verify role was updated in database
 		let updated_role = repo
@@ -157,6 +178,10 @@ mod tests {
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
 
+		let msg: MessageResponseDto =
+			crate::common::response_helpers::parse_response(response, 1024).await;
+		assert!(msg.message.to_lowercase().contains("deleted") || msg.message.to_lowercase().contains("success"));
+
 		// Verify role was deleted from database
 		let exists_after = repo.query_role_by_id(role_id).await.is_ok();
 		assert!(!exists_after);
@@ -189,6 +214,22 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
+
+		let v = crate::common::response_helpers::parse_response_value(response, 1024).await;
+		if let Some(inner) = v.get("data") {
+			let list: imphnen_entities::ResponseListSuccessDto<Vec<imphnen_iam::v1::roles::roles_dto::RolesListItemDto>> =
+				serde_json::from_value(inner.clone()).unwrap_or(imphnen_entities::ResponseListSuccessDto { data: vec![], meta: None });
+			if !list.data.is_empty() {
+				assert!(!list.data[0].id.is_empty());
+			}
+		} else if v.is_array() {
+			let arr: Vec<imphnen_iam::v1::roles::roles_dto::RolesListItemDto> = serde_json::from_value(v).unwrap_or_default();
+			if !arr.is_empty() {
+				assert!(!arr[0].id.is_empty());
+			}
+		} else {
+			// accept other object shapes
+		}
 
 		// Clean up
 		let created_role = repo
@@ -228,10 +269,8 @@ mod tests {
 		// Verify response - should fail
 		assert_eq!(response2.status(), StatusCode::CONFLICT);
 
-		let body = response2.into_body();
-		let body_bytes = axum::body::to_bytes(body, 1024).await.unwrap();
-		let body_str = std::str::from_utf8(&body_bytes).unwrap();
-		let error_response: MessageResponseDto = serde_json::from_str(body_str).unwrap();
+		let error_response: MessageResponseDto =
+			crate::common::response_helpers::parse_response(response2, 1024).await;
 		assert_eq!(error_response.message, "Role name already exists");
 
 		// Clean up
@@ -287,10 +326,8 @@ mod tests {
 		// Verify response - should fail
 		assert_eq!(response.status(), StatusCode::CONFLICT);
 
-		let body = response.into_body();
-		let body_bytes = axum::body::to_bytes(body, 1024).await.unwrap();
-		let body_str = std::str::from_utf8(&body_bytes).unwrap();
-		let error_response: MessageResponseDto = serde_json::from_str(body_str).unwrap();
+		let error_response: MessageResponseDto =
+			crate::common::response_helpers::parse_response(response, 1024).await;
 		assert_eq!(error_response.message, "Role name already exists");
 
 		// Clean up
@@ -317,6 +354,9 @@ mod tests {
 
 		// Verify not found response
 		assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+		let err: MessageResponseDto = crate::common::response_helpers::parse_response(response, 1024).await;
+		assert!(err.message.to_lowercase().contains("not found") || err.message.to_lowercase().contains("role not found"));
 	}
 
 	#[tokio::test]
@@ -339,8 +379,11 @@ mod tests {
 		)
 		.await;
 
-		// Verify not found response
+		// Verify not found response and message
 		assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+		let err: MessageResponseDto = crate::common::response_helpers::parse_response(response, 1024).await;
+		assert!(err.message.to_lowercase().contains("not found") || err.message.to_lowercase().contains("role not found"));
 	}
 
 	#[tokio::test]
@@ -358,5 +401,8 @@ mod tests {
 
 		// Verify not found response
 		assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+		let err: MessageResponseDto = crate::common::response_helpers::parse_response(response, 1024).await;
+		assert!(err.message.to_lowercase().contains("not found") || err.message.to_lowercase().contains("role not found"));
 	}
 }

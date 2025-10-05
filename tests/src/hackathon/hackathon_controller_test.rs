@@ -61,8 +61,16 @@ mod tests {
             .body(Body::from(request_body.to_string()))
             .unwrap();
 
-        let response = router.oneshot(request).await.unwrap();
-        assert_eq!(response.status(), StatusCode::CREATED);
+    let response = router.oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+
+    // parse typed response: inner HackathonDto (helper extracts "data" if present)
+    let hackathon: imphnen_hackathon::v1::hackathon::hackathon_dto::HackathonDto =
+        crate::common::response_helpers::parse_response_data(response, 4096).await;
+
+    // Basic field asserts to ensure response contains expected values
+    assert_eq!(hackathon.name, "Controller Test Hackathon");
+    assert_eq!(hackathon.description, "Testing controller endpoints");
     }
 
     #[tokio::test]
@@ -89,8 +97,12 @@ mod tests {
             .body(Body::from(request_body.to_string()))
             .unwrap();
 
-        let response = router.oneshot(request).await.unwrap();
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let response = router.oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+    // parse typed ErrorDto
+    let err: imphnen_hackathon::ErrorDto = crate::common::response_helpers::parse_response(response, 2048).await;
+    assert_eq!(err.status, StatusCode::BAD_REQUEST.as_u16());
     }
 
     #[tokio::test]
@@ -146,8 +158,17 @@ mod tests {
             .body(Body::empty())
             .unwrap();
 
-        let response = router.oneshot(request).await.unwrap();
-        assert_eq!(response.status(), StatusCode::OK);
+    let response = router.oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    // parse typed list of hackathons (helper extracts inner data if wrapped)
+    let list: Vec<imphnen_hackathon::v1::hackathon::hackathon_dto::HackathonDto> =
+        crate::common::response_helpers::parse_response_data(response, 4096).await;
+
+    // if non-empty, ensure items have required fields
+    if !list.is_empty() {
+        assert!(!list[0].id.is_empty());
+    }
     }
 
     #[tokio::test]
@@ -236,8 +257,15 @@ mod tests {
             .unwrap();
 
         let response = router.oneshot(request).await.unwrap();
-        // This will likely fail due to invalid hackathon ID, but tests the endpoint structure
-        assert!(response.status() == StatusCode::CREATED || response.status() == StatusCode::NOT_FOUND || response.status() == StatusCode::BAD_REQUEST);
+        let status = response.status();
+        if status == StatusCode::CREATED {
+            // parse created event and assert fields
+            let event: imphnen_hackathon::v1::hackathon::hackathon_dto::HackathonEventDto =
+                crate::common::response_helpers::parse_response_data(response, 2048).await;
+            assert_eq!(event.title, "Controller Event Test");
+        } else {
+            assert!(status == StatusCode::NOT_FOUND || status == StatusCode::BAD_REQUEST);
+        }
     }
 
     #[tokio::test]
@@ -391,8 +419,15 @@ mod tests {
             .unwrap();
 
         let response = router.oneshot(request).await.unwrap();
-        // This will likely fail due to invalid IDs, but tests the endpoint structure
-        assert!(response.status() == StatusCode::CREATED || response.status() == StatusCode::NOT_FOUND || response.status() == StatusCode::BAD_REQUEST);
+        // This will likely fail due to invalid IDs, but if created we assert the returned JSON
+        let status = response.status();
+        if status == StatusCode::CREATED {
+            let submission: imphnen_hackathon::v1::hackathon::hackathon_dto::HackathonSubmissionDto =
+                crate::common::response_helpers::parse_response_data(response, 2048).await;
+            assert_eq!(submission.project_name, "Controller Submission Test");
+        } else {
+            assert!(status == StatusCode::NOT_FOUND || status == StatusCode::BAD_REQUEST);
+        }
     }
 
     #[tokio::test]
@@ -406,8 +441,16 @@ mod tests {
             .unwrap();
 
         let response = router.oneshot(request).await.unwrap();
-        // This will likely fail due to invalid hackathon ID, but tests the endpoint structure
-        assert!(response.status() == StatusCode::OK || response.status() == StatusCode::NOT_FOUND);
+        let status = response.status();
+        if status == StatusCode::OK {
+            let list: Vec<imphnen_hackathon::v1::hackathon::hackathon_dto::HackathonSubmissionDto> =
+                crate::common::response_helpers::parse_response_data(response, 4096).await;
+            if !list.is_empty() {
+                assert!(!list[0].id.is_empty());
+            }
+        } else {
+            assert_eq!(status, StatusCode::NOT_FOUND);
+        }
     }
 
     #[tokio::test]
@@ -428,8 +471,14 @@ mod tests {
             .unwrap();
 
         let response = router.oneshot(request).await.unwrap();
-        // This will likely fail due to invalid submission ID, but tests the endpoint structure
-        assert!(response.status() == StatusCode::OK || response.status() == StatusCode::NOT_FOUND || response.status() == StatusCode::BAD_REQUEST);
+        let status = response.status();
+        if status == StatusCode::OK {
+            let msg: imphnen_entities::MessageResponseDto =
+                crate::common::response_helpers::parse_response(response, 2048).await;
+            assert!(msg.message.to_lowercase().contains("updated") || msg.message.to_lowercase().contains("success"));
+        } else {
+            assert!(status == StatusCode::NOT_FOUND || status == StatusCode::BAD_REQUEST);
+        }
     }
 
     #[tokio::test]
@@ -443,8 +492,14 @@ mod tests {
             .unwrap();
 
         let response = router.oneshot(request).await.unwrap();
-        // This will likely fail due to invalid submission ID, but tests the endpoint structure
-        assert!(response.status() == StatusCode::OK || response.status() == StatusCode::NOT_FOUND);
+        let status = response.status();
+        if status == StatusCode::OK {
+            let msg: imphnen_entities::MessageResponseDto =
+                crate::common::response_helpers::parse_response(response, 2048).await;
+            assert!(msg.message.to_lowercase().contains("submitted") || msg.message.to_lowercase().contains("success"));
+        } else {
+            assert_eq!(status, StatusCode::NOT_FOUND);
+        }
     }
 
     #[tokio::test]
@@ -458,7 +513,13 @@ mod tests {
             .unwrap();
 
         let response = router.oneshot(request).await.unwrap();
-        // This will likely fail due to invalid submission ID, but tests the endpoint structure
-        assert!(response.status() == StatusCode::OK || response.status() == StatusCode::NOT_FOUND);
+        let status = response.status();
+        if status == StatusCode::OK {
+            let msg: imphnen_entities::MessageResponseDto =
+                crate::common::response_helpers::parse_response(response, 2048).await;
+            assert!(msg.message.to_lowercase().contains("deleted") || msg.message.to_lowercase().contains("success"));
+        } else {
+            assert_eq!(status, StatusCode::NOT_FOUND);
+        }
     }
 }

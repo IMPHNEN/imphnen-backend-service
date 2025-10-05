@@ -133,8 +133,8 @@ async fn test_post_register_mentor_success() {
 
     assert_eq!(response.status(), StatusCode::OK);
 
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let mentor_register_response: MentorRegisterResponseDto = serde_json::from_slice(&body).unwrap();
+    let mentor_register_response: MentorRegisterResponseDto =
+        crate::common::response_helpers::parse_response(response, 4096).await;
 
     assert!(!mentor_register_response.id.is_empty());
     assert!(!mentor_register_response.user_id.is_empty());
@@ -172,9 +172,8 @@ async fn test_post_register_mentor_invalid_email() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let error_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    assert!(error_response["message"].as_str().unwrap().contains("email"));
+    let v = crate::common::response_helpers::parse_response_value(response, 2048).await;
+    assert!(v.get("message").and_then(|m| m.as_str()).map(|s| s.contains("email")).unwrap_or(false));
 }
 
 #[tokio::test]
@@ -199,9 +198,8 @@ async fn test_post_register_mentor_weak_password() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let error_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    assert!(error_response["message"].as_str().unwrap().contains("password"));
+    let v = crate::common::response_helpers::parse_response_value(response, 2048).await;
+    assert!(v.get("message").and_then(|m| m.as_str()).map(|s| s.contains("password")).unwrap_or(false));
 }
 
 #[tokio::test]
@@ -242,10 +240,9 @@ async fn test_get_mentor_list_success() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let response_data: ResponseSuccessDto<Vec<imphnen_dimentorin::mentors_dto::MentorListResponseDto>> = 
-        serde_json::from_slice(&body).unwrap();
-    
+    let response_data: ResponseSuccessDto<Vec<imphnen_dimentorin::mentors_dto::MentorListResponseDto>> =
+        crate::common::response_helpers::parse_response(response, 4096).await;
+
     assert!(!response_data.data.is_empty());
     assert_eq!(response_data.data[0].status, "pending".to_string());
 
@@ -296,7 +293,7 @@ async fn test_get_mentor_by_id_success() {
         .unwrap();
 
     assert_eq!(register_response.status(), StatusCode::OK);
-    let register_body: MentorRegisterResponseDto = serde_json::from_slice(&register_response.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    let register_body: MentorRegisterResponseDto = crate::common::response_helpers::parse_response(register_response, 4096).await;
     let mentor_id = register_body.id.clone();
 
     // Get mentor by ID with authentication
@@ -314,10 +311,9 @@ async fn test_get_mentor_by_id_success() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let mentor_response: ResponseSuccessDto<imphnen_dimentorin::mentors_dto::MentorDetailResponseDto> = 
-        serde_json::from_slice(&body).unwrap();
-    
+    let mentor_response: ResponseSuccessDto<imphnen_dimentorin::mentors_dto::MentorDetailResponseDto> =
+        crate::common::response_helpers::parse_response(response, 4096).await;
+
     assert_eq!(mentor_response.data.id, mentor_id);
     assert_eq!(mentor_response.data.status, "pending".to_string());
     assert_eq!(mentor_response.data.fullname, Some("Test Mentor".to_string()));
@@ -373,7 +369,7 @@ async fn test_put_update_mentor_success() {
         .unwrap();
 
     assert_eq!(register_response.status(), StatusCode::OK);
-    let register_body: MentorRegisterResponseDto = serde_json::from_slice(&register_response.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    let register_body: MentorRegisterResponseDto = crate::common::response_helpers::parse_response(register_response, 4096).await;
     let mentor_id = register_body.id.clone();
 
     // Prepare update DTO
@@ -395,10 +391,9 @@ async fn test_put_update_mentor_success() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let mentor_response: ResponseSuccessDto<imphnen_dimentorin::mentors_dto::MentorDetailResponseDto> = 
-        serde_json::from_slice(&body).unwrap();
-    
+    let mentor_response: ResponseSuccessDto<imphnen_dimentorin::mentors_dto::MentorDetailResponseDto> =
+        crate::common::response_helpers::parse_response(response, 4096).await;
+
     assert_eq!(mentor_response.data.id, mentor_id);
     assert_eq!(mentor_response.data.legal_name, Some("Updated Legal Name".to_string()));
     assert_eq!(mentor_response.data.current_role, "Lead Engineer".to_string());
@@ -456,7 +451,7 @@ async fn test_delete_mentor_success() {
         .unwrap();
 
     assert_eq!(register_response.status(), StatusCode::OK);
-    let register_body: MentorRegisterResponseDto = serde_json::from_slice(&register_response.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    let register_body: MentorRegisterResponseDto = crate::common::response_helpers::parse_response(register_response, 4096).await;
     let mentor_id = register_body.id.clone();
 
     // Delete mentor with authentication
@@ -526,7 +521,7 @@ async fn test_put_verify_mentor_success() {
         .unwrap();
 
     assert_eq!(register_response.status(), StatusCode::OK);
-    let register_body: MentorRegisterResponseDto = serde_json::from_slice(&register_response.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    let register_body: MentorRegisterResponseDto = crate::common::response_helpers::parse_response(register_response, 4096).await;
     let mentor_id = register_body.id.clone();
 
     // Prepare verification DTO
@@ -550,9 +545,8 @@ async fn test_put_verify_mentor_success() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let mentor_response: ResponseSuccessDto<imphnen_dimentorin::mentors_dto::MentorDetailResponseDto> = 
-        serde_json::from_slice(&body).unwrap();
+    let mentor_response: ResponseSuccessDto<imphnen_dimentorin::mentors_dto::MentorDetailResponseDto> =
+        crate::common::response_helpers::parse_response(response, 4096).await;
     
     assert_eq!(mentor_response.data.id, mentor_id);
     assert_eq!(mentor_response.data.status, "verified".to_string());
@@ -600,9 +594,8 @@ async fn test_get_mentor_me_success() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let mentor_response: ResponseSuccessDto<imphnen_dimentorin::mentors_dto::MentorDetailResponseDto> = 
-        serde_json::from_slice(&body).unwrap();
+    let mentor_response: ResponseSuccessDto<imphnen_dimentorin::mentors_dto::MentorDetailResponseDto> =
+        crate::common::response_helpers::parse_response(response, 4096).await;
     
     assert_eq!(mentor_response.data.email, Some(test_email.to_string()));
     assert_eq!(mentor_response.data.status, "pending".to_string());
@@ -654,9 +647,8 @@ async fn test_put_update_mentor_me_success() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let mentor_response: ResponseSuccessDto<imphnen_dimentorin::mentors_dto::MentorDetailResponseDto> = 
-        serde_json::from_slice(&body).unwrap();
+    let mentor_response: ResponseSuccessDto<imphnen_dimentorin::mentors_dto::MentorDetailResponseDto> =
+        crate::common::response_helpers::parse_response(response, 4096).await;
     
     assert_eq!(mentor_response.data.legal_name, Some("Updated Legal Name".to_string()));
     assert_eq!(mentor_response.data.current_role, "Lead Engineer".to_string());
@@ -686,8 +678,7 @@ async fn test_put_update_mentor_no_id() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let error_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let error_response: serde_json::Value = crate::common::response_helpers::parse_response_value(response, 2048).await;
     assert_eq!(error_response["message"], "Mentor ID is required for update");
 }
 
@@ -729,8 +720,7 @@ async fn test_get_mentor_status_success() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let status_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let status_response: serde_json::Value = crate::common::response_helpers::parse_response_value(response, 2048).await;
     assert_eq!(status_response, "pending");
 
     // Clean up
@@ -760,7 +750,7 @@ async fn test_controller_endpoints_validation() {
         .unwrap();
 
     assert_eq!(register_response.status(), StatusCode::OK);
-    let register_body: MentorRegisterResponseDto = serde_json::from_slice(&register_response.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    let register_body: MentorRegisterResponseDto = crate::common::response_helpers::parse_response(register_response, 4096).await;
     let mentor_id = register_body.id.clone();
 
     // Prepare invalid update DTO (empty legal name)
@@ -783,8 +773,7 @@ async fn test_controller_endpoints_validation() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let error_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let error_response: serde_json::Value = crate::common::response_helpers::parse_response_value(response, 2048).await;
     assert!(error_response["message"].as_str().unwrap().contains("Legal name must be at least 3 characters"));
 
     // Clean up
@@ -877,8 +866,7 @@ async fn test_register_mentor_invalid_urls() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let error_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let error_response: serde_json::Value = crate::common::response_helpers::parse_response_value(response, 2048).await;
     assert!(error_response["message"].as_str().unwrap().contains("url"));
 }
 
@@ -911,8 +899,7 @@ async fn test_register_mentor_empty_arrays() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let error_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let error_response: serde_json::Value = crate::common::response_helpers::parse_response_value(response, 2048).await;
     assert!(error_response["message"].as_str().unwrap().contains("required"));
 }
 
@@ -995,7 +982,7 @@ async fn test_update_mentor_partial_data() {
         .unwrap();
 
     assert_eq!(register_response.status(), StatusCode::OK);
-    let register_body: MentorRegisterResponseDto = serde_json::from_slice(&register_response.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    let register_body: MentorRegisterResponseDto = crate::common::response_helpers::parse_response(register_response, 4096).await;
     let mentor_id = register_body.id.clone();
 
     // Update with partial data (only some fields)
@@ -1020,9 +1007,8 @@ async fn test_update_mentor_partial_data() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
-    let body = response.into_body().collect().await.unwrap().to_bytes();
     let mentor_response: ResponseSuccessDto<imphnen_dimentorin::mentors_dto::MentorDetailResponseDto> =
-        serde_json::from_slice(&body).unwrap();
+        crate::common::response_helpers::parse_response(response, 4096).await;
 
     assert_eq!(mentor_response.data.legal_name, Some("Partial Update".to_string()));
     assert_eq!(mentor_response.data.industries, vec!["Updated Industry".to_string()]);
@@ -1054,7 +1040,7 @@ async fn test_access_deleted_mentor() {
         .unwrap();
 
     assert_eq!(register_response.status(), StatusCode::OK);
-    let register_body: MentorRegisterResponseDto = serde_json::from_slice(&register_response.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    let register_body: MentorRegisterResponseDto = crate::common::response_helpers::parse_response(register_response, 4096).await;
     let mentor_id = register_body.id.clone();
 
     // Delete the mentor
@@ -1193,7 +1179,7 @@ async fn test_verify_mentor_invalid_status() {
         .unwrap();
 
     assert_eq!(register_response.status(), StatusCode::OK);
-    let register_body: MentorRegisterResponseDto = serde_json::from_slice(&register_response.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    let register_body: MentorRegisterResponseDto = crate::common::response_helpers::parse_response(register_response, 4096).await;
     let mentor_id = register_body.id.clone();
 
     // Try to verify with empty status
@@ -1260,9 +1246,8 @@ async fn test_get_mentor_list_pagination_edge_cases() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
-    let body = response.into_body().collect().await.unwrap().to_bytes();
     let response_data: ResponseSuccessDto<Vec<imphnen_dimentorin::mentors_dto::MentorListResponseDto>> =
-        serde_json::from_slice(&body).unwrap();
+        crate::common::response_helpers::parse_response(response, 4096).await;
     assert!(response_data.data.is_empty()); // Should be empty for large page
 
     // Test with zero per_page
@@ -1432,7 +1417,7 @@ async fn test_update_mentor_empty_request_body() {
         .unwrap();
 
     assert_eq!(register_response.status(), StatusCode::OK);
-    let register_body: MentorRegisterResponseDto = serde_json::from_slice(&register_response.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    let register_body: MentorRegisterResponseDto = crate::common::response_helpers::parse_response(register_response, 4096).await;
     let mentor_id = register_body.id.clone();
 
     // Try to update with empty body

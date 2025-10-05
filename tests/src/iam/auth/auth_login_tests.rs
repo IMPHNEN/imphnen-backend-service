@@ -104,15 +104,13 @@ mod auth_login_tests {
 
 		assert_eq!(parts.status, StatusCode::OK);
 
-		let body_bytes = axum::body::to_bytes(body, usize::MAX).await.unwrap();
-		let response_json: Value = serde_json::from_slice(&body_bytes).unwrap();
+		let resp = axum::http::Response::from_parts(parts, body);
+		let response_json: Value = crate::common::response_helpers::parse_response_value(resp, usize::MAX).await;
 
 		assert!(response_json.get("data").is_some());
 		assert!(response_json["data"].get("token").is_some());
 		assert!(response_json["data"]["token"].get("access_token").is_some());
-		assert!(response_json["data"]["token"]
-			.get("refresh_token")
-			.is_some());
+		assert!(response_json["data"]["token"].get("refresh_token").is_some());
 		assert!(response_json["data"].get("user").is_some());
 		assert_eq!(response_json["data"]["user"]["email"], email);
 	}
@@ -127,13 +125,13 @@ mod auth_login_tests {
 		};
 
 		let response = AuthService::mutation_login(login_dto, &state).await; // Corrected call
-		let (parts, body) = response.into_parts();
+	let (parts, body) = response.into_parts();
 
-		assert_eq!(parts.status, StatusCode::BAD_REQUEST);
+	assert_eq!(parts.status, StatusCode::BAD_REQUEST);
 
-		let body_bytes = axum::body::to_bytes(body, usize::MAX).await.unwrap();
-		let response_json: Value = serde_json::from_slice(&body_bytes).unwrap();
-		assert_eq!(response_json["message"], "Email not valid");
+	let resp = axum::http::Response::from_parts(parts, body);
+	let response_json: Value = crate::common::response_helpers::parse_response_value(resp, usize::MAX).await;
+	assert_eq!(response_json["message"], "Email not valid");
 	}
 
 	#[tokio::test]
@@ -146,14 +144,14 @@ mod auth_login_tests {
 		};
 
 		let response = AuthService::mutation_login(login_dto, &state).await; // Corrected call
-		let (parts, body) = response.into_parts();
+	let (parts, body) = response.into_parts();
 
-		assert_eq!(parts.status, StatusCode::BAD_REQUEST);
-		let body_bytes = axum::body::to_bytes(body, usize::MAX).await.unwrap();
-		let response_json: Value = serde_json::from_slice(&body_bytes).unwrap();
-		let message = response_json["message"].as_str().unwrap();
-		assert!(message.contains("Email cannot be empty"));
-		assert!(message.contains("Email not valid"));
+	assert_eq!(parts.status, StatusCode::BAD_REQUEST);
+	let resp = axum::http::Response::from_parts(parts, body);
+	let response_json: Value = crate::common::response_helpers::parse_response_value(resp, usize::MAX).await;
+	let message = response_json["message"].as_str().unwrap();
+	assert!(message.contains("Email cannot be empty"));
+	assert!(message.contains("Email not valid"));
 	}
 
 	#[tokio::test]
@@ -166,12 +164,12 @@ mod auth_login_tests {
 		};
 
 		let response = AuthService::mutation_login(login_dto, &state).await; // Corrected call
-		let (parts, body) = response.into_parts();
+	let (parts, body) = response.into_parts();
 
-		assert_eq!(parts.status, StatusCode::BAD_REQUEST);
-		let body_bytes = axum::body::to_bytes(body, usize::MAX).await.unwrap();
-		let response_json: Value = serde_json::from_slice(&body_bytes).unwrap();
-		assert_eq!(response_json["message"], "Password cannot be empty");
+	assert_eq!(parts.status, StatusCode::BAD_REQUEST);
+	let resp = axum::http::Response::from_parts(parts, body);
+	let response_json: Value = crate::common::response_helpers::parse_response_value(resp, usize::MAX).await;
+	assert_eq!(response_json["message"], "Password cannot be empty");
 	}
 
 	#[tokio::test]
@@ -188,14 +186,13 @@ mod auth_login_tests {
 		};
 
 		let response = AuthService::mutation_login(login_dto, &state).await; // Corrected call
-		let (parts, body) = response.into_parts();
+	let (parts, body) = response.into_parts();
 
-		assert_eq!(parts.status, StatusCode::BAD_REQUEST);
+	assert_eq!(parts.status, StatusCode::BAD_REQUEST);
+	let resp = axum::http::Response::from_parts(parts, body);
+	let response_json: Value = crate::common::response_helpers::parse_response_value(resp, usize::MAX).await;
 
-		let body_bytes = axum::body::to_bytes(body, usize::MAX).await.unwrap();
-		let response_json: Value = serde_json::from_slice(&body_bytes).unwrap();
-
-		assert_eq!(response_json["message"], "Email or password not correct");
+	assert_eq!(response_json["message"], "Email or password not correct");
 	}
 
 	#[tokio::test]
@@ -211,13 +208,10 @@ mod auth_login_tests {
 		let (parts, body) = response.into_parts();
 
 		assert_eq!(parts.status, StatusCode::UNAUTHORIZED);
+		let resp = axum::http::Response::from_parts(parts, body);
+		let response_json: Value = crate::common::response_helpers::parse_response_value(resp, usize::MAX).await;
 
-		let body_bytes = axum::body::to_bytes(body, usize::MAX).await.unwrap();
-		let response_json: Value = serde_json::from_slice(&body_bytes).unwrap();
-
-		assert!(response_json["message"]
-			.to_string()
-			.contains("User not found"));
+		assert!(response_json["message"].to_string().contains("User not found"));
 	}
 
 	#[tokio::test]
@@ -237,14 +231,10 @@ mod auth_login_tests {
 		let (parts, body) = response.into_parts();
 
 		assert_eq!(parts.status, StatusCode::BAD_REQUEST);
+		let resp = axum::http::Response::from_parts(parts, body);
+		let response_json: Value = crate::common::response_helpers::parse_response_value(resp, usize::MAX).await;
 
-		let body_bytes = axum::body::to_bytes(body, usize::MAX).await.unwrap();
-		let response_json: Value = serde_json::from_slice(&body_bytes).unwrap();
-
-		assert_eq!(
-			response_json["message"],
-			"Account not active, please verify your email"
-		);
+		assert_eq!(response_json["message"], "Account not active, please verify your email");
 	}
 
 	#[tokio::test]
@@ -261,15 +251,14 @@ mod auth_login_tests {
 		};
 
 		let response = AuthService::mutation_mentor_login(login_dto, &state).await; // Corrected call
-		let (parts, body) = response.into_parts();
+	let (parts, body) = response.into_parts();
 
-		assert_eq!(parts.status, StatusCode::OK);
+	assert_eq!(parts.status, StatusCode::OK);
+	let resp = axum::http::Response::from_parts(parts, body);
+	let response_json: Value = crate::common::response_helpers::parse_response_value(resp, usize::MAX).await;
 
-		let body_bytes = axum::body::to_bytes(body, usize::MAX).await.unwrap();
-		let response_json: Value = serde_json::from_slice(&body_bytes).unwrap();
-
-		assert!(response_json.get("data").is_some());
-		assert_eq!(response_json["data"]["user"]["role"]["name"], "Mentor");
+	assert!(response_json.get("data").is_some());
+	assert_eq!(response_json["data"]["user"]["role"]["name"], "Mentor");
 	}
 
 	#[tokio::test]
@@ -289,14 +278,10 @@ mod auth_login_tests {
 		let (parts, body) = response.into_parts();
 
 		assert_eq!(parts.status, StatusCode::FORBIDDEN);
+		let resp = axum::http::Response::from_parts(parts, body);
+		let response_json: Value = crate::common::response_helpers::parse_response_value(resp, usize::MAX).await;
 
-		let body_bytes = axum::body::to_bytes(body, usize::MAX).await.unwrap();
-		let response_json: Value = serde_json::from_slice(&body_bytes).unwrap();
-
-		assert_eq!(
-			response_json["message"],
-			"User does not have mentor privileges"
-		);
+		assert_eq!(response_json["message"], "User does not have mentor privileges");
 	}
 
 	#[tokio::test]
@@ -316,14 +301,10 @@ mod auth_login_tests {
 		let (parts, body) = response.into_parts();
 
 		assert_eq!(parts.status, StatusCode::BAD_REQUEST);
+		let resp = axum::http::Response::from_parts(parts, body);
+		let response_json: Value = crate::common::response_helpers::parse_response_value(resp, usize::MAX).await;
 
-		let body_bytes = axum::body::to_bytes(body, usize::MAX).await.unwrap();
-		let response_json: Value = serde_json::from_slice(&body_bytes).unwrap();
-
-		assert_eq!(
-			response_json["message"],
-			"Account not active, please verify your email"
-		);
+		assert_eq!(response_json["message"], "Account not active, please verify your email");
 	}
 
 	#[tokio::test]
@@ -388,10 +369,8 @@ mod auth_login_tests {
 
 		// Email should be case-sensitive
 		assert_eq!(parts.status, StatusCode::UNAUTHORIZED);
-		let body_bytes = axum::body::to_bytes(body, usize::MAX).await.unwrap();
-		let response_json: Value = serde_json::from_slice(&body_bytes).unwrap();
-		assert!(response_json["message"]
-			.to_string()
-			.contains("User not found"));
+		let resp = axum::http::Response::from_parts(parts, body);
+		let response_json: Value = crate::common::response_helpers::parse_response_value(resp, usize::MAX).await;
+		assert!(response_json["message"].to_string().contains("User not found"));
 	}
 }

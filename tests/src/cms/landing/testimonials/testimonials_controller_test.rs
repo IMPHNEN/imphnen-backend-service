@@ -51,6 +51,9 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
+		let body_json: serde_json::Value = crate::common::response_helpers::parse_response_value(response, 8192).await;
+		let list = if let Some(d) = body_json.get("data") { d } else { &body_json };
+		assert!(list.is_array(), "expected testimonial list to be an array");
 
 		// Clean up
 		for name in testimonial_names {
@@ -102,6 +105,9 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
+		let body_json: serde_json::Value = crate::common::response_helpers::parse_response_value(response, 4096).await;
+		let data = body_json.get("data").expect("expected data in OK response").clone();
+		assert_eq!(data["content"].as_str().unwrap(), "Great testimonial content");
 
 		// Clean up
 		let _ = repo.query_delete_testimonial(testimonial_id).await;
@@ -121,6 +127,8 @@ mod tests {
 
 		// Verify not found response
 		assert_eq!(response.status(), StatusCode::NOT_FOUND);
+		let v = crate::common::response_helpers::parse_response_value(response, 2048).await;
+		assert!(v.get("message").and_then(|m| m.as_str()).is_some(), "expected message in NOT_FOUND response");
 	}
 
 	#[tokio::test]
@@ -154,6 +162,8 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::CREATED);
+		let v = crate::common::response_helpers::parse_response_value(response, 4096).await;
+		assert!(v.get("data").is_some() || v.get("message").is_some(), "expected data or message in CREATED response");
 
 		// Verify testimonial was created in database
 		let created_testimonials = repo.query_testimonial_list(get_meta_request_dto(1, 10)).await.unwrap();
@@ -198,6 +208,8 @@ mod tests {
 
 		// Verify bad request response (validation error)
 		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+		let v = crate::common::response_helpers::parse_response_value(response, 2048).await;
+		assert!(v.get("message").and_then(|m| m.as_str()).is_some(), "expected message in BAD_REQUEST response");
 
 		// Clean up
 		let _ = UsersRepository::new(&app_state).query_delete_user(user.id.id.to_raw()).await;
@@ -254,6 +266,8 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
+		let v = crate::common::response_helpers::parse_response_value(response, 2048).await;
+		assert!(v.get("message").and_then(|m| m.as_str()).is_some() || v.get("data").is_some(), "expected message or data in OK response");
 
 		// Verify testimonial was updated in database
 		let updated_testimonial = repo
@@ -298,6 +312,8 @@ mod tests {
 
 		// Verify not found response
 		assert_eq!(response.status(), StatusCode::NOT_FOUND);
+		let v = crate::common::response_helpers::parse_response_value(response, 2048).await;
+		assert!(v.get("message").and_then(|m| m.as_str()).is_some(), "expected message in NOT_FOUND response");
 
 		// Clean up
 		let _ = UsersRepository::new(&app_state).query_delete_user(user.id.id.to_raw()).await;
@@ -349,6 +365,8 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
+		let v = crate::common::response_helpers::parse_response_value(response, 2048).await;
+		assert!(v.get("message").and_then(|m| m.as_str()).is_some() || v.get("data").is_some(), "expected message or data in OK response");
 
 		// Verify testimonial was soft-deleted from database
 		let deleted_testimonial = repo.query_testimonial_by_id(testimonial_id.clone()).await;
@@ -382,6 +400,8 @@ mod tests {
 
 		// Verify not found response
 		assert_eq!(response.status(), StatusCode::NOT_FOUND);
+		let v = crate::common::response_helpers::parse_response_value(response, 2048).await;
+		assert!(v.get("message").and_then(|m| m.as_str()).is_some(), "expected message in NOT_FOUND response");
 
 		// Clean up
 		let _ = UsersRepository::new(&app_state).query_delete_user(user.id.id.to_raw()).await;
@@ -416,6 +436,8 @@ mod tests {
 
 		// Should succeed (boundary)
 		assert_eq!(response.status(), StatusCode::CREATED);
+		let v = crate::common::response_helpers::parse_response_value(response, 4096).await;
+		assert!(v.get("data").is_some() || v.get("message").is_some(), "expected data or message in CREATED response");
 
 		// Verify testimonial was created
 		let created_testimonials = repo.query_testimonial_list(get_meta_request_dto(1, 10)).await.unwrap();
@@ -460,6 +482,8 @@ mod tests {
 
 		// Should fail validation
 		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+		let v = crate::common::response_helpers::parse_response_value(response, 2048).await;
+		assert!(v.get("message").and_then(|m| m.as_str()).is_some(), "expected message in BAD_REQUEST response");
 
 		// Clean up
 		let _ = UsersRepository::new(&app_state).query_delete_user(user.id.id.to_raw()).await;
@@ -494,6 +518,8 @@ mod tests {
 
 		// Should fail validation
 		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+		let v = crate::common::response_helpers::parse_response_value(response, 2048).await;
+		assert!(v.get("message").and_then(|m| m.as_str()).is_some(), "expected message in BAD_REQUEST response");
 
 		// Clean up
 		let _ = UsersRepository::new(&app_state).query_delete_user(user.id.id.to_raw()).await;
@@ -548,6 +574,8 @@ mod tests {
 
 		// Should succeed
 		assert_eq!(response.status(), StatusCode::OK);
+		let v = crate::common::response_helpers::parse_response_value(response, 2048).await;
+		assert!(v.get("message").and_then(|m| m.as_str()).is_some() || v.get("data").is_some(), "expected message or data in OK response");
 
 		// Verify testimonial was updated
 		let updated_testimonial = repo
@@ -610,6 +638,8 @@ mod tests {
 
 		// Should fail validation
 		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+		let v = crate::common::response_helpers::parse_response_value(response, 2048).await;
+		assert!(v.get("message").and_then(|m| m.as_str()).is_some(), "expected message in BAD_REQUEST response");
 
 		// Clean up
 		let _ = repo.query_delete_testimonial(testimonial_id).await;

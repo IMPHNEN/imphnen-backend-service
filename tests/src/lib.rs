@@ -59,6 +59,7 @@ pub fn create_test_user(
 pub mod iam;
 pub mod hackathon;
 pub mod mock_test;
+pub mod common;
 
 pub use mock_test::{
 	cleanup_db, create_mock_app_state, seed_permissions_and_roles_for_test,

@@ -29,6 +29,11 @@ mod tests {
 		// Verify response
 		assert_eq!(response.status(), StatusCode::CREATED);
 
+		// Verify response body contains success message
+		let msg: imphnen_entities::MessageResponseDto =
+			crate::common::response_helpers::parse_response(response, 1024).await;
+		assert!(msg.message.to_lowercase().contains("created") || msg.message.to_lowercase().contains("success"));
+
 		// Verify permission was created in database
 		let created_permission = repo
 			.query_permission_by_name(permission_name)

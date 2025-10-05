@@ -131,8 +131,8 @@ async fn test_register_new_user_as_mentor_success() {
 
     assert_eq!(response.status(), StatusCode::OK);
 
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let mentor_register_response: MentorRegisterResponseDto = serde_json::from_slice(&body).unwrap();
+    let mentor_register_response: MentorRegisterResponseDto =
+        crate::common::response_helpers::parse_response(response, 8192).await;
 
     assert!(!mentor_register_response.id.is_empty());
     assert!(!mentor_register_response.user_id.is_empty());
@@ -232,8 +232,8 @@ async fn test_register_existing_user_as_mentor_success() {
 
     assert_eq!(response.status(), StatusCode::OK);
 
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let mentor_register_response: MentorRegisterResponseDto = serde_json::from_slice(&body).unwrap();
+    let mentor_register_response: MentorRegisterResponseDto =
+        crate::common::response_helpers::parse_response(response, 8192).await;
 
     assert!(!mentor_register_response.id.is_empty());
     assert!(!mentor_register_response.user_id.is_empty());
@@ -439,8 +439,8 @@ async fn test_register_mentor_invalid_email_format() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let error_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let error_response: serde_json::Value =
+        crate::common::response_helpers::parse_response_value(response, 8192).await;
     assert!(error_response["message"].as_str().unwrap().contains("email"));
 }
 
@@ -502,9 +502,8 @@ async fn test_register_mentor_weak_password() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let error_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    assert!(error_response["message"].as_str().unwrap().contains("password"));
+    let v = crate::common::response_helpers::parse_response_value(response, 8192).await;
+    assert!(v.get("message").and_then(|m| m.as_str()).map(|s| s.contains("password")).unwrap_or(false));
 }
 
 #[tokio::test]
@@ -564,9 +563,8 @@ async fn test_register_mentor_missing_fullname() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let error_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    assert!(error_response["message"].as_str().unwrap().contains("fullname"));
+    let v = crate::common::response_helpers::parse_response_value(response, 8192).await;
+    assert!(v.get("message").and_then(|m| m.as_str()).map(|s| s.contains("fullname")).unwrap_or(false));
 }
 
 #[tokio::test]
@@ -626,9 +624,8 @@ async fn test_register_mentor_missing_phone_number() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let error_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    assert!(error_response["message"].as_str().unwrap().contains("phone_number"));
+    let v = crate::common::response_helpers::parse_response_value(response, 8192).await;
+    assert!(v.get("message").and_then(|m| m.as_str()).map(|s| s.contains("phone_number")).unwrap_or(false));
 }
 
 #[tokio::test]
@@ -689,8 +686,8 @@ async fn test_register_mentor_missing_identity_document_url() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let error_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let error_response: serde_json::Value =
+        crate::common::response_helpers::parse_response_value(response, 8192).await;
     assert!(error_response["message"].as_str().unwrap().contains("identity_document_url"));
 }
 
@@ -752,7 +749,6 @@ async fn test_register_mentor_invalid_phone_for_verification_format() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let error_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    assert!(error_response["message"].as_str().unwrap().contains("phone_for_verification"));
+    let v = crate::common::response_helpers::parse_response_value(response, 8192).await;
+    assert!(v.get("message").and_then(|m| m.as_str()).map(|s| s.contains("phone_for_verification")).unwrap_or(false));
 }

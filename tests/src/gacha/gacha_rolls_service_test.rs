@@ -37,8 +37,11 @@ mod tests {
 		// Test get by id
 		let response = GachaRollService::get_gacha_roll_by_id(&app_state, roll.id.id.to_raw()).await;
 
-		// Verify response
+		// Verify response (status + body)
 		assert_eq!(response.status(), StatusCode::OK);
+		let v = crate::common::response_helpers::parse_response_value(response, 4096).await;
+		let data = v.get("data").expect("response should contain data");
+		assert_eq!(data["item"]["name"].as_str().unwrap(), "Test Item");
 
 		// Clean up
 		let _ = roll_repo.query_soft_delete_gacha_roll(roll.id.id.to_raw()).await;
@@ -51,8 +54,10 @@ mod tests {
 		// Test get by non-existent id
 		let response = GachaRollService::get_gacha_roll_by_id(&app_state, "nonexistent".to_string()).await;
 
-		// Verify response
+		// Verify response (status + body)
 		assert_eq!(response.status(), StatusCode::NOT_FOUND);
+		let v = crate::common::response_helpers::parse_response_value(response, 2048).await;
+		assert!(v.get("message").and_then(|m| m.as_str()).is_some(), "expected message in NOT_FOUND response");
 	}
 
 	#[tokio::test]
@@ -78,8 +83,13 @@ mod tests {
 		// Create roll via service
 		let response = GachaRollService::create_gacha_roll(&app_state, roll_dto.clone()).await;
 
-		// Verify response
+		// Verify response (status + body)
 		assert_eq!(response.status(), StatusCode::CREATED);
+		let v = crate::common::response_helpers::parse_response_value(response, 4096).await;
+		let data = v.get("data").expect("response should contain data");
+		assert_eq!(data["item"]["name"].as_str().unwrap(), "Test Item Create");
+		assert_eq!(data["weight"].as_f64().unwrap(), 1.0);
+		assert_eq!(data["quantity"].as_i64().unwrap(), 10);
 
 		// Verify roll was created in database
 		let rolls = roll_repo.query_all_active_rolls().await.unwrap();
@@ -104,8 +114,10 @@ mod tests {
 
 		let response = GachaRollService::create_gacha_roll(&app_state, roll_dto).await;
 
-		// Verify response
+		// Verify response (status + body)
 		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+		let v = crate::common::response_helpers::parse_response_value(response, 2048).await;
+		assert!(v.get("message").and_then(|m| m.as_str()).is_some(), "expected message in BAD_REQUEST response");
 	}
 
 	#[tokio::test]
@@ -130,8 +142,10 @@ mod tests {
 
 		let response = GachaRollService::create_gacha_roll(&app_state, roll_dto).await;
 
-		// Verify response - should fail validation
+		// Verify response - should fail validation (status + body)
 		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+		let v = crate::common::response_helpers::parse_response_value(response, 2048).await;
+		assert!(v.get("message").and_then(|m| m.as_str()).is_some(), "expected message in BAD_REQUEST response");
 	}
 
 	#[tokio::test]
@@ -177,8 +191,10 @@ mod tests {
 		// Execute roll once
 		let response = GachaRollService::execute_roll_once(headers, &app_state).await;
 
-		// Verify response
+		// Verify response (status + body)
 		assert_eq!(response.status(), StatusCode::OK);
+		let v = crate::common::response_helpers::parse_response_value(response, 4096).await;
+		assert!(v.get("data").is_some(), "expected data in OK response");
 
 		// Clean up
 		let _ = user_repo.query_delete_user(user.id.id.to_raw()).await;
@@ -212,8 +228,10 @@ mod tests {
 		// Execute roll once with no active rolls
 		let response = GachaRollService::execute_roll_once(headers, &app_state).await;
 
-		// Verify response
+		// Verify response (status + body)
 		assert_eq!(response.status(), StatusCode::NOT_FOUND);
+		let v = crate::common::response_helpers::parse_response_value(response, 2048).await;
+		assert!(v.get("message").and_then(|m| m.as_str()).is_some(), "expected message in NOT_FOUND response");
 
 		// Clean up
 		let user = user_repo.query_user_by_email(email).await.unwrap();
@@ -228,8 +246,10 @@ mod tests {
 		let headers = HeaderMap::new();
 		let response = GachaRollService::execute_roll_once(headers, &app_state).await;
 
-		// Verify response
+		// Verify response (status + body)
 		assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+		let v = crate::common::response_helpers::parse_response_value(response, 2048).await;
+		assert!(v.get("message").and_then(|m| m.as_str()).is_some(), "expected message in UNAUTHORIZED response");
 	}
 
 	#[tokio::test]
@@ -256,8 +276,10 @@ mod tests {
 		// Soft delete roll
 		let response = GachaRollService::soft_delete_gacha_roll(&app_state, roll.id.id.to_raw()).await;
 
-		// Verify response
+		// Verify response (status + body)
 		assert_eq!(response.status(), StatusCode::OK);
+		let v = crate::common::response_helpers::parse_response_value(response, 2048).await;
+		assert!(v.get("message").and_then(|m| m.as_str()).is_some() || v.get("data").is_some(), "expected message or data in OK response");
 
 		// Verify roll is deleted
 		let deleted_roll = roll_repo.query_gacha_roll_by_id(roll.id.id.to_raw()).await;
@@ -271,7 +293,9 @@ mod tests {
 		// Try to delete non-existent roll
 		let response = GachaRollService::soft_delete_gacha_roll(&app_state, "nonexistent".to_string()).await;
 
-		// Verify response
+		// Verify response (status + body)
 		assert_eq!(response.status(), StatusCode::NOT_FOUND);
+		let v = crate::common::response_helpers::parse_response_value(response, 2048).await;
+		assert!(v.get("message").and_then(|m| m.as_str()).is_some(), "expected message in NOT_FOUND response");
 	}
 }

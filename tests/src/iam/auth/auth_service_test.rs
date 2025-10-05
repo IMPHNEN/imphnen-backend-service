@@ -43,11 +43,11 @@ mod tests {
 
 		let response = imphnen_iam::AuthService::mutation_login(login_request, &app_state).await;
 
-		// Verify response
-		assert_eq!(response.status(), StatusCode::OK);
+	// Verify response
+	assert_eq!(response.status(), StatusCode::OK);
 
-		let login_response: ResponseSuccessDto = response.into_body().await.unwrap();
-		assert!(login_response.data.is_some());
+	let login_response: ResponseSuccessDto = crate::common::response_helpers::parse_response(response, 8192).await;
+	assert!(login_response.data.is_some());
 
 		// Clean up
 		let user = repo.query_user_by_email(email.clone()).await.unwrap();
@@ -70,11 +70,11 @@ mod tests {
 
 		let response = imphnen_iam::AuthService::mutation_login(login_request, &app_state).await;
 
-		// Verify response
-		assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+	// Verify response
+	assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 
-		let error_response: MessageResponseDto = response.into_body().await.unwrap();
-		assert!(error_response.message.contains("Email or password not correct"));
+	let error_response: MessageResponseDto = crate::common::response_helpers::parse_response(response, 8192).await;
+	assert!(error_response.message.contains("Email or password not correct"));
 	}
 
 	#[tokio::test]
@@ -94,11 +94,11 @@ mod tests {
 		// Register user
 		let response = imphnen_iam::AuthService::mutation_register(register_request, &app_state).await;
 
-		// Verify response
-		assert_eq!(response.status(), StatusCode::CREATED);
+	// Verify response
+	assert_eq!(response.status(), StatusCode::CREATED);
 
-		let response_data: MessageResponseDto = response.into_body().await.unwrap();
-		assert_eq!(response_data.message, "User registered successfully, please check your email for OTP verification");
+	let response_data: MessageResponseDto = crate::common::response_helpers::parse_response(response, 8192).await;
+	assert_eq!(response_data.message, "User registered successfully, please check your email for OTP verification");
 
 		// Verify user was created in database (should be inactive until OTP verification)
 		let repo = UsersRepository::new(&app_state);
@@ -137,11 +137,11 @@ mod tests {
 
 		let response = imphnen_iam::AuthService::mutation_verify_email(verify_request, &app_state).await;
 
-		// Verify response
-		assert_eq!(response.status(), StatusCode::OK);
+	// Verify response
+	assert_eq!(response.status(), StatusCode::OK);
 
-		let response_data: MessageResponseDto = response.into_body().await.unwrap();
-		assert_eq!(response_data.message, "Email verified successfully");
+	let response_data: MessageResponseDto = crate::common::response_helpers::parse_response(response, 8192).await;
+	assert_eq!(response_data.message, "Email verified successfully");
 
 		// Verify user was activated in database
 		let updated_user = repo.query_user_by_email(email.clone()).await.unwrap();
@@ -177,11 +177,11 @@ mod tests {
 
 		let response = imphnen_iam::AuthService::mutation_resend_otp(resend_request, &app_state).await;
 
-		// Verify response
-		assert_eq!(response.status(), StatusCode::OK);
+	// Verify response
+	assert_eq!(response.status(), StatusCode::OK);
 
-		let response_data: MessageResponseDto = response.into_body().await.unwrap();
-		assert_eq!(response_data.message, "OTP resent successfully");
+	let response_data: MessageResponseDto = crate::common::response_helpers::parse_response(response, 8192).await;
+	assert_eq!(response_data.message, "OTP resent successfully");
 
 		// Clean up
 		let user = repo.query_user_by_email(email.clone()).await.unwrap();
@@ -224,7 +224,7 @@ mod tests {
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
 
-		let response_data: MessageResponseDto = response.into_body().await.unwrap();
+		let response_data: MessageResponseDto = crate::common::response_helpers::parse_response(response, 8192).await;
 		assert_eq!(
 			response_data.message,
 			"If your email is registered, you will receive a password reset link."
@@ -276,11 +276,11 @@ mod tests {
 
 		let response = imphnen_iam::AuthService::mutation_new_password(new_password_request, &app_state).await;
 
-		// Verify response
-		assert_eq!(response.status(), StatusCode::OK);
+	// Verify response
+	assert_eq!(response.status(), StatusCode::OK);
 
-		let response_data: MessageResponseDto = response.into_body().await.unwrap();
-		assert_eq!(response_data.message, "Password updated successfully");
+	let response_data: MessageResponseDto = crate::common::response_helpers::parse_response(response, 8192).await;
+	assert_eq!(response_data.message, "Password updated successfully");
 
 		// Verify password was updated in database
 		let updated_user = repo.query_user_by_email(email.clone()).await.unwrap();
@@ -324,10 +324,10 @@ mod tests {
 			password: password.clone(),
 		};
 		
-		let login_response = imphnen_iam::AuthService::mutation_login(login_request, &app_state).await;
-		
-		let login_response_data: ResponseSuccessDto = login_response.into_body().await.unwrap();
-		let refresh_token = login_response_data.data.as_ref().unwrap().token.refresh_token.clone();
+	let login_response = imphnen_iam::AuthService::mutation_login(login_request, &app_state).await;
+        
+	let login_response_data: ResponseSuccessDto = crate::common::response_helpers::parse_response(login_response, 8192).await;
+	let refresh_token = login_response_data.data.as_ref().unwrap().token.refresh_token.clone();
 
 		// Refresh token
 		let refresh_request = AuthRefreshTokenRequestDto {
@@ -336,14 +336,14 @@ mod tests {
 
 		let response = imphnen_iam::AuthService::mutation_refresh_token(refresh_request, &app_state).await;
 
-		// Verify response
-		assert_eq!(response.status(), StatusCode::OK);
+	// Verify response
+	assert_eq!(response.status(), StatusCode::OK);
 
-		let response_data: ResponseSuccessDto = response.into_body().await.unwrap();
-		assert!(response_data.data.is_some());
-		let token_data = response_data.data.as_ref().unwrap();
-		assert!(token_data.access_token.is_some());
-		assert!(token_data.refresh_token.is_some());
+	let response_data: ResponseSuccessDto = crate::common::response_helpers::parse_response(response, 8192).await;
+	assert!(response_data.data.is_some());
+	let token_data = response_data.data.as_ref().unwrap();
+	assert!(token_data.access_token.is_some());
+	assert!(token_data.refresh_token.is_some());
 
 		// Clean up
 		let user = repo.query_user_by_email(email.clone()).await.unwrap();
@@ -383,11 +383,11 @@ mod tests {
 
 		let response = imphnen_iam::AuthService::mutation_mentor_login(login_request, &app_state).await;
 
-		// Verify response
-		assert_eq!(response.status(), StatusCode::OK);
+	// Verify response
+	assert_eq!(response.status(), StatusCode::OK);
 
-		let login_response: ResponseSuccessDto = response.into_body().await.unwrap();
-		assert!(login_response.data.is_some());
+	let login_response: ResponseSuccessDto = crate::common::response_helpers::parse_response(response, 8192).await;
+	assert!(login_response.data.is_some());
 
 		// Clean up
 		let user = repo.query_user_by_email(email.clone()).await.unwrap();
@@ -427,11 +427,11 @@ mod tests {
 
 		let response = imphnen_iam::AuthService::mutation_mentor_login(login_request, &app_state).await;
 
-		// Verify response
-		assert_eq!(response.status(), StatusCode::FORBIDDEN);
+	// Verify response
+	assert_eq!(response.status(), StatusCode::FORBIDDEN);
 
-		let error_response: MessageResponseDto = response.into_body().await.unwrap();
-		assert_eq!(error_response.message, "User does not have mentor privileges");
+	let error_response: MessageResponseDto = crate::common::response_helpers::parse_response(response, 8192).await;
+	assert_eq!(error_response.message, "User does not have mentor privileges");
 
 		// Clean up
 		let user = repo.query_user_by_email(email.clone()).await.unwrap();
@@ -469,11 +469,11 @@ mod tests {
 
 		let response = imphnen_iam::AuthService::mutation_login(login_request, &app_state).await;
 
-		// Verify response
-		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+	// Verify response
+	assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 
-		let error_response: MessageResponseDto = response.into_body().await.unwrap();
-		assert!(error_response.message.contains("Account not active"));
+	let error_response: MessageResponseDto = crate::common::response_helpers::parse_response(response, 8192).await;
+	assert!(error_response.message.contains("Account not active"));
 
 		// Clean up
 		let user = repo.query_user_by_email(email.clone()).await.unwrap();
@@ -515,11 +515,11 @@ mod tests {
 
 		let response = imphnen_iam::AuthService::mutation_register(register_request, &app_state).await;
 
-		// Verify response
-		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+	// Verify response
+	assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 
-		let error_response: MessageResponseDto = response.into_body().await.unwrap();
-		assert_eq!(error_response.message, "User already exists");
+	let error_response: MessageResponseDto = crate::common::response_helpers::parse_response(response, 8192).await;
+	assert_eq!(error_response.message, "User already exists");
 
 		// Clean up
 		let user = repo.query_user_by_email(email.clone()).await.unwrap();
@@ -571,11 +571,11 @@ mod tests {
 
 		let response = imphnen_iam::AuthService::mutation_verify_email(verify_request, &app_state).await;
 
-		// Verify response
-		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+	// Verify response
+	assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 
-		let response_data: MessageResponseDto = response.into_body().await.unwrap();
-		assert_eq!(response_data.message, "Failed to verify OTP");
+	let response_data: MessageResponseDto = crate::common::response_helpers::parse_response(response, 8192).await;
+	assert_eq!(response_data.message, "Failed to verify OTP");
 
 		// Verify user still inactive
 		let user = repo.query_user_by_email(email.clone()).await.unwrap();
@@ -614,11 +614,11 @@ mod tests {
 		// Try to verify again
 		let response = imphnen_iam::AuthService::mutation_verify_email(verify_request, &app_state).await;
 
-		// Verify response
-		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+	// Verify response
+	assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 
-		let response_data: MessageResponseDto = response.into_body().await.unwrap();
-		assert_eq!(response_data.message, "User already active");
+	let response_data: MessageResponseDto = crate::common::response_helpers::parse_response(response, 8192).await;
+	assert_eq!(response_data.message, "User already active");
 
 		// Clean up
 		let user = repo.query_user_by_email(email.clone()).await.unwrap();
@@ -639,11 +639,11 @@ mod tests {
 
 		let response = imphnen_iam::AuthService::mutation_resend_otp(resend_request, &app_state).await;
 
-		// Verify response
-		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+	// Verify response
+	assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 
-		let response_data: MessageResponseDto = response.into_body().await.unwrap();
-		assert_eq!(response_data.message, "User not found");
+	let response_data: MessageResponseDto = crate::common::response_helpers::parse_response(response, 8192).await;
+	assert_eq!(response_data.message, "User not found");
 	}
 
 	#[tokio::test]
@@ -663,7 +663,7 @@ mod tests {
 		// Verify response - should still return success for security
 		assert_eq!(response.status(), StatusCode::OK);
 
-		let response_data: MessageResponseDto = response.into_body().await.unwrap();
+		let response_data: MessageResponseDto = crate::common::response_helpers::parse_response(response, 8192).await;
 		assert_eq!(
 			response_data.message,
 			"If your email is registered, you will receive a password reset link."
@@ -685,11 +685,11 @@ mod tests {
 
 		let response = imphnen_iam::AuthService::mutation_new_password(new_password_request, &app_state).await;
 
-		// Verify response
-		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+	// Verify response
+	assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 
-		let response_data: MessageResponseDto = response.into_body().await.unwrap();
-		assert_eq!(response_data.message, "Invalid or missing token");
+	let response_data: MessageResponseDto = crate::common::response_helpers::parse_response(response, 8192).await;
+	assert_eq!(response_data.message, "Invalid or missing token");
 	}
 
 	#[tokio::test]
@@ -703,11 +703,11 @@ mod tests {
 
 		let response = imphnen_iam::AuthService::mutation_refresh_token(refresh_request, &app_state).await;
 
-		// Verify response
-		assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+	// Verify response
+	assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 
-		let error_response: MessageResponseDto = response.into_body().await.unwrap();
-		assert_eq!(error_response.message, "Invalid refresh token");
+	let error_response: MessageResponseDto = crate::common::response_helpers::parse_response(response, 8192).await;
+	assert_eq!(error_response.message, "Invalid refresh token");
 	}
 
 	#[tokio::test]
@@ -743,11 +743,11 @@ mod tests {
 
 		let response = imphnen_iam::AuthService::mutation_mentor_login(login_request, &app_state).await;
 
-		// Verify response
-		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+	// Verify response
+	assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 
-		let error_response: MessageResponseDto = response.into_body().await.unwrap();
-		assert!(error_response.message.contains("Account not active"));
+	let error_response: MessageResponseDto = crate::common::response_helpers::parse_response(response, 8192).await;
+	assert!(error_response.message.contains("Account not active"));
 
 		// Clean up
 		let user = repo.query_user_by_email(email.clone()).await.unwrap();

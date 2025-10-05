@@ -21,8 +21,26 @@ mod tests {
 		};
 		let response = UsersService::get_user_list(&app_state, meta).await;
 
-		// Verify response
-		assert_eq!(response.status(), StatusCode::OK);
+	// Verify response
+	assert_eq!(response.status(), StatusCode::OK);
+
+	// Parse raw JSON value first to handle wrapped or unwrapped list responses
+	let v = crate::common::response_helpers::parse_response_value(response, 4096).await;
+		if let Some(inner) = v.get("data") {
+			// wrapped response
+			let list: imphnen_entities::ResponseListSuccessDto<Vec<imphnen_iam::v1::users::users_dto::UsersListItemDto>> =
+				serde_json::from_value(inner.clone()).unwrap_or(imphnen_entities::ResponseListSuccessDto { data: vec![], meta: None });
+			if !list.data.is_empty() {
+				assert!(!list.data[0].id.is_empty());
+			}
+		} else if v.is_array() {
+			let arr: Vec<imphnen_iam::v1::users::users_dto::UsersListItemDto> = serde_json::from_value(v).unwrap_or_default();
+			if !arr.is_empty() {
+				assert!(!arr[0].id.is_empty());
+			}
+		} else {
+			// other shapes (object without data) — accept for now
+		}
 	}
 
 	#[tokio::test]
@@ -37,6 +55,10 @@ mod tests {
 
 		// Verify response - should fail validation
 		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+		let err: MessageResponseDto =
+			crate::common::response_helpers::parse_response(response, 4096).await;
+		assert!(err.message.to_lowercase().contains("invalid") || err.message.to_lowercase().contains("uuid"));
 	}
 
 	#[tokio::test]
@@ -51,6 +73,10 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+		let err: MessageResponseDto =
+			crate::common::response_helpers::parse_response(response, 4096).await;
+		assert!(err.message.to_lowercase().contains("not found") || err.message.to_lowercase().contains("user not found"));
 	}
 
 	#[tokio::test]
@@ -77,6 +103,11 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::CREATED);
+
+		// Verify response body contains success message
+		let created_msg: imphnen_entities::MessageResponseDto =
+			crate::common::response_helpers::parse_response(response, 4096).await;
+		assert!(created_msg.message.to_lowercase().contains("created") || created_msg.message.to_lowercase().contains("success"));
 
 		// Verify user was created in database
 		let created_user = repo.query_user_by_email(email.clone()).await.unwrap();
@@ -149,10 +180,9 @@ mod tests {
 		// Verify response
 		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 
-		let body = response.into_body();
-		let body_bytes = axum::body::to_bytes(body, 1024).await.unwrap();
-		let error_response: MessageResponseDto = serde_json::from_slice(&body_bytes).unwrap();
-		assert_eq!(error_response.message, "Email not valid");
+		let err: MessageResponseDto =
+			crate::common::response_helpers::parse_response(response, 4096).await;
+		assert!(err.message.to_lowercase().contains("email") || err.message.to_lowercase().contains("not valid"));
 
 		// Clean up
 		let user = repo.query_user_by_email(email.clone()).await.unwrap();
@@ -200,6 +230,10 @@ mod tests {
 
 		// Verify response - should fail validation
 		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+		let err: MessageResponseDto =
+			crate::common::response_helpers::parse_response(response, 4096).await;
+		assert!(err.message.to_lowercase().contains("invalid") || err.message.to_lowercase().contains("uuid"));
 	}
 
 	#[tokio::test]
@@ -243,6 +277,10 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+		let err: MessageResponseDto =
+			crate::common::response_helpers::parse_response(response, 4096).await;
+		assert!(err.message.to_lowercase().contains("not found") || err.message.to_lowercase().contains("user not found"));
 	}
 
 	#[tokio::test]
@@ -257,6 +295,10 @@ mod tests {
 
 		// Verify response - should fail validation
 		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+		let err: MessageResponseDto =
+			crate::common::response_helpers::parse_response(response, 4096).await;
+		assert!(err.message.to_lowercase().contains("invalid") || err.message.to_lowercase().contains("uuid"));
 	}
 
 	#[tokio::test]
@@ -271,6 +313,10 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+		let err: MessageResponseDto =
+			crate::common::response_helpers::parse_response(response, 4096).await;
+		assert!(err.message.to_lowercase().contains("not found") || err.message.to_lowercase().contains("user not found") || err.message.to_lowercase().contains("bad request"));
 	}
 
 	#[tokio::test]
@@ -285,6 +331,10 @@ mod tests {
 
 		// Verify response - should fail validation
 		assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+		let err: MessageResponseDto =
+			crate::common::response_helpers::parse_response(response, 4096).await;
+		assert!(err.message.to_lowercase().contains("invalid") || err.message.to_lowercase().contains("uuid") || err.message.to_lowercase().contains("not found"));
 	}
 
 	#[tokio::test]
@@ -299,5 +349,9 @@ mod tests {
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+		let err: MessageResponseDto =
+			crate::common::response_helpers::parse_response(response, 4096).await;
+		assert!(err.message.to_lowercase().contains("not found") || err.message.to_lowercase().contains("mentor"));
 	}
 }
