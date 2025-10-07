@@ -7,12 +7,13 @@ use super::{
 };
 use axum::extract::{Path, Query};
 use axum::response::IntoResponse;
-use axum::{Extension, Json};
+use axum::{Extension, Json, http::HeaderMap};
 use imphnen_iam::UsersDetailQueryDto;
 use imphnen_libs::{
-	AppState, MessageResponseDto, MetaRequestDto, ResponseListSuccessDto,
-	ResponseSuccessDto,
+    AppState, MessageResponseDto, MetaRequestDto, ResponseListSuccessDto,
+    ResponseSuccessDto,
 };
+use imphnen_iam::permissions_guard;
 
 #[utoipa::path(
     get,
@@ -69,11 +70,15 @@ pub async fn get_testimonial_by_id(
     tag = "Testimonials"
 )]
 pub async fn post_create_testimonial(
-	Extension(state): Extension<AppState>,
-	Extension(authenticated_user): Extension<UsersDetailQueryDto>,
-	Json(payload): Json<TestimonialsCreateRequestDto>,
+    headers: HeaderMap,
+    Extension(state): Extension<AppState>,
+    Extension(authenticated_user): Extension<UsersDetailQueryDto>,
+    Json(payload): Json<TestimonialsCreateRequestDto>,
 ) -> impl IntoResponse {
-	TestimonialsService::create_testimonial(&state, payload, &authenticated_user).await
+    match permissions_guard(headers, Extension(state), vec![]).await {
+        Ok((_claims, state)) => TestimonialsService::create_testimonial(&state, payload, &authenticated_user).await,
+        Err(response) => response,
+    }
 }
 
 #[utoipa::path(
@@ -92,13 +97,16 @@ pub async fn post_create_testimonial(
     tag = "Testimonials"
 )]
 pub async fn patch_update_testimonial(
-	Path(id): Path<String>,
-	Extension(state): Extension<AppState>,
-	Extension(authenticated_user): Extension<UsersDetailQueryDto>,
-	Json(payload): Json<TestimonialsUpdateRequestDto>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Extension(state): Extension<AppState>,
+    Extension(authenticated_user): Extension<UsersDetailQueryDto>,
+    Json(payload): Json<TestimonialsUpdateRequestDto>,
 ) -> impl IntoResponse {
-	TestimonialsService::update_testimonial(&state, id, payload, &authenticated_user)
-		.await
+    match permissions_guard(headers, Extension(state), vec![]).await {
+        Ok((_claims, state)) => TestimonialsService::update_testimonial(&state, id, payload, &authenticated_user).await,
+        Err(response) => response,
+    }
 }
 
 #[utoipa::path(
@@ -116,9 +124,13 @@ pub async fn patch_update_testimonial(
     tag = "Testimonials"
 )]
 pub async fn delete_testimonial(
-	Extension(state): Extension<AppState>,
-	Extension(authenticated_user): Extension<UsersDetailQueryDto>,
-	Path(id): Path<String>,
+    headers: HeaderMap,
+    Extension(state): Extension<AppState>,
+    Extension(authenticated_user): Extension<UsersDetailQueryDto>,
+    Path(id): Path<String>,
 ) -> impl IntoResponse {
-	TestimonialsService::delete_testimonial(&state, id, &authenticated_user).await
+    match permissions_guard(headers, Extension(state), vec![]).await {
+        Ok((_claims, state)) => TestimonialsService::delete_testimonial(&state, id, &authenticated_user).await,
+        Err(response) => response,
+    }
 }

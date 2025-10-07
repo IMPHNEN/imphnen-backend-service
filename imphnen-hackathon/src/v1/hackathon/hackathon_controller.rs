@@ -14,10 +14,15 @@ use axum::{
     response::IntoResponse,
     routing::{delete, get, post, put},
 };
+use axum::http::HeaderMap;
+use imphnen_iam::{PermissionsEnum, permissions_guard};
 
 // Hackathon routes
 #[utoipa::path(
     post,
+    security(
+        ("Bearer" = [])
+    ),
     path = "/v1/hackathons",
     request_body = HackathonCreateRequestDto,
     responses(
@@ -28,12 +33,16 @@ use axum::{
     tag = "Hackathons"
 )]
 pub async fn create_hackathon(
+    headers: HeaderMap,
     Extension(state): Extension<AppState>,
     Json(payload): Json<HackathonCreateRequestDto>,
 ) -> impl IntoResponse {
-    match HackathonService::create_hackathon(payload, &state).await {
+    match permissions_guard(headers, Extension(state), vec![PermissionsEnum::Administrator]).await {
+        Ok((_claims, state)) => match HackathonService::create_hackathon(payload, &state).await {
         Ok(response) => (axum::http::StatusCode::CREATED, Json(response)).into_response(),
         Err(error) => (StatusCode::from_u16(error.status).unwrap(), Json(error)).into_response(),
+        },
+        Err(response) => response,
     }
 }
 
@@ -90,6 +99,9 @@ pub async fn list_hackathons(
 
 #[utoipa::path(
     put,
+    security(
+        ("Bearer" = [])
+    ),
     path = "/v1/hackathons/{id}",
     params(
         ("id" = String, Path, description = "Hackathon ID")
@@ -104,18 +116,25 @@ pub async fn list_hackathons(
     tag = "Hackathons"
 )]
 pub async fn update_hackathon(
+    headers: HeaderMap,
     Extension(state): Extension<AppState>,
     Path(id): Path<String>,
     Json(payload): Json<HackathonUpdateRequestDto>,
 ) -> impl IntoResponse {
-    match HackathonService::update_hackathon(id, payload, &state).await {
-        Ok(response) => (axum::http::StatusCode::OK, Json(response)).into_response(),
-        Err(error) => (StatusCode::from_u16(error.status).unwrap(), Json(error)).into_response(),
+    match permissions_guard(headers, Extension(state), vec![PermissionsEnum::Administrator]).await {
+        Ok((_claims, state)) => match HackathonService::update_hackathon(id, payload, &state).await {
+            Ok(response) => (axum::http::StatusCode::OK, Json(response)).into_response(),
+            Err(error) => (StatusCode::from_u16(error.status).unwrap(), Json(error)).into_response(),
+        },
+        Err(response) => response,
     }
 }
 
 #[utoipa::path(
     delete,
+    security(
+        ("Bearer" = [])
+    ),
     path = "/v1/hackathons/{id}",
     params(
         ("id" = String, Path, description = "Hackathon ID")
@@ -128,12 +147,16 @@ pub async fn update_hackathon(
     tag = "Hackathons"
 )]
 pub async fn delete_hackathon(
+    headers: HeaderMap,
     Extension(state): Extension<AppState>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
-    match HackathonService::delete_hackathon(id, &state).await {
-        Ok(response) => (axum::http::StatusCode::OK, Json(response)).into_response(),
-        Err(error) => (StatusCode::from_u16(error.status).unwrap(), Json(error)).into_response(),
+    match permissions_guard(headers, Extension(state), vec![PermissionsEnum::Administrator]).await {
+        Ok((_claims, state)) => match HackathonService::delete_hackathon(id, &state).await {
+            Ok(response) => (axum::http::StatusCode::OK, Json(response)).into_response(),
+            Err(error) => (StatusCode::from_u16(error.status).unwrap(), Json(error)).into_response(),
+        },
+        Err(response) => response,
     }
 }
 

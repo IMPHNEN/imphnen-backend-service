@@ -7,11 +7,12 @@ use super::{
 };
 use axum::extract::{Path, Query};
 use axum::response::IntoResponse;
-use axum::{Extension, Json};
+use axum::{Extension, Json, http::HeaderMap};
 use imphnen_libs::{
-	AppState, MessageResponseDto, MetaRequestDto, ResponseListSuccessDto,
-	ResponseSuccessDto,
+    AppState, MessageResponseDto, MetaRequestDto, ResponseListSuccessDto,
+    ResponseSuccessDto,
 };
+use imphnen_iam::{PermissionsEnum, permissions_guard};
 
 #[utoipa::path(
     get,
@@ -68,10 +69,14 @@ pub async fn get_event_by_id(
     tag = "Events"
 )]
 pub async fn post_create_event(
-	Extension(state): Extension<AppState>,
-	Json(payload): Json<EventsCreateRequestDto>,
+    headers: HeaderMap,
+    Extension(state): Extension<AppState>,
+    Json(payload): Json<EventsCreateRequestDto>,
 ) -> impl IntoResponse {
-	EventsService::create_event(&state, payload).await
+    match permissions_guard(headers, Extension(state), vec![PermissionsEnum::Administrator]).await {
+        Ok((_claims, state)) => EventsService::create_event(&state, payload).await,
+        Err(response) => response,
+    }
 }
 
 #[utoipa::path(
@@ -90,11 +95,15 @@ pub async fn post_create_event(
     tag = "Events"
 )]
 pub async fn patch_update_event(
-	Extension(state): Extension<AppState>,
-	Path(id): Path<String>,
-	Json(payload): Json<EventsUpdateRequestDto>,
+    headers: HeaderMap,
+    Extension(state): Extension<AppState>,
+    Path(id): Path<String>,
+    Json(payload): Json<EventsUpdateRequestDto>,
 ) -> impl IntoResponse {
-	EventsService::update_event(&state, id, payload).await
+    match permissions_guard(headers, Extension(state), vec![PermissionsEnum::Administrator]).await {
+        Ok((_claims, state)) => EventsService::update_event(&state, id, payload).await,
+        Err(response) => response,
+    }
 }
 
 #[utoipa::path(
@@ -112,8 +121,12 @@ pub async fn patch_update_event(
     tag = "Events"
 )]
 pub async fn delete_event(
-	Extension(state): Extension<AppState>,
-	Path(id): Path<String>,
+    headers: HeaderMap,
+    Extension(state): Extension<AppState>,
+    Path(id): Path<String>,
 ) -> impl IntoResponse {
-	EventsService::delete_event(&state, id).await
+    match permissions_guard(headers, Extension(state), vec![PermissionsEnum::Administrator]).await {
+        Ok((_claims, state)) => EventsService::delete_event(&state, id).await,
+        Err(response) => response,
+    }
 }

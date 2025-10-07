@@ -40,8 +40,8 @@ use imphnen_iam::v1::teams::teams_dto::{TeamsCreateRequestDto, TeamsUpdateReques
 use imphnen_iam::v1::{auth, permissions, roles, users, teams};
 use imphnen_iam::v1::users::users_controller::FileUploadSchema;
 use utoipa::{
-	Modify, OpenApi,
-	openapi::security::{Http, HttpAuthScheme, SecurityScheme},
+    Modify, OpenApi,
+    openapi::security::{Http, HttpAuthScheme, SecurityScheme, SecurityRequirement},
 };
 
 #[derive(OpenApi)]
@@ -267,7 +267,43 @@ impl Modify for SecurityAddon {
 				SecurityScheme::Http(Http::new(HttpAuthScheme::Bearer)),
 			);
 		}
-	}
+
+        // Walk all paths and add a Bearer security requirement to any operation
+        // that declares 401 or 403 responses. This helps ensure protected
+        // endpoints are shown with the Bearer lock in the generated docs
+        // without having to annotate every controller manually.
+        let paths = &mut openapi.paths;
+        for (_path, path_item) in paths.paths.iter_mut() {
+                // helper to process each possible operation on the path
+                let mut process_op = |op: &mut Option<utoipa::openapi::path::Operation>| {
+                    if let Some(operation) = op.as_mut() {
+                        let mut has_auth_response = false;
+                        let responses = &operation.responses.responses;
+                        for status in responses.keys() {
+                            if status == "401" || status == "403" {
+                                has_auth_response = true;
+                                break;
+                            }
+                        }
+                        if has_auth_response {
+                            // assign security requirement for Bearer if not already present
+                            if operation.security.is_none() {
+                                operation.security = Some(vec![SecurityRequirement::new::<&str, Vec<&str>, &str>("Bearer", vec![])]);
+                            }
+                        }
+                    }
+                };
+
+                process_op(&mut path_item.get);
+                process_op(&mut path_item.post);
+                process_op(&mut path_item.put);
+                process_op(&mut path_item.patch);
+                process_op(&mut path_item.delete);
+                process_op(&mut path_item.options);
+                process_op(&mut path_item.head);
+                process_op(&mut path_item.trace);
+        }
+    }
 }
 
 pub fn docs_router() -> utoipa::openapi::OpenApi {
