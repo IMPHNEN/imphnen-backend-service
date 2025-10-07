@@ -39,7 +39,7 @@ pub struct FileUploadSchema {
 		("filter_by" = Option<String>, Query, description = "Field to filter by"),
 	),
 	responses(
-		(status = 200, description = "Get user list", body = ResponseListSuccessDto<Vec<UsersListItemDto>>)
+	    (status = 200, description = "[ADMIN] Get user list", body = ResponseListSuccessDto<Vec<UsersListItemDto>>)
 	),
 	tag = "Users"
 )]
@@ -70,7 +70,7 @@ params(
 	("id" = String, Path, description = "User ID")
 ),
 responses(
-	(status = 200, description = "Get user by ID", body = ResponseSuccessDto<UsersDetailItemDto>)
+    (status = 200, description = "[USER] Get user by ID", body = ResponseSuccessDto<UsersDetailItemDto>)
 ),
 tag = "Users"
 )]
@@ -98,7 +98,7 @@ security(
    ),
 path = "/v1/users/me",
 responses(
-	(status = 200, description = "Get user by ID", body = ResponseSuccessDto<UsersDetailItemDto>)
+    (status = 200, description = "[ADMIN] Get user by ID", body = ResponseSuccessDto<UsersDetailItemDto>)
 ),
 tag = "Users"
 )]
@@ -120,7 +120,7 @@ pub async fn get_user_me(
 	path = "/v1/users/create",
 	request_body = UsersCreateRequestDto,
 	responses(
-		(status = 200, description = "Create new user", body = ResponseSuccessDto<UsersDetailItemDto>)
+	    (status = 200, description = "[ADMIN] Create new user", body = ResponseSuccessDto<UsersDetailItemDto>)
 	),
 	tag = "Users"
 )]
@@ -152,7 +152,7 @@ pub async fn post_create_user(
 	),
 	request_body = UsersUpdateRequestDto,
 	responses(
-		(status = 200, description = "Update user", body = ResponseSuccessDto<UsersDetailItemDto>)
+	    (status = 200, description = "[ADMIN] Update user", body = ResponseSuccessDto<UsersDetailItemDto>)
 	),
 	tag = "Users"
 )]
@@ -182,7 +182,7 @@ pub async fn put_update_user(
 	path = "/v1/users/update/me",
 	request_body = UsersUpdateRequestDto,
 	responses(
-		(status = 200, description = "Update current user", body = ResponseSuccessDto<UsersDetailItemDto>)
+	    (status = 200, description = "[USER] Update current user", body = ResponseSuccessDto<UsersDetailItemDto>)
 	),
 	tag = "Users"
 )]
@@ -208,7 +208,7 @@ pub async fn put_update_user_me(
 	),
 	request_body = UsersActiveInactiveRequestDto,
 	responses(
-		(status = 200, description = "Set user active status", body = MessageResponseDto)
+	    (status = 200, description = "[ADMIN] Set user active status", body = MessageResponseDto)
 	),
 	tag = "Users"
 )]
@@ -237,7 +237,7 @@ pub async fn patch_user_active_status(
     ),
 	path = "/v1/users/delete/{id}",
 	responses(
-		(status = 200, description = "Soft delete user", body = MessageResponseDto)
+	    (status = 200, description = "[ADMIN] Soft delete user", body = MessageResponseDto)
 	),
 	tag = "Users"
 )]
@@ -270,10 +270,10 @@ pub async fn delete_user(
 		content_type = "multipart/form-data"
 	),
 	responses(
-		(status = 200, description = "Upload file successfully", body = ResponseSuccessDto<serde_json::Value>),
-		(status = 400, description = "Bad request"),
-		(status = 401, description = "Unauthorized"),
-		(status = 500, description = "Internal server error")
+	    (status = 200, description = "[USER] Upload file successfully", body = ResponseSuccessDto<serde_json::Value>),
+	    (status = 400, description = "[USER] Bad request"),
+	    (status = 401, description = "[USER] Unauthorized"),
+	    (status = 500, description = "[USER] Internal server error")
 	),
 	tag = "Users"
 )]

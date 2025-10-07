@@ -18,10 +18,10 @@ use imphnen_utils::extract_email;
     path = "/v1/mentors/register",
     request_body = MentorUserRegisterRequestDto,
     responses(
-        (status = 200, description = "Mentor registered successfully", body = MentorRegisterResponseDto),
-        (status = 400, description = "Bad request - validation error"),
-        (status = 409, description = "Conflict - user already has mentor profile"),
-        (status = 500, description = "Internal server error")
+        (status = 200, description = "[PUBLIC] Mentor registered successfully", body = MentorRegisterResponseDto),
+        (status = 400, description = "[PUBLIC] Bad request - validation error"),
+        (status = 409, description = "[PUBLIC] Conflict - user already has mentor profile"),
+        (status = 500, description = "[PUBLIC] Internal server error")
     ),
     tag = "Mentors"
 )]
@@ -43,8 +43,8 @@ pub async fn post_register_mentor(
         ("order" = Option<String>, Query, description = "Sort order (ASC/DESC)"),
     ),
     responses(
-        (status = 200, description = "Get list of mentors", body = Vec<MentorListResponseDto>),
-        (status = 500, description = "Internal server error")
+        (status = 200, description = "[ADMIN] Get list of mentors", body = Vec<MentorListResponseDto>),
+        (status = 500, description = "[ADMIN] Internal server error")
     ),
     tag = "Mentors",
     security(
@@ -75,9 +75,9 @@ pub async fn get_mentor_list(
         ("id" = String, Path, description = "Mentor ID")
     ),
     responses(
-        (status = 200, description = "Get mentor by ID", body = MentorDetailResponseDto),
-        (status = 404, description = "Mentor not found"),
-        (status = 500, description = "Internal server error")
+        (status = 200, description = "[ADMIN] Get mentor by ID", body = MentorDetailResponseDto),
+        (status = 404, description = "[ADMIN] Mentor not found"),
+        (status = 500, description = "[ADMIN] Internal server error")
     ),
     tag = "Mentors",
     security(
@@ -109,10 +109,10 @@ pub async fn get_mentor_by_id(
     ),
     request_body = MentorUpdateRequestDto,
     responses(
-        (status = 200, description = "Mentor updated successfully", body = MentorDetailResponseDto),
-        (status = 400, description = "Bad request - validation error"),
-        (status = 404, description = "Mentor not found"),
-        (status = 500, description = "Internal server error")
+        (status = 200, description = "[ADMIN] Mentor updated successfully", body = MentorDetailResponseDto),
+        (status = 400, description = "[ADMIN] Bad request - validation error"),
+        (status = 404, description = "[ADMIN] Mentor not found"),
+        (status = 500, description = "[ADMIN] Internal server error")
     ),
     tag = "Mentors - Admin",
     security(
@@ -144,9 +144,9 @@ pub async fn put_update_mentor(
         ("id" = String, Path, description = "Mentor ID")
     ),
     responses(
-        (status = 200, description = "Mentor deleted successfully"),
-        (status = 404, description = "Mentor not found"),
-        (status = 500, description = "Internal server error")
+        (status = 200, description = "[ADMIN] Mentor deleted successfully"),
+        (status = 404, description = "[ADMIN] Mentor not found"),
+        (status = 500, description = "[ADMIN] Internal server error")
     ),
     tag = "Mentors - Admin",
     security(
@@ -178,10 +178,10 @@ pub async fn delete_mentor(
     ),
     request_body = MentorVerifyRequestDto,
     responses(
-        (status = 200, description = "Mentor verified successfully", body = MentorDetailResponseDto),
-        (status = 400, description = "Bad request - validation error"),
-        (status = 404, description = "Mentor not found"),
-        (status = 500, description = "Internal server error")
+        (status = 200, description = "[ADMIN] Mentor verified successfully", body = MentorDetailResponseDto),
+        (status = 400, description = "[ADMIN] Bad request - validation error"),
+        (status = 404, description = "[ADMIN] Mentor not found"),
+        (status = 500, description = "[ADMIN] Internal server error")
     ),
     tag = "Mentors - Admin",
     security(
@@ -210,10 +210,10 @@ pub async fn put_verify_mentor(
     get,
     path = "/v1/mentors/me",
     responses(
-        (status = 200, description = "Current user's mentor profile", body = MentorDetailResponseDto),
-        (status = 401, description = "Unauthorized - invalid token"),
-        (status = 403, description = "Mentor profile not found for current user"),
-        (status = 500, description = "Internal server error")
+        (status = 200, description = "[MENTOR] Current user's mentor profile", body = MentorDetailResponseDto),
+        (status = 401, description = "[MENTOR] Unauthorized - invalid token"),
+        (status = 403, description = "[MENTOR] Mentor profile not found for current user"),
+        (status = 500, description = "[MENTOR] Internal server error")
     ),
     tag = "Mentors",
     security(
@@ -252,11 +252,11 @@ pub async fn get_mentor_me(
     path = "/v1/mentors/update/me",
     request_body = MentorUpdateRequestDto,
     responses(
-        (status = 200, description = "Mentor profile updated successfully", body = MentorDetailResponseDto),
-        (status = 400, description = "Bad request - validation error"),
-        (status = 401, description = "Unauthorized - invalid token"),
-        (status = 404, description = "Mentor profile not found"),
-        (status = 500, description = "Internal server error")
+        (status = 200, description = "[MENTOR] Mentor profile updated successfully", body = MentorDetailResponseDto),
+        (status = 400, description = "[MENTOR] Bad request - validation error"),
+        (status = 401, description = "[MENTOR] Unauthorized - invalid token"),
+        (status = 404, description = "[MENTOR] Mentor profile not found"),
+        (status = 500, description = "[MENTOR] Internal server error")
     ),
     tag = "Mentors",
     security(
@@ -295,7 +295,7 @@ pub async fn put_update_mentor_me(
     path = "/v1/mentors/update",
     request_body = MentorUpdateRequestDto,
     responses(
-        (status = 400, description = "Bad request - Mentor ID is required for update"),
+        (status = 400, description = "[PUBLIC] Bad request - Mentor ID is required for update"),
     ),
     tag = "Mentors - Admin"
 )]
@@ -310,10 +310,10 @@ pub async fn put_update_mentor_no_id() -> Response {
     get,
     path = "/v1/mentors/status",
     responses(
-        (status = 200, description = "Mentor application status", body = String),
-        (status = 401, description = "Unauthorized - invalid token"),
-        (status = 403, description = "No mentor application found for current user"),
-        (status = 500, description = "Internal server error")
+        (status = 200, description = "[MENTOR] Mentor application status", body = String),
+        (status = 401, description = "[MENTOR] Unauthorized - invalid token"),
+        (status = 403, description = "[MENTOR] No mentor application found for current user"),
+        (status = 500, description = "[MENTOR] Internal server error")
     ),
     tag = "Mentors",
     security(

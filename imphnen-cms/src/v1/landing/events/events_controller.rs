@@ -27,7 +27,7 @@ use imphnen_iam::{PermissionsEnum, permissions_guard};
         ("filter_by" = Option<String>, Query, description = "Field to filter by"),
     ),
     responses(
-        (status = 200, description = "Get event list", body = ResponseListSuccessDto<Vec<EventsListItemDto>>)
+        (status = 200, description = "[PUBLIC] Get event list", body = ResponseListSuccessDto<Vec<EventsListItemDto>>)
     ),
     tag = "Events"
 )]
@@ -45,7 +45,7 @@ pub async fn get_event_list(
         ("id" = String, Path, description = "Event ID")
     ),
     responses(
-        (status = 200, description = "Get event by ID", body = ResponseSuccessDto<EventsDetailItemDto>)
+        (status = 200, description = "[PUBLIC] Get event by ID", body = ResponseSuccessDto<EventsDetailItemDto>)
     ),
     tag = "Events"
 )]
@@ -64,7 +64,7 @@ pub async fn get_event_by_id(
     path = "/v1/cms/landing/events/create",
     request_body = EventsCreateRequestDto,
     responses(
-        (status = 201, description = "Create new event", body = MessageResponseDto)
+        (status = 201, description = "[ADMIN] Create new event", body = MessageResponseDto)
     ),
     tag = "Events"
 )]
@@ -90,7 +90,7 @@ pub async fn post_create_event(
     ),
     request_body = EventsUpdateRequestDto,
     responses(
-        (status = 200, description = "Update event", body = MessageResponseDto)
+        (status = 200, description = "[ADMIN] Update event", body = MessageResponseDto)
     ),
     tag = "Events"
 )]
@@ -116,7 +116,7 @@ pub async fn patch_update_event(
         ("id" = String, Path, description = "Event ID")
     ),
     responses(
-        (status = 200, description = "Soft delete event", body = MessageResponseDto)
+        (status = 200, description = "[ADMIN] Soft delete event", body = MessageResponseDto)
     ),
     tag = "Events"
 )]

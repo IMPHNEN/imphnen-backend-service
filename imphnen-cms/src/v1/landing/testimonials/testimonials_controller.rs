@@ -28,7 +28,7 @@ use imphnen_iam::permissions_guard;
         ("filter_by" = Option<String>, Query, description = "Field to filter by"),
     ),
     responses(
-        (status = 200, description = "Get testimonial list", body = ResponseListSuccessDto<Vec<TestimonialsListItemDto>>)
+        (status = 200, description = "[PUBLIC] Get testimonial list", body = ResponseListSuccessDto<Vec<TestimonialsListItemDto>>)
     ),
     tag = "Testimonials"
 )]
@@ -46,7 +46,7 @@ pub async fn get_testimonial_list(
         ("id" = String, Path, description = "Testimonial ID")
     ),
     responses(
-        (status = 200, description = "Get testimonial by ID", body = ResponseSuccessDto<TestimonialsDetailItemDto>)
+        (status = 200, description = "[PUBLIC] Get testimonial by ID", body = ResponseSuccessDto<TestimonialsDetailItemDto>)
     ),
     tag = "Testimonials"
 )]
@@ -65,7 +65,7 @@ pub async fn get_testimonial_by_id(
     path = "/v1/cms/landing/testimonials/create",
     request_body = TestimonialsCreateRequestDto,
     responses(
-        (status = 201, description = "Create new testimonial", body = MessageResponseDto)
+        (status = 201, description = "[USER] Create new testimonial", body = MessageResponseDto)
     ),
     tag = "Testimonials"
 )]
@@ -92,7 +92,7 @@ pub async fn post_create_testimonial(
     ),
     request_body = TestimonialsUpdateRequestDto,
     responses(
-        (status = 200, description = "Update testimonial", body = MessageResponseDto)
+        (status = 200, description = "[USER] Update testimonial", body = MessageResponseDto)
     ),
     tag = "Testimonials"
 )]
@@ -119,7 +119,7 @@ pub async fn patch_update_testimonial(
         ("id" = String, Path, description = "Testimonial ID")
     ),
     responses(
-        (status = 200, description = "Soft delete testimonial", body = MessageResponseDto)
+        (status = 200, description = "[USER] Soft delete testimonial", body = MessageResponseDto)
     ),
     tag = "Testimonials"
 )]

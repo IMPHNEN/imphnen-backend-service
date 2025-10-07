@@ -26,9 +26,9 @@ use imphnen_iam::{PermissionsEnum, permissions_guard};
     path = "/v1/hackathons",
     request_body = HackathonCreateRequestDto,
     responses(
-        (status = 201, description = "Hackathon created successfully", body = ResponseSuccessDto<HackathonDto>),
-        (status = 400, description = "Bad request", body = ErrorDto),
-        (status = 500, description = "Internal server error", body = ErrorDto)
+        (status = 201, description = "[ADMIN] Hackathon created successfully", body = ResponseSuccessDto<HackathonDto>),
+        (status = 400, description = "[ADMIN] Bad request", body = ErrorDto),
+        (status = 500, description = "[ADMIN] Internal server error", body = ErrorDto)
     ),
     tag = "Hackathons"
 )]
@@ -53,9 +53,9 @@ pub async fn create_hackathon(
         ("id" = String, Path, description = "Hackathon ID")
     ),
     responses(
-        (status = 200, description = "Hackathon retrieved successfully", body = ResponseSuccessDto<HackathonDto>),
-        (status = 404, description = "Hackathon not found", body = ErrorDto),
-        (status = 500, description = "Internal server error", body = ErrorDto)
+        (status = 200, description = "[PUBLIC] Hackathon retrieved successfully", body = ResponseSuccessDto<HackathonDto>),
+        (status = 404, description = "[PUBLIC] Hackathon not found", body = ErrorDto),
+        (status = 500, description = "[PUBLIC] Internal server error", body = ErrorDto)
     ),
     tag = "Hackathons"
 )]
@@ -82,8 +82,8 @@ pub async fn get_hackathon(
         ("filter_by" = Option<String>, Query, description = "Field to filter by"),
     ),
     responses(
-        (status = 200, description = "Hackathons retrieved successfully", body = ResponseListSuccessDto<Vec<HackathonDto>>),
-        (status = 500, description = "Internal server error", body = ErrorDto)
+        (status = 200, description = "[PUBLIC] Hackathons retrieved successfully", body = ResponseListSuccessDto<Vec<HackathonDto>>),
+        (status = 500, description = "[PUBLIC] Internal server error", body = ErrorDto)
     ),
     tag = "Hackathons"
 )]
@@ -108,10 +108,10 @@ pub async fn list_hackathons(
     ),
     request_body = HackathonUpdateRequestDto,
     responses(
-        (status = 200, description = "Hackathon updated successfully", body = ResponseSuccessDto<HackathonDto>),
-        (status = 400, description = "Bad request", body = ErrorDto),
-        (status = 404, description = "Hackathon not found", body = ErrorDto),
-        (status = 500, description = "Internal server error", body = ErrorDto)
+        (status = 200, description = "[ADMIN] Hackathon updated successfully", body = ResponseSuccessDto<HackathonDto>),
+        (status = 400, description = "[ADMIN] Bad request", body = ErrorDto),
+        (status = 404, description = "[ADMIN] Hackathon not found", body = ErrorDto),
+        (status = 500, description = "[ADMIN] Internal server error", body = ErrorDto)
     ),
     tag = "Hackathons"
 )]
@@ -140,9 +140,9 @@ pub async fn update_hackathon(
         ("id" = String, Path, description = "Hackathon ID")
     ),
     responses(
-        (status = 200, description = "Hackathon deleted successfully", body = ResponseSuccessDto<String>),
-        (status = 404, description = "Hackathon not found", body = ErrorDto),
-        (status = 500, description = "Internal server error", body = ErrorDto)
+        (status = 200, description = "[ADMIN] Hackathon deleted successfully", body = ResponseSuccessDto<String>),
+        (status = 404, description = "[ADMIN] Hackathon not found", body = ErrorDto),
+        (status = 500, description = "[ADMIN] Internal server error", body = ErrorDto)
     ),
     tag = "Hackathons"
 )]
@@ -169,10 +169,10 @@ pub async fn delete_hackathon(
     ),
     request_body = HackathonEventCreateRequestDto,
     responses(
-        (status = 201, description = "Event created successfully", body = ResponseSuccessDto<HackathonEventDto>),
-        (status = 400, description = "Bad request", body = ErrorDto),
-        (status = 404, description = "Hackathon not found", body = ErrorDto),
-        (status = 500, description = "Internal server error", body = ErrorDto)
+        (status = 201, description = "[PUBLIC] Event created successfully", body = ResponseSuccessDto<HackathonEventDto>),
+        (status = 400, description = "[PUBLIC] Bad request", body = ErrorDto),
+        (status = 404, description = "[PUBLIC] Hackathon not found", body = ErrorDto),
+        (status = 500, description = "[PUBLIC] Internal server error", body = ErrorDto)
     ),
     tag = "Hackathon Events"
 )]
@@ -201,8 +201,8 @@ pub async fn create_hackathon_event(
         ("filter_by" = Option<String>, Query, description = "Field to filter by"),
     ),
     responses(
-        (status = 200, description = "Events retrieved successfully", body = ResponseListSuccessDto<Vec<HackathonEventDto>>),
-        (status = 500, description = "Internal server error", body = ErrorDto)
+        (status = 200, description = "[PUBLIC] Events retrieved successfully", body = ResponseListSuccessDto<Vec<HackathonEventDto>>),
+        (status = 500, description = "[PUBLIC] Internal server error", body = ErrorDto)
     ),
     tag = "Hackathon Events"
 )]
@@ -225,10 +225,10 @@ pub async fn list_hackathon_events(
     ),
     request_body = HackathonEventUpdateRequestDto,
     responses(
-        (status = 200, description = "Event updated successfully", body = ResponseSuccessDto<HackathonEventDto>),
-        (status = 400, description = "Bad request", body = ErrorDto),
-        (status = 404, description = "Event not found", body = ErrorDto),
-        (status = 500, description = "Internal server error", body = ErrorDto)
+        (status = 200, description = "[PUBLIC] Event updated successfully", body = ResponseSuccessDto<HackathonEventDto>),
+        (status = 400, description = "[PUBLIC] Bad request", body = ErrorDto),
+        (status = 404, description = "[PUBLIC] Event not found", body = ErrorDto),
+        (status = 500, description = "[PUBLIC] Internal server error", body = ErrorDto)
     ),
     tag = "Hackathon Events"
 )]
@@ -250,9 +250,9 @@ pub async fn update_hackathon_event(
         ("id" = String, Path, description = "Event ID")
     ),
     responses(
-        (status = 200, description = "Event deleted successfully", body = ResponseSuccessDto<String>),
-        (status = 404, description = "Event not found", body = ErrorDto),
-        (status = 500, description = "Internal server error", body = ErrorDto)
+        (status = 200, description = "[PUBLIC] Event deleted successfully", body = ResponseSuccessDto<String>),
+        (status = 404, description = "[PUBLIC] Event not found", body = ErrorDto),
+        (status = 500, description = "[PUBLIC] Internal server error", body = ErrorDto)
     ),
     tag = "Hackathon Events"
 )]
@@ -275,10 +275,10 @@ pub async fn delete_hackathon_event(
     ),
     request_body = HackathonTimelineCreateRequestDto,
     responses(
-        (status = 201, description = "Timeline created successfully", body = ResponseSuccessDto<HackathonTimelineDto>),
-        (status = 400, description = "Bad request", body = ErrorDto),
-        (status = 404, description = "Hackathon not found", body = ErrorDto),
-        (status = 500, description = "Internal server error", body = ErrorDto)
+        (status = 201, description = "[PUBLIC] Timeline created successfully", body = ResponseSuccessDto<HackathonTimelineDto>),
+        (status = 400, description = "[PUBLIC] Bad request", body = ErrorDto),
+        (status = 404, description = "[PUBLIC] Hackathon not found", body = ErrorDto),
+        (status = 500, description = "[PUBLIC] Internal server error", body = ErrorDto)
     ),
     tag = "Hackathon Timeline"
 )]
@@ -307,8 +307,8 @@ pub async fn create_hackathon_timeline(
         ("filter_by" = Option<String>, Query, description = "Field to filter by"),
     ),
     responses(
-        (status = 200, description = "Timeline retrieved successfully", body = ResponseListSuccessDto<Vec<HackathonTimelineDto>>),
-        (status = 500, description = "Internal server error", body = ErrorDto)
+        (status = 200, description = "[PUBLIC] Timeline retrieved successfully", body = ResponseListSuccessDto<Vec<HackathonTimelineDto>>),
+        (status = 500, description = "[PUBLIC] Internal server error", body = ErrorDto)
     ),
     tag = "Hackathon Timeline"
 )]
@@ -331,10 +331,10 @@ pub async fn list_hackathon_timeline(
     ),
     request_body = HackathonTimelineUpdateRequestDto,
     responses(
-        (status = 200, description = "Timeline updated successfully", body = ResponseSuccessDto<HackathonTimelineDto>),
-        (status = 400, description = "Bad request", body = ErrorDto),
-        (status = 404, description = "Timeline not found", body = ErrorDto),
-        (status = 500, description = "Internal server error", body = ErrorDto)
+        (status = 200, description = "[PUBLIC] Timeline updated successfully", body = ResponseSuccessDto<HackathonTimelineDto>),
+        (status = 400, description = "[PUBLIC] Bad request", body = ErrorDto),
+        (status = 404, description = "[PUBLIC] Timeline not found", body = ErrorDto),
+        (status = 500, description = "[PUBLIC] Internal server error", body = ErrorDto)
     ),
     tag = "Hackathon Timeline"
 )]
@@ -356,9 +356,9 @@ pub async fn update_hackathon_timeline(
         ("id" = String, Path, description = "Timeline ID")
     ),
     responses(
-        (status = 200, description = "Timeline deleted successfully", body = ResponseSuccessDto<String>),
-        (status = 404, description = "Timeline not found", body = ErrorDto),
-        (status = 500, description = "Internal server error", body = ErrorDto)
+        (status = 200, description = "[PUBLIC] Timeline deleted successfully", body = ResponseSuccessDto<String>),
+        (status = 404, description = "[PUBLIC] Timeline not found", body = ErrorDto),
+        (status = 500, description = "[PUBLIC] Internal server error", body = ErrorDto)
     ),
     tag = "Hackathon Timeline"
 )]
@@ -382,10 +382,10 @@ pub async fn delete_hackathon_timeline(
     ),
     request_body = HackathonSubmissionCreateRequestDto,
     responses(
-        (status = 201, description = "Submission created successfully", body = ResponseSuccessDto<HackathonSubmissionDto>),
-        (status = 400, description = "Bad request", body = ErrorDto),
-        (status = 404, description = "Hackathon not found", body = ErrorDto),
-        (status = 500, description = "Internal server error", body = ErrorDto)
+        (status = 201, description = "[PUBLIC] Submission created successfully", body = ResponseSuccessDto<HackathonSubmissionDto>),
+        (status = 400, description = "[PUBLIC] Bad request", body = ErrorDto),
+        (status = 404, description = "[PUBLIC] Hackathon not found", body = ErrorDto),
+        (status = 500, description = "[PUBLIC] Internal server error", body = ErrorDto)
     ),
     tag = "Hackathon Submissions"
 )]
@@ -414,8 +414,8 @@ pub async fn create_hackathon_submission(
         ("filter_by" = Option<String>, Query, description = "Field to filter by"),
     ),
     responses(
-        (status = 200, description = "Submissions retrieved successfully", body = ResponseListSuccessDto<Vec<HackathonSubmissionDto>>),
-        (status = 500, description = "Internal server error", body = ErrorDto)
+        (status = 200, description = "[PUBLIC] Submissions retrieved successfully", body = ResponseListSuccessDto<Vec<HackathonSubmissionDto>>),
+        (status = 500, description = "[PUBLIC] Internal server error", body = ErrorDto)
     ),
     tag = "Hackathon Submissions"
 )]
@@ -437,9 +437,9 @@ pub async fn list_hackathon_submissions(
         ("id" = String, Path, description = "Submission ID")
     ),
     responses(
-        (status = 200, description = "Submission retrieved successfully", body = ResponseSuccessDto<HackathonSubmissionDto>),
-        (status = 404, description = "Submission not found", body = ErrorDto),
-        (status = 500, description = "Internal server error", body = ErrorDto)
+        (status = 200, description = "[PUBLIC] Submission retrieved successfully", body = ResponseSuccessDto<HackathonSubmissionDto>),
+        (status = 404, description = "[PUBLIC] Submission not found", body = ErrorDto),
+        (status = 500, description = "[PUBLIC] Internal server error", body = ErrorDto)
     ),
     tag = "Hackathon Submissions"
 )]
@@ -461,10 +461,10 @@ pub async fn get_hackathon_submission(
     ),
     request_body = HackathonSubmissionUpdateRequestDto,
     responses(
-        (status = 200, description = "Submission updated successfully", body = ResponseSuccessDto<HackathonSubmissionDto>),
-        (status = 400, description = "Bad request", body = ErrorDto),
-        (status = 404, description = "Submission not found", body = ErrorDto),
-        (status = 500, description = "Internal server error", body = ErrorDto)
+        (status = 200, description = "[PUBLIC] Submission updated successfully", body = ResponseSuccessDto<HackathonSubmissionDto>),
+        (status = 400, description = "[PUBLIC] Bad request", body = ErrorDto),
+        (status = 404, description = "[PUBLIC] Submission not found", body = ErrorDto),
+        (status = 500, description = "[PUBLIC] Internal server error", body = ErrorDto)
     ),
     tag = "Hackathon Submissions"
 )]
@@ -486,9 +486,9 @@ pub async fn update_hackathon_submission(
         ("id" = String, Path, description = "Submission ID")
     ),
     responses(
-        (status = 200, description = "Submission submitted successfully", body = ResponseSuccessDto<HackathonSubmissionDto>),
-        (status = 404, description = "Submission not found", body = ErrorDto),
-        (status = 500, description = "Internal server error", body = ErrorDto)
+        (status = 200, description = "[PUBLIC] Submission submitted successfully", body = ResponseSuccessDto<HackathonSubmissionDto>),
+        (status = 404, description = "[PUBLIC] Submission not found", body = ErrorDto),
+        (status = 500, description = "[PUBLIC] Internal server error", body = ErrorDto)
     ),
     tag = "Hackathon Submissions"
 )]
@@ -509,9 +509,9 @@ pub async fn submit_hackathon_submission(
         ("id" = String, Path, description = "Submission ID")
     ),
     responses(
-        (status = 200, description = "Submission deleted successfully", body = ResponseSuccessDto<String>),
-        (status = 404, description = "Submission not found", body = ErrorDto),
-        (status = 500, description = "Internal server error", body = ErrorDto)
+        (status = 200, description = "[PUBLIC] Submission deleted successfully", body = ResponseSuccessDto<String>),
+        (status = 404, description = "[PUBLIC] Submission not found", body = ErrorDto),
+        (status = 500, description = "[PUBLIC] Internal server error", body = ErrorDto)
     ),
     tag = "Hackathon Submissions"
 )]

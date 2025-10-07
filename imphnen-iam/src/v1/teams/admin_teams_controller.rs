@@ -44,7 +44,7 @@ where
         ("filter_by" = Option<String>, Query, description = "Field to filter by"),
     ),
     responses(
-        (status = 200, description = "Get all teams (admin)", body = ResponseListSuccessDto<Vec<AdminTeamsListItemDto>>)
+        (status = 200, description = "[ADMIN] Get all teams (admin)", body = ResponseListSuccessDto<Vec<AdminTeamsListItemDto>>)
     ),
     tag = "Admin - Teams"
 )]
@@ -68,7 +68,7 @@ pub async fn get_all_teams(
         ("id" = String, Path, description = "Team ID")
     ),
     responses(
-        (status = 200, description = "Get team by ID (admin)", body = ResponseSuccessDto<AdminTeamsDetailItemDto>)
+        (status = 200, description = "[ADMIN] Get team by ID (admin)", body = ResponseSuccessDto<AdminTeamsDetailItemDto>)
     ),
     tag = "Admin - Teams"
 )]
@@ -92,7 +92,7 @@ pub async fn get_team_by_id(
         ("id" = String, Path, description = "Team ID")
     ),
     responses(
-        (status = 200, description = "Get team members (admin)", body = ResponseSuccessDto<Vec<TeamMemberDto>>)
+        (status = 200, description = "[ADMIN] Get team members (admin)", body = ResponseSuccessDto<Vec<TeamMemberDto>>)
     ),
     tag = "Admin - Teams"
 )]
@@ -114,7 +114,7 @@ pub async fn get_team_members(
     path = "/",
     request_body = TeamsCreateRequestDto,
     responses(
-        (status = 200, description = "Create team (admin)", body = ResponseSuccessDto<serde_json::Value>)
+        (status = 200, description = "[ADMIN] Create team (admin)", body = ResponseSuccessDto<serde_json::Value>)
     ),
     tag = "Admin - Teams"
 )]
@@ -139,7 +139,7 @@ pub async fn create_team(
     ),
     request_body = TeamsUpdateRequestDto,
     responses(
-        (status = 200, description = "Update team (admin)", body = MessageResponseDto)
+        (status = 200, description = "[ADMIN] Update team (admin)", body = MessageResponseDto)
     ),
     tag = "Admin - Teams"
 )]
@@ -164,7 +164,7 @@ pub async fn update_team(
         ("id" = String, Path, description = "Team ID")
     ),
     responses(
-        (status = 200, description = "Delete team (admin)", body = MessageResponseDto)
+        (status = 200, description = "[ADMIN] Delete team (admin)", body = MessageResponseDto)
     ),
     tag = "Admin - Teams"
 )]
@@ -189,7 +189,7 @@ pub async fn delete_team(
     ),
     request_body = TeamInviteRequestDto,
     responses(
-        (status = 200, description = "Invite team members (admin)", body = ResponseSuccessDto<serde_json::Value>)
+        (status = 200, description = "[ADMIN] Invite team members (admin)", body = ResponseSuccessDto<serde_json::Value>)
     ),
     tag = "Admin - Teams"
 )]

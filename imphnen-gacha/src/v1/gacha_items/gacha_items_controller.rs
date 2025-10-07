@@ -27,7 +27,7 @@ use imphnen_iam::{PermissionsEnum, permissions_guard};
         ("filter_by" = Option<String>, Query, description = "Field to filter by"),
     ),
     responses(
-        (status = 200, description = "Get gacha item list", body = ResponseListSuccessDto<Vec<GachaItemDto>>)
+        (status = 200, description = "[ADMIN] Get gacha item list", body = ResponseListSuccessDto<Vec<GachaItemDto>>)
     ),
     tag = "Gacha"
 )]
@@ -56,7 +56,7 @@ pub async fn get_gacha_item_list(
     ),
     params(("id" = String, Path, description = "Gacha Item ID")),
     responses(
-        (status = 200, description = "Get gacha item by ID", body = ResponseSuccessDto<GachaItemDto>)
+        (status = 200, description = "[ADMIN] Get gacha item by ID", body = ResponseSuccessDto<GachaItemDto>)
     ),
     tag = "Gacha"
 )]
@@ -85,7 +85,7 @@ pub async fn get_gacha_item_by_id(
     ),
     request_body = GachaItemRequestDto,
     responses(
-        (status = 201, description = "Create gacha item", body = MessageResponseDto)
+        (status = 201, description = "[ADMIN] Create gacha item", body = MessageResponseDto)
     ),
     tag = "Gacha"
 )]
@@ -114,7 +114,7 @@ pub async fn post_create_gacha_item(
     ),
     request_body = GachaItemUpdateRequestDto,
     responses(
-        (status = 200, description = "Update gacha item", body = MessageResponseDto)
+        (status = 200, description = "[ADMIN] Update gacha item", body = MessageResponseDto)
     ),
     tag = "Gacha"
 )]
@@ -143,7 +143,7 @@ pub async fn put_update_gacha_item(
         ("Bearer" = [])
     ),
     responses(
-        (status = 200, description = "Delete gacha item", body = MessageResponseDto)
+        (status = 200, description = "[ADMIN] Delete gacha item", body = MessageResponseDto)
     ),
     tag = "Gacha"
 )]
