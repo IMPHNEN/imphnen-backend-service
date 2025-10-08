@@ -47,6 +47,10 @@ path = "src/bin/seed_teams.rs"
 name = "seed_hackathons"
 path = "src/bin/seed_hackathons.rs"
 
+[[bin]]
+name = "seed_test_data"
+path = "src/bin/seed_test_data.rs"
+
 [dependencies]
 imphnen-libs.workspace = true
 imphnen-utils.workspace = true
@@ -54,6 +58,7 @@ imphnen-gateway.workspace = true
 imphnen-entities.workspace = true
 imphnen-iam.workspace = true
 imphnen-cms.workspace = true
+imphnen-gacha.workspace = true
 imphnen-dimentorin.workspace = true
 imphnen-hackathon.workspace = true
 axum.workspace = true

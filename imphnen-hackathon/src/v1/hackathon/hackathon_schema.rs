@@ -1,5 +1,7 @@
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Deserializer};
+use std::str::FromStr;
+use serde::de;
 use surrealdb::sql::Thing;
 
 use imphnen_utils::make_thing;
@@ -104,7 +106,38 @@ pub enum HackathonStatus {
     Cancelled,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, utoipa::ToSchema, strum::Display)]
+#[derive(Clone, Debug, Serialize, PartialEq, utoipa::ToSchema, strum::Display)]
+pub enum HackathonPhase {
+    Registration,
+    Ideation,
+    Development,
+    Submission,
+    Judging,
+    Awards,
+}
+
+// Manual Deserialize implementation for case-insensitive support
+impl<'de> Deserialize<'de> for HackathonPhase {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        let normalized = s.to_lowercase();
+        
+        match normalized.as_str() {
+            "registration" => Ok(HackathonPhase::Registration),
+            "ideation" => Ok(HackathonPhase::Ideation),
+            "development" => Ok(HackathonPhase::Development),
+            "submission" => Ok(HackathonPhase::Submission),
+            "judging" => Ok(HackathonPhase::Judging),
+            "awards" => Ok(HackathonPhase::Awards),
+            _ => Err(serde::de::Error::custom(format!("Invalid HackathonPhase: {}", s)))
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, utoipa::ToSchema, strum::Display)]
 pub enum HackathonEventType {
     Workshop,
     Keynote,
@@ -114,14 +147,31 @@ pub enum HackathonEventType {
     Other,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, utoipa::ToSchema, strum::Display)]
-pub enum HackathonPhase {
-    Registration,
-    Ideation,
-    Development,
-    Submission,
-    Judging,
-    Awards,
+// Implement case-insensitive string parsing for HackathonEventType
+impl FromStr for HackathonEventType {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "workshop" => Ok(Self::Workshop),
+            "keynote" => Ok(Self::Keynote),
+            "networking" => Ok(Self::Networking),
+            "judging" => Ok(Self::Judging),
+            "ceremony" => Ok(Self::Ceremony),
+            "other" => Ok(Self::Other),
+            _ => Err(format!("Invalid HackathonEventType: {}", s)),
+        }
+    }
+}
+
+// Manual Deserialize implementation for case-insensitive support
+impl<'de> Deserialize<'de> for HackathonEventType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Self::from_str(&s).map_err(de::Error::custom)
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, utoipa::ToSchema, strum::Display)]

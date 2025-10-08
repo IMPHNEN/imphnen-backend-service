@@ -59,7 +59,12 @@ impl GachaClaimSchema {
 				&Uuid::new_v4().to_string(),
 			),
 			user: user_id,
-			item: roll.item.id.clone(),
+			// roll.item is optional at the DTO level; assume caller ensured a valid item exists
+			item: roll
+				.item
+				.as_ref()
+				.map(|i| i.id.clone())
+				.unwrap_or_else(|| make_thing(&ResourceEnum::GachaItems.to_string(), &Uuid::new_v4().to_string())),
 			..Default::default()
 		}
 	}

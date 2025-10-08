@@ -36,6 +36,24 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			"User",
 			"5713cb37-dc02-4e87-8048-d7a41d352059",
 		),
+		(
+			"testuser1-id",
+			"testuser1@example.com",
+			"Test User 1",
+			"5713cb37-dc02-4e87-8048-d7a41d352059",
+		),
+		(
+			"testuser2-id",
+			"testuser2@example.com",
+			"Test User 2",
+			"5713cb37-dc02-4e87-8048-d7a41d352059",
+		),
+		(
+			"testuser3-id",
+			"testuser3@example.com",
+			"Test User 3",
+			"5713cb37-dc02-4e87-8048-d7a41d352059",
+		),
 	];
 
 	for (id, email, fullname, role_id) in users {

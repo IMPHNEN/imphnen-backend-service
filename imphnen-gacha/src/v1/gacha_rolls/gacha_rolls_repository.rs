@@ -9,7 +9,6 @@ use anyhow::{Result, bail};
 use rand::prelude::*;
 
 use imphnen_utils::get_iso_date;
-use rand_distr::weighted::WeightedIndex;
 use serde_json::{Map, Value};
 use std::time::Instant;
 use tracing::instrument;
@@ -81,36 +80,68 @@ impl<'a> GachaRollRepository<'a> {
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
 		let table_name = ResourceEnum::GachaRolls.to_string();
-		let sql =
-			format!("SELECT * FROM {table_name} WHERE is_deleted = false FETCH item");
-		info!(query = %sql, "Executing SurrealDB query");
-		let result: Vec<GachaRollQueryDto> = db.query(sql).await?.take(0)?;
+		
+		// Use DetailQueryBuilder to properly fetch related item data
+		let builder = DetailQueryBuilder::new(table_name)
+			.with_condition("is_deleted = false AND quantity > 0")
+			.with_select_fields(vec!["*"])
+			.with_fetch("item");
+		let sql = builder.build();
+		info!(query = %sql, "Executing SurrealDB query for active rolls");
+		
+		let mut result = builder.apply_bindings(db.query(sql)).await?;
+		let results = match result.take(0) {
+			Ok(v) => v,
+			Err(_) => return Ok(Vec::new()),
+		};
+
 		let elapsed = now.elapsed();
 		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
 			== "development"
 		{
 			println!("Query 'query_all_active_rolls' took: {elapsed:.2?}");
 		}
-		Ok(result)
+		Ok(results)
 	}
 
 	#[instrument]
 	pub fn roll_once(rolls: &[GachaRollQueryDto]) -> Option<GachaRollQueryDto> {
-		let filtered: Vec<_> = rolls
+		let filtered: Vec<GachaRollQueryDto> = rolls
 			.iter()
 			.filter(|r| !r.is_deleted && r.quantity > 0)
+			.cloned()
 			.collect();
-		let weights: Vec<f32> = filtered
-			.iter()
-			.map(|r| r.weight * r.quantity as f32)
-			.collect();
-		if weights.iter().all(|&w| w <= 0.0) {
+		
+		if filtered.is_empty() {
 			return None;
 		}
-		let dist = WeightedIndex::new(&weights).ok()?;
+
+		// Simple random selection based on quantity weights
+		let total_weight: f32 = filtered.iter()
+			.map(|r| r.weight * r.quantity as f32)
+			.sum();
+
+		if total_weight <= 0.0 {
+			// Fallback to equal probability if weights are invalid
+			let mut rng = rand::rngs::ThreadRng::default();
+			let index = rng.random_range(0..filtered.len());
+			return Some(filtered[index].clone());
+		}
+
+		// Weighted random selection
 		let mut rng = rand::rngs::ThreadRng::default();
-		let index = dist.sample(&mut rng);
-		Some(filtered[index].clone())
+		let random_value = rng.random_range(0.0..total_weight);
+		
+		let mut cumulative_weight = 0.0;
+		for roll in &filtered {
+			cumulative_weight += roll.weight * roll.quantity as f32;
+			if random_value <= cumulative_weight {
+				return Some(roll.clone());
+			}
+		}
+
+		// This should rarely happen but provides a fallback
+		Some(filtered[0].clone())
 	}
 
 	#[instrument(skip(self, id), err)]

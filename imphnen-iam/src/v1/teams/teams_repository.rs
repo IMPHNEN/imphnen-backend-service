@@ -219,8 +219,8 @@ impl<'a> TeamsRepository<'a> {
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
 		let sql = format!(
-			"SELECT team.* FROM {} AS membership
-			 INNER JOIN {} AS team ON membership.team_id = team.id
+			"SELECT team.* FROM {} membership
+			 INNER JOIN {} team ON membership.team_id = team.id
 			 WHERE membership.user_id = $user_id
 			 AND membership.is_active = true
 			 AND team.is_deleted = false

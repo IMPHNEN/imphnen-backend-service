@@ -87,8 +87,12 @@ impl<'a> UsersRepository<'a> {
 			.with_fetch("role")
 			.with_fetch("role.permissions");
 		let sql = builder.build();
-		let user_opt: Option<UsersDetailQueryDto> =
-			builder.apply_bindings(db.query(sql)).await?.take(0)?;
+		// Some SurrealDB queries may return multiple rows (e.g., duplicates).
+		// Safely take all rows and pick the first valid user (not deleted and with a valid role).
+		let rows: Vec<UsersDetailQueryDto> = builder.apply_bindings(db.query(sql)).await?.take(0)?;
+		let user_opt: Option<UsersDetailQueryDto> = rows
+			.into_iter()
+			.find(|u| !u.is_deleted && !u.role.is_deleted && u.role.updated_at.is_some());
 		let elapsed = now.elapsed();
 
 		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())

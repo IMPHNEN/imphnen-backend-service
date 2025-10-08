@@ -27,6 +27,17 @@ impl<'a> HackathonRepository<'a> {
     pub fn new(state: &'a AppState) -> Self {
         Self { state }
     }
+    
+    // Normalize an incoming id so callers can pass either the full thing string
+    // (e.g. "app_hackathons:1") or the raw id ("1"). If the id starts with
+    // the table prefix ("{table}:") the prefix is stripped.
+    fn normalize_id(&self, table: &str, id: &str) -> String {
+        if id.starts_with(&format!("{}:", table)) {
+            id.splitn(2, ':').nth(1).unwrap_or(id).to_string()
+        } else {
+            id.to_string()
+        }
+    }
 }
 
 // Hackathon CRUD operations
@@ -94,10 +105,12 @@ impl<'a> HackathonRepository<'a> {
         let table = ResourceEnum::Hackathons.to_string();
         info!(query = %format!("SELECT * FROM {} WHERE id = '{}'", table, id), "Executing SurrealDB query");
 
+        let normalized_id = self.normalize_id(&table, &id);
+
         let record: Option<HackathonSchema> = self
             .state
             .surrealdb_ws
-            .select((table, id))
+            .select((table, normalized_id.clone()))
             .await?;
 
         match record {
@@ -210,9 +223,11 @@ impl<'a> HackathonRepository<'a> {
         ]);
 
         info!(query = %format!("UPDATE {} SET is_deleted = true WHERE id = '{}'", table, id), "Executing SurrealDB query");
+        let normalized_id = self.normalize_id(&table, &id);
+        info!(query = %format!("UPDATE {} SET is_deleted = true WHERE id = '{}'", table, normalized_id), "Executing SurrealDB query");
         let record: Option<HackathonSchema> = self
             .state.surrealdb_ws
-            .update((table, id))
+            .update((table, normalized_id.clone()))
             .merge(serde_json::to_value(updates)?)
             .await?;
 
@@ -230,9 +245,11 @@ impl<'a> HackathonRepository<'a> {
         let table = ResourceEnum::HackathonEvents.to_string();
         let id = surrealdb::Uuid::new_v4().to_string();
 
+        let normalized_hackathon_id = self.normalize_id("app_hackathons", &hackathon_id);
+
         let schema = HackathonEventsSchema {
             id: Thing::from((table.clone(), id.clone())),
-            hackathon_id: Thing::from(("app_hackathons".to_string(), hackathon_id)),
+            hackathon_id: Thing::from(("app_hackathons".to_string(), normalized_hackathon_id)),
             title: event.title,
             description: event.description,
             event_type: event.event_type,
@@ -264,9 +281,11 @@ impl<'a> HackathonRepository<'a> {
     pub async fn list_hackathon_events(&self, meta: imphnen_libs::MetaRequestDto, hackathon_id: String) -> Result<imphnen_libs::ResponseListSuccessDto<Vec<HackathonEventsSchema>>> {
         let table = ResourceEnum::HackathonEvents.to_string();
 
+        let normalized_hackathon_id = self.normalize_id("app_hackathons", &hackathon_id);
+
         let builder = QueryListBuilder::new(&self.state.surrealdb_ws, &table, &meta)
             .with_condition("is_deleted = false")
-            .with_condition(&format!("hackathon_id = type::thing('app_hackathons', '{}')", hackathon_id))
+            .with_condition(&format!("hackathon_id = type::thing('app_hackathons', '{}')", normalized_hackathon_id))
             .search_field("title")
             .select_fields(vec!["*"]);
 
@@ -360,9 +379,11 @@ impl<'a> HackathonRepository<'a> {
         let table = ResourceEnum::HackathonTimeline.to_string();
         let id = surrealdb::Uuid::new_v4().to_string();
 
+        let normalized_hackathon_id = self.normalize_id("app_hackathons", &hackathon_id);
+
         let schema = HackathonTimelineSchema {
             id: Thing::from((table.clone(), id.clone())),
-            hackathon_id: Thing::from(("app_hackathons".to_string(), hackathon_id)),
+            hackathon_id: Thing::from(("app_hackathons".to_string(), normalized_hackathon_id)),
             phase: timeline.phase,
             title: timeline.title,
             description: timeline.description,
@@ -392,9 +413,11 @@ impl<'a> HackathonRepository<'a> {
     pub async fn list_hackathon_timeline(&self, meta: imphnen_libs::MetaRequestDto, hackathon_id: String) -> Result<imphnen_libs::ResponseListSuccessDto<Vec<HackathonTimelineSchema>>> {
         let table = ResourceEnum::HackathonTimeline.to_string();
 
+        let normalized_hackathon_id = self.normalize_id("app_hackathons", &hackathon_id);
+
         let builder = QueryListBuilder::new(&self.state.surrealdb_ws, &table, &meta)
             .with_condition("is_deleted = false")
-            .with_condition(&format!("hackathon_id = type::thing('app_hackathons', '{}')", hackathon_id))
+            .with_condition(&format!("hackathon_id = type::thing('app_hackathons', '{}')", normalized_hackathon_id))
             .search_field("title")
             .select_fields(vec!["*"]);
 
@@ -481,10 +504,13 @@ impl<'a> HackathonRepository<'a> {
         let table = ResourceEnum::HackathonSubmissions.to_string();
         let id = surrealdb::Uuid::new_v4().to_string();
 
+        let normalized_hackathon_id = self.normalize_id("app_hackathons", &hackathon_id);
+        let normalized_team_id = self.normalize_id("app_teams", &team_id);
+
         let schema = HackathonSubmissionsSchema {
             id: Thing::from((table.clone(), id.clone())),
-            hackathon_id: Thing::from(("app_hackathons".to_string(), hackathon_id)),
-            team_id: Thing::from(("app_teams".to_string(), team_id)),
+            hackathon_id: Thing::from(("app_hackathons".to_string(), normalized_hackathon_id)),
+            team_id: Thing::from(("app_teams".to_string(), normalized_team_id)),
             project_name: submission.project_name,
             description: submission.description,
             repository_url: submission.repository_url,
@@ -515,9 +541,11 @@ impl<'a> HackathonRepository<'a> {
     pub async fn list_hackathon_submissions(&self, meta: imphnen_libs::MetaRequestDto, hackathon_id: String) -> Result<imphnen_libs::ResponseListSuccessDto<Vec<HackathonSubmissionsSchema>>> {
         let table = ResourceEnum::HackathonSubmissions.to_string();
 
+        let normalized_hackathon_id = self.normalize_id("app_hackathons", &hackathon_id);
+
         let builder = QueryListBuilder::new(&self.state.surrealdb_ws, &table, &meta)
             .with_condition("is_deleted = false")
-            .with_condition(&format!("hackathon_id = type::thing('app_hackathons', '{}')", hackathon_id))
+            .with_condition(&format!("hackathon_id = type::thing('app_hackathons', '{}')", normalized_hackathon_id))
             .search_field("project_name")
             .select_fields(vec!["*"]);
 

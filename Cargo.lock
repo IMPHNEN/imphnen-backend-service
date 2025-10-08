@@ -2038,6 +2038,7 @@ dependencies = [
  "imphnen-cms",
  "imphnen-dimentorin",
  "imphnen-entities",
+ "imphnen-gacha",
  "imphnen-gateway",
  "imphnen-hackathon",
  "imphnen-iam",
