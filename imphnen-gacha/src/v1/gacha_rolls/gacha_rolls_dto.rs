@@ -7,10 +7,13 @@ use validator::Validate;
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Validate)]
 pub struct GachaRollRequestDto {
-	#[validate(length(min = 1, message = "Item ID must not be empty"))]
+	#[validate(length(min = 1, max = 100, message = "Item ID must be between 1 and 100 characters"))]
 	pub item_id: String,
+
+	#[validate(range(min = 0.0, max = 1.0, message = "Weight must be between 0.0 and 1.0"))]
 	pub weight: f32,
-	#[validate(range(min = 1, message = "Quantity must be at least 1"))]
+
+	#[validate(range(min = 1, max = 100, message = "Quantity must be between 1 and 100"))]
 	pub quantity: i32,
 }
 

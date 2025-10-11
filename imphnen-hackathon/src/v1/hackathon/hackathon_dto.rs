@@ -1,7 +1,43 @@
 use chrono::{DateTime, Utc};
+use lazy_static::lazy_static;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use utoipa::{ToSchema, schema};
-use validator::Validate;
+use validator::{Validate, ValidationError};
+
+// Custom validators
+pub fn validate_url_format(url: &str) -> Result<(), ValidationError> {
+	lazy_static! {
+		static ref URL_REGEX: Regex = Regex::new(r"^https?://[^\s$.?#].[^\s]*$").unwrap();
+	}
+	if URL_REGEX.is_match(url) {
+		Ok(())
+	} else {
+		Err(ValidationError::new("invalid_url"))
+	}
+}
+
+pub fn validate_github_url(url: &str) -> Result<(), ValidationError> {
+	lazy_static! {
+		static ref GITHUB_REGEX: Regex = Regex::new(r"^https?://github\.com/[a-zA-Z0-9_-]+(/[a-zA-Z0-9_-]+)?$").unwrap();
+	}
+	if GITHUB_REGEX.is_match(url) {
+		Ok(())
+	} else {
+		Err(ValidationError::new("invalid_github_url"))
+	}
+}
+
+pub fn validate_demo_url(url: &str) -> Result<(), ValidationError> {
+	lazy_static! {
+		static ref DEMO_URL_REGEX: Regex = Regex::new(r"^https?://(?:www\.)?[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+(/[^\s]*)?$").unwrap();
+	}
+	if DEMO_URL_REGEX.is_match(url) {
+		Ok(())
+	} else {
+		Err(ValidationError::new("invalid_demo_url"))
+	}
+}
 
 use crate::v1::hackathon::hackathon_schema::{
     HackathonEventType, HackathonEventsSchema, HackathonPhase, HackathonSchema,
@@ -15,20 +51,32 @@ use crate::v1::hackathon::hackathon_schema::{
 pub struct HackathonCreateRequestDto {
     #[validate(length(min = 1, max = 100, message = "Hackathon name must be between 1 and 100 characters"))]
     pub name: String,
+    
     #[validate(length(min = 1, max = 1000, message = "Description must be between 1 and 1000 characters"))]
     pub description: String,
+    
     #[schema(value_type = String, format = DateTime)]
     pub start_date: DateTime<Utc>,
+    
     #[schema(value_type = String, format = DateTime)]
     pub end_date: DateTime<Utc>,
+    
     #[schema(value_type = String, format = DateTime)]
     pub registration_deadline: DateTime<Utc>,
+    
     #[validate(range(min = 1, max = 10000, message = "Max participants must be between 1 and 10000"))]
     pub max_participants: Option<u32>,
+    
+    #[validate(length(max = 200, message = "Theme cannot exceed 200 characters"))]
     pub theme: Option<String>,
+    
+    #[validate(length(max = 2000, message = "Rules cannot exceed 2000 characters"))]
     pub rules: Option<String>,
+    
     pub prizes: Option<Vec<PrizeDto>>,
     pub previous_winners: Option<Vec<WinnerDto>>,
+    
+    #[validate(length(min = 1, message = "Organizers list cannot be empty"))]
     pub organizers: Vec<String>,
 }
 

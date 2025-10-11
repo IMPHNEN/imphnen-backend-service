@@ -8,6 +8,7 @@ use crate::{
 	ResponseSuccessDto, common_response, success_list_response,
 	success_response, validate_request,
 };
+use imphnen_utils::{errors::AppError, error_response};
 use imphnen_utils::success_created_response;
 use axum::{http::StatusCode, response::Response, extract::Multipart};
 use imphnen_libs::{ResourceEnum, hash_password, verify_password, MinioConfig, FileType, decode_base64_file, extract_content_type_from_data_url, create_minio_service_from_config};
@@ -72,7 +73,7 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
 				};
 				success_list_response(response)
 			}
-			Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
+			Err(e) => error_response(AppError::BadRequestError(e.to_string())),
 		}
         })
 	}
@@ -82,7 +83,7 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
         let id = id.to_owned();
         Box::pin(async move {
 		if Uuid::parse_str(&id).is_err() {
-            return common_response(StatusCode::BAD_REQUEST, "Invalid User ID format");
+		            return error_response(AppError::BadRequestError("Invalid User ID format".into()));
         }
 		let repo = UsersRepository::new(&state);
 		let thing_id = make_thing_from_enum(ResourceEnum::Users, &id);
@@ -91,7 +92,7 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
 				data: UserDto::from(&user), // Corrected to use UserDto::from by reference
 			}),
 			Ok(_) => common_response(StatusCode::NOT_FOUND, "User not found"),
-			Err(e) => common_response(StatusCode::NOT_FOUND, &e.to_string()),
+			Err(e) => error_response(AppError::NotFoundError(e.to_string())),
 		}
         })
 	}
@@ -127,7 +128,7 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
 			.await
 			.is_ok()
 		{
-			return common_response(StatusCode::BAD_REQUEST, "User already exists");
+			return error_response(AppError::ConflictError("User already exists".into()));
 		}
 		match repo.query_create_user(UsersSchema::create(new_user.clone())).await {
 			Ok(_msg) => {
@@ -140,7 +141,7 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
 				}
 			}
 			Err(err) => {
-				common_response(StatusCode::INTERNAL_SERVER_ERROR, &err.to_string())
+							error_response(AppError::InternalServerError(err.to_string()))
 			}
 		}
         })
@@ -155,7 +156,7 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
         let id = id.to_owned();
         Box::pin(async move {
 		if Uuid::parse_str(&id).is_err() {
-            return common_response(StatusCode::BAD_REQUEST, "Invalid User ID format");
+		            return error_response(AppError::BadRequestError("Invalid User ID format".into()));
         }
 		let repo = UsersRepository::new(&state);
 		if let Err((status, message)) = validate_request(&user) {
@@ -166,13 +167,13 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
 		let thing_id = make_thing_from_enum(ResourceEnum::Users, &id);
 		let current_user = match repo.query_user_by_id(&thing_id).await {
 			Ok(user) => user,
-			Err(_) => return common_response(StatusCode::NOT_FOUND, "User not found"),
+			Err(_) => return error_response(AppError::NotFoundError("User not found".into())),
 		};
 		
 		let updated_user = UsersSchema::partial_update(current_user, user);
 		match repo.query_update_user(updated_user).await {
 			Ok(msg) => common_response(StatusCode::OK, &msg),
-			Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
+			Err(e) => error_response(AppError::BadRequestError(e.to_string())),
 		}
         })
 	}
@@ -214,7 +215,7 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
         let id = id.to_owned();
         Box::pin(async move {
 		if Uuid::parse_str(&id).is_err() {
-            return common_response(StatusCode::BAD_REQUEST, "Invalid User ID format");
+		            return error_response(AppError::BadRequestError("Invalid User ID format".into()));
         }
 		let repo = UsersRepository::new(&state);
 		let thing_id = make_thing_from_enum(ResourceEnum::Users, &id);
@@ -247,28 +248,22 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
 		let repo = UsersRepository::new(&state);
 		let user = match repo.query_user_by_email(email.clone()).await {
 			Ok(user) if !user.is_deleted => user,
-			_ => return common_response(StatusCode::NOT_FOUND, "User not found"),
+			_ => return error_response(AppError::NotFoundError("User not found".into())),
 		};
 		let verify_result = match verify_password(&payload.old_password, &user.password)
 		{
 			Ok(result) => result,
 			Err(_) => {
-				return common_response(
-					StatusCode::BAD_REQUEST,
-					"Old password is incorrect",
-				);
+				return error_response(AppError::BadRequestError("Old password is incorrect".into()));
 			}
 		};
 		if !verify_result {
-			return common_response(StatusCode::BAD_REQUEST, "Old password is incorrect");
+			return error_response(AppError::BadRequestError("Old password is incorrect".into()));
 		}
 		let new_password = match hash_password(&payload.password) {
 			Ok(pw) => pw,
 			Err(_) => {
-				return common_response(
-					StatusCode::INTERNAL_SERVER_ERROR,
-					"Failed to hash password",
-				);
+				return error_response(AppError::InternalServerError("Failed to hash password".into()));
 			}
 		};
 		let patch = UsersSchema {
@@ -278,7 +273,7 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
 		};
 		match repo.query_update_user(patch).await {
 			Ok(msg) => common_response(StatusCode::OK, &msg),
-			Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
+			Err(e) => error_response(AppError::BadRequestError(e.to_string())),
 		}
         })
 	}
@@ -307,16 +302,16 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
         let id = id.to_owned();
         Box::pin(async move {
 		if Uuid::parse_str(&id).is_err() {
-            return common_response(StatusCode::BAD_REQUEST, "Invalid User ID format");
+		            return error_response(AppError::BadRequestError("Invalid User ID format".into()));
         }
 		let repo = UsersRepository::new(&state);
 		let thing_id = make_thing_from_enum(ResourceEnum::Users, &id);
 		if repo.query_user_by_id(&thing_id).await.is_err() {
-			return common_response(StatusCode::BAD_REQUEST, "User not found");
+			return error_response(AppError::NotFoundError("User not found".into()));
 		}
 		match repo.query_delete_user(id).await {
 			Ok(msg) => common_response(StatusCode::OK, &msg),
-			Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
+			Err(e) => error_response(AppError::BadRequestError(e.to_string())),
 		}
         })
 	}
@@ -340,9 +335,16 @@ pub trait UsersServiceTrait: Send + Sync + 'static {
         Box::pin(async move {
         let repo = UsersRepository::new(&state);
         let email_clone = new_user.email.clone();
+        let hashed_password = match hash_password(&new_user.password) {
+            Ok(pw) => pw,
+            Err(_) => {
+                return Err(anyhow::anyhow!("Failed to hash password"));
+            }
+        };
+        
         let user_schema = UsersSchema {
             email: new_user.email,
-            password: new_user.password,
+            password: hashed_password,
             fullname: new_user.fullname,
             phone_number: new_user.phone_number,
             is_active: new_user.is_active,

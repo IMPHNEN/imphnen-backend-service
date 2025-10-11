@@ -1,31 +1,53 @@
 use imphnen_iam::v1::users::UsersSchema;
+use lazy_static::lazy_static;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::Thing;
 use utoipa::ToSchema;
-use validator::Validate;
+use validator::{Validate, ValidationError};
+
+// Custom validator for content length and format
+pub fn validate_testimonial_content(content: &str) -> Result<(), ValidationError> {
+	lazy_static! {
+		static ref CONTENT_REGEX: Regex = Regex::new(r"^[a-zA-Z0-9\s.,!?'-]+$").unwrap();
+	}
+	if CONTENT_REGEX.is_match(content) && content.len() <= 1000 {
+		Ok(())
+	} else {
+		Err(ValidationError::new("invalid_content"))
+	}
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Validate)]
 pub struct TestimonialsCreateRequestDto {
-	#[validate(length(min = 1, message = "Role is required"))]
+	#[validate(length(min = 1, max = 100, message = "Role must be between 1 and 100 characters"))]
 	pub role: String,
-
+	
 	#[validate(length(
 		min = 1,
-		max = 500,
-		message = "Content must be between 1 and 500 characters"
+		max = 1000,
+		message = "Content must be between 1 and 1000 characters"
+	))]
+	#[validate(custom(
+		function = "validate_testimonial_content",
+		message = "Content contains invalid characters or is too long"
 	))]
 	pub content: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Validate)]
 pub struct TestimonialsUpdateRequestDto {
-	#[validate(length(min = 1, message = "Role is required"))]
+	#[validate(length(min = 1, max = 100, message = "Role must be between 1 and 100 characters"))]
 	pub role: String,
-
+	
 	#[validate(length(
 		min = 1,
-		max = 500,
-		message = "Content must be between 1 and 500 characters"
+		max = 1000,
+		message = "Content must be between 1 and 1000 characters"
+	))]
+	#[validate(custom(
+		function = "validate_testimonial_content",
+		message = "Content contains invalid characters or is too long"
 	))]
 	pub content: String,
 }

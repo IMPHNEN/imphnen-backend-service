@@ -21,7 +21,7 @@ use imphnen_iam::{
     v1::auth::auth_repository::AuthRepoImpl,
 };
 use imphnen_libs::{AppState, SurrealMemClient, SurrealWsClient};
-use imphnen_middleware::{auth_middleware, cors_middleware};
+use imphnen_middleware::{auth_middleware, cors_middleware, auth_rate_limiting_middleware, security_headers_middleware};
 use std::sync::Arc;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -40,7 +40,7 @@ pub async fn gateway_service(
     };
 
     let public_routes = Router::new()
-        .merge(iam_public_routes())
+        .merge(iam_public_routes().layer(from_fn(auth_rate_limiting_middleware)))
         .merge(hackathon_public_routes())
         .merge(testimonials_public_routes())
         .merge(events_public_routes());
@@ -55,9 +55,10 @@ pub async fn gateway_service(
         .layer(from_fn(auth_middleware));
 
     Router::new()
-        .route("/", get(Redirect::to("/docs")))
-        .nest("/v1", public_routes.merge(protected_routes))
-        .merge(SwaggerUi::new("/docs").url("/openapi.json", docs_router()))
-        .layer(cors_middleware())
-        .layer(Extension(state))
+            .route("/", get(Redirect::to("/docs")))
+            .nest("/v1", public_routes.merge(protected_routes))
+            .merge(SwaggerUi::new("/docs").url("/openapi.json", docs_router()))
+            .layer(cors_middleware())
+            .layer(from_fn(security_headers_middleware))
+            .layer(Extension(state))
 }

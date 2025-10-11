@@ -15,6 +15,7 @@ pub mod get_id;
 pub mod logger;
 pub mod make_thing;
 pub mod query_builder;
+pub mod errors;
 pub mod query_list;
 pub mod response_format;
 pub mod serde_helpers;
@@ -38,7 +39,8 @@ pub use query_builder::{
     ListQueryBuilder,
 };
 pub use query_list::QueryListBuilder;
-pub use response_format::{common_response, success_created_response, success_list_response, success_response};
+pub use errors::AppError;
+pub use response_format::{common_response, success_created_response, success_list_response, success_response, error_response};
 pub use serde_helpers::{
     deserialize_datetime,
     option_thing_or_string,

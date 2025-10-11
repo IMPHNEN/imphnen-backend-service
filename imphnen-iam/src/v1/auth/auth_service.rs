@@ -16,6 +16,7 @@ use crate::{
 	verify_password,
 };
 use axum::{http::StatusCode, response::Response};
+use imphnen_utils::{AppError, error_response};
 use surrealdb::Uuid;
 use tracing::error;
 use tokio;
@@ -80,53 +81,53 @@ impl AuthServiceTrait for AuthService {
 
 		match user_repo.query_user_by_email(email.to_string()).await {
 			Ok(user) => {
-				let is_password_correct = tokio::task::spawn_blocking({
-					let password = password.to_owned();
-					let user_password = user.password.clone();
-					move || verify_password(&password, &user_password).unwrap_or(false)
-				}).await.unwrap_or(false);
+				let is_password_correct = match tokio::task::spawn_blocking({
+				    let password = password.to_owned();
+				    let user_password = user.password.clone();
+				    move || verify_password(&password, &user_password)
+				}).await {
+				    Ok(result) => match result {
+				        Ok(valid) => valid,
+				        Err(e) => {
+				            error!("Password verification failed: {}", e);
+				            false
+				        }
+				    },
+				    Err(e) => {
+				        error!("Task spawn blocking failed: {}", e);
+				        false
+				    }
+				};
 
 				if !is_password_correct {
-					return common_response(
-						StatusCode::BAD_REQUEST,
-						"Email or password not correct",
-					);
+									return error_response(AppError::AuthenticationError("Email or password not correct".into()));
 				}
 
 				if !user.is_active {
-					return common_response(
-						StatusCode::BAD_REQUEST,
-						"Account not active, please verify your email",
-					);
+									return error_response(AppError::AuthenticationError("Account not active, please verify your email".into()));
 				}
 
 				let user_id = user.id.id.to_raw();
 
 				let access_token = match encode_access_token(email.to_string(), user_id.clone()) {
-					Ok(token) => token,
-					Err(_e) => {
-						error!(
-							"Failed to generate access token for {}: {}",
-							email, _e
-						);
-						return common_response(
-							StatusCode::INTERNAL_SERVER_ERROR,
-							"Failed to generate access token",
-						);
+									Ok(token) => token,
+									Err(_e) => {
+										error!(
+											"Failed to generate access token for {}: {}",
+											email, _e
+										);
+										return error_response(AppError::InternalServerError("Failed to generate access token".into()));
 					}
 				};
 
 				let refresh_token = match encode_refresh_token(email.to_string(), user_id) {
-					Ok(token) => token,
-					Err(_e) => {
-						error!(
-							"Failed to generate refresh token for {}: {}",
-							email, _e
-						);
-						return common_response(
-							StatusCode::INTERNAL_SERVER_ERROR,
-							"Failed to generate refresh token",
-						);
+									Ok(token) => token,
+									Err(_e) => {
+										error!(
+											"Failed to generate refresh token for {}: {}",
+											email, _e
+										);
+										return error_response(AppError::InternalServerError("Failed to generate refresh token".into()));
 					}
 				};
 
@@ -142,19 +143,16 @@ impl AuthServiceTrait for AuthService {
 
 				// Only clone user if caching is required
 				if let Err(err_store) = auth_repo.query_store_user(user.clone()).await {
-					error!(
-						"Failed to store user cache for {}: {}",
-						user.email, err_store
-					);
-					return common_response(
-						StatusCode::BAD_REQUEST,
-						"User already login or failed to cache",
-					);
+									error!(
+										"Failed to store user cache for {}: {}",
+										user.email, err_store
+									);
+									return error_response(AppError::BadRequestError("User already login or failed to cache".into()));
 				}
 				success_response(response)
 			}
 			Err(err_find) => {
-				common_response(StatusCode::UNAUTHORIZED, &err_find.to_string())
+							error_response(AppError::AuthenticationError(err_find.to_string()))
 			}
 		}
         })
@@ -175,11 +173,23 @@ impl AuthServiceTrait for AuthService {
 
 		match user_repo.query_user_by_email(payload.email.clone()).await {
 			Ok(user) => {
-				let is_password_correct = tokio::task::spawn_blocking({
-					let password = payload.password.clone();
-					let user_password = user.password.clone();
-					move || verify_password(&password, &user_password).unwrap_or(false)
-				}).await.unwrap_or(false);
+				let is_password_correct = match tokio::task::spawn_blocking({
+				    let password = payload.password.clone();
+				    let user_password = user.password.clone();
+				    move || verify_password(&password, &user_password)
+				}).await {
+				    Ok(result) => match result {
+				        Ok(valid) => valid,
+				        Err(e) => {
+				            error!("Password verification failed: {}", e);
+				            false
+				        }
+				    },
+				    Err(e) => {
+				        error!("Task spawn blocking failed: {}", e);
+				        false
+				    }
+				};
 
 				if !is_password_correct {
 					return common_response(

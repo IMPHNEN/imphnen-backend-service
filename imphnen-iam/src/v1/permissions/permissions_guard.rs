@@ -72,6 +72,7 @@ pub async fn permissions_guard(
 		})
 		.collect();
 
+
 	// If user has Administrator permission, allow all.
 	// Accept either the permission name or the canonical permission id.
 	let admin_name = PermissionsEnum::Administrator.to_string();

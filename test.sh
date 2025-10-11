@@ -473,6 +473,66 @@ test_comprehensive_with_user() {
       local original_auth_token="$AUTH_TOKEN"
       
       AUTH_TOKEN="$user_token"
+      # Get user ID and add credits for gacha testing
+      local temp_file=$(mktemp)
+      local status_file=$(mktemp)
+      
+      # Get user profile to extract user_id
+      curl -s -X "GET" -H "Content-Type: application/json" -H "Authorization: Bearer $user_token" "$BASE_URL/v1/users/me" \
+        -D "$status_file" -o "$temp_file"
+      
+      local user_profile_body=$(cat "$temp_file")
+      local user_profile_status=$(head -n 1 "$status_file" | cut -d' ' -f2)
+      
+      rm -f "$temp_file" "$status_file"
+      
+      if [[ "$user_profile_status" =~ ^[0-9]+$ ]] && [ "$user_profile_status" -eq 200 ]; then
+        local user_id=$(echo "$user_profile_body" | jq -r '.data.id // empty')
+        if [ -n "$user_id" ]; then
+          # Add credits for gacha testing
+          local add_credits_data=$(jq -n --arg user_id "$user_id" '{user_id: $user_id, amount: 10}')
+          local temp_file=$(mktemp)
+          local status_file=$(mktemp)
+          
+          curl -s -X "POST" -H "Content-Type: application/json" -H "Authorization: Bearer $user_token" -d "$add_credits_data" "$BASE_URL/v1/gacha/credits/add" \
+            -D "$status_file" -o "$temp_file"
+          
+          local add_credits_body=$(cat "$temp_file")
+          local add_credits_status=$(head -n 1 "$status_file" | cut -d' ' -f2)
+          
+          rm -f "$temp_file" "$status_file"
+          
+          if [[ "$add_credits_status" =~ ^[0-9]+$ ]] && [ "$add_credits_status" -eq 200 ]; then
+            write_test_log "SUCCESS" "✓ Credits added for $fullname (user_id: $user_id)"
+
+            # Verify credits were added correctly
+            local get_credits_response=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X GET "$BASE_URL/v1/gacha/credits" \
+              -H "Authorization: Bearer $user_token")
+            local get_credits_body=$(echo "$get_credits_response" | head -n -1)
+            local get_credits_status=$(echo "$get_credits_response" | tail -n 1 | sed 's/HTTP_STATUS://')
+
+            if [[ "$get_credits_status" =~ ^[0-9]+$ ]] && [ "$get_credits_status" -eq 200 ]; then
+              local available_rolls=$(echo "$get_credits_body" | jq -r '.data.available_rolls // 0')
+              if [ "$available_rolls" -ge 10 ]; then
+                write_test_log "SUCCESS" "✓ Credits verified for $fullname: $available_rolls rolls available"
+              else
+                write_test_log "ERROR" "✗ Credits not added correctly for $fullname: expected >=10, got $available_rolls"
+                return 1
+              fi
+            else
+              write_test_log "ERROR" "✗ Failed to get credits for $fullname - HTTP $get_credits_status: $get_credits_body"
+              return 1
+            fi
+          else
+            write_test_log "ERROR" "✗ Failed to add credits for $fullname - HTTP $add_credits_status: $add_credits_body"
+            return 1
+          fi
+        else
+          write_test_log "ERROR" "✗ Failed to get user_id for $fullname from profile response"
+        fi
+      else
+        write_test_log "ERROR" "✗ Failed to get user profile for $fullname - HTTP $user_profile_status"
+      fi
       
       printf "\n${BLUE}--- Testing dengan $fullname (Expected results berdasarkan role) ---${NC}\n"
       
@@ -680,10 +740,32 @@ test_user_management_endpoints() {
     --arg is_active true \
     --arg role_id "$new_user_role_id" \
     '{email: $email, password: $pass, fullname: $fullname, phone_number: $phone, is_active: $is_active | fromjson, role_id: $role_id}')
-  test_api_endpoint "Create New User" "POST" "/v1/users/create" 201 "$create_user_data" true
 
-  # Assuming the created user can be fetched by email for update/delete
-  local created_user_id=$(curl -s -X GET -H "Authorization: Bearer $AUTH_TOKEN" "$BASE_URL/v1/users?search=$new_user_email" | jq -r '.data[0].id // empty')
+  # Create user and capture response directly
+  local temp_file=$(mktemp)
+  local status_file=$(mktemp)
+
+  curl -s -X "POST" -H "Content-Type: application/json" -H "Authorization: Bearer $AUTH_TOKEN" -d "$create_user_data" "$BASE_URL/v1/users/create" \
+    -D "$status_file" -o "$temp_file"
+
+  local create_response_body=$(cat "$temp_file")
+  local create_status=$(head -n 1 "$status_file" | cut -d' ' -f2)
+
+  rm -f "$temp_file" "$status_file"
+
+  if [[ "$create_status" =~ ^[0-9]+$ ]] && [ "$create_status" -eq 201 ]; then
+    ((PASS_COUNT++))
+    write_test_log "SUCCESS" "✓ Create New User - Sukses (Status: $create_status, Waktu: ${duration}ms)"
+
+    # Extract user ID directly from create response
+    local created_user_id=$(echo "$create_response_body" | jq -r '.data.id // empty')
+  else
+    ((FAIL_COUNT++))
+    write_test_log "ERROR" "✗ Create New User - Gagal (Status: $create_status)"
+    write_test_log "ERROR" "  Response Body: $create_response_body"
+    FAILED_TESTS_SUMMARY+=("✗ Create New User - HTTP $create_status")
+    return
+  fi
 
   if [ -n "$created_user_id" ]; then
     local updated_user_fullname="Updated Test User $(date +%s%N)"

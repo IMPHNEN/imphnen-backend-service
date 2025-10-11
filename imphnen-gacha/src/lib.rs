@@ -40,9 +40,4 @@ pub use imphnen_utils::{
 };
 
 // Re-export public v1 API
-pub use v1::{
-    gacha_claim_router,
-    gacha_item_router,
-    gacha_roll_router,
-    gacha_router,
-};
+pub use v1::gacha_router;

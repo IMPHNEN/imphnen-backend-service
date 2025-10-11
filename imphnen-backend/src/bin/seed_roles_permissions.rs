@@ -46,6 +46,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 				PermissionsEnum::ReadDetailGachaRolls,
 				PermissionsEnum::CreateGachaRolls,
 				PermissionsEnum::ExecuteGachaRolls,
+				PermissionsEnum::ReadListRoles,
+				PermissionsEnum::ReadListPermissions,
 			],
 		),
 		(
@@ -65,6 +67,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 				PermissionsEnum::ReadDetailMentors,
 				PermissionsEnum::ReadOwnMentorProfile,
 				PermissionsEnum::ReadOwnMentorStatus,
+				PermissionsEnum::ReadListRoles,
+				PermissionsEnum::ReadListPermissions,
 			],
 		),
 		(
@@ -85,6 +89,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 				PermissionsEnum::ReadDetailGachaRolls,
 				PermissionsEnum::CreateGachaRolls,
 				PermissionsEnum::ExecuteGachaRolls,
+				PermissionsEnum::ManageAllTeams,
 			],
 		),
 		(
