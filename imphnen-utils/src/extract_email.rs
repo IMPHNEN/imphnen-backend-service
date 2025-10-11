@@ -146,14 +146,8 @@ fn is_jwt(token: &str) -> bool {
 
 /// Async version of extract_email_token that can handle Google access tokens
 pub async fn extract_email_token_async(token: String) -> Option<String> {
-    if is_jwt(&token) {
-        match decode_access_token(&token) {
-            Ok(data) => {
-                return Some(data.claims.sub);
-            }
-            Err(_) => {
-            }
-        }
+    if is_jwt(&token) && let Ok(data) = decode_access_token(&token) {
+        return Some(data.claims.sub);
     }
 
     // If it's not a valid internal JWT, try to validate as Google access token

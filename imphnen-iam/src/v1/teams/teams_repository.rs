@@ -83,7 +83,7 @@ impl<'a> TeamsRepository<'a> {
 		if team.is_deleted {
 			bail!("Team not found");
 		}
-		Ok(TeamsDetailQueryDto::from(team))
+		Ok(team)
 	}
 
 	pub async fn query_create_team(&self, data: TeamsSchema) -> Result<String> {
@@ -102,7 +102,11 @@ impl<'a> TeamsRepository<'a> {
 		}
 
 		match record {
-			Some(_) => Ok("Success create team".into()),
+			Some(saved) => {
+				// Return the created team id as part of the message so callers can parse it in tests
+				let id = saved.id.id.to_raw();
+				Ok(format!("Success create team {}", id))
+			}
 			None => bail!("Failed to create team"),
 		}
 	}
@@ -347,10 +351,9 @@ impl<'a> TeamsRepository<'a> {
 		
 		let mut conditions = vec!["is_deleted = false".to_string(), "is_active = true".to_string()];
 		
-		if let Some(open) = search_params.open {
-			if open {
-				conditions.push("is_open = true".to_string());
-			}
+		if let Some(open) = search_params.open
+			&& open {
+			conditions.push("is_open = true".to_string());
 		}
 		
 		if let Some(location) = &search_params.location {

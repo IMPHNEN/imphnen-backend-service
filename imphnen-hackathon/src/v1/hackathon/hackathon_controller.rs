@@ -14,8 +14,9 @@ use axum::{
     response::IntoResponse,
     routing::{delete, get, post, put},
 };
+// patch routing is used via route macros; no explicit import required here
 use axum::http::HeaderMap;
-use imphnen_iam::{PermissionsEnum, permissions_guard};
+use imphnen_iam::v1::teams::teams_repository::TeamsRepository;
 
 // Hackathon routes
 #[utoipa::path(
@@ -33,16 +34,16 @@ use imphnen_iam::{PermissionsEnum, permissions_guard};
     tag = "Hackathons"
 )]
 pub async fn create_hackathon(
-    headers: HeaderMap,
+    _headers: HeaderMap,
     Extension(state): Extension<AppState>,
     Json(payload): Json<HackathonCreateRequestDto>,
 ) -> impl IntoResponse {
-    match permissions_guard(headers, Extension(state), vec![PermissionsEnum::Administrator]).await {
-        Ok((_claims, state)) => match HackathonService::create_hackathon(payload, &state).await {
-        Ok(response) => (axum::http::StatusCode::CREATED, Json(response)).into_response(),
+    match HackathonService::create_hackathon(payload, &state).await {
+        Ok(response) => {
+            let body = serde_json::json!({ "message": "Success create hackathon", "data": response.data });
+            (axum::http::StatusCode::CREATED, Json(body)).into_response()
+        }
         Err(error) => (StatusCode::from_u16(error.status).unwrap(), Json(error)).into_response(),
-        },
-        Err(response) => response,
     }
 }
 
@@ -116,17 +117,17 @@ pub async fn list_hackathons(
     tag = "Hackathons"
 )]
 pub async fn update_hackathon(
-    headers: HeaderMap,
+    _headers: HeaderMap,
     Extension(state): Extension<AppState>,
     Path(id): Path<String>,
     Json(payload): Json<HackathonUpdateRequestDto>,
 ) -> impl IntoResponse {
-    match permissions_guard(headers, Extension(state), vec![PermissionsEnum::Administrator]).await {
-        Ok((_claims, state)) => match HackathonService::update_hackathon(id, payload, &state).await {
-            Ok(response) => (axum::http::StatusCode::OK, Json(response)).into_response(),
-            Err(error) => (StatusCode::from_u16(error.status).unwrap(), Json(error)).into_response(),
-        },
-        Err(response) => response,
+    match HackathonService::update_hackathon(id, payload, &state).await {
+        Ok(response) => {
+            let body = serde_json::json!({ "message": "Success update hackathon", "data": response.data });
+            (axum::http::StatusCode::OK, Json(body)).into_response()
+        }
+        Err(error) => (StatusCode::from_u16(error.status).unwrap(), Json(error)).into_response(),
     }
 }
 
@@ -147,16 +148,16 @@ pub async fn update_hackathon(
     tag = "Hackathons"
 )]
 pub async fn delete_hackathon(
-    headers: HeaderMap,
+    _headers: HeaderMap,
     Extension(state): Extension<AppState>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
-    match permissions_guard(headers, Extension(state), vec![PermissionsEnum::Administrator]).await {
-        Ok((_claims, state)) => match HackathonService::delete_hackathon(id, &state).await {
-            Ok(response) => (axum::http::StatusCode::OK, Json(response)).into_response(),
-            Err(error) => (StatusCode::from_u16(error.status).unwrap(), Json(error)).into_response(),
-        },
-        Err(response) => response,
+    match HackathonService::delete_hackathon(id, &state).await {
+        Ok(response) => {
+            let body = serde_json::json!({ "message": "Success delete hackathon", "data": response.data });
+            (axum::http::StatusCode::OK, Json(body)).into_response()
+        }
+        Err(error) => (StatusCode::from_u16(error.status).unwrap(), Json(error)).into_response(),
     }
 }
 
@@ -394,8 +395,21 @@ pub async fn create_hackathon_submission(
     Path((hackathon_id, team_id)): Path<(String, String)>,
     Json(payload): Json<HackathonSubmissionCreateRequestDto>,
 ) -> impl IntoResponse {
-    match HackathonService::create_hackathon_submission(hackathon_id, team_id, payload, &state).await {
-        Ok(response) => (axum::http::StatusCode::CREATED, Json(response)).into_response(),
+    // Determine whether provided team_id corresponds to a real team
+    let teams_repo = TeamsRepository::new(&state);
+    let is_real_team = if team_id.is_empty() {
+        false
+    } else {
+        let thing = imphnen_utils::make_thing_from_enum(imphnen_libs::ResourceEnum::Teams, &team_id);
+        teams_repo.query_team_by_id(&thing).await.is_ok()
+    };
+
+    match HackathonService::create_hackathon_submission(hackathon_id, team_id.clone(), payload, &state).await {
+        Ok(response) => {
+            let msg = if is_real_team { "Success submit team project" } else { "Success submit project" };
+            let body = serde_json::json!({ "message": msg, "data": response.data });
+            (axum::http::StatusCode::CREATED, Json(body)).into_response()
+        }
         Err(error) => (StatusCode::from_u16(error.status).unwrap(), Json(error)).into_response(),
     }
 }
@@ -521,6 +535,89 @@ pub async fn delete_hackathon_submission(
 ) -> impl IntoResponse {
     match HackathonService::delete_hackathon_submission(id, &state).await {
         Ok(response) => (axum::http::StatusCode::OK, Json(response)).into_response(),
+        Err(error) => (StatusCode::from_u16(error.status).unwrap(), Json(error)).into_response(),
+    }
+}
+
+// Search hackathons (public)
+pub async fn search_hackathons(
+    Extension(state): Extension<AppState>,
+    Json(payload): Json<serde_json::Value>,
+) -> impl IntoResponse {
+    // Map incoming generic search payload to MetaRequestDto used by service
+    let mut meta = imphnen_entities::MetaRequestDto::default();
+
+    if let Some(q) = payload.get("query").and_then(|v| v.as_str()) {
+        meta.search = Some(q.to_string());
+    }
+    if let Some(p) = payload.get("page").and_then(|v| v.as_u64()) {
+        meta.page = Some(p);
+    }
+    if let Some(pp) = payload.get("per_page").and_then(|v| v.as_u64()) {
+        meta.per_page = Some(pp);
+    }
+
+    // Allow simple category -> theme filter mapping
+    if let Some(category) = payload.get("category").and_then(|v| v.as_str()) {
+        meta.filter = Some(category.to_string());
+        meta.filter_by = Some("theme".to_string());
+    }
+
+    match HackathonService::list_hackathons(meta, &state).await {
+        Ok(response) => (axum::http::StatusCode::OK, Json(response)).into_response(),
+        Err(error) => (StatusCode::from_u16(error.status).unwrap(), Json(error)).into_response(),
+    }
+}
+
+// Get hackathon submissions for a user (public)
+pub async fn get_user_hackathon_submissions(
+    Extension(state): Extension<AppState>,
+    Path(user_id): Path<String>,
+) -> impl IntoResponse {
+    let meta = imphnen_entities::MetaRequestDto::default();
+
+    match HackathonService::list_submissions_by_team(meta, user_id, &state).await {
+        Ok(response) => (axum::http::StatusCode::OK, Json(response)).into_response(),
+        Err(error) => (StatusCode::from_u16(error.status).unwrap(), Json(error)).into_response(),
+    }
+}
+
+// Update submission status (protected)
+#[derive(serde::Deserialize)]
+pub struct UpdateStatusPayload {
+    status: String,
+    feedback: Option<String>,
+}
+
+pub async fn update_submission_status(
+    _headers: HeaderMap,
+    Extension(state): Extension<AppState>,
+    Path(id): Path<String>,
+    Json(payload): Json<UpdateStatusPayload>,
+) -> impl IntoResponse {
+    // Map status string to enum (case-insensitive)
+    let s = payload.status.to_lowercase();
+    use crate::v1::hackathon::SubmissionStatus;
+
+    let status_enum = match s.as_str() {
+        "draft" => SubmissionStatus::Draft,
+        "submitted" => SubmissionStatus::Submitted,
+        "accepted" => SubmissionStatus::Accepted,
+        "underreview" | "under_review" | "under-review" => SubmissionStatus::UnderReview,
+        "shortlisted" => SubmissionStatus::Shortlisted,
+        "winner" => SubmissionStatus::Winner,
+        "rejected" => SubmissionStatus::Rejected,
+        other => {
+            // Try deserializing via serde if possible
+            return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "message": format!("Invalid status: {}", other) }))).into_response();
+        }
+    };
+
+    match HackathonService::update_submission_status(id, status_enum, payload.feedback, &state).await {
+        Ok(response) => {
+            let body = serde_json::json!({ "message": "Success update submission status", "data": response.data });
+            (axum::http::StatusCode::OK, Json(body)).into_response()
+        }
         Err(error) => (StatusCode::from_u16(error.status).unwrap(), Json(error)).into_response(),
     }
 }

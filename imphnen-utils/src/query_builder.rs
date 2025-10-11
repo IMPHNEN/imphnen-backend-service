@@ -70,23 +70,21 @@ impl ListQueryBuilder {
 	}
 
 	pub fn with_search(mut self, search: Option<&str>, field: &str) -> Self {
-		if let Some(search) = search {
-			if !search.is_empty() {
-				self.conditions.push(format!(
-					"string::contains(string::lowercase({field} ?? ''), string::lowercase($search))"
-				));
-			}
+		if let Some(search) = search
+			&& !search.is_empty() {
+			self.conditions.push(format!(
+				"string::contains(string::lowercase({field} ?? ''), string::lowercase($search))"
+			));
 		}
 		self
 	}
 
 	pub fn with_filter(mut self, field: Option<&str>, value: Option<&str>) -> Self {
-		if let (Some(f), Some(v)) = (field, value) {
-			if !v.is_empty() {
-				self.conditions.push(format!(
-					"string::contains(string::join('', [{f}]), $filter)"
-				));
-			}
+		if let (Some(f), Some(v)) = (field, value)
+			&& !v.is_empty() {
+			self.conditions.push(format!(
+				"string::contains(string::join('', [{f}]), $filter)"
+			));
 		}
 		self
 	}
@@ -340,7 +338,7 @@ pub async fn execute_safe_count_query(
 	
 	// Extract the count from the result
 	let response: Vec<surrealdb::Value> = result.take(0)?;
-	let count = response.get(0).and_then(|v| v.to_string().parse::<u64>().ok())
+	let count = response.first().and_then(|v| v.to_string().parse::<u64>().ok())
 		.ok_or_else(|| anyhow::anyhow!("No count found in response"))?;
 	
 	Ok(count)

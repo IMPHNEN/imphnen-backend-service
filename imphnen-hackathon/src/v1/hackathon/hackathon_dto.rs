@@ -265,7 +265,9 @@ pub struct HackathonSubmissionDto {
     pub demo_url: Option<String>,
     pub slides_url: Option<String>,
     pub technologies: Vec<String>,
+    #[serde(rename = "status")]
     pub submission_status: SubmissionStatus,
+    pub judge_feedback: Option<String>,
     #[schema(value_type = String, format = DateTime)]
     pub submitted_at: DateTime<Utc>,
     pub is_deleted: bool,
@@ -416,6 +418,7 @@ impl From<HackathonSubmissionsSchema> for HackathonSubmissionDto {
             slides_url: schema.slides_url,
             technologies: schema.technologies,
             submission_status: schema.submission_status,
+            judge_feedback: schema.judge_feedback,
             submitted_at: schema.submitted_at,
             is_deleted: schema.is_deleted,
             created_at: schema.created_at,

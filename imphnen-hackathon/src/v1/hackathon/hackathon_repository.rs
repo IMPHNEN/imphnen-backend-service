@@ -33,7 +33,11 @@ impl<'a> HackathonRepository<'a> {
     // the table prefix ("{table}:") the prefix is stripped.
     fn normalize_id(&self, table: &str, id: &str) -> String {
         if id.starts_with(&format!("{}:", table)) {
-            id.splitn(2, ':').nth(1).unwrap_or(id).to_string()
+            if let Some((_, rest)) = id.split_once(':') {
+                rest.to_string()
+            } else {
+                id.to_string()
+            }
         } else {
             id.to_string()
         }
@@ -133,8 +137,14 @@ impl<'a> HackathonRepository<'a> {
             .search_field("name")
             .select_fields(vec!["*"]);
 
-        let result = builder.build().await?;
-        Ok(result)
+    let mut result = builder.build().await?;
+
+    // Ensure deterministic ordering for listings by sorting on created_at (oldest first).
+    // Tests expect insertion order (first created appears first). created_at is an Option<String>
+    // with ISO 8601 format from `get_iso_date()`, so string comparison is chronologically correct.
+        result.data.sort_by_key(|s: &HackathonSchema| s.created_at.clone());
+
+    Ok(result)
     }
 
     #[instrument(skip(self, id, updates), err)]
@@ -289,8 +299,12 @@ impl<'a> HackathonRepository<'a> {
             .search_field("title")
             .select_fields(vec!["*"]);
 
-        let result = builder.build().await?;
-        Ok(result)
+    let mut result = builder.build().await?;
+
+    // Sort events by created_at (oldest first) to ensure deterministic ordering for tests
+    result.data.sort_by_key(|s: &HackathonEventsSchema| s.created_at.clone());
+
+    Ok(result)
     }
 
     #[instrument(skip(self, id, updates), err)]
@@ -421,8 +435,8 @@ impl<'a> HackathonRepository<'a> {
             .search_field("title")
             .select_fields(vec!["*"]);
 
-        let result = builder.build().await?;
-        Ok(result)
+    let result = builder.build().await?;
+    Ok(result)
     }
 
     #[instrument(skip(self, id, updates), err)]
@@ -518,6 +532,7 @@ impl<'a> HackathonRepository<'a> {
             slides_url: submission.slides_url,
             technologies: submission.technologies,
             submission_status: super::hackathon_schema::SubmissionStatus::Draft,
+            judge_feedback: None,
             submitted_at: chrono::Utc::now(),
             is_deleted: false,
             created_at: Some(get_iso_date()),
@@ -549,8 +564,54 @@ impl<'a> HackathonRepository<'a> {
             .search_field("project_name")
             .select_fields(vec!["*"]);
 
-        let result = builder.build().await?;
+    let mut result = builder.build().await?;
+    // Ensure deterministic ordering for listings by sorting on created_at (oldest first).
+    result.data.sort_by_key(|s: &HackathonSubmissionsSchema| s.created_at.clone());
+    Ok(result)
+    }
+
+    #[instrument(skip(self, meta, team_id), err)]
+    pub async fn list_submissions_by_team(&self, meta: imphnen_libs::MetaRequestDto, team_id: String) -> Result<imphnen_libs::ResponseListSuccessDto<Vec<HackathonSubmissionsSchema>>> {
+        let table = ResourceEnum::HackathonSubmissions.to_string();
+
+        let normalized_team_id = self.normalize_id("app_teams", &team_id);
+
+        let builder = QueryListBuilder::new(&self.state.surrealdb_ws, &table, &meta)
+            .with_condition("is_deleted = false")
+            .with_condition(&format!("team_id = type::thing('app_teams', '{}')", normalized_team_id))
+            .search_field("project_name")
+            .select_fields(vec!["*"]);
+
+        let mut result = builder.build().await?;
+        result.data.sort_by_key(|s: &HackathonSubmissionsSchema| s.created_at.clone());
         Ok(result)
+    }
+
+    #[instrument(skip(self, id, status, feedback), err)]
+    pub async fn update_submission_status(&self, id: String, status: super::hackathon_schema::SubmissionStatus, feedback: Option<String>) -> Result<HackathonSubmissionsSchema> {
+        let table = ResourceEnum::HackathonSubmissions.to_string();
+
+        let existing: Option<HackathonSubmissionsSchema> = self.state.surrealdb_ws.select((table.clone(), id.clone())).await?;
+        let mut existing = existing.ok_or_else(|| anyhow!("Submission not found"))?;
+
+        if existing.is_deleted {
+            bail!("Submission not found");
+        }
+
+        existing.submission_status = status;
+        existing.judge_feedback = feedback;
+        existing.updated_at = Some(get_iso_date());
+
+        let record: Option<HackathonSubmissionsSchema> = self
+            .state.surrealdb_ws
+            .update((table, id))
+            .content(existing.clone())
+            .await?;
+
+        match record {
+            Some(s) => Ok(s),
+            None => bail!("Failed to update submission status"),
+        }
     }
 
     #[instrument(skip(self, id, updates), err)]

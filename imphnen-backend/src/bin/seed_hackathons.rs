@@ -333,6 +333,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let submission = HackathonSubmissionsSchema {
             id: Thing::from(("app_hackathon_submissions", submission_id.as_str())),
             hackathon_id: Thing::from(("app_hackathons", hackathon_id)),
+            judge_feedback: None,
             team_id: Thing::from(("app_teams", team_id)),
             project_name: project_name.into(),
             description: description.into(),

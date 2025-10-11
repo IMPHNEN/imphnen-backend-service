@@ -704,17 +704,14 @@ impl TeamsServiceTrait for TeamsService {
 				}
 			}
 
-			match Self::get_user_info_with_privacy(
+			if let Ok(mut leader_dto) = Self::get_user_info_with_privacy(
 				&team.leader_id.id.to_raw(),
 				&claims.user_id,
 				is_member,
 				&state,
 			).await {
-				Ok(mut leader_dto) => {
-					leader_dto.role = "leader".to_string();
-					member_dtos.insert(0, leader_dto);
-				}
-				Err(_) => {}
+				leader_dto.role = "leader".to_string();
+				member_dtos.insert(0, leader_dto);
 			}
 
 			success_response(ResponseSuccessDto { data: member_dtos })
@@ -825,17 +822,14 @@ impl TeamsServiceTrait for TeamsService {
 					}
 
 					// Add leader with full sensitive info
-					match Self::get_user_info_with_privacy(
+					if let Ok(mut leader_dto) = Self::get_user_info_with_privacy(
 						&team.leader_id.id.to_raw(),
 						"system",
 						true,
 						&state,
 					).await {
-						Ok(mut leader_dto) => {
-							leader_dto.role = "leader".to_string();
-							member_dtos.insert(0, leader_dto);
-						}
-						Err(_) => {}
+						leader_dto.role = "leader".to_string();
+						member_dtos.insert(0, leader_dto);
 					}
 					
 					let team_dto = team.into_admin_detail_dto(member_dtos);
@@ -916,7 +910,7 @@ impl TeamsServiceTrait for TeamsService {
 				Ok(_) => common_response(StatusCode::OK, &format!("Successfully left team: {}", team.name)),
 				Err(e) => {
 					error!("Failed to remove team member: {}", e);
-					return common_response(StatusCode::INTERNAL_SERVER_ERROR, "Failed to leave team")
+					common_response(StatusCode::INTERNAL_SERVER_ERROR, "Failed to leave team")
 				},
 			}
 		})

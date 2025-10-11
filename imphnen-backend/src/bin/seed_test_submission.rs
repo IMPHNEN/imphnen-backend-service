@@ -342,6 +342,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             slides_url,
             technologies,
             submission_status,
+            judge_feedback: None,
             submitted_at: DateTime::parse_from_rfc3339(submitted_at)?.with_timezone(&Utc),
             is_deleted: false,
             created_at: Some(get_iso_date()),

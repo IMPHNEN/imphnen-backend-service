@@ -7,15 +7,23 @@ pub use hackathon::hackathon_router;
 
 // Main route constructor
 pub fn hackathon_protected_routes() -> Router {
-    Router::new().nest("/hackathons", hackathon_router())
+    // Protected routes include the main hackathon router (create/update/delete) and
+    // a protected route for updating submission status.
+    use hackathon::hackathon_controller::update_submission_status;
+    Router::new()
+        .nest("/hackathons", hackathon_router())
+        .route("/hackathons/submissions/{id}/status", axum::routing::patch(update_submission_status))
 }
 
 // Public routes for hackathons (only listing and retrieving)
 pub fn hackathon_public_routes() -> Router {
     use hackathon::hackathon_controller::{list_hackathons, get_hackathon};
+    use hackathon::hackathon_controller::{search_hackathons, get_user_hackathon_submissions};
     Router::new()
         .nest("/hackathons", Router::new()
             .route("/", axum::routing::get(list_hackathons))
             .route("/{id}", axum::routing::get(get_hackathon))
+            .route("/search", axum::routing::post(search_hackathons))
         )
+        .route("/users/{user_id}/hackathon-submissions", axum::routing::get(get_user_hackathon_submissions))
 }

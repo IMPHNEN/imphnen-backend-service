@@ -94,3 +94,9 @@ where
         Self::with_service(self.google_oauth_service.clone())
     }
 }
+
+impl Default for GoogleOauthController<GoogleOauthServiceImpl<crate::v1::auth::auth_service::AuthService, crate::v1::users::users_service::UsersService>> {
+    fn default() -> Self {
+        Self::new()
+    }
+}

@@ -46,7 +46,7 @@ impl RolesSchema {
 				.permissions
 				.as_ref()
 				.unwrap_or(&vec![])
-				.into_iter()
+				.iter()
 				.filter_map(|perm| {
 					perm.as_ref().and_then(|p| p.id.as_ref().map(|id| make_thing_from_enum(ResourceEnum::Permissions, &id.id.to_raw())))
 				})

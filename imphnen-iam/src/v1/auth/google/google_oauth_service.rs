@@ -1,6 +1,8 @@
 use std::pin::Pin;
 use std::future::Future;
 use anyhow::Result;
+// Type alias to reduce clippy type_complexity warnings for long Future signatures
+type GoogleOauthCallbackFut<'a> = Pin<Box<dyn Future<Output = Result<(UsersDetailItemDto, TokenDto), Error>> + Send + 'a>>;
 
 use oauth2::{
     AuthUrl, ClientId, ClientSecret, CsrfToken, PkceCodeChallenge, PkceCodeVerifier,
@@ -103,7 +105,7 @@ pub trait GoogleOauthService<A: AuthServiceTrait + Send + Sync + 'static, U: Use
     // Removed new() from trait
     fn with_services(auth_service: A, users_service: U, env: &'static Env) -> Self;
     fn generate_auth_url(&self, custom_redirect_uri: Option<String>) -> (Url, CsrfToken);
-    fn google_oauth_callback(&self, auth_request: AuthRequest, app_state: &AppState) -> Pin<Box<dyn Future<Output = Result<(UsersDetailItemDto, TokenDto), Error>> + Send + '_>>; // Changed return type
+    fn google_oauth_callback(&self, auth_request: AuthRequest, app_state: &AppState) -> GoogleOauthCallbackFut<'_>; // Changed return type
 }
 
 #[derive(Clone)]

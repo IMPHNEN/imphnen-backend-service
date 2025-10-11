@@ -835,11 +835,53 @@ test_team_endpoints() {
   printf "\n${CYAN}=== Menguji Team Endpoints ===${NC}\n"
   test_api_endpoint "Get Public Teams List" "GET" "/v1/teams" 200 "" true
   test_api_endpoint "Search Teams" "GET" "/v1/teams/search?query=Development" 200 "" true
-  # Admin teams endpoint should only be accessible to admins
+  
+  # Test team creation (admin only)
   if [ "$email" = "admin@example.com" ]; then
-    test_api_endpoint "Get Admin Teams List" "GET" "/v1/teams/admin" 200 "" true
+    local team_data
+    team_data=$(jq -n --arg name "Test Team $(date +%s)" '{
+      name: $name,
+      description: "Test team description",
+      is_open: true,
+      max_members: 10,
+      skills_required: ["Rust", "Backend Development"],
+      location: "Remote",
+      website_url: "https://example.com/team",
+      github_url: "https://github.com/example/team"
+    }')
+    test_api_endpoint "Create Team (Admin)" "POST" "/v1/teams/create" 201 "$team_data" true
+    
+    # Test team update (admin only)
+    local test_team_id="test-team-001"
+    local update_team_data
+    update_team_data=$(jq -n --arg name "Updated Test Team" '{
+      name: $name,
+      description: "Updated test team description",
+      is_open: false,
+      max_members: 15,
+      skills_required: ["Rust", "Backend Development", "DevOps"],
+      location: "Hybrid"
+    }')
+    test_api_endpoint "Update Team (Admin)" "PUT" "/v1/teams/update/$test_team_id" 200 "$update_team_data" true
+    
+    # Test team member management
+    local member_data
+    member_data=$(jq -n --arg user_id "user-123" '{user_id: $user_id, role: "MEMBER"}')
+    test_api_endpoint "Add Team Member" "POST" "/v1/teams/$test_team_id/members" 200 "$member_data" true
+    
+    test_api_endpoint "Get Team Members" "GET" "/v1/teams/$test_team_id/members" 200 "" true
+    test_api_endpoint "Remove Team Member" "DELETE" "/v1/teams/$test_team_id/members/user-123" 200 "" true
   else
+    # Regular users should get 403 for admin endpoints
     test_api_endpoint "Get Admin Teams List" "GET" "/v1/teams/admin" 403 "" true
+    
+    # Regular users can still access public team operations
+    local team_data
+    team_data=$(jq -n --arg name "Public Test Team" '{
+      name: $name,
+      description: "Public test team description"
+    }')
+    test_api_endpoint "Get Team Details" "GET" "/v1/teams/detail/test-team-001" 200 "" true
   fi
 }
 
@@ -852,6 +894,11 @@ test_hackathon_endpoints() {
   # Test specific hackathon by ID (assuming test hackathon exists from seeder)
   local test_hackathon_id="test-hackathon-001"
   test_api_endpoint "Get Hackathon By ID" "GET" "/v1/hackathons/$test_hackathon_id" 200 "" true
+
+  # Test participant management
+  local participant_data=$(jq -n --arg user_id "test-participant@example.com" '{user_id: $user_id}')
+  test_api_endpoint "Register Participant" "POST" "/v1/hackathons/$test_hackathon_id/participants" 200 "$participant_data" true
+  test_api_endpoint "Get Participants List" "GET" "/v1/hackathons/$test_hackathon_id/participants" 200 "" true
 
   # Test submission endpoints
   test_api_endpoint "Get Submissions List" "GET" "/v1/hackathons/$test_hackathon_id/submissions" 200 "" true
@@ -876,12 +923,11 @@ test_hackathon_endpoints() {
   # Test getting submission by ID
   if [ -n "$test_submission_id" ]; then
     test_api_endpoint "Get Submission By ID" "GET" "/v1/hackathons/submissions/$test_submission_id" 200 "" true
-  else
-    write_test_log "WARN" "✗ Get Submission By ID - Dilewati: Failed to capture submission ID from creation response"
-  fi
-
-  # Test updating submission
-  if [ -n "$test_submission_id" ]; then
+    
+    # Test submitting project (finalization)
+    test_api_endpoint "Submit Project" "POST" "/v1/hackathons/submissions/$test_submission_id/submit" 200 "" true
+    
+    # Test updating submission
     local update_submission_data
     update_submission_data=$(jq -n --arg hackathon_id "$test_hackathon_id" --arg team_id "test-team-001" '{
       hackathon_id: $hackathon_id,
@@ -898,8 +944,175 @@ test_hackathon_endpoints() {
     # Test deleting submission
     test_api_endpoint "Delete Hackathon Submission" "DELETE" "/v1/hackathons/submissions/$test_submission_id" 200 "" true
   else
-    write_test_log "WARN" "✗ Update/Delete Submission tests - Dilewati: Failed to capture submission ID from creation response"
+    write_test_log "WARN" "✗ Submission tests - Dilewati: Failed to capture submission ID from creation response"
   fi
+}
+
+test_end_to_end_team_workflow() {
+  printf "\n${CYAN}=== End-to-End Team Management Workflow ===${NC}\n"
+  
+  if [ "$email" != "admin@example.com" ]; then
+    write_test_log "WARN" "✗ Workflow hanya dijalankan untuk admin"
+    return
+  fi
+  
+  local workflow_start=$(date +%s)
+  local team_id=""
+  local member_ids=()
+  
+  printf "\n${BLUE}1. Membuat Tim Baru${NC}\n"
+  local team_name="Test Team Workflow $(date +%s)"
+  local create_team_data=$(jq -n --arg name "$team_name" '{
+    name: $name,
+    description: "Team untuk testing end-to-end workflow",
+    is_open: true,
+    max_members: 5,
+    skills_required: ["Rust", "Backend", "Testing"],
+    location: "Remote"
+  }')
+  
+  local create_response=$(test_api_endpoint "Create Team" "POST" "/v1/teams/create" 201 "$create_team_data" true)
+  team_id=$(echo "$create_response" | jq -r '.data.id // empty')
+  
+  if [ -z "$team_id" ]; then
+    write_test_log "ERROR" "✗ Gagal mendapatkan ID tim dari respons"
+    return
+  fi
+  
+  write_test_log "SUCCESS" "Tim berhasil dibuat dengan ID: $team_id"
+  
+  printf "\n${BLUE}2. Menambahkan Anggota Tim${NC}\n"
+  local member_count=3
+  for i in $(seq 1 $member_count); do
+    local member_email="team_member_$i@example.com"
+    local member_data=$(jq -n --arg user_id "$member_email" '{user_id: $user_id, role: "MEMBER"}')
+    
+    test_api_endpoint "Add Member $i" "POST" "/v1/teams/$team_id/members" 200 "$member_data" true
+    member_ids+=("$member_email")
+  done
+  
+  printf "\n${BLUE}3. Memverifikasi Anggota Tim${NC}\n"
+  local members_response=$(test_api_endpoint "Get Team Members" "GET" "/v1/teams/$team_id/members" 200 "" true)
+  local actual_member_count=$(echo "$members_response" | jq '.data | length')
+  
+  if [ "$actual_member_count" -eq "$member_count" ]; then
+    write_test_log "SUCCESS" "✓ Jumlah anggota sesuai: $actual_member_count/$member_count"
+  else
+    write_test_log "ERROR" "✗ Jumlah anggota tidak sesuai: $actual_member_count/$member_count"
+  fi
+  
+  printf "\n${BLUE}4. Memperbarui Tim${NC}\n"
+  local update_team_data=$(jq -n --arg name "Updated: $team_name" '{
+    name: $name,
+    description: "Deskripsi tim yang telah diperbarui",
+    is_open: false,
+    max_members: 10,
+    skills_required: ["Rust", "Backend", "Testing", "DevOps"]
+  }')
+  
+  test_api_endpoint "Update Team" "PUT" "/v1/teams/update/$team_id" 200 "$update_team_data" true
+  
+  printf "\n${BLUE}5. Menghapus Anggota Tim${NC}\n"
+  local member_to_remove="${member_ids[0]}"
+  test_api_endpoint "Remove Member" "DELETE" "/v1/teams/$team_id/members/$member_to_remove" 200 "" true
+  
+  printf "\n${BLUE}6. Menghapus Tim${NC}\n"
+  test_api_endpoint "Delete Team" "DELETE" "/v1/teams/delete/$team_id" 200 "" true
+  
+  local workflow_end=$(date +%s)
+  local workflow_duration=$((workflow_end - workflow_start))
+  
+  printf "\n${GREEN}=== Workflow Selesai ===${NC}\n"
+  printf "Durasi: %d detik\n" "$workflow_duration"
+  printf "Tim: %s\n" "$team_name"
+  printf "Anggota awal: %d\n" "$member_count"
+  printf "Status: ✅ Selesai\n"
+}
+
+test_end_to_end_hackathon_workflow() {
+  printf "\n${CYAN}=== End-to-End Hackathon Management Workflow ===${NC}\n"
+  
+  local workflow_start=$(date +%s)
+  local hackathon_id=""
+  local submission_id=""
+  
+  printf "\n${BLUE}1. Membuat Hackathon Baru${NC}\n"
+  local hackathon_name="Hackathon Test $(date +%s)"
+  local create_hackathon_data=$(jq -n --arg name "$hackathon_name" '{
+    name: $name,
+    description: "Hackathon untuk testing end-to-end workflow",
+    start_date: "'$(date -d "+2 days" +%Y-%m-%dT%H:%M:%SZ)'",
+    end_date: "'$(date -d "+3 days" +%Y-%m-%dT%H:%M:%SZ)'",
+    registration_deadline: "'$(date -d "+1 day" +%Y-%m-%dT%H:%M:%SZ)'",
+    max_participants: 20,
+    theme: "Backend Development",
+    rules: "Buat sesuatu yang berfaedah!",
+    prizes: [{"name": "Juara 1", "description": "Hadiah utama"}],
+    organizers: ["admin@example.com"]
+  }')
+  
+  local create_response=$(test_api_endpoint "Create Hackathon" "POST" "/v1/hackathons" 201 "$create_hackathon_data" true)
+  hackathon_id=$(echo "$create_response" | jq -r '.data.id // empty')
+  
+  if [ -z "$hackathon_id" ]; then
+    write_test_log "ERROR" "✗ Gagal mendapatkan ID hackathon dari respons"
+    return
+  fi
+  
+  write_test_log "SUCCESS" "Hackathon berhasil dibuat dengan ID: $hackathon_id"
+  
+  printf "\n${BLUE}2. Mendaftarkan Peserta${NC}\n"
+  local participant_data=$(jq -n --arg user_id "participant_1@example.com" '{user_id: $user_id}')
+  test_api_endpoint "Register Participant" "POST" "/v1/hackathons/$hackathon_id/participants" 200 "$participant_data" true
+  
+  printf "\n${BLUE}3. Membuat Submission Proyek${NC}\n"
+  local submission_data=$(jq -n --arg hackathon_id "$hackathon_id" --arg team_id "test-team-001" '{
+    hackathon_id: $hackathon_id,
+    team_id: $team_id,
+    project_name: "Proyek Test Workflow",
+    description: "Proyek contoh untuk testing submission",
+    technologies: ["Rust", "PostgreSQL", "Docker"],
+    repository_url: "https://github.com/test/proyek-workflow",
+    demo_url: "https://demo.test.com",
+    presentation_url: "https://slides.test.com"
+  }')
+  
+  local submission_response=$(test_api_endpoint "Create Submission" "POST" "/v1/hackathons/$hackathon_id/teams/test-team-001/submissions" 201 "$submission_data" true)
+  submission_id=$(echo "$submission_response" | jq -r '.data.id // empty')
+  
+  if [ -n "$submission_id" ]; then
+    write_test_log "SUCCESS" "Submission berhasil dibuat dengan ID: $submission_id"
+    
+    printf "\n${BLUE}4. Memperbarui Submission${NC}\n"
+    local update_submission_data=$(jq -n --arg hackathon_id "$hackathon_id" --arg team_id "test-team-001" '{
+      hackathon_id: $hackathon_id,
+      team_id: $team_id,
+      project_name: "Proyek Test Workflow (Diperbarui)",
+      description: "Proyek contoh untuk testing submission yang telah diperbarui",
+      technologies: ["Rust", "PostgreSQL", "Docker", "Kubernetes"]
+    }')
+    
+    test_api_endpoint "Update Submission" "PUT" "/v1/hackathons/submissions/$submission_id" 200 "$update_submission_data" true
+    
+    printf "\n${BLUE}5. Mengirim Submission (Finalisasi)${NC}\n"
+    test_api_endpoint "Submit Project" "POST" "/v1/hackathons/submissions/$submission_id/submit" 200 "" true
+  fi
+  
+  printf "\n${BLUE}6. Memverifikasi Semua Data${NC}\n"
+  test_api_endpoint "Get Hackathon Details" "GET" "/v1/hackathons/$hackathon_id" 200 "" true
+  test_api_endpoint "Get Participants List" "GET" "/v1/hackathons/$hackathon_id/participants" 200 "" true
+  
+  if [ -n "$submission_id" ]; then
+    test_api_endpoint "Get Submission Details" "GET" "/v1/hackathons/submissions/$submission_id" 200 "" true
+  fi
+  
+  local workflow_end=$(date +%s)
+  local workflow_duration=$((workflow_end - workflow_start))
+  
+  printf "\n${GREEN}=== Workflow Selesai ===${NC}\n"
+  printf "Durasi: %d detik\n" "$workflow_duration"
+  printf "Hackathon: %s\n" "$hackathon_name"
+  printf "Status: ✅ Selesai\n"
 }
 
 test_advanced_scenarios() {

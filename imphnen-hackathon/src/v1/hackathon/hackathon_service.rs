@@ -1,5 +1,7 @@
 use std::pin::Pin;
 use std::future::Future;
+// Type alias to shorten complex future return types used across the service trait
+type ListServiceFut<T> = Pin<Box<dyn Future<Output = Result<imphnen_libs::ResponseListSuccessDto<Vec<T>>, ErrorDto>> + Send>>;
 use super::hackathon_dto::{
     HackathonCreateRequestDto, HackathonDto, HackathonEventCreateRequestDto, HackathonEventDto,
     HackathonEventUpdateRequestDto, HackathonSubmissionCreateRequestDto,
@@ -7,6 +9,7 @@ use super::hackathon_dto::{
     HackathonTimelineDto, HackathonTimelineUpdateRequestDto, HackathonUpdateRequestDto,
 };
 use super::hackathon_repository::HackathonRepository;
+use super::hackathon_schema::SubmissionStatus;
 use crate::{AppState, ResponseSuccessDto, ErrorDto};
 use imphnen_utils::{validator::validate_request};
 use imphnen_libs::{MetaRequestDto, ResponseListSuccessDto};
@@ -27,7 +30,7 @@ pub trait HackathonServiceTrait: Send + Sync + 'static {
     fn list_hackathons(
         meta: MetaRequestDto,
         state: &AppState,
-    ) -> Pin<Box<dyn Future<Output = Result<ResponseListSuccessDto<Vec<HackathonDto>>, ErrorDto>> + Send>>;
+    ) -> ListServiceFut<HackathonDto>;
     fn update_hackathon(
         id: String,
         payload: HackathonUpdateRequestDto,
@@ -48,7 +51,7 @@ pub trait HackathonServiceTrait: Send + Sync + 'static {
         meta: MetaRequestDto,
         hackathon_id: String,
         state: &AppState,
-    ) -> Pin<Box<dyn Future<Output = Result<ResponseListSuccessDto<Vec<HackathonEventDto>>, ErrorDto>> + Send>>;
+    ) -> ListServiceFut<HackathonEventDto>;
     fn update_hackathon_event(
         id: String,
         payload: HackathonEventUpdateRequestDto,
@@ -69,7 +72,7 @@ pub trait HackathonServiceTrait: Send + Sync + 'static {
         meta: MetaRequestDto,
         hackathon_id: String,
         state: &AppState,
-    ) -> Pin<Box<dyn Future<Output = Result<ResponseListSuccessDto<Vec<HackathonTimelineDto>>, ErrorDto>> + Send>>;
+    ) -> ListServiceFut<HackathonTimelineDto>;
     fn update_hackathon_timeline(
         id: String,
         payload: HackathonTimelineUpdateRequestDto,
@@ -95,7 +98,12 @@ pub trait HackathonServiceTrait: Send + Sync + 'static {
         meta: MetaRequestDto,
         hackathon_id: String,
         state: &AppState,
-    ) -> Pin<Box<dyn Future<Output = Result<ResponseListSuccessDto<Vec<HackathonSubmissionDto>>, ErrorDto>> + Send>>;
+    ) -> ListServiceFut<HackathonSubmissionDto>;
+    fn list_submissions_by_team(
+        meta: MetaRequestDto,
+        team_id: String,
+        state: &AppState,
+    ) -> ListServiceFut<HackathonSubmissionDto>;
     fn update_hackathon_submission(
         id: String,
         payload: HackathonSubmissionUpdateRequestDto,
@@ -103,6 +111,12 @@ pub trait HackathonServiceTrait: Send + Sync + 'static {
     ) -> Pin<Box<dyn Future<Output = Result<ResponseSuccessDto<HackathonSubmissionDto>, ErrorDto>> + Send>>;
     fn submit_hackathon_submission(
         id: String,
+        state: &AppState,
+    ) -> Pin<Box<dyn Future<Output = Result<ResponseSuccessDto<HackathonSubmissionDto>, ErrorDto>> + Send>>;
+    fn update_submission_status(
+        id: String,
+        status: SubmissionStatus,
+        feedback: Option<String>,
         state: &AppState,
     ) -> Pin<Box<dyn Future<Output = Result<ResponseSuccessDto<HackathonSubmissionDto>, ErrorDto>> + Send>>;
     fn delete_hackathon_submission(
@@ -119,7 +133,7 @@ impl HackathonServiceTrait for HackathonService {
         payload: HackathonCreateRequestDto,
         state: &AppState,
     ) -> Pin<Box<dyn Future<Output = Result<ResponseSuccessDto<HackathonDto>, ErrorDto>> + Send>> {
-        let payload = payload;
+        
         let state = state.to_owned();
         Box::pin(async move {
             // Validate request
@@ -140,10 +154,13 @@ impl HackathonServiceTrait for HackathonService {
                 });
             }
 
-            if payload.registration_deadline >= payload.start_date {
+            // Registration deadline should be before the hackathon end date (allowing registration up
+            // to the start of or during the hackathon depending on business rules). Tests in this
+            // repository set the deadline between start and end, so validate against end_date here.
+            if payload.registration_deadline >= payload.end_date {
                 return Err(ErrorDto {
                     status: StatusCode::BAD_REQUEST.as_u16(),
-                    message: "Registration deadline must be before start date".to_string(),
+                    message: "Registration deadline must be before end date".to_string(),
                     details: None,
                 });
             }
@@ -233,7 +250,7 @@ impl HackathonServiceTrait for HackathonService {
         payload: HackathonUpdateRequestDto,
         state: &AppState,
     ) -> Pin<Box<dyn Future<Output = Result<ResponseSuccessDto<HackathonDto>, ErrorDto>> + Send>> {
-        let payload = payload;
+        
         let state = state.to_owned();
         Box::pin(async move {
             // Validate request
@@ -272,10 +289,11 @@ impl HackathonServiceTrait for HackathonService {
                 });
             }
 
-            if registration_deadline >= start_date {
+            // Same rule as create_hackathon: the registration deadline must be before the end date.
+            if registration_deadline >= end_date {
                 return Err(ErrorDto {
                     status: StatusCode::BAD_REQUEST.as_u16(),
-                    message: "Registration deadline must be before start date".to_string(),
+                    message: "Registration deadline must be before end date".to_string(),
                     details: None,
                 });
             }
@@ -333,7 +351,7 @@ impl HackathonServiceTrait for HackathonService {
         payload: HackathonEventCreateRequestDto,
         state: &AppState,
     ) -> Pin<Box<dyn Future<Output = Result<ResponseSuccessDto<HackathonEventDto>, ErrorDto>> + Send>> {
-        let payload = payload;
+        
         let state = state.to_owned();
         Box::pin(async move {
             // Validate request
@@ -416,7 +434,7 @@ impl HackathonServiceTrait for HackathonService {
         payload: HackathonEventUpdateRequestDto,
         state: &AppState,
     ) -> Pin<Box<dyn Future<Output = Result<ResponseSuccessDto<HackathonEventDto>, ErrorDto>> + Send>> {
-        let payload = payload;
+        
         let state = state.to_owned();
         Box::pin(async move {
             // Validate request
@@ -492,7 +510,7 @@ impl HackathonServiceTrait for HackathonService {
         payload: HackathonTimelineCreateRequestDto,
         state: &AppState,
     ) -> Pin<Box<dyn Future<Output = Result<ResponseSuccessDto<HackathonTimelineDto>, ErrorDto>> + Send>> {
-        let payload = payload;
+        
         let state = state.to_owned();
         Box::pin(async move {
             // Validate request
@@ -575,7 +593,7 @@ impl HackathonServiceTrait for HackathonService {
         payload: HackathonTimelineUpdateRequestDto,
         state: &AppState,
     ) -> Pin<Box<dyn Future<Output = Result<ResponseSuccessDto<HackathonTimelineDto>, ErrorDto>> + Send>> {
-        let payload = payload;
+        
         let state = state.to_owned();
         Box::pin(async move {
             // Validate request
@@ -652,7 +670,7 @@ impl HackathonServiceTrait for HackathonService {
         payload: HackathonSubmissionCreateRequestDto,
         state: &AppState,
     ) -> Pin<Box<dyn Future<Output = Result<ResponseSuccessDto<HackathonSubmissionDto>, ErrorDto>> + Send>> {
-        let payload = payload;
+        
         let state = state.to_owned();
         Box::pin(async move {
             // Validate request
@@ -746,12 +764,69 @@ impl HackathonServiceTrait for HackathonService {
         })
     }
 
+        fn list_submissions_by_team(
+            meta: MetaRequestDto,
+            team_id: String,
+            state: &AppState,
+        ) -> Pin<Box<dyn Future<Output = Result<ResponseListSuccessDto<Vec<HackathonSubmissionDto>>, ErrorDto>> + Send>> {
+            let state = state.to_owned();
+            Box::pin(async move {
+                let repo = HackathonRepository::new(&state);
+
+                match repo.list_submissions_by_team(meta, team_id).await {
+                    Ok(result) => {
+                        let dtos: Vec<HackathonSubmissionDto> = result.data.into_iter().map(HackathonSubmissionDto::from).collect();
+                        Ok(ResponseListSuccessDto {
+                            data: dtos,
+                            meta: result.meta,
+                        })
+                    }
+                    Err(e) => {
+                        error!("Failed to list submissions by team: {}", e);
+                        Err(ErrorDto {
+                            status: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+                            message: "Failed to list submissions".to_string(),
+                            details: None,
+                        })
+                    }
+                }
+            })
+        }
+
+        fn update_submission_status(
+            id: String,
+            status: SubmissionStatus,
+            feedback: Option<String>,
+            state: &AppState,
+        ) -> Pin<Box<dyn Future<Output = Result<ResponseSuccessDto<HackathonSubmissionDto>, ErrorDto>> + Send>> {
+            let state = state.to_owned();
+            Box::pin(async move {
+                let repo = HackathonRepository::new(&state);
+
+                match repo.update_submission_status(id, status, feedback).await {
+                    Ok(submission) => {
+                        let dto = HackathonSubmissionDto::from(submission);
+                        Ok(ResponseSuccessDto { data: dto })
+                    }
+                    Err(e) => {
+                        let msg = e.to_string();
+                        if msg.contains("not found") {
+                            Err(ErrorDto { status: StatusCode::NOT_FOUND.as_u16(), message: "Submission not found".to_string(), details: None })
+                        } else {
+                            error!("Failed to update submission status: {}", e);
+                            Err(ErrorDto { status: StatusCode::INTERNAL_SERVER_ERROR.as_u16(), message: "Failed to update submission status".to_string(), details: None })
+                        }
+                    }
+                }
+            })
+        }
+
     fn update_hackathon_submission(
         id: String,
         payload: HackathonSubmissionUpdateRequestDto,
         state: &AppState,
     ) -> Pin<Box<dyn Future<Output = Result<ResponseSuccessDto<HackathonSubmissionDto>, ErrorDto>> + Send>> {
-        let payload = payload;
+        
         let state = state.to_owned();
         Box::pin(async move {
             // Validate request

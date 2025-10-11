@@ -5,6 +5,7 @@ use axum::{
 	response::Response, Extension,
 };
 use axum_extra::headers::{authorization::Bearer, Authorization, HeaderMapExt};
+use surrealdb::sql::Thing;
 
 pub async fn permissions_guard(
 	headers: HeaderMap,
@@ -31,15 +32,22 @@ pub async fn permissions_guard(
 		})?
 		.claims;
 
-	// Fetch user from database to get permissions
+	// Fetch user from database to get permissions. Try email first, then try using the sub as a user id.
 	let user_repo = UsersRepository::new(&state);
 	let user = match user_repo.query_user_by_email(claims.sub.clone()).await {
-		Ok(user) => user,
+		Ok(u) => u,
 		Err(_) => {
-			return Err(common_response(
-				StatusCode::UNAUTHORIZED,
-				"User not found",
-			));
+			// Try treat claims.sub as a Thing id (user id)
+			let thing = Thing::from(("app_users".to_string(), claims.sub.clone()));
+			match user_repo.query_user_by_id(&thing).await {
+				Ok(u2) => u2,
+				Err(_) => {
+					return Err(common_response(
+						StatusCode::UNAUTHORIZED,
+						"User not found",
+					));
+				}
+			}
 		}
 	};
 

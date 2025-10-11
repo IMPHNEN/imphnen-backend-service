@@ -74,6 +74,7 @@ pub struct HackathonSubmissionsSchema {
     pub slides_url: Option<String>,
     pub technologies: Vec<String>,
     pub submission_status: SubmissionStatus,
+    pub judge_feedback: Option<String>,
     pub submitted_at: DateTime<Utc>,
     pub is_deleted: bool,
     pub created_at: Option<String>,
@@ -178,6 +179,7 @@ impl<'de> Deserialize<'de> for HackathonEventType {
 pub enum SubmissionStatus {
     Draft,
     Submitted,
+    Accepted,
     UnderReview,
     Shortlisted,
     Winner,
@@ -272,6 +274,7 @@ impl Default for HackathonSubmissionsSchema {
             slides_url: None,
             technologies: vec![],
             submission_status: SubmissionStatus::Draft,
+            judge_feedback: None,
             submitted_at: Utc::now(),
             is_deleted: false,
             created_at: Some(get_iso_date()),

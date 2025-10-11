@@ -101,10 +101,9 @@ impl<'a> QueryListBuilder<'a> {
         // Bind parameters for both data and count queries.
         // It's assumed that the parameters are named consistently and applied to both.
         // The ListQueryBuilder already uses $search, $per_page, $start, $filter.
-        if let Some(search) = &self.meta.search {
-            if !search.is_empty() {
-                query_exec = query_exec.bind(("search", search.to_lowercase()));
-            }
+        if let Some(search) = &self.meta.search
+            && !search.is_empty() {
+            query_exec = query_exec.bind(("search", search.to_lowercase()));
         }
         if let Some(filter_val) = &self.meta.filter {
             query_exec = crate::bind_filter_value(query_exec, filter_val.clone());

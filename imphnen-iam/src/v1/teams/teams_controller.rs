@@ -318,10 +318,9 @@ pub async fn get_admin_team_list(
   axum::extract::Query(meta): axum::extract::Query<MetaRequestDto>,
 ) -> Response {
   let state = state;
-  with_perms(headers, axum::Extension(state), vec![PermissionsEnum::ReadListTeams], move |_claims, state| {
-    let response = TeamsService::get_admin_team_list(&state, meta);
-    response
-  }).await
+		with_perms(headers, axum::Extension(state), vec![PermissionsEnum::ReadListTeams], move |_claims, state| {
+		TeamsService::get_admin_team_list(&state, meta)
+	}).await
 }
 
 #[utoipa::path(
@@ -344,10 +343,9 @@ pub async fn get_admin_team_by_id(
   Path(id): Path<String>,
 ) -> Response {
   let state = state;
-  with_perms(headers, axum::Extension(state), vec![PermissionsEnum::ReadDetailTeams], move |_claims, state| {
-    let response = TeamsService::get_admin_team_by_id(&state, id);
-    response
-  }).await
+		with_perms(headers, axum::Extension(state), vec![PermissionsEnum::ReadDetailTeams], move |_claims, state| {
+		TeamsService::get_admin_team_by_id(&state, id)
+	}).await
 }
 
 #[utoipa::path(
@@ -370,10 +368,9 @@ pub async fn get_admin_team_members(
   Path(id): Path<String>,
 ) -> Response {
   let state = state;
-  with_perms(headers, axum::Extension(state), vec![PermissionsEnum::ReadDetailTeams], move |_claims, state| {
-    let response = TeamsService::get_admin_team_members(&state, id);
-    response
-  }).await
+		with_perms(headers, axum::Extension(state), vec![PermissionsEnum::ReadDetailTeams], move |_claims, state| {
+		TeamsService::get_admin_team_members(&state, id)
+	}).await
 }
 
 pub fn teams_router() -> Router {

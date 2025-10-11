@@ -404,13 +404,11 @@ impl MinioService {
             // Extract the full file path from XML response
             // This is a simplified approach - in production you might want proper XML parsing
             for line in body.lines() {
-                if line.contains("<Key>") && line.contains(file_hash) {
-                    if let Some(start) = line.find("<Key>") {
-                        if let Some(end) = line.find("</Key>") {
-                            let file_path = &line[start + 5..end];
-                            return Ok(Some(file_path.to_string()));
-                        }
-                    }
+                if line.contains("<Key>") && line.contains(file_hash)
+                    && let Some(start) = line.find("<Key>")
+                    && let Some(end) = line.find("</Key>") {
+                    let file_path = &line[start + 5..end];
+                    return Ok(Some(file_path.to_string()));
                 }
             }
         }
@@ -530,7 +528,7 @@ impl MinioService {
             }
             "image/webp" => {
                 if !file_data.starts_with(b"RIFF")
-                    || !file_data.get(8..12).map_or(false, |s| s == b"WEBP")
+                    || file_data.get(8..12).is_none_or(|s| s != b"WEBP")
                 {
                     bail!("File WEBP tidak valid");
                 }
@@ -692,10 +690,8 @@ pub fn decode_base64_file(base64_data: &str) -> Result<Vec<u8>> {
 
 /// Mengekstrak tipe konten dari URL data.
 pub fn extract_content_type_from_data_url(data_url: &str) -> Option<String> {
-    if data_url.starts_with("data:") {
-        if let Some(type_part) = data_url.split(';').next() {
-            return Some(type_part.replace("data:", ""));
-        }
+    if data_url.starts_with("data:") && let Some(type_part) = data_url.split(';').next() {
+        return Some(type_part.replace("data:", ""));
     }
     None
 }

@@ -1,585 +1,809 @@
 #[cfg(test)]
 mod tests {
-    use axum::{
-        body::Body,
-        http::{Request, StatusCode},
-        routing::{delete, get, post, put},
-        Router,
-        Extension,
+    use crate::{generate_unique_email, get_role_id, UsersRepository};
+    use axum::http::StatusCode;
+    
+    use imphnen_hackathon::v1::hackathon::hackathon_dto::{
+        HackathonCreateRequestDto, HackathonSubmissionCreateRequestDto,
     };
-    use chrono::Utc;
-    use imphnen_hackathon::v1::hackathon::hackathon_controller::*;
+    use imphnen_hackathon::v1::hackathon::HackathonRepository;
+    use imphnen_iam::v1::teams::teams_dto::{TeamsCreateRequestDto};
+    use imphnen_iam::v1::teams::teams_repository::TeamsRepository;
+    use imphnen_iam::v1::teams::teams_schema::TeamMembersSchema;
+    
+    use chrono::{Utc, Duration};
     use serde_json::json;
-    use tower::ServiceExt;
-
-    async fn setup_router() -> Router {
-        let app_state = crate::get_app_state().await;
-
-        Router::new()
-            .route("/hackathons", post(create_hackathon))
-            .route("/hackathons", get(list_hackathons))
-            .route("/hackathons/{id}", get(get_hackathon))
-            .route("/hackathons/{id}", put(update_hackathon))
-            .route("/hackathons/{id}", delete(delete_hackathon))
-            .route("/hackathons/{hackathon_id}/events", post(create_hackathon_event))
-            .route("/hackathons/{hackathon_id}/events", get(list_hackathon_events))
-            .route("/hackathons/events/{id}", put(update_hackathon_event))
-            .route("/hackathons/events/{id}", delete(delete_hackathon_event))
-            .route("/hackathons/{hackathon_id}/timeline", post(create_hackathon_timeline))
-            .route("/hackathons/{hackathon_id}/timeline", get(list_hackathon_timeline))
-            .route("/hackathons/timeline/{id}", put(update_hackathon_timeline))
-            .route("/hackathons/timeline/{id}", delete(delete_hackathon_timeline))
-            .route("/hackathons/{hackathon_id}/teams/{team_id}/submissions", post(create_hackathon_submission))
-            .route("/hackathons/{hackathon_id}/submissions", get(list_hackathon_submissions))
-            .route("/hackathons/submissions/{id}", put(update_hackathon_submission))
-            .route("/hackathons/submissions/{id}/submit", post(submit_hackathon_submission))
-            .route("/hackathons/submissions/{id}", delete(delete_hackathon_submission))
-            .layer(Extension(app_state))
-    }
+    
 
     #[tokio::test]
-    async fn test_create_hackathon_controller_success() {
-        let router = setup_router().await;
+    async fn test_create_hackathon() {
+    let app = crate::get_full_test_app().await;
+    let users_repo = UsersRepository::new(&app.state);
 
-        let request_body = json!({
-            "name": "Controller Test Hackathon",
-            "description": "Testing controller endpoints",
-            "start_date": (Utc::now() + chrono::Duration::days(2)).to_rfc3339(),
-            "end_date": (Utc::now() + chrono::Duration::days(3)).to_rfc3339(),
-            "registration_deadline": (Utc::now() + chrono::Duration::days(1)).to_rfc3339(),
-            "max_participants": 100,
-            "theme": "AI/ML",
-            "rules": "Be excellent to each other",
-            "prizes": [],
-            "organizers": ["user-1"]
-        });
+        // Create test organizer
+        let email = generate_unique_email("hackathon_organizer_controller");
+        let role_id = get_role_id("mentor", &app.state).await;
+        let user_data = crate::create_test_user(&email, "password123", true, &role_id);
+        let user_result = users_repo.query_create_user(user_data.clone()).await;
+        assert!(user_result.is_ok(), "Failed to create test user");
+        let user = users_repo.query_user_by_email(email.clone()).await.unwrap();
 
-        let request = Request::builder()
-            .method("POST")
-            .uri("/hackathons")
-            .header("content-type", "application/json")
-            .body(Body::from(request_body.to_string()))
+        // Create hackathon request
+        let hackathon_request = HackathonCreateRequestDto {
+            name: "Test Hackathon Controller".to_string(),
+            description: "Hackathon created via controller test".to_string(),
+            start_date: Utc::now() + Duration::days(7),
+            end_date: Utc::now() + Duration::days(14),
+            registration_deadline: Utc::now() + Duration::days(10),
+            max_participants: None,
+            theme: None,
+            rules: None,
+            prizes: None,
+            previous_winners: None,
+            organizers: vec![user.id.id.to_raw()],
+        };
+
+        // Send create request
+        let response = app.service.post("/api/v1/hackathons")
+            .header("Authorization", format!("Bearer {}", crate::get_test_token(&user.id.id.to_raw()).await))
+            .json(&hackathon_request)
+            .await
             .unwrap();
 
-    let response = router.oneshot(request).await.unwrap();
-    assert_eq!(response.status(), StatusCode::CREATED);
-
-    // parse typed response: inner HackathonDto (helper extracts "data" if present)
-    let hackathon: imphnen_hackathon::v1::hackathon::hackathon_dto::HackathonDto =
-        crate::common::response_helpers::parse_response_data(response, 4096).await;
-
-    // Assert all required fields are present and not empty
-    assert!(!hackathon.id.is_empty(), "Hackathon ID should not be empty");
-    assert_eq!(hackathon.name, "Controller Test Hackathon");
-    assert_eq!(hackathon.description, "Testing controller endpoints");
-    assert!(!hackathon.start_date.to_rfc3339().is_empty(), "Start date should not be empty");
-    assert!(!hackathon.end_date.to_rfc3339().is_empty(), "End date should not be empty");
-    assert!(!hackathon.registration_deadline.to_rfc3339().is_empty(), "Registration deadline should not be empty");
-    assert!(hackathon.max_participants.is_some(), "Max participants should be present");
-    assert!(!hackathon.status.to_string().is_empty(), "Status should not be empty");
-    assert!(hackathon.organizers.len() > 0, "Organizers list should not be empty");
-    assert_eq!(hackathon.is_deleted, false, "Hackathon should not be marked as deleted");
-    }
-
-    #[tokio::test]
-    async fn test_create_hackathon_controller_validation_error() {
-        let router = setup_router().await;
-
-        let request_body = json!({
-            "name": "",
-            "description": "Missing required name",
-            "start_date": (Utc::now() + chrono::Duration::days(2)).to_rfc3339(),
-            "end_date": (Utc::now() + chrono::Duration::days(3)).to_rfc3339(),
-            "registration_deadline": (Utc::now() + chrono::Duration::days(1)).to_rfc3339(),
-            "max_participants": 100,
-            "theme": "AI/ML",
-            "rules": "Be excellent to each other",
-            "prizes": [],
-            "organizers": ["user-1"]
-        });
-
-        let request = Request::builder()
-            .method("POST")
-            .uri("/hackathons")
-            .header("content-type", "application/json")
-            .body(Body::from(request_body.to_string()))
-            .unwrap();
-
-    let response = router.oneshot(request).await.unwrap();
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-
-    // parse typed ErrorDto
-    let err: imphnen_hackathon::ErrorDto = crate::common::response_helpers::parse_response(response, 2048).await;
-    assert_eq!(err.status, StatusCode::BAD_REQUEST.as_u16());
-    }
-
-    #[tokio::test]
-    async fn test_get_hackathon_controller_success() {
-        let router = setup_router().await;
-
-        // First create a hackathon
-        let create_body = json!({
-            "name": "Get Controller Test",
-            "description": "For get endpoint testing",
-            "start_date": (Utc::now() + chrono::Duration::days(2)).to_rfc3339(),
-            "end_date": (Utc::now() + chrono::Duration::days(3)).to_rfc3339(),
-            "registration_deadline": (Utc::now() + chrono::Duration::days(1)).to_rfc3339(),
-            "max_participants": 50,
-            "theme": null,
-            "rules": null,
-            "prizes": null,
-            "organizers": ["user-1"]
-        });
-
-        let create_request = Request::builder()
-            .method("POST")
-            .uri("/hackathons")
-            .header("content-type", "application/json")
-            .body(Body::from(create_body.to_string()))
-            .unwrap();
-
-        let create_response = router.clone().oneshot(create_request).await.unwrap();
-        assert_eq!(create_response.status(), StatusCode::CREATED);
-
-        // Extract hackathon ID from response (simplified - in real test you'd parse JSON)
-        let _hackathon_id = "test-hackathon-id"; // This would be extracted from response
-
-        // Now get the hackathon
-        let get_request = Request::builder()
-            .method("GET")
-            .uri("/hackathons/test-hackathon-id") // Using placeholder
-            .body(Body::empty())
-            .unwrap();
-
-        let get_response = router.oneshot(get_request).await.unwrap();
-        // This will fail because we don't have the real ID, but tests the endpoint structure
-        assert!(get_response.status() == StatusCode::OK || get_response.status() == StatusCode::NOT_FOUND);
-    }
-
-    #[tokio::test]
-    async fn test_list_hackathons_controller() {
-        let router = setup_router().await;
-
-        let request = Request::builder()
-            .method("GET")
-            .uri("/hackathons?page=1&per_page=10")
-            .body(Body::empty())
-            .unwrap();
-
-    let response = router.oneshot(request).await.unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
-
-    // parse typed list of hackathons (helper extracts inner data if wrapped)
-    let list: Vec<imphnen_hackathon::v1::hackathon::hackathon_dto::HackathonDto> =
-        crate::common::response_helpers::parse_response_data(response, 4096).await;
-
-    // if non-empty, ensure items have all required fields
-    if !list.is_empty() {
-        let hackathon = &list[0];
-        assert!(!hackathon.id.is_empty(), "Hackathon ID should not be empty");
-        assert!(!hackathon.name.is_empty(), "Hackathon name should not be empty");
-        assert!(!hackathon.description.is_empty(), "Hackathon description should not be empty");
-        assert!(!hackathon.start_date.to_rfc3339().is_empty(), "Start date should not be empty");
-        assert!(!hackathon.end_date.to_rfc3339().is_empty(), "End date should not be empty");
-        assert!(!hackathon.registration_deadline.to_rfc3339().is_empty(), "Registration deadline should not be empty");
-        assert!(hackathon.max_participants.is_some(), "Max participants should be present");
-        assert!(!hackathon.status.to_string().is_empty(), "Status should not be empty");
-        assert!(hackathon.organizers.len() > 0, "Organizers list should not be empty");
-        assert_eq!(hackathon.is_deleted, false, "Hackathon should not be marked as deleted");
-    }
-    }
-
-    #[tokio::test]
-    async fn test_update_hackathon_controller_success() {
-        let router = setup_router().await;
-
-        // First create a hackathon
-        let create_body = json!({
-            "name": "Update Controller Test",
-            "description": "For update endpoint testing",
-            "start_date": (Utc::now() + chrono::Duration::days(2)).to_rfc3339(),
-            "end_date": (Utc::now() + chrono::Duration::days(3)).to_rfc3339(),
-            "registration_deadline": (Utc::now() + chrono::Duration::days(1)).to_rfc3339(),
-            "max_participants": 50,
-            "theme": null,
-            "rules": null,
-            "prizes": null,
-            "organizers": ["user-1"]
-        });
-
-        let create_request = Request::builder()
-            .method("POST")
-            .uri("/hackathons")
-            .header("content-type", "application/json")
-            .body(Body::from(create_body.to_string()))
-            .unwrap();
-
-        let create_response = router.clone().oneshot(create_request).await.unwrap();
-        assert_eq!(create_response.status(), StatusCode::CREATED);
-
-        // Update the hackathon
-        let update_body = json!({
-            "name": "Updated Controller Test",
-            "description": "Updated description",
-            "max_participants": 75
-        });
-
-        let update_request = Request::builder()
-            .method("PUT")
-            .uri("/hackathons/test-hackathon-id") // Using placeholder
-            .header("content-type", "application/json")
-            .body(Body::from(update_body.to_string()))
-            .unwrap();
-
-        let update_response = router.oneshot(update_request).await.unwrap();
-        // This will likely fail due to invalid ID, but tests the endpoint structure
-        assert!(update_response.status() == StatusCode::OK || update_response.status() == StatusCode::NOT_FOUND || update_response.status() == StatusCode::BAD_REQUEST);
-    }
-
-    #[tokio::test]
-    async fn test_delete_hackathon_controller() {
-        let router = setup_router().await;
-
-        let request = Request::builder()
-            .method("DELETE")
-            .uri("/hackathons/test-hackathon-id") // Using placeholder
-            .body(Body::empty())
-            .unwrap();
-
-        let response = router.oneshot(request).await.unwrap();
-        // This will likely fail due to invalid ID, but tests the endpoint structure
-        assert!(response.status() == StatusCode::OK || response.status() == StatusCode::NOT_FOUND);
-    }
-
-    #[tokio::test]
-    async fn test_create_hackathon_event_controller() {
-        let router = setup_router().await;
-
-        let event_body = json!({
-            "title": "Controller Event Test",
-            "description": "Testing event creation endpoint",
-            "event_type": "Workshop",
-            "start_time": (Utc::now() + chrono::Duration::days(2)).to_rfc3339(),
-            "end_time": (Utc::now() + chrono::Duration::days(2) + chrono::Duration::hours(2)).to_rfc3339(),
-            "location": "Room 101",
-            "virtual_link": null,
-            "max_attendees": 30,
-            "is_mandatory": false
-        });
-
-        let request = Request::builder()
-            .method("POST")
-            .uri("/hackathons/test-hackathon-id/events") // Using placeholder
-            .header("content-type", "application/json")
-            .body(Body::from(event_body.to_string()))
-            .unwrap();
-
-        let response = router.oneshot(request).await.unwrap();
+        // For debugging: capture status then extract body so we can print server error details
         let status = response.status();
-        if status == StatusCode::CREATED {
-            // parse created event and assert fields
-            let event: imphnen_hackathon::v1::hackathon::hackathon_dto::HackathonEventDto =
-                crate::common::response_helpers::parse_response_data(response, 2048).await;
-            // Assert all required fields are present and not empty
-            assert!(!event.id.is_empty(), "Event ID should not be empty");
-            assert!(!event.hackathon_id.is_empty(), "Hackathon ID should not be empty");
-            assert_eq!(event.title, "Controller Event Test");
-            assert!(!event.start_time.to_rfc3339().is_empty(), "Start time should not be empty");
-            assert!(!event.end_time.to_rfc3339().is_empty(), "End time should not be empty");
-            assert!(!event.event_type.to_string().is_empty(), "Event type should not be empty");
-            assert_eq!(event.is_mandatory, false, "Is mandatory should be false by default");
-            assert_eq!(event.is_deleted, false, "Event should not be marked as deleted");
-        } else {
-            assert!(status == StatusCode::NOT_FOUND || status == StatusCode::BAD_REQUEST);
-        }
+        let body = crate::get_response_body(response).await;
+        eprintln!("[DEBUG] create_hackathon status: {}", status);
+        eprintln!("[DEBUG] create_hackathon body: {}", body);
+
+        // Verify response
+        assert_eq!(status, StatusCode::CREATED);
+    assert_eq!(body["message"], "Success create hackathon");
+    assert_eq!(body["data"]["name"], "Test Hackathon Controller");
+    assert_eq!(body["data"]["description"], "Hackathon created via controller test");
+
+        // Clean up
+        let hackathon_id = body["data"]["id"].as_str().unwrap().to_string();
+        let repo = HackathonRepository::new(&app.state);
+        let _ = repo.delete_hackathon(hackathon_id).await;
+        let _ = users_repo.query_delete_user(user.id.id.to_raw()).await;
     }
 
     #[tokio::test]
-    async fn test_list_hackathon_events_controller() {
-        let router = setup_router().await;
+    async fn test_get_hackathon_by_id() {
+    let app = crate::get_full_test_app().await;
+        let users_repo = UsersRepository::new(&app.state);
+        let repo = HackathonRepository::new(&app.state);
 
-        let request = Request::builder()
-            .method("GET")
-            .uri("/hackathons/test-hackathon-id/events?page=1&per_page=10") // Using placeholder
-            .body(Body::empty())
+        // Create test organizer and hackathon
+        let email = generate_unique_email("hackathon_get_controller");
+        let role_id = get_role_id("mentor", &app.state).await;
+        let user_data = crate::create_test_user(&email, "password123", true, &role_id);
+        let user_result = users_repo.query_create_user(user_data.clone()).await;
+        assert!(user_result.is_ok(), "Failed to create test user");
+        let user = users_repo.query_user_by_email(email.clone()).await.unwrap();
+
+        let hackathon_request = HackathonCreateRequestDto {
+            name: "Get Hackathon Test".to_string(),
+            description: "Test hackathon for get by ID".to_string(),
+            start_date: Utc::now() + Duration::days(7),
+            end_date: Utc::now() + Duration::days(14),
+            registration_deadline: Utc::now() + Duration::days(10),
+            max_participants: None,
+            theme: None,
+            rules: None,
+            prizes: None,
+            previous_winners: None,
+            organizers: vec![user.id.id.to_raw()],
+        };
+
+        let created = repo.create_hackathon(hackathon_request.clone()).await.expect("Failed to create hackathon");
+        let hackathon_id = created.id.id.to_raw();
+
+        // Send get request
+        let response = app.service.get(&format!("/api/v1/hackathons/{}", hackathon_id))
+            .await
             .unwrap();
 
-        let response = router.oneshot(request).await.unwrap();
-        // This will likely fail due to invalid hackathon ID, but tests the endpoint structure
-        assert!(response.status() == StatusCode::OK || response.status() == StatusCode::NOT_FOUND);
+        // Verify response
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = crate::get_response_body(response).await;
+    assert_eq!(body["data"]["name"], "Get Hackathon Test");
+    assert_eq!(body["data"]["description"], "Test hackathon for get by ID");
+
+    // Clean up
+    let _ = repo.delete_hackathon(hackathon_id).await;
+        let _ = users_repo.query_delete_user(user.id.id.to_raw()).await;
     }
 
     #[tokio::test]
-    async fn test_update_hackathon_event_controller() {
-        let router = setup_router().await;
+    async fn test_update_hackathon() {
+    let app = crate::get_full_test_app().await;
+        let users_repo = UsersRepository::new(&app.state);
+    let repo = HackathonRepository::new(&app.state);
 
-        let update_body = json!({
-            "title": "Updated Event Title",
-            "description": "Updated event description",
-            "is_mandatory": true
-        });
+        // Create test organizer and hackathon
+        let email = generate_unique_email("hackathon_update_controller");
+        let role_id = get_role_id("mentor", &app.state).await;
+        let user_data = crate::create_test_user(&email, "password123", true, &role_id);
+        let user_result = users_repo.query_create_user(user_data.clone()).await;
+        assert!(user_result.is_ok(), "Failed to create test user");
+        let user = users_repo.query_user_by_email(email.clone()).await.unwrap();
 
-        let request = Request::builder()
-            .method("PUT")
-            .uri("/hackathons/events/test-event-id") // Using placeholder
-            .header("content-type", "application/json")
-            .body(Body::from(update_body.to_string()))
+        let hackathon_request = HackathonCreateRequestDto {
+            name: "Original Hackathon Controller".to_string(),
+            description: "Original description".to_string(),
+            start_date: Utc::now() + Duration::days(7),
+            end_date: Utc::now() + Duration::days(14),
+            registration_deadline: Utc::now() + Duration::days(10),
+            max_participants: None,
+            theme: None,
+            rules: None,
+            prizes: None,
+            previous_winners: None,
+            organizers: vec![user.id.id.to_raw()],
+        };
+
+        let create_result = repo.create_hackathon(hackathon_request.clone()).await.expect("Failed to create hackathon");
+        let hackathon_id = create_result.id.id.to_raw();
+
+        // Prepare update payload using the public update DTO
+        let update_payload = imphnen_hackathon::v1::hackathon::hackathon_dto::HackathonUpdateRequestDto {
+            name: Some("Updated Hackathon Controller".to_string()),
+            description: Some("Updated description via controller".to_string()),
+            start_date: None,
+            end_date: None,
+            registration_deadline: None,
+            max_participants: None,
+            theme: None,
+            rules: None,
+            prizes: None,
+            previous_winners: None,
+            organizers: None,
+        };
+
+        // Send update request
+        let response = app.service.put(&format!("/api/v1/hackathons/{}", hackathon_id))
+            .header("Authorization", format!("Bearer {}", crate::get_test_token(&user.id.id.to_raw()).await))
+            .json(&update_payload)
+            .await
             .unwrap();
 
-        let response = router.oneshot(request).await.unwrap();
-        // This will likely fail due to invalid event ID, but tests the endpoint structure
-        assert!(response.status() == StatusCode::OK || response.status() == StatusCode::NOT_FOUND || response.status() == StatusCode::BAD_REQUEST);
+        // Verify response
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = crate::get_response_body(response).await;
+    assert_eq!(body["message"], "Success update hackathon");
+    assert_eq!(body["data"]["name"], "Updated Hackathon Controller");
+
+        // Clean up
+    let _ = repo.delete_hackathon(hackathon_id).await;
+        let _ = users_repo.query_delete_user(user.id.id.to_raw()).await;
     }
 
     #[tokio::test]
-    async fn test_delete_hackathon_event_controller() {
-        let router = setup_router().await;
+    async fn test_delete_hackathon() {
+    let app = crate::get_full_test_app().await;
+        let users_repo = UsersRepository::new(&app.state);
+    let repo = HackathonRepository::new(&app.state);
 
-        let request = Request::builder()
-            .method("DELETE")
-            .uri("/hackathons/events/test-event-id") // Using placeholder
-            .body(Body::empty())
+        // Create test organizer and hackathon
+        let email = generate_unique_email("hackathon_delete_controller");
+        let role_id = get_role_id("mentor", &app.state).await;
+        let user_data = crate::create_test_user(&email, "password123", true, &role_id);
+        let user_result = users_repo.query_create_user(user_data.clone()).await;
+        assert!(user_result.is_ok(), "Failed to create test user");
+        let user = users_repo.query_user_by_email(email.clone()).await.unwrap();
+
+        let hackathon_request = HackathonCreateRequestDto {
+            name: "Hackathon to Delete Controller".to_string(),
+            description: "Hackathon for deletion test".to_string(),
+            start_date: Utc::now() + Duration::days(7),
+            end_date: Utc::now() + Duration::days(14),
+            registration_deadline: Utc::now() + Duration::days(10),
+            max_participants: None,
+            theme: None,
+            rules: None,
+            prizes: None,
+            previous_winners: None,
+            organizers: vec![user.id.id.to_raw()],
+        };
+
+        let create_result = repo.create_hackathon(hackathon_request.clone()).await.expect("Failed to create hackathon");
+        let hackathon_id = create_result.id.id.to_raw();
+
+        // Send delete request
+        let response = app.service.delete(&format!("/api/v1/hackathons/{}", hackathon_id))
+            .header("Authorization", format!("Bearer {}", crate::get_test_token(&user.id.id.to_raw()).await))
+            .await
             .unwrap();
 
-        let response = router.oneshot(request).await.unwrap();
-        // This will likely fail due to invalid event ID, but tests the endpoint structure
-        assert!(response.status() == StatusCode::OK || response.status() == StatusCode::NOT_FOUND);
+        // Verify response
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = crate::get_response_body(response).await;
+        assert_eq!(body["message"], "Success delete hackathon");
+
+        // Verify hackathon is deleted
+        let get_response = app.service.get(&format!("/api/v1/hackathons/{}", hackathon_id))
+            .await
+            .unwrap();
+        assert_eq!(get_response.status(), StatusCode::NOT_FOUND);
+
+        // Clean up
+        let _ = users_repo.query_delete_user(user.id.id.to_raw()).await;
     }
 
     #[tokio::test]
-    async fn test_create_hackathon_timeline_controller() {
-        let router = setup_router().await;
+    async fn test_submit_project_as_user() {
+    let app = crate::get_full_test_app().await;
+        let users_repo = UsersRepository::new(&app.state);
+    let repo = HackathonRepository::new(&app.state);
 
-        let timeline_body = json!({
-            "phase": "Registration",
-            "title": "Controller Timeline Test",
-            "description": "Testing timeline creation endpoint",
-            "start_date": (Utc::now() + chrono::Duration::days(2)).to_rfc3339(),
-            "end_date": (Utc::now() + chrono::Duration::days(3)).to_rfc3339(),
-            "is_active": true,
-            "order": 1
-        });
+        // Create test users and hackathon
+        let organizer_email = generate_unique_email("hackathon_submit_organizer_controller");
+        let participant_email = generate_unique_email("hackathon_submit_participant_controller");
+        
+        let role_id = get_role_id("mentee", &app.state).await;
+        let organizer_data = crate::create_test_user(&organizer_email, "password123", true, &role_id);
+        let participant_data = crate::create_test_user(&participant_email, "password123", true, &role_id);
+        
+        let organizer_result = users_repo.query_create_user(organizer_data.clone()).await;
+        let participant_result = users_repo.query_create_user(participant_data.clone()).await;
+        
+        assert!(organizer_result.is_ok(), "Failed to create organizer");
+        assert!(participant_result.is_ok(), "Failed to create participant");
+        
+        let organizer = users_repo.query_user_by_email(organizer_email.clone()).await.unwrap();
+        let participant = users_repo.query_user_by_email(participant_email.clone()).await.unwrap();
 
-        let request = Request::builder()
-            .method("POST")
-            .uri("/hackathons/test-hackathon-id/timeline") // Using placeholder
-            .header("content-type", "application/json")
-            .body(Body::from(timeline_body.to_string()))
+        let hackathon_request = HackathonCreateRequestDto {
+            name: "User Submission Test Controller".to_string(),
+            description: "Test hackathon for user submissions".to_string(),
+            start_date: Utc::now() + Duration::days(7),
+            end_date: Utc::now() + Duration::days(14),
+            registration_deadline: Utc::now() + Duration::days(10),
+            max_participants: None,
+            theme: None,
+            rules: None,
+            prizes: None,
+            previous_winners: None,
+            organizers: vec![organizer.id.id.to_raw()],
+        };
+
+        let create_result = repo.create_hackathon(hackathon_request.clone()).await.expect("Failed to create hackathon");
+        let hackathon_id = create_result.id.id.to_raw();
+
+        // Submit project request
+        let submission_dto = HackathonSubmissionCreateRequestDto {
+            project_name: "My Rust Project Controller".to_string(),
+            description: "A cool Rust project for the hackathon".to_string(),
+            repository_url: Some("https://github.com/user/my-rust-project".to_string()),
+            demo_url: Some("https://my-rust-project.com".to_string()),
+            slides_url: None,
+            technologies: vec![],
+        };
+
+        // Send submission request (use team path; for single-user tests we pass participant id as team_id)
+        let response = app.service.post(&format!("/api/v1/hackathons/{}/teams/{}/submissions", hackathon_id, participant.id.id.to_raw()))
+            .header("Authorization", format!("Bearer {}", crate::get_test_token(&participant.id.id.to_raw()).await))
+            .json(&submission_dto)
+            .await
             .unwrap();
 
-        let response = router.oneshot(request).await.unwrap();
-        let status = response.status();
-        if status == StatusCode::CREATED {
-            // Parse created timeline and assert all fields are present
-            let timeline: imphnen_hackathon::v1::hackathon::hackathon_dto::HackathonTimelineDto =
-                crate::common::response_helpers::parse_response_data(response, 2048).await;
-            
-            // Assert all required fields are present and not empty
-            assert!(!timeline.id.is_empty(), "Timeline ID should not be empty");
-            assert!(!timeline.hackathon_id.is_empty(), "Hackathon ID should not be empty");
-            assert!(!timeline.phase.to_string().is_empty(), "Phase should not be empty");
-            assert!(!timeline.title.is_empty(), "Timeline title should not be empty");
-            assert!(!timeline.start_date.to_rfc3339().is_empty(), "Start date should not be empty");
-            assert!(!timeline.end_date.to_rfc3339().is_empty(), "End date should not be empty");
-            assert!(timeline.order > 0, "Order should be positive");
-            assert_eq!(timeline.is_deleted, false, "Timeline should not be marked as deleted");
-        } else {
-            assert!(status == StatusCode::NOT_FOUND || status == StatusCode::BAD_REQUEST);
-        }
+        // Verify response
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let body = crate::get_response_body(response).await;
+        assert_eq!(body["message"], "Success submit project");
+    assert_eq!(body["data"]["project_name"], "My Rust Project Controller");
+    assert_eq!(body["data"]["status"], "Draft");
+
+        // Clean up
+    let _ = repo.delete_hackathon(hackathon_id).await;
+        let _ = users_repo.query_delete_user(organizer.id.id.to_raw()).await;
+        let _ = users_repo.query_delete_user(participant.id.id.to_raw()).await;
     }
 
     #[tokio::test]
-    async fn test_list_hackathon_timeline_controller() {
-        let router = setup_router().await;
+    async fn test_submit_project_as_team() {
+    let app = crate::get_full_test_app().await;
+        let users_repo = UsersRepository::new(&app.state);
+        let teams_repo = TeamsRepository::new(&app.state);
+    let hackathon_repo = HackathonRepository::new(&app.state);
 
-        let request = Request::builder()
-            .method("GET")
-            .uri("/hackathons/test-hackathon-id/timeline?page=1&per_page=10") // Using placeholder
-            .body(Body::empty())
+        // Create test users, team, and hackathon
+        let organizer_email = generate_unique_email("hackathon_team_submit_organizer_controller");
+        let member1_email = generate_unique_email("team_member1_submit_controller");
+        let member2_email = generate_unique_email("team_member2_submit_controller");
+        
+        let role_id = get_role_id("mentee", &app.state).await;
+        let organizer_data = crate::create_test_user(&organizer_email, "password123", true, &role_id);
+        let member1_data = crate::create_test_user(&member1_email, "password123", true, &role_id);
+        let member2_data = crate::create_test_user(&member2_email, "password123", true, &role_id);
+        
+        let organizer_result = users_repo.query_create_user(organizer_data.clone()).await;
+        let member1_result = users_repo.query_create_user(member1_data.clone()).await;
+        let member2_result = users_repo.query_create_user(member2_data.clone()).await;
+        
+        assert!(organizer_result.is_ok(), "Failed to create organizer");
+        assert!(member1_result.is_ok(), "Failed to create member1");
+        assert!(member2_result.is_ok(), "Failed to create member2");
+        
+        let organizer = users_repo.query_user_by_email(organizer_email.clone()).await.unwrap();
+        let member1 = users_repo.query_user_by_email(member1_email.clone()).await.unwrap();
+        let member2 = users_repo.query_user_by_email(member2_email.clone()).await.unwrap();
+
+        // Create team
+        let team_request = TeamsCreateRequestDto {
+            name: "Hackathon Team Controller".to_string(),
+            description: Some("Team for hackathon submissions".to_string()),
+            is_open: Some(false),
+            max_members: Some(5),
+            skills_required: Some(vec!["Rust".to_string(), "Backend".to_string()]),
+            location: Some("Remote".to_string()),
+            website_url: None,
+            github_url: None,
+            avatar: None,
+            member_emails: vec![],
+        };
+
+        let team_schema = imphnen_iam::TeamsSchema::create(team_request, member1.id.id.to_raw());
+        let team_create_result = teams_repo.query_create_team(team_schema).await.unwrap();
+        let team_id = team_create_result.split_whitespace().last().unwrap().to_string();
+
+        // Add team members
+        let member2_schema = TeamMembersSchema::create(
+            team_id.clone(), 
+            member2.id.id.to_raw(), 
+            Some("member".to_string())
+        );
+        let add_member_result = teams_repo.query_add_team_member(member2_schema).await;
+        assert!(add_member_result.is_ok(), "Failed to add team member");
+
+        // Create hackathon
+        let hackathon_request = HackathonCreateRequestDto {
+            name: "Team Submission Test Controller".to_string(),
+            description: "Test hackathon for team submissions".to_string(),
+            start_date: Utc::now() + Duration::days(7),
+            end_date: Utc::now() + Duration::days(14),
+            registration_deadline: Utc::now() + Duration::days(10),
+            max_participants: None,
+            theme: None,
+            rules: None,
+            prizes: None,
+            previous_winners: None,
+            organizers: vec![organizer.id.id.to_raw()],
+        };
+
+        let create_result = hackathon_repo.create_hackathon(hackathon_request.clone()).await.expect("Failed to create hackathon");
+        let hackathon_id = create_result.id.id.to_raw();
+
+        // Submit team project request
+        let team_submission_dto = HackathonSubmissionCreateRequestDto {
+            project_name: "Our Team Rust Project Controller".to_string(),
+            description: "A collaborative Rust project by our team".to_string(),
+            repository_url: Some("https://github.com/team/our-rust-project".to_string()),
+            demo_url: Some("https://our-team-project.com".to_string()),
+            slides_url: Some("https://docs.google.com/presentation/d/12345".to_string()),
+            technologies: vec![],
+        };
+
+        // Send team submission request (use teams path)
+        let response = app.service.post(&format!("/api/v1/hackathons/{}/teams/{}/submissions", hackathon_id, team_id))
+            .header("Authorization", format!("Bearer {}", crate::get_test_token(&member1.id.id.to_raw()).await))
+            .json(&team_submission_dto)
+            .await
             .unwrap();
 
-        let response = router.oneshot(request).await.unwrap();
-        // This will likely fail due to invalid hackathon ID, but tests the endpoint structure
-        assert!(response.status() == StatusCode::OK || response.status() == StatusCode::NOT_FOUND);
+        // Verify response
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let body = crate::get_response_body(response).await;
+        assert_eq!(body["message"], "Success submit team project");
+        assert_eq!(body["data"]["project_name"], "Our Team Rust Project Controller");
+    assert_eq!(body["data"]["status"], "Draft");
+        assert_eq!(body["data"]["team_id"], team_id);
+
+        // Clean up
+    let _ = hackathon_repo.delete_hackathon(hackathon_id).await;
+        let _ = teams_repo.query_delete_team(team_id).await;
+        let _ = users_repo.query_delete_user(organizer.id.id.to_raw()).await;
+        let _ = users_repo.query_delete_user(member1.id.id.to_raw()).await;
+        let _ = users_repo.query_delete_user(member2.id.id.to_raw()).await;
     }
 
     #[tokio::test]
-    async fn test_update_hackathon_timeline_controller() {
-        let router = setup_router().await;
+    async fn test_get_hackathon_submissions() {
+    let app = crate::get_full_test_app().await;
+        let users_repo = UsersRepository::new(&app.state);
+    let repo = HackathonRepository::new(&app.state);
 
-        let update_body = json!({
-            "title": "Updated Timeline Title",
-            "description": "Updated timeline description",
-            "is_active": false
-        });
+        // Create test users and hackathon
+        let organizer_email = generate_unique_email("hackathon_submissions_organizer_controller");
+        let participant_email = generate_unique_email("hackathon_submissions_participant_controller");
+        
+        let role_id = get_role_id("mentee", &app.state).await;
+        let organizer_data = crate::create_test_user(&organizer_email, "password123", true, &role_id);
+        let participant_data = crate::create_test_user(&participant_email, "password123", true, &role_id);
+        
+        let organizer_result = users_repo.query_create_user(organizer_data.clone()).await;
+        let participant_result = users_repo.query_create_user(participant_data.clone()).await;
+        
+        assert!(organizer_result.is_ok(), "Failed to create organizer");
+        assert!(participant_result.is_ok(), "Failed to create participant");
+        
+        let organizer = users_repo.query_user_by_email(organizer_email.clone()).await.unwrap();
+        let participant = users_repo.query_user_by_email(participant_email.clone()).await.unwrap();
 
-        let request = Request::builder()
-            .method("PUT")
-            .uri("/hackathons/timeline/test-timeline-id") // Using placeholder
-            .header("content-type", "application/json")
-            .body(Body::from(update_body.to_string()))
-            .unwrap();
+        // Create hackathon
+        let hackathon_request = HackathonCreateRequestDto {
+            name: "Submissions Test Controller".to_string(),
+            description: "Test hackathon for retrieving submissions".to_string(),
+            start_date: Utc::now() + Duration::days(7),
+            end_date: Utc::now() + Duration::days(14),
+            registration_deadline: Utc::now() + Duration::days(10),
+            max_participants: None,
+            theme: None,
+            rules: None,
+            prizes: None,
+            previous_winners: None,
+            organizers: vec![organizer.id.id.to_raw()],
+        };
 
-        let response = router.oneshot(request).await.unwrap();
-        // This will likely fail due to invalid timeline ID, but tests the endpoint structure
-        assert!(response.status() == StatusCode::OK || response.status() == StatusCode::NOT_FOUND || response.status() == StatusCode::BAD_REQUEST);
-    }
+        let create_result = repo.create_hackathon(hackathon_request.clone()).await.expect("Failed to create hackathon");
+        let hackathon_id = create_result.id.id.to_raw();
 
-    #[tokio::test]
-    async fn test_delete_hackathon_timeline_controller() {
-        let router = setup_router().await;
-
-        let request = Request::builder()
-            .method("DELETE")
-            .uri("/hackathons/timeline/test-timeline-id") // Using placeholder
-            .body(Body::empty())
-            .unwrap();
-
-        let response = router.oneshot(request).await.unwrap();
-        // This will likely fail due to invalid timeline ID, but tests the endpoint structure
-        assert!(response.status() == StatusCode::OK || response.status() == StatusCode::NOT_FOUND);
-    }
-
-    #[tokio::test]
-    async fn test_create_hackathon_submission_controller() {
-        let router = setup_router().await;
-
-        let submission_body = json!({
-            "project_name": "Controller Submission Test",
-            "description": "Testing submission creation endpoint",
-            "repository_url": "https://github.com/test/repo",
-            "demo_url": "https://demo.example.com",
-            "slides_url": "https://slides.example.com",
-            "technologies": ["Rust", "React", "TypeScript"]
-        });
-
-        let request = Request::builder()
-            .method("POST")
-            .uri("/hackathons/test-hackathon-id/teams/test-team-id/submissions") // Using placeholders
-            .header("content-type", "application/json")
-            .body(Body::from(submission_body.to_string()))
-            .unwrap();
-
-        let response = router.oneshot(request).await.unwrap();
-        // This will likely fail due to invalid IDs, but if created we assert the returned JSON
-        let status = response.status();
-        if status == StatusCode::CREATED {
-            let submission: imphnen_hackathon::v1::hackathon::hackathon_dto::HackathonSubmissionDto =
-                crate::common::response_helpers::parse_response_data(response, 2048).await;
-            // Assert all required fields are present and not empty
-            assert!(!submission.id.is_empty(), "Submission ID should not be empty");
-            assert!(!submission.hackathon_id.is_empty(), "Hackathon ID should not be empty");
-            assert!(!submission.team_id.is_empty(), "Team ID should not be empty");
-            assert_eq!(submission.project_name, "Controller Submission Test");
-            assert!(!submission.description.is_empty(), "Description should not be empty");
-            assert!(submission.technologies.len() > 0, "Technologies list should not be empty");
-            assert!(!submission.submission_status.to_string().is_empty(), "Submission status should not be empty");
-            assert!(!submission.submitted_at.to_rfc3339().is_empty(), "Submitted at should not be empty");
-            assert_eq!(submission.is_deleted, false, "Submission should not be marked as deleted");
-        } else {
-            assert!(status == StatusCode::NOT_FOUND || status == StatusCode::BAD_REQUEST);
-        }
-    }
-
-    #[tokio::test]
-    async fn test_list_hackathon_submissions_controller() {
-        let router = setup_router().await;
-
-        let request = Request::builder()
-            .method("GET")
-            .uri("/hackathons/test-hackathon-id/submissions?page=1&per_page=10") // Using placeholder
-            .body(Body::empty())
-            .unwrap();
-
-        let response = router.oneshot(request).await.unwrap();
-        let status = response.status();
-        if status == StatusCode::OK {
-            let list: Vec<imphnen_hackathon::v1::hackathon::hackathon_dto::HackathonSubmissionDto> =
-                crate::common::response_helpers::parse_response_data(response, 4096).await;
-            if !list.is_empty() {
-                let submission = &list[0];
-                assert!(!submission.id.is_empty(), "Submission ID should not be empty");
-                assert!(!submission.hackathon_id.is_empty(), "Hackathon ID should not be empty");
-                assert!(!submission.team_id.is_empty(), "Team ID should not be empty");
-                assert!(!submission.project_name.is_empty(), "Project name should not be empty");
-                assert!(!submission.description.is_empty(), "Description should not be empty");
-                assert!(submission.technologies.len() > 0, "Technologies list should not be empty");
-                assert!(!submission.submission_status.to_string().is_empty(), "Submission status should not be empty");
-                assert!(!submission.submitted_at.to_rfc3339().is_empty(), "Submitted at should not be empty");
-                assert_eq!(submission.is_deleted, false, "Submission should not be marked as deleted");
+        // Submit multiple projects
+        let submission_dtos = [
+            HackathonSubmissionCreateRequestDto {
+                project_name: "Project 1 Controller".to_string(),
+                description: "Description 1".to_string(),
+                repository_url: Some("https://github.com/user/project1".to_string()),
+                demo_url: None,
+                slides_url: None,
+                technologies: vec![],
+            },
+            HackathonSubmissionCreateRequestDto {
+                project_name: "Project 2 Controller".to_string(),
+                description: "Description 2".to_string(),
+                repository_url: Some("https://github.com/user/project2".to_string()),
+                demo_url: Some("https://project2.com".to_string()),
+                slides_url: None,
+                technologies: vec![],
             }
-        } else {
-            assert_eq!(status, StatusCode::NOT_FOUND);
+        ];
+
+        for submission_dto in submission_dtos.iter() {
+            let response = app.service.post(&format!("/api/v1/hackathons/{}/teams/{}/submissions", hackathon_id, participant.id.id.to_raw()))
+                .header("Authorization", format!("Bearer {}", crate::get_test_token(&participant.id.id.to_raw()).await))
+                .json(submission_dto)
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::CREATED);
         }
+
+        // Get hackathon submissions
+        let response = app.service.get(&format!("/api/v1/hackathons/{}/submissions", hackathon_id))
+            .await
+            .unwrap();
+
+        // Verify response
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = crate::get_response_body(response).await;
+        assert_eq!(body["data"].as_array().unwrap().len(), 2);
+        assert_eq!(body["data"][0]["project_name"], "Project 1 Controller");
+        assert_eq!(body["data"][1]["project_name"], "Project 2 Controller");
+    assert_eq!(body["data"][0]["status"], "Draft");
+    assert_eq!(body["data"][1]["status"], "Draft");
+
+        // Clean up
+    let _ = repo.delete_hackathon(hackathon_id).await;
+        let _ = users_repo.query_delete_user(organizer.id.id.to_raw()).await;
+        let _ = users_repo.query_delete_user(participant.id.id.to_raw()).await;
     }
 
     #[tokio::test]
-    async fn test_update_hackathon_submission_controller() {
-        let router = setup_router().await;
+    async fn test_get_user_hackathon_submissions() {
+    let app = crate::get_full_test_app().await;
+        let users_repo = UsersRepository::new(&app.state);
+    let repo = HackathonRepository::new(&app.state);
 
-        let update_body = json!({
-            "project_name": "Updated Project Name",
-            "description": "Updated project description",
-            "technologies": ["Rust", "Python", "Django"]
+        // Create test users and hackathons
+        let organizer_email = generate_unique_email("hackathon_user_submissions_organizer_controller");
+        let participant_email = generate_unique_email("hackathon_user_submissions_participant_controller");
+        
+        let role_id = get_role_id("mentee", &app.state).await;
+        let organizer_data = crate::create_test_user(&organizer_email, "password123", true, &role_id);
+        let participant_data = crate::create_test_user(&participant_email, "password123", true, &role_id);
+        
+        let organizer_result = users_repo.query_create_user(organizer_data.clone()).await;
+        let participant_result = users_repo.query_create_user(participant_data.clone()).await;
+        
+        assert!(organizer_result.is_ok(), "Failed to create organizer");
+        assert!(participant_result.is_ok(), "Failed to create participant");
+        
+        let organizer = users_repo.query_user_by_email(organizer_email.clone()).await.unwrap();
+        let participant = users_repo.query_user_by_email(participant_email.clone()).await.unwrap();
+
+        // Create multiple hackathons
+        let hackathon_requests = [
+            HackathonCreateRequestDto {
+                name: "Hackathon 1 Controller".to_string(),
+                description: "First hackathon".to_string(),
+                start_date: Utc::now() + Duration::days(7),
+                end_date: Utc::now() + Duration::days(14),
+                registration_deadline: Utc::now() + Duration::days(10),
+                max_participants: None,
+                theme: None,
+                rules: None,
+                prizes: None,
+                previous_winners: None,
+                organizers: vec![organizer.id.id.to_raw()],
+            },
+            HackathonCreateRequestDto {
+                name: "Hackathon 2 Controller".to_string(),
+                description: "Second hackathon".to_string(),
+                start_date: Utc::now() + Duration::days(14),
+                end_date: Utc::now() + Duration::days(21),
+                registration_deadline: Utc::now() + Duration::days(17),
+                max_participants: None,
+                theme: None,
+                rules: None,
+                prizes: None,
+                previous_winners: None,
+                organizers: vec![organizer.id.id.to_raw()],
+            }
+        ];
+
+        let mut hackathon_ids = Vec::new();
+        
+        for hackathon_request in hackathon_requests.iter() {
+            let create_result = repo.create_hackathon(hackathon_request.clone()).await.unwrap();
+            let hackathon_id = create_result.id.id.to_raw();
+            hackathon_ids.push(hackathon_id);
+        }
+
+        // Submit projects to different hackathons using team endpoint (single-user uses user id as team_id)
+        let submission_requests = [
+            HackathonSubmissionCreateRequestDto {
+                project_name: "Project for Hackathon 1 Controller".to_string(),
+                description: "Description for hackathon 1".to_string(),
+                repository_url: Some("https://github.com/user/hackathon1-project".to_string()),
+                demo_url: None,
+                slides_url: None,
+                technologies: vec![],
+            },
+            HackathonSubmissionCreateRequestDto {
+                project_name: "Project for Hackathon 2 Controller".to_string(),
+                description: "Description for hackathon 2".to_string(),
+                repository_url: Some("https://github.com/user/hackathon2-project".to_string()),
+                demo_url: Some("https://hackathon2-project.com".to_string()),
+                slides_url: None,
+                technologies: vec![],
+            }
+        ];
+
+        for (i, create_req) in submission_requests.iter().enumerate() {
+            let response = app.service.post(&format!("/api/v1/hackathons/{}/teams/{}/submissions", hackathon_ids[i], participant.id.id.to_raw()))
+                .header("Authorization", format!("Bearer {}", crate::get_test_token(&participant.id.id.to_raw()).await))
+                .json(create_req)
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::CREATED);
+        }
+
+        // Get user's hackathon submissions
+        let response = app.service.get(&format!("/api/v1/users/{}/hackathon-submissions", participant.id.id.to_raw()))
+            .await
+            .unwrap();
+
+        // Verify response
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = crate::get_response_body(response).await;
+        assert_eq!(body["data"].as_array().unwrap().len(), 2);
+        assert_eq!(body["data"][0]["project_name"], "Project for Hackathon 1 Controller");
+        assert_eq!(body["data"][1]["project_name"], "Project for Hackathon 2 Controller");
+        assert_eq!(body["data"][0]["status"], "Draft");
+        assert_eq!(body["data"][1]["status"], "Draft");
+
+        // Clean up
+        for hackathon_id in hackathon_ids {
+            let _ = repo.delete_hackathon(hackathon_id).await;
+        }
+        let _ = users_repo.query_delete_user(organizer.id.id.to_raw()).await;
+        let _ = users_repo.query_delete_user(participant.id.id.to_raw()).await;
+    }
+
+    #[tokio::test]
+    async fn test_search_hackathons() {
+    let app = crate::get_full_test_app().await;
+        let users_repo = UsersRepository::new(&app.state);
+    let repo = HackathonRepository::new(&app.state);
+
+        // Create test organizer and hackathons
+        let email = generate_unique_email("hackathon_search_controller");
+        let role_id = get_role_id("mentor", &app.state).await;
+        let user_data = crate::create_test_user(&email, "password123", true, &role_id);
+        let user_result = users_repo.query_create_user(user_data.clone()).await;
+        assert!(user_result.is_ok(), "Failed to create test user");
+        let user = users_repo.query_user_by_email(email.clone()).await.unwrap();
+
+        // Create test hackathons
+        let hackathon_requests = [
+            HackathonCreateRequestDto {
+                name: "Rust Backend Hackathon Controller".to_string(),
+                description: "Build Rust backend projects".to_string(),
+                start_date: Utc::now() + Duration::days(7),
+                end_date: Utc::now() + Duration::days(14),
+                registration_deadline: Utc::now() + Duration::days(10),
+                max_participants: None,
+                theme: Some("Backend".to_string()),
+                rules: None,
+                prizes: None,
+                previous_winners: None,
+                organizers: vec![user.id.id.to_raw()],
+            },
+            HackathonCreateRequestDto {
+                name: "TypeScript Frontend Hackathon Controller".to_string(),
+                description: "Build TypeScript frontend projects".to_string(),
+                start_date: Utc::now() + Duration::days(14),
+                end_date: Utc::now() + Duration::days(21),
+                registration_deadline: Utc::now() + Duration::days(17),
+                max_participants: None,
+                theme: Some("Frontend".to_string()),
+                rules: None,
+                prizes: None,
+                previous_winners: None,
+                organizers: vec![user.id.id.to_raw()],
+            },
+            HackathonCreateRequestDto {
+                name: "Rust Fullstack Hackathon Controller".to_string(),
+                description: "Build fullstack projects with Rust".to_string(),
+                start_date: Utc::now() + Duration::days(21),
+                end_date: Utc::now() + Duration::days(28),
+                registration_deadline: Utc::now() + Duration::days(24),
+                max_participants: None,
+                theme: Some("Fullstack".to_string()),
+                rules: None,
+                prizes: None,
+                previous_winners: None,
+                organizers: vec![user.id.id.to_raw()],
+            }
+        ];
+
+        for hackathon_request in hackathon_requests.iter() {
+            let create_result = repo.create_hackathon(hackathon_request.clone()).await.unwrap();
+            // Store hackathon IDs for cleanup
+            let _ = create_result.id.id.to_raw();
+        }
+
+        // Test search with multiple parameters
+        let search_params = json!({
+            "query": "Rust",
+            "category": "Backend",
+            "location": "Remote",
+            "is_featured": true,
+            "page": 1,
+            "per_page": 10
         });
 
-        let request = Request::builder()
-            .method("PUT")
-            .uri("/hackathons/submissions/test-submission-id") // Using placeholder
-            .header("content-type", "application/json")
-            .body(Body::from(update_body.to_string()))
+        let response = app.service.post("/api/v1/hackathons/search")
+            .json(&search_params)
+            .await
             .unwrap();
 
-        let response = router.oneshot(request).await.unwrap();
-        let status = response.status();
-        if status == StatusCode::OK {
-            let msg: imphnen_entities::MessageResponseDto =
-                crate::common::response_helpers::parse_response(response, 2048).await;
-            assert!(msg.message.to_lowercase().contains("updated") || msg.message.to_lowercase().contains("success"));
-        } else {
-            assert!(status == StatusCode::NOT_FOUND || status == StatusCode::BAD_REQUEST);
-        }
+        // Verify response
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = crate::get_response_body(response).await;
+        assert_eq!(body["data"].as_array().unwrap().len(), 1);
+    assert_eq!(body["data"][0]["name"], "Rust Backend Hackathon Controller");
+    assert_eq!(body["data"][0]["description"].as_str().unwrap().contains("Rust"), true);
+        assert!(body["data"][0]["description"].as_str().unwrap().contains("Rust"));
+
+        // Clean up - in a real test you would store and delete all created hackathons
+        let _ = users_repo.query_delete_user(user.id.id.to_raw()).await;
     }
 
     #[tokio::test]
-    async fn test_submit_hackathon_submission_controller() {
-        let router = setup_router().await;
+    async fn test_update_submission_status() {
+        let app = crate::get_full_test_app().await;
+        let users_repo = UsersRepository::new(&app.state);
+        let repo = HackathonRepository::new(&app.state);
 
-        let request = Request::builder()
-            .method("POST")
-            .uri("/hackathons/submissions/test-submission-id/submit") // Using placeholder
-            .body(Body::empty())
+        // Create test users and hackathon
+        let organizer_email = generate_unique_email("hackathon_status_organizer_controller");
+        let participant_email = generate_unique_email("hackathon_status_participant_controller");
+        
+        let role_id = get_role_id("mentee", &app.state).await;
+        let organizer_data = crate::create_test_user(&organizer_email, "password123", true, &role_id);
+        let participant_data = crate::create_test_user(&participant_email, "password123", true, &role_id);
+        
+        let organizer_result = users_repo.query_create_user(organizer_data.clone()).await;
+        let participant_result = users_repo.query_create_user(participant_data.clone()).await;
+        
+        assert!(organizer_result.is_ok(), "Failed to create organizer");
+        assert!(participant_result.is_ok(), "Failed to create participant");
+        
+        let organizer = users_repo.query_user_by_email(organizer_email.clone()).await.unwrap();
+        let participant = users_repo.query_user_by_email(participant_email.clone()).await.unwrap();
+
+        // Create hackathon and submission
+        let hackathon_request = HackathonCreateRequestDto {
+            name: "Submission Status Test Controller".to_string(),
+            description: "Test hackathon for submission status updates".to_string(),
+            start_date: Utc::now() + Duration::days(7),
+            end_date: Utc::now() + Duration::days(14),
+            registration_deadline: Utc::now() + Duration::days(10),
+            max_participants: None,
+            theme: None,
+            rules: None,
+            prizes: None,
+            previous_winners: None,
+            organizers: vec![organizer.id.id.to_raw()],
+        };
+
+        let create_result = repo.create_hackathon(hackathon_request).await.unwrap();
+        let hackathon_id = create_result.id.id.to_raw();
+
+        let submission_dto = HackathonSubmissionCreateRequestDto {
+            project_name: "Test Project Controller".to_string(),
+            description: "Test description".to_string(),
+            repository_url: Some("https://github.com/user/test-project".to_string()),
+            demo_url: None,
+            slides_url: None,
+            technologies: vec![],
+        };
+
+        let submit_response = app.service.post(&format!("/api/v1/hackathons/{}/teams/{}/submissions", hackathon_id, participant.id.id.to_raw()))
+            .header("Authorization", format!("Bearer {}", crate::get_test_token(&participant.id.id.to_raw()).await))
+            .json(&submission_dto)
+            .await
+            .unwrap();
+        assert_eq!(submit_response.status(), StatusCode::CREATED);
+
+        let submission_id = crate::get_response_body(submit_response).await["data"]["id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
+        // Update submission status to "Accepted"
+        let update_status = json!({
+            "status": "Accepted",
+            "feedback": "Great project!"
+        });
+
+        let response = app.service.patch(&format!("/api/v1/hackathons/submissions/{}/status", submission_id))
+            .header("Authorization", format!("Bearer {}", crate::get_test_token(&organizer.id.id.to_raw()).await))
+            .json(&update_status)
+            .await
             .unwrap();
 
-        let response = router.oneshot(request).await.unwrap();
-        let status = response.status();
-        if status == StatusCode::OK {
-            let msg: imphnen_entities::MessageResponseDto =
-                crate::common::response_helpers::parse_response(response, 2048).await;
-            assert!(msg.message.to_lowercase().contains("submitted") || msg.message.to_lowercase().contains("success"));
-        } else {
-            assert_eq!(status, StatusCode::NOT_FOUND);
-        }
-    }
+        // Verify response
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = crate::get_response_body(response).await;
+        assert_eq!(body["message"], "Success update submission status");
+        assert_eq!(body["data"]["status"], "Accepted");
+        assert_eq!(body["data"]["judge_feedback"], "Great project!");
 
-    #[tokio::test]
-    async fn test_delete_hackathon_submission_controller() {
-        let router = setup_router().await;
+        // Update status again to "Rejected"
+        let update_status2 = json!({
+            "status": "Rejected",
+            "feedback": "Does not meet criteria"
+        });
 
-        let request = Request::builder()
-            .method("DELETE")
-            .uri("/hackathons/submissions/test-submission-id") // Using placeholder
-            .body(Body::empty())
+        let response2 = app.service.patch(&format!("/api/v1/hackathons/submissions/{}/status", submission_id))
+            .header("Authorization", format!("Bearer {}", crate::get_test_token(&organizer.id.id.to_raw()).await))
+            .json(&update_status2)
+            .await
             .unwrap();
 
-        let response = router.oneshot(request).await.unwrap();
-        let status = response.status();
-        if status == StatusCode::OK {
-            let msg: imphnen_entities::MessageResponseDto =
-                crate::common::response_helpers::parse_response(response, 2048).await;
-            assert!(msg.message.to_lowercase().contains("deleted") || msg.message.to_lowercase().contains("success"));
-        } else {
-            assert_eq!(status, StatusCode::NOT_FOUND);
-        }
+        // Verify second update
+        assert_eq!(response2.status(), StatusCode::OK);
+        let body2 = crate::get_response_body(response2).await;
+        assert_eq!(body2["message"], "Success update submission status");
+        assert_eq!(body2["data"]["status"], "Rejected");
+        assert_eq!(body2["data"]["judge_feedback"], "Does not meet criteria");
+
+    // Clean up
+    let _ = repo.delete_hackathon(hackathon_id).await;
+        let _ = users_repo.query_delete_user(organizer.id.id.to_raw()).await;
+        let _ = users_repo.query_delete_user(participant.id.id.to_raw()).await;
     }
 }

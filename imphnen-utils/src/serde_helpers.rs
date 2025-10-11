@@ -13,14 +13,11 @@ where
 	let v = Value::deserialize(deserializer)?;
 	match &v {
 		Value::Object(map) => {
-			if let Some(id_val) = map.get("Id") {
-				if let Value::Object(id_map) = id_val {
-					if let Some(Value::String(s)) = id_map.get("String") {
-						return Thing::from_str(s).map_err(|e| {
-							de::Error::custom(format!("Thing::from_str error: {e:?}"))
-						});
-					}
-				}
+			if let Some(Value::Object(id_map)) = map.get("Id")
+				&& let Some(Value::String(s)) = id_map.get("String") {
+				return Thing::from_str(s).map_err(|e| {
+					de::Error::custom(format!("Thing::from_str error: {e:?}"))
+				});
 			}
 			serde_json::from_value(v).map_err(de::Error::custom)
 		}
@@ -49,14 +46,11 @@ where
 	match &v {
 		Value::Null => Ok(None),
 		Value::Object(map) => {
-			if let Some(id_val) = map.get("Id") {
-				if let Value::Object(id_map) = id_val {
-					if let Some(Value::String(s)) = id_map.get("String") {
-						return Ok(Some(Thing::from_str(s).map_err(|e| {
-							de::Error::custom(format!("Thing::from_str error: {e:?}"))
-						})?));
-					}
-				}
+			if let Some(Value::Object(id_map)) = map.get("Id")
+				&& let Some(Value::String(s)) = id_map.get("String") {
+				return Ok(Some(Thing::from_str(s).map_err(|e| {
+					de::Error::custom(format!("Thing::from_str error: {e:?}"))
+				})?));
 			}
 			Ok(Some(serde_json::from_value(v).map_err(de::Error::custom)?))
 		}

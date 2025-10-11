@@ -254,8 +254,7 @@ use utoipa::{
         (name = "Hackathon Submissions", description = "Hackathon Submission Management Endpoints"),
     )
 )]
-
-pub struct ApiDoc;
+    pub struct ApiDoc;
 
 pub struct SecurityAddon;
 
@@ -275,7 +274,7 @@ impl Modify for SecurityAddon {
         let paths = &mut openapi.paths;
         for (_path, path_item) in paths.paths.iter_mut() {
                 // helper to process each possible operation on the path
-                let mut process_op = |op: &mut Option<utoipa::openapi::path::Operation>| {
+                let process_op = |op: &mut Option<utoipa::openapi::path::Operation>| {
                     if let Some(operation) = op.as_mut() {
                         let mut has_auth_response = false;
                         let responses = &operation.responses.responses;
