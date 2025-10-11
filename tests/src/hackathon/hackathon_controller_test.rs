@@ -101,7 +101,7 @@ mod tests {
         let hackathon_id = created.id.id.to_raw();
 
         // Send get request
-        let response = app.service.get(&format!("/api/v1/hackathons/{}", hackathon_id))
+        let response = app.service.get(format!("/api/v1/hackathons/{}", hackathon_id))
             .await
             .unwrap();
 
@@ -163,7 +163,7 @@ mod tests {
         };
 
         // Send update request
-        let response = app.service.put(&format!("/api/v1/hackathons/{}", hackathon_id))
+        let response = app.service.put(format!("/api/v1/hackathons/{}", hackathon_id))
             .header("Authorization", format!("Bearer {}", crate::get_test_token(&user.id.id.to_raw()).await))
             .json(&update_payload)
             .await
@@ -212,7 +212,7 @@ mod tests {
         let hackathon_id = create_result.id.id.to_raw();
 
         // Send delete request
-        let response = app.service.delete(&format!("/api/v1/hackathons/{}", hackathon_id))
+        let response = app.service.delete(format!("/api/v1/hackathons/{}", hackathon_id))
             .header("Authorization", format!("Bearer {}", crate::get_test_token(&user.id.id.to_raw()).await))
             .await
             .unwrap();
@@ -223,7 +223,7 @@ mod tests {
         assert_eq!(body["message"], "Success delete hackathon");
 
         // Verify hackathon is deleted
-        let get_response = app.service.get(&format!("/api/v1/hackathons/{}", hackathon_id))
+        let get_response = app.service.get(format!("/api/v1/hackathons/{}", hackathon_id))
             .await
             .unwrap();
         assert_eq!(get_response.status(), StatusCode::NOT_FOUND);
@@ -283,7 +283,7 @@ mod tests {
         };
 
         // Send submission request (use team path; for single-user tests we pass participant id as team_id)
-        let response = app.service.post(&format!("/api/v1/hackathons/{}/teams/{}/submissions", hackathon_id, participant.id.id.to_raw()))
+        let response = app.service.post(format!("/api/v1/hackathons/{}/teams/{}/submissions", hackathon_id, participant.id.id.to_raw()))
             .header("Authorization", format!("Bearer {}", crate::get_test_token(&participant.id.id.to_raw()).await))
             .json(&submission_dto)
             .await
@@ -387,7 +387,7 @@ mod tests {
         };
 
         // Send team submission request (use teams path)
-        let response = app.service.post(&format!("/api/v1/hackathons/{}/teams/{}/submissions", hackathon_id, team_id))
+        let response = app.service.post(format!("/api/v1/hackathons/{}/teams/{}/submissions", hackathon_id, team_id))
             .header("Authorization", format!("Bearer {}", crate::get_test_token(&member1.id.id.to_raw()).await))
             .json(&team_submission_dto)
             .await
@@ -471,7 +471,7 @@ mod tests {
         ];
 
         for submission_dto in submission_dtos.iter() {
-            let response = app.service.post(&format!("/api/v1/hackathons/{}/teams/{}/submissions", hackathon_id, participant.id.id.to_raw()))
+            let response = app.service.post(format!("/api/v1/hackathons/{}/teams/{}/submissions", hackathon_id, participant.id.id.to_raw()))
                 .header("Authorization", format!("Bearer {}", crate::get_test_token(&participant.id.id.to_raw()).await))
                 .json(submission_dto)
                 .await
@@ -480,7 +480,7 @@ mod tests {
         }
 
         // Get hackathon submissions
-        let response = app.service.get(&format!("/api/v1/hackathons/{}/submissions", hackathon_id))
+        let response = app.service.get(format!("/api/v1/hackathons/{}/submissions", hackathon_id))
             .await
             .unwrap();
 
@@ -581,7 +581,7 @@ mod tests {
         ];
 
         for (i, create_req) in submission_requests.iter().enumerate() {
-            let response = app.service.post(&format!("/api/v1/hackathons/{}/teams/{}/submissions", hackathon_ids[i], participant.id.id.to_raw()))
+            let response = app.service.post(format!("/api/v1/hackathons/{}/teams/{}/submissions", hackathon_ids[i], participant.id.id.to_raw()))
                 .header("Authorization", format!("Bearer {}", crate::get_test_token(&participant.id.id.to_raw()).await))
                 .json(create_req)
                 .await
@@ -590,7 +590,7 @@ mod tests {
         }
 
         // Get user's hackathon submissions
-        let response = app.service.get(&format!("/api/v1/users/{}/hackathon-submissions", participant.id.id.to_raw()))
+        let response = app.service.get(format!("/api/v1/users/{}/hackathon-submissions", participant.id.id.to_raw()))
             .await
             .unwrap();
 
@@ -694,8 +694,7 @@ mod tests {
         let body = crate::get_response_body(response).await;
         assert_eq!(body["data"].as_array().unwrap().len(), 1);
     assert_eq!(body["data"][0]["name"], "Rust Backend Hackathon Controller");
-    assert_eq!(body["data"][0]["description"].as_str().unwrap().contains("Rust"), true);
-        assert!(body["data"][0]["description"].as_str().unwrap().contains("Rust"));
+    assert!(body["data"][0]["description"].as_str().unwrap().contains("Rust"));
 
         // Clean up - in a real test you would store and delete all created hackathons
         let _ = users_repo.query_delete_user(user.id.id.to_raw()).await;
@@ -751,7 +750,7 @@ mod tests {
             technologies: vec![],
         };
 
-        let submit_response = app.service.post(&format!("/api/v1/hackathons/{}/teams/{}/submissions", hackathon_id, participant.id.id.to_raw()))
+        let submit_response = app.service.post(format!("/api/v1/hackathons/{}/teams/{}/submissions", hackathon_id, participant.id.id.to_raw()))        
             .header("Authorization", format!("Bearer {}", crate::get_test_token(&participant.id.id.to_raw()).await))
             .json(&submission_dto)
             .await
@@ -769,7 +768,7 @@ mod tests {
             "feedback": "Great project!"
         });
 
-        let response = app.service.patch(&format!("/api/v1/hackathons/submissions/{}/status", submission_id))
+        let response = app.service.patch(format!("/api/v1/hackathons/submissions/{}/status", submission_id))
             .header("Authorization", format!("Bearer {}", crate::get_test_token(&organizer.id.id.to_raw()).await))
             .json(&update_status)
             .await
@@ -788,7 +787,7 @@ mod tests {
             "feedback": "Does not meet criteria"
         });
 
-        let response2 = app.service.patch(&format!("/api/v1/hackathons/submissions/{}/status", submission_id))
+        let response2 = app.service.patch(format!("/api/v1/hackathons/submissions/{}/status", submission_id))
             .header("Authorization", format!("Bearer {}", crate::get_test_token(&organizer.id.id.to_raw()).await))
             .json(&update_status2)
             .await

@@ -200,7 +200,7 @@ impl Default for HackathonParticipantSchema {
     fn default() -> Self {
         HackathonParticipantSchema {
             id: make_thing(
-                &"app_hackathon_participants".to_string(),
+                "app_hackathon_participants",
                 &surrealdb::Uuid::new_v4().to_string(),
             ),
             hackathon_id: Thing::from(("app_hackathons".to_string(), surrealdb::sql::Id::rand())),

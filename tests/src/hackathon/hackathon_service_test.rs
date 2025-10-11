@@ -206,10 +206,10 @@ mod tests {
         assert!(result.is_ok(), "Failed to get submission by ID via service");
         let retrieved_submission = result.unwrap().data;
         
-        assert_eq!(retrieved_submission.hackathon_id, hackathon_id);
-        assert_eq!(retrieved_submission.project_name, submission_create_dto.project_name);
-        assert_eq!(retrieved_submission.description, submission_create_dto.description);
-        assert_eq!(retrieved_submission.submission_status, SubmissionStatus::Draft);
+    assert_eq!(retrieved_submission.hackathon_id, hackathon_id);
+    assert_eq!(retrieved_submission.project_name, submission_create_dto.project_name);
+    assert_eq!(retrieved_submission.description, submission_create_dto.description);
+    assert_eq!(retrieved_submission.submission_status, SubmissionStatus::Draft);
 
         // Clean up
         let _ = repo.delete_hackathon(hackathon_id).await;
@@ -313,11 +313,11 @@ mod tests {
         assert!(result.is_ok(), "Failed to get team submission by ID via service");
         let retrieved_submission = result.unwrap().data;
         
-        assert_eq!(retrieved_submission.hackathon_id, hackathon_id);
-        assert_eq!(retrieved_submission.team_id, team_id);
-        assert_eq!(retrieved_submission.project_name, team_submission_create.project_name);
-        assert_eq!(retrieved_submission.description, team_submission_create.description);
-        assert_eq!(retrieved_submission.submission_status, SubmissionStatus::Draft);
+    assert_eq!(retrieved_submission.hackathon_id, hackathon_id);
+    assert_eq!(retrieved_submission.team_id, team_id);
+    assert_eq!(retrieved_submission.project_name, team_submission_create.project_name);
+    assert_eq!(retrieved_submission.description, team_submission_create.description);
+    assert_eq!(retrieved_submission.submission_status, SubmissionStatus::Draft);
 
     // Clean up
     let _ = hackathon_repo.delete_hackathon(hackathon_id).await;
@@ -403,10 +403,11 @@ mod tests {
         let submissions = submissions_result.unwrap().data;
         
         assert_eq!(submissions.len(), 2, "Should have 2 submissions via service");
-        assert_eq!(submissions[0].project_name, "Project 1 Service");
-        assert_eq!(submissions[1].project_name, "Project 2 Service");
-        assert_eq!(submissions[0].submission_status, SubmissionStatus::Draft);
-        assert_eq!(submissions[1].submission_status, SubmissionStatus::Draft);
+    // service returns DTOs with concrete fields; compare their values directly
+    assert_eq!(submissions[0].project_name, "Project 1 Service");
+    assert_eq!(submissions[1].project_name, "Project 2 Service");
+    assert_eq!(submissions[0].submission_status, SubmissionStatus::Draft);
+    assert_eq!(submissions[1].submission_status, SubmissionStatus::Draft);
 
         // Clean up
         let _ = repo.delete_hackathon(hackathon_id).await;
@@ -418,7 +419,7 @@ mod tests {
     async fn test_service_get_user_hackathon_submissions() {
         let app_state = crate::get_app_state().await;
         let users_repo = UsersRepository::new(&app_state);
-        let repo = HackathonRepository::new(&app_state);
+    let repo = HackathonRepository::new(&app_state);
     let _service = HackathonService;
 
         // Create test users
@@ -510,11 +511,12 @@ mod tests {
             submissions.extend(res.data);
         }
 
-        assert_eq!(submissions.len(), 2, "Should have 2 submissions via service");
-        assert_eq!(submissions[0].project_name, "Project for Hackathon 1 Service");
-        assert_eq!(submissions[1].project_name, "Project for Hackathon 2 Service");
-        assert_eq!(submissions[0].submission_status, SubmissionStatus::Draft);
-        assert_eq!(submissions[1].submission_status, SubmissionStatus::Draft);
+    assert_eq!(submissions.len(), 2, "Should have 2 submissions via service");
+    // these are repository-level schemas; fields are Option<T>
+    assert_eq!(submissions[0].project_name, Some("Project for Hackathon 1 Service".to_string()));
+    assert_eq!(submissions[1].project_name, Some("Project for Hackathon 2 Service".to_string()));
+    assert_eq!(submissions[0].submission_status, Some(SubmissionStatus::Draft));
+    assert_eq!(submissions[1].submission_status, Some(SubmissionStatus::Draft));
 
         // Clean up
         for hackathon_id in hackathon_ids {
@@ -528,7 +530,7 @@ mod tests {
     async fn test_service_search_hackathons() {
         let app_state = crate::get_app_state().await;
         let users_repo = UsersRepository::new(&app_state);
-        let repo = HackathonRepository::new(&app_state);
+    let _repo = HackathonRepository::new(&app_state);
         let _service = HackathonService;
 
         // Create test organizer
@@ -604,7 +606,7 @@ mod tests {
     async fn test_service_update_submission_status() {
         let app_state = crate::get_app_state().await;
         let users_repo = UsersRepository::new(&app_state);
-        let repo = HackathonRepository::new(&app_state);
+    let repo = HackathonRepository::new(&app_state);
     // Use static service methods via trait
 
         // Create test users
@@ -675,7 +677,7 @@ mod tests {
         assert!(matches!(updated_submission.submission_status, SubmissionStatus::Draft | SubmissionStatus::Submitted));
 
         // Clean up
-        let _ = repo.delete_hackathon(hackathon_id).await;
+    let _ = repo.delete_hackathon(hackathon_id).await;
         let _ = users_repo.query_delete_user(organizer.id.id.to_raw()).await;
         let _ = users_repo.query_delete_user(participant.id.id.to_raw()).await;
     }
@@ -684,7 +686,7 @@ mod tests {
     async fn test_service_delete_hackathon() {
         let app_state = crate::get_app_state().await;
         let users_repo = UsersRepository::new(&app_state);
-        let repo = HackathonRepository::new(&app_state);
+        let _repo = HackathonRepository::new(&app_state);
     // Use static service methods via trait
 
         // Create test organizer

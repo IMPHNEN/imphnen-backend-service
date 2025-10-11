@@ -62,7 +62,7 @@ mod tests {
         assert_eq!(retrieved_hackathon.registration_deadline, hackathon_request.registration_deadline);
         assert_eq!(retrieved_hackathon.theme, hackathon_request.theme);
         assert_eq!(retrieved_hackathon.rules, hackathon_request.rules);
-        assert_eq!(retrieved_hackathon.is_deleted, false);
+    assert!(!retrieved_hackathon.is_deleted);
 
         // Clean up
         let _ = repo.delete_hackathon(created.id.id.to_raw()).await;
@@ -206,12 +206,12 @@ mod tests {
         let retrieved_submission = repo.get_hackathon_submission_by_id(submission.id.id.to_raw()).await.expect("Failed to get submission by ID");
 
         assert_eq!(retrieved_submission.hackathon_id.id.to_raw(), created.id.id.to_raw());
-        assert_eq!(retrieved_submission.team_id.id.to_raw(), team_schema.id.id.to_raw());
-        assert_eq!(retrieved_submission.project_name, "My Rust Project");
-        assert_eq!(retrieved_submission.description, "A cool Rust project for the hackathon");
+        assert_eq!(retrieved_submission.team_id.as_ref().unwrap().id.to_raw(), team_schema.id.id.to_raw());
+        assert_eq!(retrieved_submission.project_name, Some("My Rust Project".to_string()));
+        assert_eq!(retrieved_submission.description, Some("A cool Rust project for the hackathon".to_string()));
         assert_eq!(retrieved_submission.repository_url, Some("https://github.com/user/my-rust-project".to_string()));
         assert_eq!(retrieved_submission.demo_url, Some("https://my-rust-project.com".to_string()));
-        assert_eq!(retrieved_submission.submission_status, HackathonSubmissionStatus::Draft);
+    assert_eq!(retrieved_submission.submission_status, Some(HackathonSubmissionStatus::Draft));
 
         // Clean up
         let _ = repo.delete_hackathon(created.id.id.to_raw()).await;
@@ -314,12 +314,14 @@ mod tests {
     assert!(result.is_ok(), "Failed to get team submission by ID");
     let retrieved_submission = result.unwrap();
         
-    assert_eq!(retrieved_submission.project_name, create_submission.project_name);
-    assert_eq!(retrieved_submission.description, create_submission.description);
+    assert_eq!(retrieved_submission.project_name, Some(create_submission.project_name.clone()));
+        // second comparison should clone to avoid moved value
+        assert_eq!(retrieved_submission.project_name, Some(create_submission.project_name.clone()));
+        assert_eq!(retrieved_submission.description, Some(create_submission.description.clone()));
     assert_eq!(retrieved_submission.repository_url, create_submission.repository_url);
     assert_eq!(retrieved_submission.demo_url, create_submission.demo_url);
     assert_eq!(retrieved_submission.slides_url, create_submission.slides_url);
-    assert_eq!(retrieved_submission.submission_status, HackathonSubmissionStatus::Draft);
+    assert_eq!(retrieved_submission.submission_status, Some(HackathonSubmissionStatus::Draft));
 
         // Clean up
     let _ = repo.delete_hackathon(hackathon_schema.id.id.to_raw()).await;
@@ -404,10 +406,10 @@ mod tests {
     let submissions = submissions_result.unwrap().data;
         
     assert_eq!(submissions.len(), 2, "Should have 2 submissions");
-    assert_eq!(submissions[0].project_name, "Project 1");
-    assert_eq!(submissions[1].project_name, "Project 2");
-    assert_eq!(submissions[0].submission_status, HackathonSubmissionStatus::Draft);
-    assert_eq!(submissions[1].submission_status, HackathonSubmissionStatus::Draft);
+    assert_eq!(submissions[0].project_name, Some("Project 1".to_string()));
+    assert_eq!(submissions[1].project_name, Some("Project 2".to_string()));
+        assert_eq!(submissions[0].submission_status, Some(HackathonSubmissionStatus::Draft));
+        assert_eq!(submissions[1].submission_status, Some(HackathonSubmissionStatus::Draft));
 
         // Clean up
     let _ = repo.delete_hackathon(hackathon_schema.id.id.to_raw()).await;
@@ -510,10 +512,10 @@ mod tests {
         let submissions_list = submissions_result.unwrap().data;
 
         assert_eq!(submissions_list.len(), 2, "Should have 2 submissions");
-        assert_eq!(submissions_list[0].project_name, "Project for Hackathon 1");
-        assert_eq!(submissions_list[1].project_name, "Project for Hackathon 2");
-        assert_eq!(submissions_list[0].submission_status, SubmissionStatus::Draft);
-        assert_eq!(submissions_list[1].submission_status, SubmissionStatus::Draft);
+        assert_eq!(submissions_list[0].project_name, Some("Project for Hackathon 1".to_string()));
+        assert_eq!(submissions_list[1].project_name, Some("Project for Hackathon 2".to_string()));
+        assert_eq!(submissions_list[0].submission_status, Some(SubmissionStatus::Draft));
+        assert_eq!(submissions_list[1].submission_status, Some(SubmissionStatus::Draft));
 
         // Clean up
         for hackathon_id in hackathon_ids {
@@ -661,7 +663,7 @@ mod tests {
         // Submit the submission (mark as Submitted) using repository API and verify
         let _submitted_schema = repo.submit_hackathon_submission(submission_id.clone()).await.expect("Failed to submit hackathon submission");
         let updated_submission = repo.get_hackathon_submission_by_id(submission_id.clone()).await.expect("Failed to get updated submission");
-        assert_eq!(updated_submission.submission_status, HackathonSubmissionStatus::Submitted);
+    assert_eq!(updated_submission.submission_status, Some(HackathonSubmissionStatus::Submitted));
         assert!(updated_submission.updated_at > updated_submission.created_at);
 
     // Clean up
