@@ -2,6 +2,7 @@ pub mod common_dto;
 pub mod error_dto;
 pub mod users;
 pub mod permissions;
+pub mod audit_log;
 
 // Re-export error type at root level for convenience
 pub use error_dto::error::Error;
@@ -25,3 +26,6 @@ pub use users::UsersDetailQueryDto;
 pub use permissions::PermissionsEnum;
 pub use permissions::PermissionsItemDto;
 pub use permissions::PermissionsQueryDto;
+
+// Explicit audit_log exports
+pub use audit_log::AuditLogSchema;

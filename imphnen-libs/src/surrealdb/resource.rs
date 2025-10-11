@@ -51,6 +51,10 @@ pub enum ResourceEnum {
     HackathonTimeline,
     /// Hackathon submissions table for project submissions
     HackathonSubmissions,
+    /// Rate limiting table for IP-based rate limiting
+    RateLimit,
+    /// Audit log table for admin action tracking
+    AuditLog,
 }
 
 impl fmt::Display for ResourceEnum {
@@ -76,6 +80,8 @@ impl fmt::Display for ResourceEnum {
             ResourceEnum::HackathonEvents => "app_hackathon_events",
             ResourceEnum::HackathonTimeline => "app_hackathon_timeline",
             ResourceEnum::HackathonSubmissions => "app_hackathon_submissions",
+            ResourceEnum::RateLimit => "app_rate_limit",
+            ResourceEnum::AuditLog => "app_audit_log",
         };
         write!(f, "{}", table_name)
     }
@@ -116,6 +122,8 @@ impl ResourceEnum {
             ResourceEnum::HackathonEvents => "app_hackathon_events",
             ResourceEnum::HackathonTimeline => "app_hackathon_timeline",
             ResourceEnum::HackathonSubmissions => "app_hackathon_submissions",
+            ResourceEnum::RateLimit => "app_rate_limit",
+            ResourceEnum::AuditLog => "app_audit_log",
         }
     }
 

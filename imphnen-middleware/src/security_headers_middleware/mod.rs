@@ -1,13 +1,15 @@
 use axum::{
+    body::Body,
     http::{HeaderValue, Request, Response},
     middleware::Next,
     Extension,
 };
 use imphnen_libs::{AppState, ENV};
+use rand::RngCore;
 use std::convert::Infallible;
 
 /// Security headers middleware that adds various security-related HTTP headers to all responses.
-/// 
+///
 /// This middleware implements security best practices by adding headers that help protect
 /// against common web attacks like clickjacking, XSS, and information leakage.
 pub async fn security_headers_middleware(
@@ -15,21 +17,29 @@ pub async fn security_headers_middleware(
     mut req: Request<axum::body::Body>,
     next: Next,
 ) -> Result<Response<axum::body::Body>, Infallible> {
+    // Generate nonce for CSP if in development mode
+    let nonce = if ENV.rust_env != "production" {
+        generate_nonce()
+    } else {
+        String::new()
+    };
+    
     let res = next.run(req).await;
     
-    let mut res = add_security_headers(res);
+    let mut res = add_security_headers(res, &nonce);
     
     Ok(res)
 }
 
 /// Adds security headers to a response based on the current environment.
-/// 
+///
 /// # Arguments
 /// * `res` - The response to add headers to
-/// 
+/// * `nonce` - Nonce value for CSP (empty in production)
+///
 /// # Returns
 /// The response with security headers added
-fn add_security_headers(mut res: Response<axum::body::Body>) -> Response<axum::body::Body> {
+fn add_security_headers(mut res: Response<axum::body::Body>, nonce: &str) -> Response<axum::body::Body> {
     let headers = res.headers_mut();
     
     // Strict-Transport-Security (HSTS)
@@ -51,13 +61,24 @@ fn add_security_headers(mut res: Response<axum::body::Body>) -> Response<axum::b
     // Mitigates XSS and data injection attacks
     let csp = if ENV.rust_env == "production" {
         // Production CSP - strict policy for production
-        "default-src 'self'; script-src 'self' https://trusted-cdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://images.example.com; connect-src 'self' https://api.example.com; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; report-uri /csp-violation-report-endpoint"
+        "default-src 'self'; script-src 'self' https://trusted-cdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://images.example.com; connect-src 'self' https://api.example.com; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; report-uri /csp-violation-report-endpoint".to_string()
     } else {
-        // Development CSP - more permissive for development
-        "default-src 'self' http://localhost:3000; script-src 'self' 'unsafe-eval' 'unsafe-inline' http://localhost:3000; style-src 'self' 'unsafe-inline' http://localhost:3000; img-src 'self' data: http://localhost:3000; connect-src 'self' http://localhost:3000; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'"
+        // Development CSP - secure nonce-based approach
+        if nonce.is_empty() {
+            // Fallback if nonce generation fails
+            "default-src 'self' http://localhost:3000; script-src 'self' http://localhost:3000; style-src 'self' http://localhost:3000; img-src 'self' data: http://localhost:3000; connect-src 'self' http://localhost:3000 ws://localhost:3000; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'".to_string()
+        } else {
+            // Nonce-based CSP for development
+            format!("default-src 'self' http://localhost:3000; script-src 'self' http://localhost:3000 'nonce-{}'; style-src 'self' http://localhost:3000 'nonce-{}'; img-src 'self' data: http://localhost:3000; connect-src 'self' http://localhost:3000 ws://localhost:3000; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'", nonce, nonce)
+        }
     };
     
-    headers.insert("Content-Security-Policy", HeaderValue::from_str(csp).unwrap());
+    headers.insert("Content-Security-Policy", HeaderValue::from_str(&csp).unwrap());
+    
+    // Add nonce to response headers for frontend use (development only)
+    if ENV.rust_env != "production" && !nonce.is_empty() {
+        headers.insert("X-CSP-Nonce", HeaderValue::from_str(nonce).unwrap());
+    }
     
     // X-Frame-Options
     // Prevents clickjacking attacks
@@ -95,4 +116,12 @@ fn add_security_headers(mut res: Response<axum::body::Body>) -> Response<axum::b
     );
     
     res
+}
+
+/// Generate a random nonce for CSP
+fn generate_nonce() -> String {
+    let mut rng = rand::thread_rng();
+    let mut random_bytes = [0u8; 16];
+    rng.fill_bytes(&mut random_bytes);
+    base64::encode(random_bytes)
 }

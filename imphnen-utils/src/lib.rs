@@ -9,6 +9,7 @@
 pub mod bind_filter;
 pub mod csrf_token;
 pub mod extract_email;
+pub mod extract_ip;
 pub mod generate_date;
 pub mod generate_otp;
 pub mod get_id;
@@ -25,6 +26,7 @@ pub mod validator;
 pub use bind_filter::bind_filter_value;
 pub use csrf_token::{generate_csrf_token, generate_oauth_csrf_token, validate_csrf_token, validate_oauth_csrf_token};
 pub use extract_email::{extract_email, extract_email_async, extract_email_token, extract_email_token_async};
+pub use extract_ip::extract_real_ip;
 pub use generate_date::get_iso_date;
 pub use generate_otp::OtpManager;
 pub use get_id::{extract_id, get_id};
