@@ -6,6 +6,7 @@ use crate::{
 	TeamMemberDto, TeamsSearchQueryDto, PublicTeamsListItemDto, PublicTeamsDetailItemDto,
 	AdminTeamsListItemDto, AdminTeamsDetailItemDto, PermissionsEnum
 };
+use super::super::teams::{TeamsRepository, TeamMembersSchema};
 use axum::response::Response;
 use axum::extract::Path;
 use axum::http::HeaderMap;
@@ -135,7 +136,104 @@ pub async fn put_update_team(
 	Path(id): Path<String>,
 	Json(payload): Json<TeamsUpdateRequestDto>,
 ) -> impl IntoResponse {
-	authenticated(headers, Extension(state), move |claims, state| TeamsService::update_team(&state, claims, id, payload)).await
+
+	// Try to treat this request as an admin first; if the caller has ManageAllTeams
+	// permission, route to the admin update. Otherwise fall back to normal authenticated
+	// update which enforces leader-only rules.
+	let state_clone = state.clone();
+	match crate::permissions_guard(headers.clone(), axum::Extension(state_clone.clone()), vec![PermissionsEnum::ManageAllTeams]).await {
+		Ok((claims, state)) => {
+			// Caller is admin
+			TeamsService::update_team_admin(&state, claims, id, payload).await
+		}
+		Err(_) => {
+			// Not admin - proceed with normal authenticated flow
+			authenticated(headers, Extension(state), move |claims, state| TeamsService::update_team(&state, claims, id, payload)).await
+		}
+	}
+}
+
+#[derive(serde::Deserialize)]
+pub struct AddTeamMemberRequestDto {
+	pub user_id: String,
+	pub role: Option<String>,
+}
+
+pub async fn post_add_team_member(
+	headers: HeaderMap,
+	Extension(state): Extension<AppState>,
+	Path(team_id): Path<String>,
+	Json(payload): Json<AddTeamMemberRequestDto>,
+) -> impl IntoResponse {
+	// Determine caller and whether they have admin permissions
+	let state_clone = state.clone();
+	let is_admin = crate::permissions_guard(headers.clone(), axum::Extension(state_clone.clone()), vec![PermissionsEnum::ManageAllTeams]).await.is_ok();
+
+	// Authenticate the caller (will return 401 if no token)
+	let auth = permissions_guard(headers, axum::Extension(state.clone()), vec![/* no specific perms */]).await;
+	let (claims, state) = match auth {
+		Ok((c, s)) => (c, s),
+		Err(response) => return response,
+	};
+
+	// Permission: admins can add anyone; otherwise only team leader or existing member can add
+	let repo = TeamsRepository::new(&state);
+	let thing_id = imphnen_utils::make_thing_from_enum(imphnen_libs::ResourceEnum::Teams, &team_id);
+	let team = match repo.query_team_by_id(&thing_id).await {
+		Ok(t) => t,
+		Err(_) => return crate::common_response(axum::http::StatusCode::NOT_FOUND, "Team not found"),
+	};
+
+	if !is_admin {
+		let user_thing = imphnen_utils::make_thing_from_enum(imphnen_libs::ResourceEnum::Users, &claims.user_id);
+		let is_member = repo.query_is_team_member(&thing_id, &user_thing).await.unwrap_or(false);
+		let is_leader = team.leader_id.id.to_raw() == claims.user_id;
+		if !is_member && !is_leader {
+			return crate::common_response(axum::http::StatusCode::FORBIDDEN, "Only team leader or members can add a member");
+		}
+	}
+
+	// Build member schema and add via repository
+	let member_schema = TeamMembersSchema::create(team_id.clone(), payload.user_id.clone(), payload.role.clone());
+	match repo.query_add_team_member(member_schema).await {
+		Ok(msg) => crate::success_response(crate::ResponseSuccessDto { data: msg }),
+		Err(e) => crate::common_response(axum::http::StatusCode::BAD_REQUEST, &e.to_string()),
+	}
+}
+
+pub async fn delete_remove_team_member(
+	headers: HeaderMap,
+	Extension(state): Extension<AppState>,
+	Path((team_id, user_id)): Path<(String, String)>,
+) -> impl IntoResponse {
+	let state_clone = state.clone();
+	let is_admin = crate::permissions_guard(headers.clone(), axum::Extension(state_clone.clone()), vec![PermissionsEnum::ManageAllTeams]).await.is_ok();
+
+	let auth = permissions_guard(headers, axum::Extension(state.clone()), vec![]).await;
+	let (claims, state) = match auth {
+		Ok((c, s)) => (c, s),
+		Err(response) => return response,
+	};
+
+	let repo = TeamsRepository::new(&state);
+	let thing_id = imphnen_utils::make_thing_from_enum(imphnen_libs::ResourceEnum::Teams, &team_id);
+	let team = match repo.query_team_by_id(&thing_id).await {
+		Ok(t) => t,
+		Err(_) => return crate::common_response(axum::http::StatusCode::NOT_FOUND, "Team not found"),
+	};
+
+	if !is_admin {
+		// Only leader can remove members
+		if team.leader_id.id.to_raw() != claims.user_id {
+			return crate::common_response(axum::http::StatusCode::FORBIDDEN, "Only team leader can remove members");
+		}
+	}
+
+	let user_thing = imphnen_utils::make_thing_from_enum(imphnen_libs::ResourceEnum::Users, &user_id);
+	match repo.query_remove_team_member(&thing_id, &user_thing).await {
+		Ok(msg) => crate::success_response(crate::ResponseSuccessDto { data: msg }),
+		Err(e) => crate::common_response(axum::http::StatusCode::BAD_REQUEST, &e.to_string()),
+	}
 }
 
 #[utoipa::path(
@@ -384,6 +482,8 @@ pub fn teams_router() -> Router {
 		.route("/accept/{token}", axum::routing::post(post_accept_invitation))
 		.route("/search", axum::routing::get(get_public_team_search))
 		.route("/{id}/members", axum::routing::get(get_team_members))
+			.route("/{id}/members", axum::routing::post(post_add_team_member))
+			.route("/{id}/members/{user_id}", axum::routing::delete(delete_remove_team_member))
 		.route("/{id}/leave", axum::routing::post(post_leave_team))
 		.route("/leave-me", axum::routing::post(post_leave_current_team))
 }

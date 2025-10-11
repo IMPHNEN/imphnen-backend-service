@@ -648,4 +648,39 @@ pub fn hackathon_routes() -> Router {
         .route("/submissions/{id}", put(update_hackathon_submission))
         .route("/submissions/{id}/submit", post(submit_hackathon_submission))
         .route("/submissions/{id}", delete(delete_hackathon_submission))
+    // Participants
+    .route("/{id}/participants", post(register_participant))
+    .route("/{id}/participants", get(list_participants))
+}
+
+use super::hackathon_dto::RegisterParticipantRequestDto;
+
+// Register a participant for a hackathon (persistent)
+pub async fn register_participant(
+    Extension(state): Extension<AppState>,
+    Path(hackathon_id): Path<String>,
+    Json(payload): Json<RegisterParticipantRequestDto>,
+) -> impl IntoResponse {
+    match HackathonService::register_participant(hackathon_id, payload, &state).await {
+        Ok(response) => {
+            let body = serde_json::json!({ "message": "Participant registered", "data": response.data });
+            (axum::http::StatusCode::OK, Json(body)).into_response()
+        }
+        Err(error) => (StatusCode::from_u16(error.status).unwrap(), Json(error)).into_response(),
+    }
+}
+
+// List participants for a hackathon
+pub async fn list_participants(
+    Extension(state): Extension<AppState>,
+    Path(hackathon_id): Path<String>,
+    Query(meta): Query<imphnen_libs::MetaRequestDto>,
+) -> impl IntoResponse {
+    match HackathonService::list_participants(meta, hackathon_id, &state).await {
+        Ok(response) => {
+            let body = serde_json::json!({ "message": "Success", "data": response.data, "meta": response.meta });
+            (axum::http::StatusCode::OK, Json(body)).into_response()
+        }
+        Err(error) => (StatusCode::from_u16(error.status).unwrap(), Json(error)).into_response(),
+    }
 }

@@ -66,16 +66,16 @@ pub struct HackathonTimelineSchema {
 pub struct HackathonSubmissionsSchema {
     pub id: Thing,
     pub hackathon_id: Thing,
-    pub team_id: Thing,
-    pub project_name: String,
-    pub description: String,
+    pub team_id: Option<Thing>,
+    pub project_name: Option<String>,
+    pub description: Option<String>,
     pub repository_url: Option<String>,
     pub demo_url: Option<String>,
     pub slides_url: Option<String>,
-    pub technologies: Vec<String>,
-    pub submission_status: SubmissionStatus,
+    pub technologies: Option<Vec<String>>,
+    pub submission_status: Option<SubmissionStatus>,
     pub judge_feedback: Option<String>,
-    pub submitted_at: DateTime<Utc>,
+    pub submitted_at: Option<DateTime<Utc>>,
     pub is_deleted: bool,
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
@@ -186,6 +186,32 @@ pub enum SubmissionStatus {
     Rejected,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct HackathonParticipantSchema {
+    pub id: Thing,
+    pub hackathon_id: Thing,
+    pub user_id: String,
+    pub is_deleted: bool,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+}
+
+impl Default for HackathonParticipantSchema {
+    fn default() -> Self {
+        HackathonParticipantSchema {
+            id: make_thing(
+                &"app_hackathon_participants".to_string(),
+                &surrealdb::Uuid::new_v4().to_string(),
+            ),
+            hackathon_id: Thing::from(("app_hackathons".to_string(), surrealdb::sql::Id::rand())),
+            user_id: String::new(),
+            is_deleted: false,
+            created_at: Some(get_iso_date()),
+            updated_at: Some(get_iso_date()),
+        }
+    }
+}
+
 impl Default for HackathonSchema {
     fn default() -> Self {
         HackathonSchema {
@@ -266,16 +292,16 @@ impl Default for HackathonSubmissionsSchema {
                 &surrealdb::Uuid::new_v4().to_string(),
             ),
             hackathon_id: Thing::from(("app_hackathons".to_string(), surrealdb::sql::Id::rand())),
-            team_id: Thing::from(("app_teams".to_string(), surrealdb::sql::Id::rand())),
-            project_name: String::new(),
-            description: String::new(),
+            team_id: Some(Thing::from(("app_teams".to_string(), surrealdb::sql::Id::rand()))),
+            project_name: Some(String::new()),
+            description: Some(String::new()),
             repository_url: None,
             demo_url: None,
             slides_url: None,
-            technologies: vec![],
-            submission_status: SubmissionStatus::Draft,
+            technologies: Some(vec![]),
+            submission_status: Some(SubmissionStatus::Draft),
             judge_feedback: None,
-            submitted_at: Utc::now(),
+            submitted_at: Some(Utc::now()),
             is_deleted: false,
             created_at: Some(get_iso_date()),
             updated_at: Some(get_iso_date()),

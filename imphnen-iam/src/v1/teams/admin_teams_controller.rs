@@ -150,7 +150,8 @@ pub async fn update_team(
     Json(payload): Json<TeamsUpdateRequestDto>,
 ) -> impl IntoResponse {
     with_admin_perms(headers, Extension(state), move |claims, state| {
-        TeamsService::update_team(&state, claims, id, payload)
+        // Admin update should bypass leader-only restriction
+        TeamsService::update_team_admin(&state, claims, id, payload)
     }).await
 }
 
@@ -174,7 +175,7 @@ pub async fn delete_team(
     Path(id): Path<String>,
 ) -> impl IntoResponse {
     with_admin_perms(headers, Extension(state), move |claims, state| {
-        TeamsService::delete_team(&state, claims, id)
+        TeamsService::delete_team_admin(&state, claims, id)
     }).await
 }
 
@@ -200,7 +201,7 @@ pub async fn invite_team_members(
     Json(payload): Json<TeamInviteRequestDto>,
 ) -> impl IntoResponse {
     with_admin_perms(headers, Extension(state), move |claims, state| {
-        TeamsService::invite_team_members(&state, claims, team_id, payload)
+        TeamsService::invite_team_members_admin(&state, claims, team_id, payload)
     }).await
 }
 

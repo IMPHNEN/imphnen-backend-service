@@ -123,6 +123,19 @@ pub trait HackathonServiceTrait: Send + Sync + 'static {
         id: String,
         state: &AppState,
     ) -> Pin<Box<dyn Future<Output = Result<ResponseSuccessDto<String>, ErrorDto>> + Send>>;
+
+    // Participants
+    fn register_participant(
+        hackathon_id: String,
+        payload: super::hackathon_dto::RegisterParticipantRequestDto,
+        state: &AppState,
+    ) -> Pin<Box<dyn Future<Output = Result<ResponseSuccessDto<super::hackathon_dto::HackathonParticipantDto>, ErrorDto>> + Send>>;
+
+    fn list_participants(
+        meta: MetaRequestDto,
+        hackathon_id: String,
+        state: &AppState,
+    ) -> ListServiceFut<super::hackathon_dto::HackathonParticipantDto>;
 }
 
 #[derive(Clone)]
@@ -977,6 +990,60 @@ impl HackathonServiceTrait for HackathonService {
                             details: None,
                         })
                     }
+                }
+            }
+        })
+    }
+
+    fn register_participant(
+        hackathon_id: String,
+        payload: super::hackathon_dto::RegisterParticipantRequestDto,
+        state: &AppState,
+    ) -> Pin<Box<dyn Future<Output = Result<ResponseSuccessDto<super::hackathon_dto::HackathonParticipantDto>, ErrorDto>> + Send>> {
+        let state = state.to_owned();
+        Box::pin(async move {
+            // Validate
+            if let Err((_, errors)) = imphnen_utils::validator::validate_request(&payload) {
+                return Err(ErrorDto { status: StatusCode::BAD_REQUEST.as_u16(), message: "Validation failed".to_string(), details: Some(serde_json::json!({ "validation_errors": errors })) });
+            }
+
+            let repo = HackathonRepository::new(&state);
+
+            // ensure hackathon exists
+            if repo.get_hackathon_by_id(hackathon_id.clone()).await.is_err() {
+                return Err(ErrorDto { status: StatusCode::NOT_FOUND.as_u16(), message: "Hackathon not found".to_string(), details: None });
+            }
+
+            match repo.create_hackathon_participant(hackathon_id, payload.user_id).await {
+                Ok(schema) => {
+                    let dto = super::hackathon_dto::HackathonParticipantDto::from(schema);
+                    Ok(ResponseSuccessDto { data: dto })
+                }
+                Err(e) => {
+                    tracing::error!("Failed to register participant: {}", e);
+                    Err(ErrorDto { status: StatusCode::INTERNAL_SERVER_ERROR.as_u16(), message: "Failed to register participant".to_string(), details: None })
+                }
+            }
+        })
+    }
+
+    fn list_participants(
+        meta: MetaRequestDto,
+        hackathon_id: String,
+        state: &AppState,
+    ) -> ListServiceFut<super::hackathon_dto::HackathonParticipantDto> {
+        let state = state.to_owned();
+        Box::pin(async move {
+            let repo = HackathonRepository::new(&state);
+
+            match repo.list_hackathon_participants(meta, hackathon_id).await {
+                Ok(result) => {
+                    let dtos: Vec<super::hackathon_dto::HackathonParticipantDto> = result.data.into_iter().map(super::hackathon_dto::HackathonParticipantDto::from).collect();
+                    Ok(ResponseListSuccessDto { data: dtos, meta: result.meta })
+                }
+                Err(e) => {
+                    tracing::error!("Failed to list participants: {}", e);
+                    Err(ErrorDto { status: StatusCode::INTERNAL_SERVER_ERROR.as_u16(), message: "Failed to list participants".to_string(), details: None })
                 }
             }
         })

@@ -524,16 +524,16 @@ impl<'a> HackathonRepository<'a> {
         let schema = HackathonSubmissionsSchema {
             id: Thing::from((table.clone(), id.clone())),
             hackathon_id: Thing::from(("app_hackathons".to_string(), normalized_hackathon_id)),
-            team_id: Thing::from(("app_teams".to_string(), normalized_team_id)),
-            project_name: submission.project_name,
-            description: submission.description,
+            team_id: Some(Thing::from(("app_teams".to_string(), normalized_team_id))),
+            project_name: Some(submission.project_name),
+            description: Some(submission.description),
             repository_url: submission.repository_url,
             demo_url: submission.demo_url,
             slides_url: submission.slides_url,
-            technologies: submission.technologies,
-            submission_status: super::hackathon_schema::SubmissionStatus::Draft,
+            technologies: Some(submission.technologies),
+            submission_status: Some(super::hackathon_schema::SubmissionStatus::Draft),
             judge_feedback: None,
-            submitted_at: chrono::Utc::now(),
+            submitted_at: Some(chrono::Utc::now()),
             is_deleted: false,
             created_at: Some(get_iso_date()),
             updated_at: Some(get_iso_date()),
@@ -560,6 +560,12 @@ impl<'a> HackathonRepository<'a> {
 
         let builder = QueryListBuilder::new(&self.state.surrealdb_ws, &table, &meta)
             .with_condition("is_deleted = false")
+            // Some stray records (from earlier bugs) may lack team_id; ensure we only fetch proper submissions
+            .with_condition("team_id IS NOT NULL")
+            // Ensure required string fields exist to prevent deserialization errors
+            .with_condition("project_name IS NOT NULL")
+            .with_condition("description IS NOT NULL")
+            .with_condition("technologies IS NOT NULL")
             .with_condition(&format!("hackathon_id = type::thing('app_hackathons', '{}')", normalized_hackathon_id))
             .search_field("project_name")
             .select_fields(vec!["*"]);
@@ -578,6 +584,12 @@ impl<'a> HackathonRepository<'a> {
 
         let builder = QueryListBuilder::new(&self.state.surrealdb_ws, &table, &meta)
             .with_condition("is_deleted = false")
+            // Ensure we don't deserialize records without a team_id
+            .with_condition("team_id IS NOT NULL")
+            // Ensure required string fields exist to prevent deserialization errors
+            .with_condition("project_name IS NOT NULL")
+            .with_condition("description IS NOT NULL")
+            .with_condition("technologies IS NOT NULL")
             .with_condition(&format!("team_id = type::thing('app_teams', '{}')", normalized_team_id))
             .search_field("project_name")
             .select_fields(vec!["*"]);
@@ -598,7 +610,7 @@ impl<'a> HackathonRepository<'a> {
             bail!("Submission not found");
         }
 
-        existing.submission_status = status;
+    existing.submission_status = Some(status);
         existing.judge_feedback = feedback;
         existing.updated_at = Some(get_iso_date());
 
@@ -627,10 +639,10 @@ impl<'a> HackathonRepository<'a> {
 
         // Apply updates
         if let Some(project_name) = updates.project_name {
-            existing.project_name = project_name;
+            existing.project_name = Some(project_name);
         }
         if let Some(description) = updates.description {
-            existing.description = description;
+            existing.description = Some(description);
         }
         if let Some(repository_url) = updates.repository_url {
             existing.repository_url = Some(repository_url);
@@ -642,7 +654,7 @@ impl<'a> HackathonRepository<'a> {
             existing.slides_url = Some(slides_url);
         }
         if let Some(technologies) = updates.technologies {
-            existing.technologies = technologies;
+            existing.technologies = Some(technologies);
         }
 
         existing.updated_at = Some(get_iso_date());
@@ -693,8 +705,8 @@ impl<'a> HackathonRepository<'a> {
             bail!("Submission not found");
         }
 
-        existing.submission_status = super::hackathon_schema::SubmissionStatus::Submitted;
-        existing.submitted_at = chrono::Utc::now();
+    existing.submission_status = Some(super::hackathon_schema::SubmissionStatus::Submitted);
+    existing.submitted_at = Some(chrono::Utc::now());
         existing.updated_at = Some(get_iso_date());
 
         info!(query = %format!("UPDATE {} SET submission_status = 'Submitted' WHERE id = '{}'", table, id), "Executing SurrealDB query");
@@ -747,5 +759,55 @@ impl<'a> HackathonRepository<'a> {
         let timeline: Option<HackathonTimelineSchema> = result.take(0)?;
 
         Ok(timeline)
+    }
+}
+
+// Hackathon Participants CRUD operations
+impl<'a> HackathonRepository<'a> {
+    #[instrument(skip(self, hackathon_id, user_id), err)]
+    pub async fn create_hackathon_participant(&self, hackathon_id: String, user_id: String) -> Result<super::hackathon_schema::HackathonParticipantSchema> {
+        // Use the dedicated participants table to avoid polluting submissions
+        let table = "app_hackathon_participants".to_string();
+        let id = surrealdb::Uuid::new_v4().to_string();
+
+        let normalized_hackathon_id = self.normalize_id("app_hackathons", &hackathon_id);
+
+        let schema = super::hackathon_schema::HackathonParticipantSchema {
+            id: Thing::from((table.clone(), id.clone())),
+            hackathon_id: Thing::from(("app_hackathons".to_string(), normalized_hackathon_id)),
+            user_id,
+            is_deleted: false,
+            created_at: Some(get_iso_date()),
+            updated_at: Some(get_iso_date()),
+        };
+
+        info!(query = %format!("CREATE {}:{}", table, id), "Executing SurrealDB query");
+        let record: Option<super::hackathon_schema::HackathonParticipantSchema> = self
+            .state
+            .surrealdb_ws
+            .create((table, id))
+            .content(schema.clone())
+            .await?;
+
+        match record {
+            Some(p) => Ok(p),
+            None => bail!("Failed to create participant"),
+        }
+    }
+
+    #[instrument(skip(self, meta, hackathon_id), err)]
+    pub async fn list_hackathon_participants(&self, meta: imphnen_libs::MetaRequestDto, hackathon_id: String) -> Result<imphnen_libs::ResponseListSuccessDto<Vec<super::hackathon_schema::HackathonParticipantSchema>>> {
+        let table = "app_hackathon_participants".to_string();
+        let normalized_hackathon_id = self.normalize_id("app_hackathons", &hackathon_id);
+
+        let builder = QueryListBuilder::new(&self.state.surrealdb_ws, &table, &meta)
+            .with_condition("is_deleted = false")
+            .with_condition(&format!("hackathon_id = type::thing('app_hackathons', '{}')", normalized_hackathon_id))
+            .select_fields(vec!["*"]);
+
+        let mut result = builder.build().await?;
+        // sort by created_at for deterministic results
+        result.data.sort_by_key(|s: &super::hackathon_schema::HackathonParticipantSchema| s.created_at.clone());
+        Ok(result)
     }
 }

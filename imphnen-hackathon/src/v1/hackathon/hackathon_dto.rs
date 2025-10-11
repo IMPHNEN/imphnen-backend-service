@@ -7,6 +7,7 @@ use crate::v1::hackathon::hackathon_schema::{
     HackathonEventType, HackathonEventsSchema, HackathonPhase, HackathonSchema,
     HackathonStatus, HackathonSubmissionsSchema, HackathonTimelineSchema,
     SubmissionStatus,
+    HackathonParticipantSchema,
 };
 
 // Hackathon DTOs
@@ -410,16 +411,46 @@ impl From<HackathonSubmissionsSchema> for HackathonSubmissionDto {
         Self {
             id: schema.id.id.to_raw(),
             hackathon_id: schema.hackathon_id.id.to_raw(),
-            team_id: schema.team_id.id.to_raw(),
-            project_name: schema.project_name,
-            description: schema.description,
+            team_id: schema.team_id.map(|t| t.id.to_raw()).unwrap_or_default(),
+            project_name: schema.project_name.unwrap_or_default(),
+            description: schema.description.unwrap_or_default(),
             repository_url: schema.repository_url,
             demo_url: schema.demo_url,
             slides_url: schema.slides_url,
-            technologies: schema.technologies,
-            submission_status: schema.submission_status,
+            technologies: schema.technologies.unwrap_or_default(),
+            submission_status: schema.submission_status.unwrap_or(super::hackathon_schema::SubmissionStatus::Draft),
             judge_feedback: schema.judge_feedback,
-            submitted_at: schema.submitted_at,
+            submitted_at: schema.submitted_at.unwrap_or(chrono::Utc::now()),
+            is_deleted: schema.is_deleted,
+            created_at: schema.created_at,
+            updated_at: schema.updated_at,
+        }
+    }
+}
+
+// Hackathon Participant DTOs
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Validate)]
+pub struct RegisterParticipantRequestDto {
+    #[validate(length(min = 1, message = "user_id cannot be empty"))]
+    pub user_id: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+pub struct HackathonParticipantDto {
+    pub id: String,
+    pub hackathon_id: String,
+    pub user_id: String,
+    pub is_deleted: bool,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+}
+
+impl From<HackathonParticipantSchema> for HackathonParticipantDto {
+    fn from(schema: HackathonParticipantSchema) -> Self {
+        Self {
+            id: schema.id.id.to_raw(),
+            hackathon_id: schema.hackathon_id.id.to_raw(),
+            user_id: schema.user_id,
             is_deleted: schema.is_deleted,
             created_at: schema.created_at,
             updated_at: schema.updated_at,

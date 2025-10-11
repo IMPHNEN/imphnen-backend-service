@@ -1,7 +1,28 @@
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::Thing;
 use utoipa::ToSchema;
-use validator::Validate;
+use validator::{Validate, ValidationError};
+use std::borrow::Cow;
+use lazy_static::lazy_static;
+use regex::Regex;
+
+// Custom validator for Vec<String> of emails. We use a custom validator because
+// the `each = true` attribute is not supported by the project's validator
+// crate version. This keeps validation at the DTO level as required.
+lazy_static! {
+    static ref EMAIL_RE: Regex = Regex::new(r"^[^@\s]+@[^@\s]+\.[^@\s]+$").unwrap();
+}
+
+fn validate_member_emails(emails: &Vec<String>) -> Result<(), ValidationError> {
+    for email in emails {
+        if !EMAIL_RE.is_match(email) {
+            let mut err = ValidationError::new("invalid_email");
+            err.message = Some(Cow::from("Invalid email"));
+            return Err(err);
+        }
+    }
+    Ok(())
+}
 use imphnen_entities::users::UsersDetailQueryDto;
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Validate)]
@@ -39,7 +60,8 @@ pub struct TeamsCreateRequestDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub github_url: Option<String>,
 
-    #[validate(length(min = 1, message = "Member emails cannot be empty"))]
+    #[serde(default)]
+    #[validate(custom(function = "validate_member_emails", message = "Invalid email in member_emails"))]
     pub member_emails: Vec<String>,
 }
 
@@ -83,6 +105,7 @@ pub struct TeamsUpdateRequestDto {
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Validate)]
 pub struct TeamInviteRequestDto {
     #[validate(length(min = 1, message = "Member emails cannot be empty"))]
+    #[validate(custom(function = "validate_member_emails", message = "Invalid email in member_emails"))]
     pub member_emails: Vec<String>,
 }
 
@@ -455,3 +478,5 @@ impl TeamsDetailQueryDto {
         }
     }
 }
+
+// (previous custom validator removed; using validator::email(each = true) attribute)

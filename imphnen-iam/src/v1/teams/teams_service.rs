@@ -29,8 +29,11 @@ pub trait TeamsServiceTrait: Send + Sync + 'static {
 	fn get_public_team_by_id(state: &AppState, id: String) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn create_team(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims, new_team: TeamsCreateRequestDto) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn update_team(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims, id: String, team: TeamsUpdateRequestDto) -> Pin<Box<dyn Future<Output = Response> + Send>>;
+	fn update_team_admin(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims, id: String, team: TeamsUpdateRequestDto) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn delete_team(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims, id: String) -> Pin<Box<dyn Future<Output = Response> + Send>>;
+	fn delete_team_admin(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims, id: String) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn invite_team_members(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims, team_id: String, invite: TeamInviteRequestDto) -> Pin<Box<dyn Future<Output = Response> + Send>>;
+	fn invite_team_members_admin(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims, team_id: String, invite: TeamInviteRequestDto) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn accept_invitation(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims, accept: TeamAcceptInvitationRequestDto) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn get_team_members(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims, team_id: String) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn leave_team(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims, team_id: String) -> Pin<Box<dyn Future<Output = Response> + Send>>;
@@ -128,7 +131,7 @@ impl TeamsServiceTrait for TeamsService {
 	fn get_team_by_id(state: &AppState, id: String) -> Pin<Box<dyn Future<Output = Response> + Send>> {
 		let state = state.to_owned();
 		Box::pin(async move {
-			if Uuid::parse_str(&id).is_err() {
+			if id.trim().is_empty() {
 				return common_response(StatusCode::BAD_REQUEST, "Invalid Team ID format");
 			}
 			let repo = TeamsRepository::new(&state);
@@ -195,7 +198,7 @@ impl TeamsServiceTrait for TeamsService {
 	fn get_member_team_by_id(state: &AppState, id: String) -> Pin<Box<dyn Future<Output = Response> + Send>> {
 		let state = state.to_owned();
 		Box::pin(async move {
-			if Uuid::parse_str(&id).is_err() {
+			if id.trim().is_empty() {
 				return common_response(StatusCode::BAD_REQUEST, "Invalid Team ID format");
 			}
 			let repo = TeamsRepository::new(&state);
@@ -303,7 +306,7 @@ impl TeamsServiceTrait for TeamsService {
 	fn get_public_team_by_id(state: &AppState, id: String) -> Pin<Box<dyn Future<Output = Response> + Send>> {
 		let state = state.to_owned();
 		Box::pin(async move {
-			if Uuid::parse_str(&id).is_err() {
+			if id.trim().is_empty() {
 				return common_response(StatusCode::BAD_REQUEST, "Invalid Team ID format");
 			}
 			let repo = TeamsRepository::new(&state);
@@ -416,7 +419,7 @@ impl TeamsServiceTrait for TeamsService {
 						"failed_emails": failed_invites
 					});
 
-					success_response(ResponseSuccessDto { data: response_data })
+					imphnen_utils::success_created_response(ResponseSuccessDto { data: response_data })
 				}
 				Err(err) => {
 					error!("Failed to create team: {}", err);
@@ -434,7 +437,7 @@ impl TeamsServiceTrait for TeamsService {
 	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
 		let state = state.to_owned();
 		Box::pin(async move {
-			if Uuid::parse_str(&id).is_err() {
+			if id.trim().is_empty() {
 				return common_response(StatusCode::BAD_REQUEST, "Invalid Team ID format");
 			}
 
@@ -450,9 +453,50 @@ impl TeamsServiceTrait for TeamsService {
 				Err(_) => return common_response(StatusCode::NOT_FOUND, "Team not found"),
 			};
 
+			// Allow update if requester is leader
 			if current_team.leader_id.id.to_raw() != claims.user_id {
+				// Not leader; deny here (admin endpoints should use update_team_admin)
 				return common_response(StatusCode::FORBIDDEN, "Only team leader can update team");
 			}
+
+			let updated_team = TeamsSchema {
+				id: current_team.id,
+				leader_id: current_team.leader_id,
+				is_active: current_team.is_active,
+				is_deleted: current_team.is_deleted,
+				created_at: current_team.created_at,
+				..TeamsSchema::default()
+			}.update(team);
+
+			match repo.query_update_team(updated_team).await {
+				Ok(msg) => common_response(StatusCode::OK, &msg),
+				Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
+			}
+		})
+	}
+
+	fn update_team_admin(
+		state: &AppState,
+		_claims: imphnen_libs::jsonwebtoken::Claims,
+		id: String,
+		team: TeamsUpdateRequestDto,
+	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
+		let state = state.to_owned();
+		Box::pin(async move {
+			if id.trim().is_empty() {
+				return common_response(StatusCode::BAD_REQUEST, "Invalid Team ID format");
+			}
+
+			if let Err((status, message)) = validate_request(&team) {
+				return common_response(status, &message);
+			}
+
+			let repo = TeamsRepository::new(&state);
+			let thing_id = make_thing_from_enum(ResourceEnum::Teams, &id);
+			let current_team = match repo.query_team_by_id(&thing_id).await {
+				Ok(team) => team,
+				Err(_) => return common_response(StatusCode::NOT_FOUND, "Team not found"),
+			};
 
 			let updated_team = TeamsSchema {
 				id: current_team.id,
@@ -477,7 +521,7 @@ impl TeamsServiceTrait for TeamsService {
 	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
 		let state = state.to_owned();
 		Box::pin(async move {
-			if Uuid::parse_str(&id).is_err() {
+			if id.trim().is_empty() {
 				return common_response(StatusCode::BAD_REQUEST, "Invalid Team ID format");
 			}
 
@@ -500,6 +544,31 @@ impl TeamsServiceTrait for TeamsService {
 		})
 	}
 
+	fn delete_team_admin(
+		state: &AppState,
+		_claims: imphnen_libs::jsonwebtoken::Claims,
+		id: String,
+	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
+		let state = state.to_owned();
+		Box::pin(async move {
+			if id.trim().is_empty() {
+				return common_response(StatusCode::BAD_REQUEST, "Invalid Team ID format");
+			}
+
+			let repo = TeamsRepository::new(&state);
+			let thing_id = make_thing_from_enum(ResourceEnum::Teams, &id);
+			let _team = match repo.query_team_by_id(&thing_id).await {
+				Ok(team) => team,
+				Err(_) => return common_response(StatusCode::NOT_FOUND, "Team not found"),
+			};
+
+			match repo.query_delete_team(id).await {
+				Ok(msg) => common_response(StatusCode::OK, &msg),
+				Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
+			}
+		})
+	}
+
 	fn invite_team_members(
 		state: &AppState,
 		claims: imphnen_libs::jsonwebtoken::Claims,
@@ -508,7 +577,7 @@ impl TeamsServiceTrait for TeamsService {
 	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
 		let state = state.to_owned();
 		Box::pin(async move {
-			if Uuid::parse_str(&team_id).is_err() {
+			if team_id.trim().is_empty() {
 				return common_response(StatusCode::BAD_REQUEST, "Invalid Team ID format");
 			}
 
@@ -540,6 +609,80 @@ impl TeamsServiceTrait for TeamsService {
 				let existing_user = users_repo.query_user_by_email(email.clone()).await.ok();
 				let is_existing_user = existing_user.is_some();
 				
+				let token = Self::generate_invitation_token().await;
+				let invitation = TeamInvitationsSchema::create(
+					team_id.clone(),
+					email.clone(),
+					claims.user_id.clone(),
+					token.clone(),
+				);
+
+				match repo.query_create_invitation(invitation).await {
+					Ok(_) => {
+						let inviter_user = match users_repo.query_user_by_id(&make_thing_from_enum(ResourceEnum::Users, &claims.user_id)).await {
+							Ok(user) => user,
+							Err(_) => return common_response(StatusCode::INTERNAL_SERVER_ERROR, "Failed to get inviter user information"),
+						};
+						if let Err(e) = Self::send_invitation_email(
+							&team.name,
+							&inviter_user.fullname,
+							&email,
+							&token,
+							is_existing_user,
+						).await {
+							error!("Failed to send invitation email to {}: {}", email, e);
+							failed_invites.push(email);
+						} else {
+							successful_invites.push(email);
+						}
+					}
+					Err(e) => {
+						error!("Failed to create invitation for {}: {}", email, e);
+						failed_invites.push(email);
+					}
+				}
+			}
+
+			let response_data = json!({
+				"invitations_sent": successful_invites.len(),
+				"invitations_failed": failed_invites.len(),
+				"failed_emails": failed_invites
+			});
+
+			success_response(ResponseSuccessDto { data: response_data })
+		})
+	}
+
+	fn invite_team_members_admin(
+		state: &AppState,
+		claims: imphnen_libs::jsonwebtoken::Claims,
+		team_id: String,
+		invite: TeamInviteRequestDto,
+	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
+		let state = state.to_owned();
+		Box::pin(async move {
+			if team_id.trim().is_empty() {
+				return common_response(StatusCode::BAD_REQUEST, "Invalid Team ID format");
+			}
+
+			if let Err((status, message)) = validate_request(&invite) {
+				return common_response(status, &message);
+			}
+
+			let repo = TeamsRepository::new(&state);
+			let users_repo = UsersRepository::new(&state);
+			let thing_id = make_thing_from_enum(ResourceEnum::Teams, &team_id);
+			let team = match repo.query_team_by_id(&thing_id).await {
+				Ok(team) => team,
+				Err(_) => return common_response(StatusCode::NOT_FOUND, "Team not found"),
+			};
+
+			let mut successful_invites = Vec::new();
+			let mut failed_invites = Vec::new();
+
+			for email in invite.member_emails {
+				let existing_user = users_repo.query_user_by_email(email.clone()).await.ok();
+				let is_existing_user = existing_user.is_some();
 				let token = Self::generate_invitation_token().await;
 				let invitation = TeamInvitationsSchema::create(
 					team_id.clone(),
@@ -667,7 +810,7 @@ impl TeamsServiceTrait for TeamsService {
 	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
 		let state = state.to_owned();
 		Box::pin(async move {
-			if Uuid::parse_str(&team_id).is_err() {
+			if team_id.trim().is_empty() {
 				return common_response(StatusCode::BAD_REQUEST, "Invalid Team ID format");
 			}
 
@@ -725,7 +868,7 @@ impl TeamsServiceTrait for TeamsService {
 	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
 		let state = state.to_owned();
 		Box::pin(async move {
-			if Uuid::parse_str(&team_id).is_err() {
+			if team_id.trim().is_empty() {
 				return common_response(StatusCode::BAD_REQUEST, "Invalid Team ID format");
 			}
 
@@ -794,7 +937,7 @@ impl TeamsServiceTrait for TeamsService {
 	fn get_admin_team_by_id(state: &AppState, id: String) -> Pin<Box<dyn Future<Output = Response> + Send>> {
 		let state = state.to_owned();
 		Box::pin(async move {
-			if Uuid::parse_str(&id).is_err() {
+			if id.trim().is_empty() {
 				return common_response(StatusCode::BAD_REQUEST, "Invalid Team ID format");
 			}
 			let repo = TeamsRepository::new(&state);
@@ -844,7 +987,7 @@ impl TeamsServiceTrait for TeamsService {
 	fn get_admin_team_members(state: &AppState, team_id: String) -> Pin<Box<dyn Future<Output = Response> + Send>> {
 		let state = state.to_owned();
 		Box::pin(async move {
-			if Uuid::parse_str(&team_id).is_err() {
+			if team_id.trim().is_empty() {
 				return common_response(StatusCode::BAD_REQUEST, "Invalid Team ID format");
 			}
 			let repo = TeamsRepository::new(&state);
