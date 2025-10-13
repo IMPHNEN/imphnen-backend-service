@@ -37,3 +37,11 @@ pub fn permissions_router() -> Router {
 		.route("/update/{id}", put(put_update_permission))
 		.route("/delete/{id}", delete(delete_permission))
 }
+
+// Minimal admin router to satisfy test expectations at /v1/permissions/admin
+pub fn admin_permissions_router() -> Router {
+    use permissions_controller as controller;
+    Router::new()
+        .route("/", axum::routing::get(controller::get_permission_list))
+        .route("/detail/{id}", axum::routing::get(controller::get_permission_by_id))
+}

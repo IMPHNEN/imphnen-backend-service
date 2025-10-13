@@ -184,6 +184,8 @@ test_api_endpoint() {
                         '{TestName: $name, Endpoint: $ep, Method: $meth, Status: $stat, StatusCode: $code, ResponseTimeMs: $dur, Error: $err}')
   TEST_RESULTS+=("$result_json")
   # Return response_body for further processing if needed by the caller
+  # Print the response body to stdout so callers can capture it with command substitution
+  printf "%s" "$response_body"
 }
 
 test_server_connection() {
@@ -1197,13 +1199,110 @@ test_end_to_end_hackathon_workflow() {
   printf "Status: ✅ Selesai\n"
 }
 
+test_timeline_enforcement() {
+  printf "\n${CYAN}=== Menguji Timeline Enforcement Middleware ===${NC}\n"
+  
+  # Test timeline enforcement for hackathon submissions (should be 403 outside submission phase)
+  test_api_endpoint "Hackathon Submission Outside Timeline" "POST" "/v1/hackathons/test-hackathon-001/teams/test-team-001/submissions" 403 "" true
+  
+  # Test timeline enforcement for hackathon registrations (should be 403 outside registration phase)
+  test_api_endpoint "Hackathon Registration Outside Timeline" "POST" "/v1/hackathons/test-hackathon-001/participants" 403 "" true
+  
+  # Test that timeline endpoints return proper error messages
+  test_api_endpoint "Timeline Error Message Format" "GET" "/v1/hackathons/test-hackathon-001/timeline" 200 "" true
+  
+  # Test timeline phase creation (admin only)
+  local timeline_data=$(jq -n --arg name "Submission Phase" --arg phase "submission" '{
+    name: $name,
+    phase: $phase,
+    start_date: "'$(date -d "-10 day" +%Y-%m-%dT%H:%M:%SZ)'",
+    end_date: "'$(date -d "+10 day" +%Y-%m-%dT%H:%M:%SZ)'"
+  }')
+  test_api_endpoint "Create Timeline Phase (Admin)" "POST" "/v1/hackathons/test-hackathon-001/timeline" 201 "$timeline_data" true
+  
+  # Test timeline phase listing
+  test_api_endpoint "List Timeline Phases" "GET" "/v1/hackathons/test-hackathon-001/timeline" 200 "" true
+}
+
+test_admin_endpoints_permissions() {
+  printf "\n${CYAN}=== Menguji Permission Administrator pada Endpoints Admin ===${NC}\n"
+  
+  # Test admin-only endpoints with regular user (should be 403)
+  if [ "$email" != "admin@example.com" ]; then
+    test_api_endpoint "Admin Users List (Non-Admin)" "GET" "/v1/users/admin" 403 "" true
+    test_api_endpoint "Admin Teams List (Non-Admin)" "GET" "/v1/teams/admin" 403 "" true
+    test_api_endpoint "Admin Permissions List (Non-Admin)" "GET" "/v1/permissions/admin" 403 "" true
+    test_api_endpoint "Admin Roles List (Non-Admin)" "GET" "/v1/roles/admin" 403 "" true
+    test_api_endpoint "Admin Gacha List (Non-Admin)" "GET" "/v1/gacha/admin" 403 "" true
+    test_api_endpoint "Admin Hackathon Results (Non-Admin)" "GET" "/v1/hackathons/test-hackathon/admin/results" 403 "" true
+  fi
+  
+  # Test admin-only endpoints with admin user (should be 200)
+  if [ "$email" = "admin@example.com" ]; then
+    test_api_endpoint "Admin Users List (Admin)" "GET" "/v1/users/admin" 200 "" true
+    test_api_endpoint "Admin Teams List (Admin)" "GET" "/v1/teams/admin" 200 "" true
+    test_api_endpoint "Admin Permissions List (Admin)" "GET" "/v1/permissions/admin" 200 "" true
+    test_api_endpoint "Admin Roles List (Admin)" "GET" "/v1/roles/admin" 200 "" true
+    test_api_endpoint "Admin Gacha List (Admin)" "GET" "/v1/gacha/admin" 200 "" true
+    
+    # Admin should be able to manage sensitive operations
+    local sensitive_data=$(jq -n '{
+      "user_ids": ["user1", "user2"],
+      "raw_scores": [95, 87, 92],
+      "personal_info": true
+    }')
+    test_api_endpoint "Admin Manage Sensitive Data" "POST" "/v1/hackathons/test-hackathon/admin/manage" 200 "$sensitive_data" true
+  fi
+}
+
+test_data_masking() {
+  printf "\n${CYAN}=== Menguji Data Masking pada Endpoints Manage Results ===${NC}\n"
+  
+  # Test that admin results endpoint returns masked sensitive data
+  if [ "$email" = "admin@example.com" ]; then
+    local results_response=$(test_api_endpoint "Get Admin Results (Masked)" "GET" "/v1/hackathons/test-hackathon-001/admin/results" 200 "" true)
+    
+    # Verify data masking patterns in response
+    if echo "$results_response" | jq -e '.data[] | has("masked_email")' > /dev/null 2>&1; then
+      write_test_log "SUCCESS" "✓ Data masking: masked_email field detected"
+    else
+      write_test_log "ERROR" "✗ Data masking: masked_email field not found"
+      ((FAIL_COUNT++))
+    fi
+    
+    if echo "$results_response" | jq -e '.data[] | has("masked_phone")' > /dev/null 2>&1; then
+      write_test_log "SUCCESS" "✓ Data masking: masked_phone field detected"
+    else
+      write_test_log "ERROR" "✗ Data masking: masked_phone field not found"
+      ((FAIL_COUNT++))
+    fi
+    
+    if echo "$results_response" | jq -e '.data[] | .raw_score == null' > /dev/null 2>&1; then
+      write_test_log "SUCCESS" "✓ Data masking: raw_score properly masked"
+    else
+      write_test_log "ERROR" "✗ Data masking: raw_score not properly masked"
+      ((FAIL_COUNT++))
+    fi
+  fi
+  
+  # Test that public results endpoint does NOT return sensitive data
+  local public_results_response=$(test_api_endpoint "Get Public Results" "GET" "/v1/hackathons/test-hackathon-001/results" 200 "" true)
+  
+  if echo "$public_results_response" | jq -e '.data[] | has("email")' > /dev/null 2>&1; then
+    write_test_log "ERROR" "✗ Public endpoint should not expose email"
+    ((FAIL_COUNT++))
+  else
+    write_test_log "SUCCESS" "✓ Public endpoint correctly masks sensitive data"
+  fi
+}
+
 test_advanced_scenarios() {
   printf "\n${CYAN}=== Menguji Advanced Scenarios ===${NC}\n"
-  
+   
   test_api_endpoint "Events with Advanced Filter" "GET" "/v1/cms/landing/events?filter=online&filter_by=is_online" 200
   test_api_endpoint "Users with Sort" "GET" "/v1/users?sort_by=created_at&order=DESC" 200 "" true
   test_api_endpoint "Testimonials with Search" "GET" "/v1/cms/landing/testimonials?search=test" 200
-  
+   
   local mentor_register_data
   mentor_register_data=$(jq -n --arg email "test.mentor.$(date +%s%N)@example.com" '{
     identity_and_verification: {
@@ -1218,7 +1317,7 @@ test_advanced_scenarios() {
       expertise: ["JavaScript", "Python"],
       languages: ["English", "Indonesian"],
       current_company: "Test Company",
-      current_role: "Senior Developer", 
+      current_role: "Senior Developer",
       years_of_experience: 5
     },
     mentoring_logistics: {
@@ -1235,7 +1334,7 @@ test_advanced_scenarios() {
     email: $email
   }')
   test_api_endpoint "Register as Mentor" "POST" "/v1/mentors/register" 422 "$mentor_register_data" true
-  
+   
   test_api_endpoint "Invalid POST to GET endpoint" "POST" "/v1/cms/landing/events" 405
   test_api_endpoint "Invalid PUT with Invalid ID" "PUT" "/v1/users/update/some_invalid_id" 400 "" true
 }
@@ -1249,7 +1348,10 @@ show_test_summary() {
   printf "📅 Events: CRUD Operations, Filtering\n"
   printf "💬 Testimonials: Management & Creation\n"
   printf "🎲 Gacha: Items, Rolls, Claims\n"
+  printf "⏰ Timeline: Enforcement Middleware, Phases Management\n"
+  printf "🔒 Admin: Permission Checks, Sensitive Data Access\n"
   printf "🔧 Advanced: Pagination, Search, Edge Cases\n"
+  printf "🔓 Security: Data Masking, Authorization\n"
   printf "❌ Error Handling: 401, 404, Invalid Requests\n"
   printf "\n"
 }
@@ -1364,6 +1466,11 @@ if [[ "$SKIP_COMPREHENSIVE" = false && -n "$AUTH_TOKEN" ]]; then
   test_gacha_endpoints
   test_team_endpoints
   test_hackathon_endpoints
+  
+  # Test new features implemented
+  test_timeline_enforcement
+  test_admin_endpoints_permissions
+  test_data_masking
 fi
 
 test_advanced_scenarios

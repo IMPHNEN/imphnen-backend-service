@@ -8,12 +8,13 @@ use chrono::Utc;
 use imphnen_entities::AuditLogSchema;
 use imphnen_libs::{AppState, ResourceEnum};
 use imphnen_utils::{extract_email, extract_email_async, extract_real_ip};
+use serde_json;
 use std::convert::Infallible;
 
 /// Middleware untuk mencatat semua aksi admin ke dalam audit log
 pub async fn audit_logging_middleware(
     Extension(state): Extension<AppState>,
-    mut req: Request<Body>,
+    req: Request<Body>,
     next: Next,
 ) -> Result<Response<Body>, Infallible> {
     let uri = req.uri().path().to_string();
@@ -48,8 +49,10 @@ pub async fn audit_logging_middleware(
         };
         
         // Simpan audit log ke database
-        if let Err(e) = save_audit_log(&state.surrealdb_mem, audit_log).await {
-            log::error!("Failed to save audit log: {}", e);
+        let action = audit_log.action.clone();
+        match save_audit_log(&state.surrealdb_mem, audit_log.clone()).await {
+            Ok(_) => log::debug!("Audit log saved for action: {}", action),
+            Err(e) => log::error!("Failed to save audit log: {}", e),
         }
     }
     
@@ -159,11 +162,12 @@ async fn save_audit_log(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let table = ResourceEnum::AuditLog.to_string();
     let key = (table.as_str(), surrealdb::sql::Id::rand().to_string());
-    
-    db.create(key)
-        .content(audit_log)
+
+    let content = serde_json::to_value(&audit_log)?;
+    db.create::<Option<AuditLogSchema>>(key)
+        .content(content)
         .await?;
-    
+
     log::debug!("Audit log saved for action: {}", audit_log.action);
     Ok(())
 }
@@ -171,7 +175,7 @@ async fn save_audit_log(
 /// Middleware khusus untuk aksi UPDATE/DELETE yang menangkap data sebelum dan sesudah
 pub async fn detailed_audit_logging_middleware(
     Extension(state): Extension<AppState>,
-    mut req: Request<Body>,
+    req: Request<Body>,
     next: Next,
 ) -> Result<Response<Body>, Infallible> {
     // Implementasi ini akan lebih kompleks dan membutuhkan intercept response

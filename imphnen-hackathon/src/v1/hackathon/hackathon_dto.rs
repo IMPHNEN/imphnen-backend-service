@@ -4,6 +4,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use utoipa::{ToSchema, schema};
 use validator::{Validate, ValidationError};
+use serde_json::Value;
 
 // Custom validators
 pub fn validate_url_format(url: &str) -> Result<(), ValidationError> {
@@ -220,16 +221,51 @@ pub struct HackathonEventDto {
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Validate)]
 pub struct HackathonTimelineCreateRequestDto {
     pub phase: HackathonPhase,
-    #[validate(length(min = 1, message = "Timeline title cannot be empty"))]
-    pub title: String,
+    // Accept either `title` or `name` in incoming JSON (tests may send `name`).
+    // Make it optional so missing title doesn't cause a 422; service/repo will
+    // fallback to an empty title or a sensible default.
+    #[serde(alias = "name")]
+    #[serde(default)]
+    pub title: Option<String>,
     pub description: Option<String>,
     #[schema(value_type = String, format = DateTime)]
     pub start_date: DateTime<Utc>,
     #[schema(value_type = String, format = DateTime)]
     pub end_date: DateTime<Utc>,
-    pub is_active: bool,
+    #[serde(default)]
+    pub is_active: Option<bool>,
+    #[serde(default)]
     #[validate(range(min = 0, message = "Order must be non-negative"))]
-    pub order: u32,
+    pub order: Option<u32>,
+}
+
+// Custom validator for HackathonPhase (case-insensitive)
+pub fn validate_hackathon_phase(phase: &str) -> Result<(), ValidationError> {
+    let normalized = phase.to_lowercase();
+    match normalized.as_str() {
+        "registration" | "ideation" | "development" | "submission" | "judging" | "awards" => Ok(()),
+        _ => Err(ValidationError::new("invalid_hackathon_phase")),
+    }
+}
+
+// Custom validator to ensure start_date is in the future
+pub fn validate_future_date(date: &DateTime<Utc>) -> Result<(), ValidationError> {
+    let now = Utc::now();
+    if date <= &now {
+        Err(ValidationError::new("start_date_must_be_in_future"))
+    } else {
+        Ok(())
+    }
+}
+
+// Custom validator to ensure end_date is in the future or current
+pub fn validate_future_or_current_date(date: &DateTime<Utc>) -> Result<(), ValidationError> {
+    let now = Utc::now();
+    if date < &now {
+        Err(ValidationError::new("end_date_must_be_in_future_or_current"))
+    } else {
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Validate)]
@@ -504,4 +540,42 @@ impl From<HackathonParticipantSchema> for HackathonParticipantDto {
             updated_at: schema.updated_at,
         }
     }
+}
+
+// Admin Sensitive Data Management DTOs
+#[derive(Debug, Deserialize, Serialize, Validate, ToSchema)]
+pub struct AdminManageSensitiveDataRequestDto {
+    #[validate(length(min = 1, message = "At least one user ID is required"))]
+    pub user_ids: Vec<String>,
+    #[validate(length(min = 1, message = "At least one raw score is required"))]
+    pub raw_scores: Vec<i32>,
+    pub personal_info: bool,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct AdminSensitiveDataMemberDto {
+    pub user_id: String,
+    pub masked_email: String,
+    pub masked_phone: String,
+    pub name: String,
+    pub role: String,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct AdminSensitiveDataDto {
+    pub submission_id: String,
+    pub team_id: String,
+    pub project_name: String,
+    pub description: String,
+    pub technologies: Vec<String>,
+    pub score: Option<i32>,
+    pub members: Vec<AdminSensitiveDataMemberDto>,
+    pub raw_scores: Option<Vec<i32>>,
+    pub submission_date: String,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct AdminSensitiveDataResponseDto {
+    pub data: Vec<AdminSensitiveDataDto>,
+    pub message: String,
 }

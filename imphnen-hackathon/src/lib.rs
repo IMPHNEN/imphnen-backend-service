@@ -4,20 +4,13 @@ pub mod v1;
 pub use imphnen_entities::{
     CountResult,
     Error,
+    ErrorDto,
     MessageResponseDto,
     MetaRequestDto,
     MetaResponseDto,
     ResponseListSuccessDto,
     ResponseSuccessDto,
 };
-
-// Error DTO for hackathon module
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
-pub struct ErrorDto {
-    pub status: u16,
-    pub message: String,
-    pub details: Option<serde_json::Value>,
-}
 
 // Explicitly import only what we need from libs and utils to avoid pollution
 pub use imphnen_libs::{

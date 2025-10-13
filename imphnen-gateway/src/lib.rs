@@ -21,7 +21,7 @@ use imphnen_iam::{
     v1::auth::auth_repository::AuthRepoImpl,
 };
 use imphnen_libs::{AppState, SurrealMemClient, SurrealWsClient};
-use imphnen_middleware::{auth_middleware, cors_middleware, auth_rate_limiting_middleware, security_headers_middleware};
+use imphnen_middleware::{auth_middleware, cors_middleware, rate_limiting_middleware, security_headers_middleware};
 use std::sync::Arc;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -40,7 +40,7 @@ pub async fn gateway_service(
     };
 
     let public_routes = Router::new()
-        .merge(iam_public_routes().layer(from_fn(auth_rate_limiting_middleware)))
+        .merge(iam_public_routes().layer(from_fn(rate_limiting_middleware)))
         .merge(hackathon_public_routes())
         .merge(testimonials_public_routes())
         .merge(events_public_routes());

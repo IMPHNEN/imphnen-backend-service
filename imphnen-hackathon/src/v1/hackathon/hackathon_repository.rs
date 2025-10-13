@@ -395,16 +395,17 @@ impl<'a> HackathonRepository<'a> {
 
         let normalized_hackathon_id = self.normalize_id("app_hackathons", &hackathon_id);
 
+        let phase_clone = timeline.phase.clone();
         let schema = HackathonTimelineSchema {
             id: Thing::from((table.clone(), id.clone())),
             hackathon_id: Thing::from(("app_hackathons".to_string(), normalized_hackathon_id)),
-            phase: timeline.phase,
-            title: timeline.title,
+            phase: phase_clone.clone(),
+            title: timeline.title.unwrap_or_else(|| phase_clone.to_string()),
             description: timeline.description,
             start_date: timeline.start_date,
             end_date: timeline.end_date,
-            is_active: timeline.is_active,
-            order: timeline.order,
+            is_active: timeline.is_active.unwrap_or(false),
+            order: timeline.order.unwrap_or(0),
             is_deleted: false,
             created_at: Some(get_iso_date()),
             updated_at: Some(get_iso_date()),

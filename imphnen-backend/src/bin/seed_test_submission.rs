@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use imphnen_hackathon::v1::hackathon::hackathon_schema::{
     HackathonSchema, HackathonTimelineSchema, HackathonSubmissionsSchema,
-    HackathonStatus, HackathonPhase, SubmissionStatus, Prize
+    HackathonStatus, HackathonPhase, SubmissionStatus, Prize,
 };
 use imphnen_iam::{UsersSchema, v1::teams::TeamsSchema};
 use imphnen_utils::{get_iso_date, hash_password};
@@ -255,12 +255,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
             end_date: DateTime::parse_from_rfc3339(end_date)?.with_timezone(&Utc),
             registration_deadline: DateTime::parse_from_rfc3339(registration_deadline)?.with_timezone(&Utc),
             max_participants,
-            status,
-            theme,
-            rules,
-            prizes,
+            status: status.clone(),
+            theme: theme.clone(),
+            rules: rules.clone(),
+            prizes: prizes.clone(),
             previous_winners: None,
-            organizers,
+            organizers: organizers.clone(),
             is_deleted: false,
             created_at: Some(get_iso_date()),
             updated_at: Some(get_iso_date()),
@@ -271,6 +271,39 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .await?;
 
         println!("✅ Inserted test hackathon: {name}");
+        // Also create an alias canonical id 'test-hackathon' so tests referencing
+        // /v1/hackathons/test-hackathon/... can find a hackathon record.
+        if id != "test-hackathon" && id.starts_with("test-hackathon") {
+            let alias_id = "test-hackathon";
+            db.query("DELETE type::thing('app_hackathons', $id)")
+                .bind(("id", alias_id))
+                .await?;
+
+            let alias_hackathon = HackathonSchema {
+                id: Thing::from(("app_hackathons", alias_id)),
+                name: name.clone().into(),
+                description: description.clone().into(),
+                start_date: DateTime::parse_from_rfc3339(start_date)?.with_timezone(&Utc),
+                end_date: DateTime::parse_from_rfc3339(end_date)?.with_timezone(&Utc),
+                registration_deadline: DateTime::parse_from_rfc3339(registration_deadline)?.with_timezone(&Utc),
+                max_participants,
+                status: status.clone(),
+                theme: theme.clone(),
+                rules: rules.clone(),
+                prizes: prizes.clone(),
+                previous_winners: None,
+                organizers: organizers.clone(),
+                is_deleted: false,
+                created_at: Some(get_iso_date()),
+                updated_at: Some(get_iso_date()),
+            };
+
+            db.create::<Option<HackathonSchema>>(("app_hackathons", alias_id))
+                .content(alias_hackathon)
+                .await?;
+
+            println!("✅ Inserted test hackathon alias: {alias_id}");
+        }
     }
 
     // Seed test hackathon timeline
@@ -293,9 +326,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let timeline = HackathonTimelineSchema {
             id: Thing::from(("app_hackathon_timeline", timeline_id.as_str())),
             hackathon_id: Thing::from(("app_hackathons", hackathon_id)),
-            phase,
+            phase: phase.clone(),
             title: title.into(),
-            description,
+            description: description.clone(),
             start_date: DateTime::parse_from_rfc3339(start_date)?.with_timezone(&Utc),
             end_date: DateTime::parse_from_rfc3339(end_date)?.with_timezone(&Utc),
             is_active,
@@ -310,6 +343,37 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .await?;
 
         println!("✅ Inserted test hackathon timeline: {title}");
+
+        // Also create alias timeline entries for the canonical test id 'test-hackathon'
+        if hackathon_id != "test-hackathon" && hackathon_id.starts_with("test-hackathon") {
+            let alias_hackathon_id = "test-hackathon";
+            let alias_timeline_id = format!("test-timeline-{}-{}", alias_hackathon_id, order);
+
+            db.query("DELETE type::thing('app_hackathon_timeline', $id)")
+                .bind(("id", alias_timeline_id.clone()))
+                .await?;
+
+            let alias_timeline = HackathonTimelineSchema {
+                id: Thing::from(("app_hackathon_timeline", alias_timeline_id.as_str())),
+                hackathon_id: Thing::from(("app_hackathons", alias_hackathon_id)),
+                phase: phase.clone(),
+                title: title.clone().into(),
+                description: description.clone(),
+                start_date: DateTime::parse_from_rfc3339(start_date)?.with_timezone(&Utc),
+                end_date: DateTime::parse_from_rfc3339(end_date)?.with_timezone(&Utc),
+                is_active,
+                order,
+                is_deleted: false,
+                created_at: Some(get_iso_date()),
+                updated_at: Some(get_iso_date()),
+            };
+
+            db.create::<Option<HackathonTimelineSchema>>( ("app_hackathon_timeline", alias_timeline_id.clone()) )
+                .content(alias_timeline)
+                .await?;
+
+            println!("✅ Inserted test hackathon timeline alias: {alias_timeline_id}");
+        }
     }
 
     // Seed test hackathon submissions

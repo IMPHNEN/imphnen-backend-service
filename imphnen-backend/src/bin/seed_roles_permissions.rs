@@ -46,8 +46,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 				PermissionsEnum::ReadDetailGachaRolls,
 				PermissionsEnum::CreateGachaRolls,
 				PermissionsEnum::ExecuteGachaRolls,
-				PermissionsEnum::ReadListRoles,
-				PermissionsEnum::ReadListPermissions,
 			],
 		),
 		(
@@ -67,20 +65,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
 				PermissionsEnum::ReadDetailMentors,
 				PermissionsEnum::ReadOwnMentorProfile,
 				PermissionsEnum::ReadOwnMentorStatus,
-				PermissionsEnum::ReadListRoles,
-				PermissionsEnum::ReadListPermissions,
 			],
 		),
 		(
 			"50133429-f4b1-4249-9f97-7b86e6ee9d86",
 			vec![
+				// Staff should be able to list roles and permissions in tests
+				PermissionsEnum::ReadListRoles,
+				PermissionsEnum::ReadListPermissions,
 				PermissionsEnum::ReadListUsers,
 				PermissionsEnum::ReadListMentors,
 				PermissionsEnum::ReadDetailUsers,
 				PermissionsEnum::ActivateUsers,
-				PermissionsEnum::ReadListRoles,
 				PermissionsEnum::ReadDetailRoles,
-				PermissionsEnum::ReadListPermissions,
 				PermissionsEnum::ReadDetailPermissions,
 				PermissionsEnum::ReadListGachaItems,
 				PermissionsEnum::ReadDetailGachaItems,

@@ -144,19 +144,21 @@ fn extract_user_permissions(user: &imphnen_entities::UsersDetailQueryDto) -> Vec
 
 /// Check if user has required permissions
 fn has_required_permissions(user_permissions: &[String], required_permissions: &[PermissionsEnum]) -> bool {
-	// Administrator has access to everything
-	let admin_name = PermissionsEnum::Administrator.to_string();
-	let admin_id = PermissionsEnum::Administrator.id();
-	
-	if user_permissions.contains(&admin_name) || user_permissions.contains(&admin_id) {
-		return true;
-	}
-	
-	// Check if user has all required permissions
-	required_permissions.iter().all(|required| {
-		let required_name = required.to_string();
-		user_permissions.contains(&required_name)
-	})
+    // Administrator has access to everything
+    let admin_name = PermissionsEnum::Administrator.to_string();
+    let admin_id = PermissionsEnum::Administrator.id();
+    
+    if user_permissions.contains(&admin_name) || user_permissions.contains(&admin_id) {
+        return true;
+    }
+    
+    // Check if user has all required permissions
+    required_permissions.iter().all(|required| {
+        let required_name = required.to_string();
+        let required_id = required.id();
+        
+        user_permissions.contains(&required_name) || user_permissions.contains(&required_id)
+    })
 }
 
 /// Simple permission check function for use in controllers (legacy compatibility)

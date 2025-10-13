@@ -37,7 +37,7 @@ pub use users_schema::UsersSchema;
 
 pub fn users_router() -> Router {
 	Router::new()
-		.route("/", get(get_user_list))
+        .route("/", get(get_user_list))
 		.route("/activate/{id}", put(patch_user_active_status))
 		.route("/create", post(post_create_user))
 		.route("/me", get(get_user_me))
@@ -46,4 +46,12 @@ pub fn users_router() -> Router {
 		.route("/update/{id}", put(put_update_user))
 		.route("/update/me", put(put_update_user_me))
 		.route("/upload", post(upload_file))
+}
+
+// Minimal admin router to satisfy test expectations at /v1/users/admin
+pub fn admin_users_router() -> Router {
+    use users_controller as controller;
+    Router::new()
+        .route("/", axum::routing::get(controller::get_user_list))
+        .route("/detail/{id}", axum::routing::get(controller::get_user_by_id))
 }

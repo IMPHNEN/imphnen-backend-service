@@ -9,6 +9,7 @@ pub use error_dto::error::Error;
 
 // Explicit common_dto exports
 pub use common_dto::CountResult;
+pub use common_dto::ErrorDto;
 pub use common_dto::MessageResponseDto;
 pub use common_dto::MetaRequestDto;
 pub use common_dto::MetaResponseDto;

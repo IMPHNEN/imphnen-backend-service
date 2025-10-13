@@ -51,6 +51,13 @@ pub struct ResponseListSuccessDto<T: Serialize> {
 }
 
 
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+pub struct ErrorDto {
+    pub status: u16,
+    pub message: String,
+    pub details: Option<serde_json::Value>,
+}
+
 #[derive(Debug, serde::Deserialize)]
 pub struct CountResult {
 	pub count: u64,

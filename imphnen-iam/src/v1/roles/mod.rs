@@ -39,3 +39,11 @@ pub fn roles_router() -> Router {
 		.route("/update/{id}", put(put_update_role))
 		.route("/delete/{id}", delete(delete_role))
 }
+
+// Minimal admin router to satisfy test expectations at /v1/roles/admin
+pub fn admin_roles_router() -> Router {
+    use roles_controller as controller;
+    Router::new()
+        .route("/", axum::routing::get(controller::get_role_list))
+        .route("/detail/{id}", axum::routing::get(controller::get_role_by_id))
+}

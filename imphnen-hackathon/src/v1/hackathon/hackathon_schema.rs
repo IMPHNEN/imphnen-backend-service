@@ -117,6 +117,20 @@ pub enum HackathonPhase {
     Awards,
 }
 
+// Add as_str method for HackathonPhase
+impl HackathonPhase {
+    pub fn as_str(&self) -> &str {
+        match self {
+            HackathonPhase::Registration => "registration",
+            HackathonPhase::Ideation => "ideation",
+            HackathonPhase::Development => "development",
+            HackathonPhase::Submission => "submission",
+            HackathonPhase::Judging => "judging",
+            HackathonPhase::Awards => "awards",
+        }
+    }
+}
+
 // Manual Deserialize implementation for case-insensitive support
 impl<'de> Deserialize<'de> for HackathonPhase {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>

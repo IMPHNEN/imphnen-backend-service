@@ -1,5 +1,4 @@
 use axum::{
-    body::Body,
     http::{HeaderValue, Request, Response},
     middleware::Next,
     Extension,
@@ -14,7 +13,7 @@ use std::convert::Infallible;
 /// against common web attacks like clickjacking, XSS, and information leakage.
 pub async fn security_headers_middleware(
     Extension(_state): Extension<AppState>,
-    mut req: Request<axum::body::Body>,
+    req: Request<axum::body::Body>,
     next: Next,
 ) -> Result<Response<axum::body::Body>, Infallible> {
     // Generate nonce for CSP if in development mode
@@ -26,7 +25,7 @@ pub async fn security_headers_middleware(
     
     let res = next.run(req).await;
     
-    let mut res = add_security_headers(res, &nonce);
+    let res = add_security_headers(res, &nonce);
     
     Ok(res)
 }

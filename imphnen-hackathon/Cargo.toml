@@ -34,6 +34,8 @@ once_cell.workspace = true
 tracing.workspace = true
 uuid.workspace = true
 axum-extra.workspace = true
+tower.workspace = true
+futures.workspace = true
 
 [dev-dependencies]
 dotenvy.workspace = true

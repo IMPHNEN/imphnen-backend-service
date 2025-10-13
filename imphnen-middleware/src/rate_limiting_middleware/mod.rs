@@ -4,16 +4,14 @@ use axum::{
     middleware::Next,
     Extension,
 };
-use chrono::Utc;
 use imphnen_entities::audit_log::RateLimitSchema;
 use imphnen_libs::{AppState, ResourceEnum};
 use imphnen_utils::extract_real_ip;
-use std::time::Duration;
 
 /// Rate limiting middleware yang menggunakan SurrealDB memori untuk semua public endpoints
 pub async fn rate_limiting_middleware(
     Extension(state): Extension<AppState>,
-    mut req: Request<axum::body::Body>,
+    req: Request<axum::body::Body>,
     next: Next,
 ) -> Result<Response<Body>, StatusCode> {
     let uri = req.uri().path().to_string();
@@ -54,7 +52,7 @@ pub async fn rate_limiting_middleware(
 /// Middleware rate limiting khusus untuk endpoint autentikasi (legacy compatibility)
 pub async fn auth_rate_limiting_middleware(
     Extension(state): Extension<AppState>,
-    mut req: Request<axum::body::Body>,
+    req: Request<axum::body::Body>,
     next: Next,
 ) -> Result<Response<Body>, StatusCode> {
     let uri = req.uri().path().to_string();
