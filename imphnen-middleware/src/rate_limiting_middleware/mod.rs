@@ -130,19 +130,27 @@ async fn check_rate_limit(
                 record.increment();
             }
             
-            // Update record di database
-            // Skip database update if it fails to avoid blocking the request
-            // Database update skipped for now to resolve compilation issues
-            // db.update(key).content(record.clone()).await.ok();
+            // Periksa apakah rate limit terlampaui sebelum update
+            let is_limited = record.is_rate_limited(max_requests);
             
-            // Periksa apakah rate limit terlampaui
-            Ok(record.is_rate_limited(max_requests))
+            // Update record di database
+            if let Err(e) = db.update::<Option<RateLimitSchema>>(key).content(record.clone()).await {
+                log::error!("Failed to update rate limit record for {}: {}", ip_address, e);
+                // Gagal update, tapi tetap enforce rate limit berdasarkan data yang ada
+            }
+            
+            Ok(is_limited)
         }
         None => {
             // Buat record baru jika belum ada
             let new_record = RateLimitSchema::new(ip_address.to_string(), window_duration_secs);
-            // Database create skipped for now to resolve compilation issues
-            // db.create(key).content(new_record).await.ok();
+            
+            // Simpan record baru ke database
+            if let Err(e) = db.create::<Option<RateLimitSchema>>(key).content(new_record).await {
+                log::error!("Failed to create rate limit record for {}: {}", ip_address, e);
+                // Jika gagal create, izinkan request (fail open untuk availability)
+            }
+            
             Ok(false) // Request pertama selalu diizinkan
         }
     }

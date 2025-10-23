@@ -20,7 +20,6 @@ use axum::{
 };
 use axum::body::Bytes;
 use futures::future;
-use std::future::Future;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -732,7 +731,7 @@ pub async fn get_admin_hackathon_results(
     let permissions = vec![PermissionsEnum::Administrator];
     imphnen_iam::v1::permissions::permissions_guard::permissions_guard(headers, Extension(state.clone()), permissions)
         .await
-        .map_err(|err| (StatusCode::FORBIDDEN, Json(ErrorDto {
+        .map_err(|_err| (StatusCode::FORBIDDEN, Json(ErrorDto {
             message: "Permission denied".to_string(),
             status: 403,
             details: None,
@@ -806,7 +805,7 @@ pub struct AdminHackathonResultDto {
 
 // Add fields expected by the integration tests: masked_email, masked_phone and raw_score
 impl AdminHackathonResultDto {
-    pub fn with_masked_fields(mut self, first_masked_email: String, first_masked_phone: String) -> Self {
+    pub fn with_masked_fields(self, _first_masked_email: String, _first_masked_phone: String) -> Self {
         // We will encode masked_email/masked_phone/raw_score when serializing by adding helper fields
         // but to keep struct layout stable we add them via serde flattening would be ideal; for simplicity,
         // we'll extend the struct at runtime by constructing a serde_json::Value in the handler. However

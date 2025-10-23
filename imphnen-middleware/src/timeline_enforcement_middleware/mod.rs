@@ -209,7 +209,7 @@ pub async fn validate_timeline_request_body(
 async fn get_active_timeline_phases(
     hackathon_id: String,
     current_time: DateTime<Utc>,
-    app_state: &AppState,
+    _app_state: &AppState,
 ) -> Result<Vec<HackathonTimelinePhase>, String> {
     // In a real implementation, this would call the hackathon service to get timeline phases
     // For now, we'll return a mock implementation that demonstrates the pattern

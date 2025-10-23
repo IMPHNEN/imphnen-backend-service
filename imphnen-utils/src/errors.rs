@@ -1,6 +1,5 @@
 use axum::http::StatusCode;
 use serde::Serialize;
-use std::fmt;
 
 #[derive(Debug, Serialize)]
 pub enum AppError {

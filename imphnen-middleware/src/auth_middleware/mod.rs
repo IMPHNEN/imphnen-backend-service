@@ -57,8 +57,31 @@ pub async fn auth_middleware(
 	} else {
 		match state.user_lookup_service.get_user_by_id_internal(&thing_id, &state).await {
 			Ok(user) => {
-				// Cache in mem for future requests
-				let _: Result<Option<UsersDetailQueryDto>, _> = mem_db.update(("users", &user_id)).content(user.clone()).await;
+				// Cache in mem for future requests with retry logic
+				let mut retry_count = 0;
+				const MAX_RETRIES: u8 = 3;
+				
+				while retry_count < MAX_RETRIES {
+					match mem_db.update::<Option<UsersDetailQueryDto>>(("users", &user_id)).content(user.clone()).await {
+						Ok(_) => {
+							log::debug!("User {} cached successfully", user_id);
+							break;
+						}
+						Err(e) => {
+							retry_count += 1;
+							log::warn!(
+								"Failed to cache user {} (attempt {}/{}): {}",
+								user_id, retry_count, MAX_RETRIES, e
+							);
+							if retry_count < MAX_RETRIES {
+								tokio::time::sleep(tokio::time::Duration::from_millis(50 * retry_count as u64)).await;
+							} else {
+								log::error!("Failed to cache user {} after {} retries", user_id, MAX_RETRIES);
+							}
+						}
+					}
+				}
+				
 				user
 			},
 			Err(_) => return Ok(common_response(StatusCode::UNAUTHORIZED, "User not found")),

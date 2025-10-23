@@ -119,8 +119,9 @@ fn add_security_headers(mut res: Response<axum::body::Body>, nonce: &str) -> Res
 
 /// Generate a random nonce for CSP
 fn generate_nonce() -> String {
-    let mut rng = rand::thread_rng();
+    use base64::{Engine as _, engine::general_purpose::STANDARD};
+    let mut rng = rand::rng();
     let mut random_bytes = [0u8; 16];
     rng.fill_bytes(&mut random_bytes);
-    base64::encode(random_bytes)
+    STANDARD.encode(random_bytes)
 }

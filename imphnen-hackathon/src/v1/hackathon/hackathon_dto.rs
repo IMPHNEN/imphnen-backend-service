@@ -4,7 +4,6 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use utoipa::{ToSchema, schema};
 use validator::{Validate, ValidationError};
-use serde_json::Value;
 
 // Custom validators
 pub fn validate_url_format(url: &str) -> Result<(), ValidationError> {
