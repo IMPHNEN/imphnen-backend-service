@@ -56,6 +56,86 @@ write_test_log() {
   fi
 }
 
+# ==============================================================================
+# Response Validation Functions
+# ==============================================================================
+
+# Validate that a JSON field exists and optionally matches a value
+# Usage: assert_json_field "response_json" "field_path" "expected_value" (optional)
+# Example: assert_json_field "$response" ".data.id" 
+# Example: assert_json_field "$response" ".data.name" "Test User"
+assert_json_field() {
+  local json_response=$1
+  local field_path=$2
+  local expected_value=$3
+  
+  if ! echo "$json_response" | jq -e . >/dev/null 2>&1; then
+    echo "ERROR: Response is not valid JSON"
+    return 1
+  fi
+  
+  local actual_value
+  actual_value=$(echo "$json_response" | jq -r "$field_path // \"__FIELD_NOT_FOUND__\"")
+  
+  if [[ "$actual_value" == "__FIELD_NOT_FOUND__" || "$actual_value" == "null" ]]; then
+    echo "ERROR: Field '$field_path' not found in response"
+    return 1
+  fi
+  
+  if [[ -n "$expected_value" ]]; then
+    if [[ "$actual_value" != "$expected_value" ]]; then
+      echo "ERROR: Field '$field_path' expected '$expected_value' but got '$actual_value'"
+      return 1
+    fi
+  fi
+  
+  return 0
+}
+
+# Validate that a JSON response contains specific key-value pairs
+# Usage: assert_json_contains "response_json" "jq_filter" "description"
+# Example: assert_json_contains "$response" '.data | length > 0' "data array is not empty"
+assert_json_contains() {
+  local json_response=$1
+  local jq_filter=$2
+  local description=$3
+  
+  if ! echo "$json_response" | jq -e . >/dev/null 2>&1; then
+    echo "ERROR: Response is not valid JSON"
+    return 1
+  fi
+  
+  if ! echo "$json_response" | jq -e "$jq_filter" >/dev/null 2>&1; then
+    echo "ERROR: Validation failed - $description (filter: $jq_filter)"
+    return 1
+  fi
+  
+  return 0
+}
+
+# Validate that response has expected structure
+# Usage: assert_response_structure "response_json" "required_fields..."
+# Example: assert_response_structure "$response" "data" "version"
+assert_response_structure() {
+  local json_response=$1
+  shift
+  local required_fields=("$@")
+  
+  if ! echo "$json_response" | jq -e . >/dev/null 2>&1; then
+    echo "ERROR: Response is not valid JSON"
+    return 1
+  fi
+  
+  for field in "${required_fields[@]}"; do
+    if ! echo "$json_response" | jq -e "has(\"$field\")" >/dev/null 2>&1; then
+      echo "ERROR: Required field '$field' not found in response"
+      return 1
+    fi
+  done
+  
+  return 0
+}
+
 test_api_endpoint() {
   local test_name=$1
   local method=$2
@@ -63,6 +143,7 @@ test_api_endpoint() {
   local expected_status=$4
   local body=$5
   local require_auth=$6
+  local validation_func=$7  # Optional: function to validate response content
   
   local headers=(-H "Content-Type: application/json")
   if [[ "$require_auth" = true && -n "$AUTH_TOKEN" ]]; then
@@ -91,10 +172,32 @@ test_api_endpoint() {
   local status="FAIL"
   local error_msg=""
 
+  # First check HTTP status code
   if [[ "$http_status" =~ ^[0-9]+$ ]] && [ "$http_status" -eq "$expected_status" ]; then
-    status="PASS"
-    ((PASS_COUNT++))
-    write_test_log "SUCCESS" "✓ $test_name - Sukses (Status: $http_status, Waktu: ${duration}ms)"
+    # If validation function is provided, run it
+    if [[ -n "$validation_func" && "$(type -t "$validation_func")" == "function" ]]; then
+      local validation_result
+      validation_result=$($validation_func "$response_body" 2>&1)
+      local validation_exit=$?
+      
+      if [ $validation_exit -eq 0 ]; then
+        status="PASS"
+        ((PASS_COUNT++))
+        write_test_log "SUCCESS" "✓ $test_name - Sukses (Status: $http_status, Waktu: ${duration}ms)"
+      else
+        status="FAIL"
+        ((FAIL_COUNT++))
+        error_msg="Response validation failed: $validation_result"
+        write_test_log "ERROR" "✗ $test_name - Gagal: $error_msg"
+        write_test_log "ERROR" "  Response Body: $response_body"
+        FAILED_TESTS_SUMMARY+=("✗ $test_name - $error_msg")
+      fi
+    else
+      # No validation function, just check status code
+      status="PASS"
+      ((PASS_COUNT++))
+      write_test_log "SUCCESS" "✓ $test_name - Sukses (Status: $http_status, Waktu: ${duration}ms)"
+    fi
   else
     status="FAIL"
     ((FAIL_COUNT++))
