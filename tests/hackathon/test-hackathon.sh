@@ -50,7 +50,10 @@ test_hackathon_endpoints() {
       title: "Kickoff Meeting",
       description: "Opening ceremony and team formation",
       event_date: "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'",
+      start_time: "'$(date -u +%Y-%m-%dT09:00:00Z)'",
+      end_time: "'$(date -u +%Y-%m-%dT11:00:00Z)'",
       location: "Online - Zoom",
+      event_type: "workshop",
       is_mandatory: true
     }')
     local create_event_response=$(test_api_endpoint "POST Create Hackathon Event" "POST" "/v1/hackathons/$created_hackathon_id/events" 201 "$create_event_data" true)
@@ -72,6 +75,7 @@ test_hackathon_endpoints() {
     # === Hackathon Timeline ===
     local create_timeline_data=$(jq -n --arg hackathon_id "$created_hackathon_id" '{
       hackathon_id: $hackathon_id,
+      phase: "registration",
       phase_name: "Registration Phase",
       description: "Team registration and formation",
       start_date: "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'",
@@ -84,6 +88,7 @@ test_hackathon_endpoints() {
     if [ -n "$created_timeline_id" ]; then
       # Update timeline
       local update_timeline_data=$(jq -n '{
+        phase: "registration",
         phase_name: "Updated Registration Phase",
         description: "Updated description"
       }')

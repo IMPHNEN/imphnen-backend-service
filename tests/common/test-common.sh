@@ -26,6 +26,10 @@ TEST_RESULTS=()
 FAILED_TESTS_SUMMARY=()
 PASS_COUNT=0
 FAIL_COUNT=0
+# A cross-subshell results accumulator so command substitutions $(...) still record results
+# Each line is a compact JSON object describing one API call result
+RESULTS_FILE=${RESULTS_FILE:-"$(mktemp)"}
+export RESULTS_FILE
 
 # Colors
 CYAN='\033[0;36m'
@@ -105,12 +109,20 @@ test_api_endpoint() {
     FAILED_TESTS_SUMMARY+=("✗ $test_name - $error_msg")
   fi
 
-  result_json=$(jq -n --arg name "$test_name" --arg ep "$endpoint" --arg meth "$method" \
+  result_json=$(jq -c -n --arg name "$test_name" --arg ep "$endpoint" --arg meth "$method" \
                         --arg stat "$status" --arg code "$http_status" --arg dur "$duration" \
                         --arg err "$error_msg" \
                         '{TestName: $name, Endpoint: $ep, Method: $meth, Status: $stat, StatusCode: $code, ResponseTimeMs: $dur, Error: $err}')
+  # Append to in-memory array for same-shell calls
   TEST_RESULTS+=("$result_json")
-  printf "%s" "$response_body"
+  # Also append to file so subshell calls (via command substitution) are not lost
+  printf "%s\n" "$result_json" >> "$RESULTS_FILE"
+  # Ensure we always print valid JSON to avoid jq parse errors downstream
+  if echo "$response_body" | jq . >/dev/null 2>&1; then
+    printf "%s" "$response_body"
+  else
+    jq -n --arg raw "$response_body" '{raw: $raw}'
+  fi
 }
 
 get_auth_token() {
@@ -165,6 +177,104 @@ print_test_summary() {
   printf "${GREEN}Passed: %d${NC}\n" "$PASS_COUNT"
   printf "${RED}Failed: %d${NC}\n" "$FAIL_COUNT"
   printf "Success Rate: %d%%\n\n" "$success_rate"
+
+  # Optional debug: show results file path and a preview when DEBUG_RESULTS=1
+  if [[ "$DEBUG_RESULTS" = "1" || "$DEBUG_RESULTS" = "true" ]]; then
+    printf "${YELLOW}Debug: RESULTS_FILE=${NC} %s\n" "$RESULTS_FILE"
+    if [[ -f "$RESULTS_FILE" ]]; then
+      printf "${YELLOW}Debug: RESULTS_FILE size=${NC} %s bytes\n" "$(wc -c < "$RESULTS_FILE" 2>/dev/null || echo 0)"
+      printf "${YELLOW}Debug: RESULTS_FILE head (up to 5 lines):${NC}\n"
+      head -n 5 "$RESULTS_FILE" | sed 's/^/  /'
+    else
+      printf "${YELLOW}Debug: RESULTS_FILE does not exist${NC}\n"
+    fi
+    printf "\n"
+  fi
+
+  # Detailed API results (from test_api_endpoint calls only)
+  # Prefer the persisted file so subshell calls are included
+  local api_total=0
+  local api_pass=0
+  local api_fail=0
+  if [[ -s "$RESULTS_FILE" ]]; then
+    # shellcheck disable=SC2162
+    while IFS= read -r r; do
+      [[ -z "$r" ]] && continue
+      # Skip non-JSON or malformed lines to avoid jq errors
+      if ! echo "$r" | jq -e 'type=="object" and has("Status")' >/dev/null 2>&1; then
+        continue
+      fi
+      ((api_total++))
+      local st
+      st=$(echo "$r" | jq -r '.Status')
+      if [[ "$st" == "PASS" ]]; then
+        ((api_pass++))
+      else
+        ((api_fail++))
+      fi
+    done < "$RESULTS_FILE"
+  else
+    # Fallback to in-memory array (should be rare)
+    api_total=${#TEST_RESULTS[@]}
+    for r in "${TEST_RESULTS[@]}"; do
+      local st
+      st=$(echo "$r" | jq -r '.Status')
+      if [[ "$st" == "PASS" ]]; then
+        ((api_pass++))
+      else
+        ((api_fail++))
+      fi
+    done
+  fi
+
+  if [ "$api_total" -gt 0 ]; then
+    printf "API Requests: %d (Passed: %d, Failed: %d)\n" "$api_total" "$api_pass" "$api_fail"
+    printf "\n${BLUE}API Results:${NC}\n"
+    if [[ -s "$RESULTS_FILE" ]]; then
+      # shellcheck disable=SC2162
+      while IFS= read -r r; do
+        [[ -z "$r" ]] && continue
+        if ! echo "$r" | jq -e 'type=="object" and has("Status")' >/dev/null 2>&1; then
+          continue
+        fi
+        local name method ep status code dur
+        name=$(echo "$r" | jq -r '.TestName')
+        method=$(echo "$r" | jq -r '.Method')
+        ep=$(echo "$r" | jq -r '.Endpoint')
+        status=$(echo "$r" | jq -r '.Status')
+        code=$(echo "$r" | jq -r '.StatusCode')
+        dur=$(echo "$r" | jq -r '.ResponseTimeMs')
+        if [[ "$status" == "PASS" ]]; then
+          printf "  ${GREEN}[%s]${NC} %s %s (status: %s, time: %sms) — %s\n" "$status" "$method" "$ep" "$code" "$dur" "$name"
+        else
+          printf "  ${RED}[%s]${NC} %s %s (status: %s, time: %sms) — %s\n" "$status" "$method" "$ep" "$code" "$dur" "$name"
+        fi
+      done < "$RESULTS_FILE"
+    else
+      for r in "${TEST_RESULTS[@]}"; do
+        local name method ep status code dur
+        name=$(echo "$r" | jq -r '.TestName')
+        method=$(echo "$r" | jq -r '.Method')
+        ep=$(echo "$r" | jq -r '.Endpoint')
+        status=$(echo "$r" | jq -r '.Status')
+        code=$(echo "$r" | jq -r '.StatusCode')
+        dur=$(echo "$r" | jq -r '.ResponseTimeMs')
+        if [[ "$status" == "PASS" ]]; then
+          printf "  ${GREEN}[%s]${NC} %s %s (status: %s, time: %sms) — %s\n" "$status" "$method" "$ep" "$code" "$dur" "$name"
+        else
+          printf "  ${RED}[%s]${NC} %s %s (status: %s, time: %sms) — %s\n" "$status" "$method" "$ep" "$code" "$dur" "$name"
+        fi
+      done
+    fi
+    printf "\n"
+  fi
+
+  # Align global PASS/FAIL counters with computed API results so exit codes reflect failures
+  # This ensures failures inside subshells are not ignored
+  if [ "$api_total" -gt 0 ]; then
+    PASS_COUNT=$api_pass
+    FAIL_COUNT=$api_fail
+  fi
   
   if [ "$FAIL_COUNT" -gt 0 ]; then
     printf "${RED}Failed Tests:${NC}\n"
