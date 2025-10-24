@@ -9,18 +9,14 @@ source "$(dirname "$0")/../common/test-common.sh"
 test_team_endpoints() {
   printf "\n${CYAN}=== Testing Team Endpoints ===${NC}\n"
   
-  # Public endpoints (skip - may require auth)
-  # test_api_endpoint "GET Public Teams" "GET" "/v1/teams" 200 "" false
-  # test_api_endpoint "GET Public Teams (Search)" "GET" "/v1/teams?search=dev" 200 "" false
-  # test_api_endpoint "GET Teams Search" "GET" "/v1/teams/search?query=development" 200 "" false
+  # === Public Team Endpoints (Authenticated) ===
+  test_api_endpoint "GET Public Teams List" "GET" "/v1/teams" 200 "" true
+  test_api_endpoint "GET Public Teams (Paginated)" "GET" "/v1/teams?page=1&limit=10" 200 "" true
+  test_api_endpoint "GET Teams Search" "GET" "/v1/teams/search?query=test" 200 "" true
   
-  # Admin endpoints
+  # === Admin Endpoints ===
   test_api_endpoint "GET Admin Teams" "GET" "/v1/teams/admin" 200 "" true
   test_api_endpoint "GET Admin Teams (Paginated)" "GET" "/v1/teams/admin?page=1&limit=10" 200 "" true
-  
-  # Get team by ID (skip - test team may not exist)
-  # local test_team_id="team-001"
-  # test_api_endpoint "GET Team By ID" "GET" "/v1/teams/admin/$test_team_id" 200 "" true
   
   # Test with dynamic team from list
   local teams_response=$(curl -s -H "Authorization: Bearer $AUTH_TOKEN" "$BASE_URL/v1/teams/admin")
@@ -29,38 +25,67 @@ test_team_endpoints() {
   if [ -n "$test_team_id" ]; then
     test_api_endpoint "GET Team By ID" "GET" "/v1/teams/admin/$test_team_id" 200 "" true
     test_api_endpoint "GET Team Members" "GET" "/v1/teams/admin/$test_team_id/members" 200 "" true
+    test_api_endpoint "GET Team By ID (Public)" "GET" "/v1/teams/$test_team_id" 200 "" true
+    test_api_endpoint "GET Team Members (Public)" "GET" "/v1/teams/$test_team_id/members" 200 "" true
   fi
   
-  # Create team
+  # === Create Team and Test Full Flow ===
   local create_team_data=$(jq -n '{
     name: "Test Team '$(date +%s)'",
-    description: "Auto-generated test team",
+    description: "Auto-generated test team for comprehensive testing",
     is_open: true,
     max_members: 5,
-    skills_required: ["Rust", "Testing"],
+    skills_required: ["Rust", "Testing", "API"],
     location: "Remote"
   }')
-  local create_team_response=$(test_api_endpoint "POST Create Team" "POST" "/v1/teams/admin" 201 "$create_team_data" true)
+  local create_team_response=$(test_api_endpoint "POST Create Team" "POST" "/v1/teams/create" 201 "$create_team_data" true)
   local created_team_id=$(echo "$create_team_response" | jq -r '.data.id // empty')
   
   if [ -n "$created_team_id" ]; then
     # Update team
     local update_team_data=$(jq -n '{
       name: "Updated Test Team",
-      description: "Updated description",
+      description: "Updated description for testing",
       is_open: false,
       max_members: 10
     }')
-    test_api_endpoint "PUT Update Team" "PUT" "/v1/teams/admin/$created_team_id" 200 "$update_team_data" true
+    test_api_endpoint "PUT Update Team" "PUT" "/v1/teams/update/$created_team_id" 200 "$update_team_data" true
     
-    # Invite members
-    local invite_data=$(jq -n '{
-      user_ids: ["c3b1d6a8-8d4f-4b36-b789-2e532ec7a7b2"]
+    # === Team Member Management ===
+    # Get a test user ID for member operations
+    local users_response=$(curl -s -H "Authorization: Bearer $AUTH_TOKEN" "$BASE_URL/v1/users?page=1&limit=1")
+    local test_user_id=$(echo "$users_response" | jq -r '.data[0].id // empty')
+    
+    if [ -n "$test_user_id" ] && [ "$test_user_id" != "$AUTH_USER_ID" ]; then
+      # Add team member
+      local add_member_data=$(jq -n --arg user_id "$test_user_id" '{
+        user_id: $user_id,
+        role: "member"
+      }')
+      test_api_endpoint "POST Add Team Member" "POST" "/v1/teams/$created_team_id/members" 200 "$add_member_data" true
+      
+      # Remove team member
+      test_api_endpoint "DELETE Remove Team Member" "DELETE" "/v1/teams/$created_team_id/members/$test_user_id" 200 "" true
+    fi
+    
+    # === Team Invitation Flow ===
+    local invite_emails_data=$(jq -n '{
+      emails: ["test-invite@example.com"],
+      message: "Join our test team!"
     }')
-    test_api_endpoint "POST Invite Members" "POST" "/v1/teams/admin/$created_team_id/invite" 200 "$invite_data" true
+    local invite_response=$(test_api_endpoint "POST Invite Team Members" "POST" "/v1/teams/$created_team_id/invite" 200 "$invite_emails_data" true)
     
-    # Delete team
-    test_api_endpoint "DELETE Team" "DELETE" "/v1/teams/admin/$created_team_id" 200 "" true
+    # Note: Accept invitation requires valid token from email
+    # This would be tested in integration tests with email service
+    # test_api_endpoint "POST Accept Invitation" "POST" "/v1/teams/accept/{token}" 200 "" true
+    
+    # === Leave Team ===
+    # Test leave team endpoint (will fail if user is owner, which is expected)
+    # test_api_endpoint "POST Leave Team" "POST" "/v1/teams/$created_team_id/leave" 200 "" true
+    # test_api_endpoint "POST Leave Current Team" "POST" "/v1/teams/leave-me" 200 "" true
+    
+    # Delete team (cleanup)
+    test_api_endpoint "DELETE Team" "DELETE" "/v1/teams/delete/$created_team_id" 200 "" true
   fi
 }
 

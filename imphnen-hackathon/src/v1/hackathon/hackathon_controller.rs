@@ -9,7 +9,7 @@ use super::hackathon_service::{HackathonService, HackathonServiceTrait};
 use super::hackathon_schema::SubmissionStatus;
 use crate::v1::hackathon::HackathonRepository;
 use crate::{AppState, ResponseSuccessDto, ErrorDto};
-use imphnen_entities::PermissionsEnum;
+use imphnen_entities::{PermissionsEnum, UsersDetailQueryDto};
 use imphnen_libs::{MetaRequestDto, ResponseListSuccessDto};
 use axum::{
     extract::{Extension, Path, Query},
@@ -569,9 +569,11 @@ pub async fn update_hackathon_submission(
 )]
 pub async fn submit_hackathon_submission(
     Extension(state): Extension<AppState>,
+    Extension(user): Extension<UsersDetailQueryDto>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
-    match HackathonService::submit_hackathon_submission(id, &state).await {
+    let user_id = user.id.id.to_raw();
+    match HackathonService::submit_hackathon_submission(id, user_id, &state).await {
         Ok(response) => (axum::http::StatusCode::OK, Json(response)).into_response(),
         Err(error) => (StatusCode::from_u16(error.status).unwrap(), Json(error)).into_response(),
     }

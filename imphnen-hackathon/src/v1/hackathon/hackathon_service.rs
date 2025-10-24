@@ -1,5 +1,6 @@
 use std::pin::Pin;
 use std::future::Future;
+use serde::Deserialize;
 // Type alias to shorten complex future return types used across the service trait
 type ListServiceFut<T> = Pin<Box<dyn Future<Output = Result<imphnen_libs::ResponseListSuccessDto<Vec<T>>, ErrorDto>> + Send>>;
 use super::hackathon_dto::{
@@ -111,6 +112,7 @@ pub trait HackathonServiceTrait: Send + Sync + 'static {
     ) -> Pin<Box<dyn Future<Output = Result<ResponseSuccessDto<HackathonSubmissionDto>, ErrorDto>> + Send>>;
     fn submit_hackathon_submission(
         id: String,
+        user_id: String,
         state: &AppState,
     ) -> Pin<Box<dyn Future<Output = Result<ResponseSuccessDto<HackathonSubmissionDto>, ErrorDto>> + Send>>;
     fn update_submission_status(
@@ -881,13 +883,14 @@ impl HackathonServiceTrait for HackathonService {
 
     fn submit_hackathon_submission(
         id: String,
+        user_id: String,
         state: &AppState,
     ) -> Pin<Box<dyn Future<Output = Result<ResponseSuccessDto<HackathonSubmissionDto>, ErrorDto>> + Send>> {
         let state = state.to_owned();
         Box::pin(async move {
             let repo = HackathonRepository::new(&state);
 
-            // Get submission to extract hackathon_id for timeline validation
+            // Get submission to extract hackathon_id for timeline validation and team_id for leader check
             let submission = match repo.get_hackathon_submission_by_id(id.clone()).await {
                 Ok(sub) => sub,
                 Err(e) => {
@@ -908,6 +911,97 @@ impl HackathonServiceTrait for HackathonService {
                     }
                 }
             };
+
+            // VALIDATION 1: Check if user is the team leader
+            if let Some(team_id_thing) = &submission.team_id {
+                let team_id = team_id_thing.id.to_raw();
+                // Get team information to check leader
+                let team_query = format!(
+                    "SELECT leader_id FROM app_teams WHERE id = type::thing('app_teams', '{}')",
+                    team_id
+                );
+                
+                match state.surrealdb_ws.query(&team_query).await {
+                    Ok(mut result) => {
+                        #[derive(Debug, Deserialize)]
+                        struct TeamLeader {
+                            leader_id: surrealdb::sql::Thing,
+                        }
+                        
+                        let team: Option<TeamLeader> = result.take(0).ok().flatten();
+                        if let Some(team) = team {
+                            let leader_id = team.leader_id.id.to_raw();
+                            if leader_id != user_id {
+                                return Err(ErrorDto {
+                                    status: StatusCode::FORBIDDEN.as_u16(),
+                                    message: "Only team leader can submit the project".to_string(),
+                                    details: Some(serde_json::json!({
+                                        "team_leader_id": leader_id,
+                                        "your_user_id": user_id
+                                    })),
+                                });
+                            }
+                        } else {
+                            return Err(ErrorDto {
+                                status: StatusCode::NOT_FOUND.as_u16(),
+                                message: "Team not found".to_string(),
+                                details: None,
+                            });
+                        }
+                    }
+                    Err(e) => {
+                        error!("Failed to get team information: {}", e);
+                        return Err(ErrorDto {
+                            status: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+                            message: "Failed to verify team leader".to_string(),
+                            details: None,
+                        });
+                    }
+                }
+            } else {
+                return Err(ErrorDto {
+                    status: StatusCode::BAD_REQUEST.as_u16(),
+                    message: "Submission has no associated team".to_string(),
+                    details: None,
+                });
+            }
+
+            // VALIDATION 2: Must have repository_url OR upload_file_url
+            let has_repo = submission.repository_url.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false);
+            let has_upload = submission.upload_file_url.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false);
+            
+            if !has_repo && !has_upload {
+                return Err(ErrorDto {
+                    status: StatusCode::BAD_REQUEST.as_u16(),
+                    message: "Submission must include either repository URL or uploaded file (zip/pdf)".to_string(),
+                    details: Some(serde_json::json!({
+                        "required": "repository_url OR upload_file_url"
+                    })),
+                });
+            }
+
+            // VALIDATION 3: Must have at least one social media contact
+            let has_contact = [
+                &submission.contact_instagram,
+                &submission.contact_twitter,
+                &submission.contact_linkedin,
+                &submission.contact_facebook,
+                &submission.contact_youtube,
+                &submission.contact_tiktok,
+                &submission.contact_other,
+            ].iter().any(|contact| {
+                contact.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false)
+            });
+
+            if !has_contact {
+                return Err(ErrorDto {
+                    status: StatusCode::BAD_REQUEST.as_u16(),
+                    message: "Submission must include at least one social media contact for demo".to_string(),
+                    details: Some(serde_json::json!({
+                        "required": "At least one of: contact_instagram, contact_twitter, contact_linkedin, contact_facebook, contact_youtube, contact_tiktok, contact_other"
+                    })),
+                });
+            }
 
             // Check submission timeline phase
             match repo.get_submission_timeline_phase(submission.hackathon_id.id.to_raw()).await {

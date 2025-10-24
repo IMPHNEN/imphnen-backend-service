@@ -529,9 +529,17 @@ impl<'a> HackathonRepository<'a> {
             project_name: Some(submission.project_name),
             description: Some(submission.description),
             repository_url: submission.repository_url,
+            upload_file_url: submission.upload_file_url,
             demo_url: submission.demo_url,
             slides_url: submission.slides_url,
             technologies: Some(submission.technologies),
+            contact_instagram: submission.contact_instagram,
+            contact_twitter: submission.contact_twitter,
+            contact_linkedin: submission.contact_linkedin,
+            contact_facebook: submission.contact_facebook,
+            contact_youtube: submission.contact_youtube,
+            contact_tiktok: submission.contact_tiktok,
+            contact_other: submission.contact_other,
             submission_status: Some(super::hackathon_schema::SubmissionStatus::Draft),
             judge_feedback: None,
             submitted_at: Some(chrono::Utc::now()),
@@ -648,6 +656,9 @@ impl<'a> HackathonRepository<'a> {
         if let Some(repository_url) = updates.repository_url {
             existing.repository_url = Some(repository_url);
         }
+        if let Some(upload_file_url) = updates.upload_file_url {
+            existing.upload_file_url = Some(upload_file_url);
+        }
         if let Some(demo_url) = updates.demo_url {
             existing.demo_url = Some(demo_url);
         }
@@ -656,6 +667,27 @@ impl<'a> HackathonRepository<'a> {
         }
         if let Some(technologies) = updates.technologies {
             existing.technologies = Some(technologies);
+        }
+        if let Some(contact_instagram) = updates.contact_instagram {
+            existing.contact_instagram = Some(contact_instagram);
+        }
+        if let Some(contact_twitter) = updates.contact_twitter {
+            existing.contact_twitter = Some(contact_twitter);
+        }
+        if let Some(contact_linkedin) = updates.contact_linkedin {
+            existing.contact_linkedin = Some(contact_linkedin);
+        }
+        if let Some(contact_facebook) = updates.contact_facebook {
+            existing.contact_facebook = Some(contact_facebook);
+        }
+        if let Some(contact_youtube) = updates.contact_youtube {
+            existing.contact_youtube = Some(contact_youtube);
+        }
+        if let Some(contact_tiktok) = updates.contact_tiktok {
+            existing.contact_tiktok = Some(contact_tiktok);
+        }
+        if let Some(contact_other) = updates.contact_other {
+            existing.contact_other = Some(contact_other);
         }
 
         existing.updated_at = Some(get_iso_date());

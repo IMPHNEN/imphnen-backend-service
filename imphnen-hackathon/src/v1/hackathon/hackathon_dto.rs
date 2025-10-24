@@ -315,9 +315,18 @@ pub struct HackathonSubmissionCreateRequestDto {
     #[validate(length(min = 1, message = "Description cannot be empty"))]
     pub description: String,
     pub repository_url: Option<String>,
+    pub upload_file_url: Option<String>, // URL to uploaded zip/pdf file
     pub demo_url: Option<String>,
     pub slides_url: Option<String>,
     pub technologies: Vec<String>,
+    // Social media contacts for demo (at least one required)
+    pub contact_instagram: Option<String>,
+    pub contact_twitter: Option<String>,
+    pub contact_linkedin: Option<String>,
+    pub contact_facebook: Option<String>,
+    pub contact_youtube: Option<String>,
+    pub contact_tiktok: Option<String>,
+    pub contact_other: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Validate)]
@@ -331,11 +340,27 @@ pub struct HackathonSubmissionUpdateRequestDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub repository_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub upload_file_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub demo_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub slides_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub technologies: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub contact_instagram: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub contact_twitter: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub contact_linkedin: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub contact_facebook: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub contact_youtube: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub contact_tiktok: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub contact_other: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
@@ -346,9 +371,17 @@ pub struct HackathonSubmissionDto {
     pub project_name: String,
     pub description: String,
     pub repository_url: Option<String>,
+    pub upload_file_url: Option<String>,
     pub demo_url: Option<String>,
     pub slides_url: Option<String>,
     pub technologies: Vec<String>,
+    pub contact_instagram: Option<String>,
+    pub contact_twitter: Option<String>,
+    pub contact_linkedin: Option<String>,
+    pub contact_facebook: Option<String>,
+    pub contact_youtube: Option<String>,
+    pub contact_tiktok: Option<String>,
+    pub contact_other: Option<String>,
     #[serde(rename = "status")]
     pub submission_status: SubmissionStatus,
     pub judge_feedback: Option<String>,
@@ -498,9 +531,17 @@ impl From<HackathonSubmissionsSchema> for HackathonSubmissionDto {
             project_name: schema.project_name.unwrap_or_default(),
             description: schema.description.unwrap_or_default(),
             repository_url: schema.repository_url,
+            upload_file_url: schema.upload_file_url,
             demo_url: schema.demo_url,
             slides_url: schema.slides_url,
             technologies: schema.technologies.unwrap_or_default(),
+            contact_instagram: schema.contact_instagram,
+            contact_twitter: schema.contact_twitter,
+            contact_linkedin: schema.contact_linkedin,
+            contact_facebook: schema.contact_facebook,
+            contact_youtube: schema.contact_youtube,
+            contact_tiktok: schema.contact_tiktok,
+            contact_other: schema.contact_other,
             submission_status: schema.submission_status.unwrap_or(super::hackathon_schema::SubmissionStatus::Draft),
             judge_feedback: schema.judge_feedback,
             submitted_at: schema.submitted_at.unwrap_or(chrono::Utc::now()),
