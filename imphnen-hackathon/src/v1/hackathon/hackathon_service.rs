@@ -18,6 +18,11 @@ use axum::http::StatusCode;
 
 use tracing::error;
 
+// Helper function to check if optional string is non-empty
+fn is_non_empty_string(opt: &Option<String>) -> bool {
+    opt.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false)
+}
+
 pub trait HackathonServiceTrait: Send + Sync + 'static {
     // Hackathon operations
     fn create_hackathon(
@@ -915,13 +920,14 @@ impl HackathonServiceTrait for HackathonService {
             // VALIDATION 1: Check if user is the team leader
             if let Some(team_id_thing) = &submission.team_id {
                 let team_id = team_id_thing.id.to_raw();
-                // Get team information to check leader
-                let team_query = format!(
-                    "SELECT leader_id FROM app_teams WHERE id = type::thing('app_teams', '{}')",
-                    team_id
-                );
                 
-                match state.surrealdb_ws.query(&team_query).await {
+                // Use parameterized query to prevent SQL injection
+                match state.surrealdb_ws
+                    .query("SELECT leader_id FROM type::table($table) WHERE id = type::thing($table, $team_id)")
+                    .bind(("table", "app_teams"))
+                    .bind(("team_id", team_id.clone()))
+                    .await 
+                {
                     Ok(mut result) => {
                         #[derive(Debug, Deserialize)]
                         struct TeamLeader {
@@ -967,8 +973,8 @@ impl HackathonServiceTrait for HackathonService {
             }
 
             // VALIDATION 2: Must have repository_url OR upload_file_url
-            let has_repo = submission.repository_url.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false);
-            let has_upload = submission.upload_file_url.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false);
+            let has_repo = is_non_empty_string(&submission.repository_url);
+            let has_upload = is_non_empty_string(&submission.upload_file_url);
             
             if !has_repo && !has_upload {
                 return Err(ErrorDto {
@@ -989,9 +995,7 @@ impl HackathonServiceTrait for HackathonService {
                 &submission.contact_youtube,
                 &submission.contact_tiktok,
                 &submission.contact_other,
-            ].iter().any(|contact| {
-                contact.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false)
-            });
+            ].iter().any(|contact| is_non_empty_string(contact));
 
             if !has_contact {
                 return Err(ErrorDto {
