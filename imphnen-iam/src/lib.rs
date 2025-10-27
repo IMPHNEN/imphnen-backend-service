@@ -89,5 +89,7 @@ pub use v1::teams::{
     PublicTeamsDetailItemDto, TeamsDetailQueryDto, TeamsListQueryDto,
     TeamMembersSchema, TeamInvitationsSchema, TeamMembersQueryDto,
     TeamInvitationsQueryDto, MemberTeamsDetailItemDto,
+    AddTeamMemberRequestDto, UpdateMemberRoleRequestDto,
+    TeamInvitationListDto, MyInvitationDto
 };
 pub use v1::users::{UsersRepository, UsersSchema, UsersDetailItemDto, UsersCreateRequestDto};

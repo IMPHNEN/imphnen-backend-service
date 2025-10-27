@@ -479,4 +479,51 @@ impl TeamsDetailQueryDto {
     }
 }
 
+// Additional DTOs for Team Member Management
+
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Validate)]
+pub struct AddTeamMemberRequestDto {
+    #[validate(length(min = 1, message = "User ID is required"))]
+    pub user_id: String,
+    
+    #[validate(length(max = 50, message = "Role cannot exceed 50 characters"))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub role: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Validate)]
+pub struct UpdateMemberRoleRequestDto {
+    #[validate(length(min = 1, max = 50, message = "Role must be between 1 and 50 characters"))]
+    pub role: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+pub struct TeamInvitationListDto {
+    pub id: String,
+    pub team_id: String,
+    pub team_name: String,
+    pub email: String,
+    pub inviter_id: String,
+    pub inviter_name: String,
+    pub status: String,
+    pub invite_code: String,
+    pub expires_at: String,
+    pub invited_at: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+pub struct MyInvitationDto {
+    pub id: String,
+    pub team_id: String,
+    pub team_name: String,
+    pub team_description: Option<String>,
+    pub team_avatar: Option<String>,
+    pub inviter_name: String,
+    pub invite_code: String,
+    pub status: String,
+    pub expires_at: String,
+    pub invited_at: String,
+}
+
 // (previous custom validator removed; using validator::email(each = true) attribute)
+

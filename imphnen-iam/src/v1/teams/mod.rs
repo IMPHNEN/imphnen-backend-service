@@ -43,7 +43,11 @@ pub use teams_dto::{
     TeamsListQueryDto,
     TeamMembersQueryDto,
     TeamInvitationsQueryDto,
-    MemberTeamsDetailItemDto
+    MemberTeamsDetailItemDto,
+    AddTeamMemberRequestDto,
+    UpdateMemberRoleRequestDto,
+    TeamInvitationListDto,
+    MyInvitationDto
 };
 
 pub use teams_repository::TeamsRepository;

@@ -4,7 +4,9 @@ use crate::{
 	TeamsCreateRequestDto, TeamsDetailItemDto, TeamsListItemDto, permissions_guard,
 	TeamsUpdateRequestDto, TeamInviteRequestDto, TeamAcceptInvitationRequestDto,
 	TeamMemberDto, TeamsSearchQueryDto, PublicTeamsListItemDto, PublicTeamsDetailItemDto,
-	AdminTeamsListItemDto, AdminTeamsDetailItemDto, PermissionsEnum
+	AdminTeamsListItemDto, AdminTeamsDetailItemDto, PermissionsEnum,
+	AddTeamMemberRequestDto, UpdateMemberRoleRequestDto, 
+	TeamInvitationListDto, MyInvitationDto
 };
 use super::super::teams::{TeamsRepository, TeamMembersSchema};
 use axum::response::Response;
@@ -153,12 +155,24 @@ pub async fn put_update_team(
 	}
 }
 
-#[derive(serde::Deserialize)]
-pub struct AddTeamMemberRequestDto {
-	pub user_id: String,
-	pub role: Option<String>,
-}
-
+#[utoipa::path(
+	post,
+	security(
+		("Bearer" = [])
+	),
+	path = "/v1/teams/{id}/members",
+	params(
+		("id" = String, Path, description = "Team ID")
+	),
+	request_body = AddTeamMemberRequestDto,
+	responses(
+		(status = 200, description = "[AUTH] Add member to team successfully", body = ResponseSuccessDto<String>),
+		(status = 401, description = "[AUTH] Unauthorized"),
+		(status = 403, description = "[AUTH] Only team leader or members can add"),
+		(status = 404, description = "[AUTH] Team not found")
+	),
+	tag = "Teams"
+)]
 pub async fn post_add_team_member(
 	headers: HeaderMap,
 	Extension(state): Extension<AppState>,
@@ -201,6 +215,24 @@ pub async fn post_add_team_member(
 	}
 }
 
+#[utoipa::path(
+	delete,
+	security(
+		("Bearer" = [])
+	),
+	path = "/v1/teams/{id}/members/{user_id}",
+	params(
+		("id" = String, Path, description = "Team ID"),
+		("user_id" = String, Path, description = "User ID to remove")
+	),
+	responses(
+		(status = 200, description = "[AUTH] Member removed successfully", body = ResponseSuccessDto<String>),
+		(status = 401, description = "[AUTH] Unauthorized"),
+		(status = 403, description = "[AUTH] Only team leader can remove members"),
+		(status = 404, description = "[AUTH] Team not found")
+	),
+	tag = "Teams"
+)]
 pub async fn delete_remove_team_member(
 	headers: HeaderMap,
 	Extension(state): Extension<AppState>,
@@ -232,6 +264,63 @@ pub async fn delete_remove_team_member(
 	let user_thing = imphnen_utils::make_thing_from_enum(imphnen_libs::ResourceEnum::Users, &user_id);
 	match repo.query_remove_team_member(&thing_id, &user_thing).await {
 		Ok(msg) => crate::success_response(crate::ResponseSuccessDto { data: msg }),
+		Err(e) => crate::common_response(axum::http::StatusCode::BAD_REQUEST, &e.to_string()),
+	}
+}
+
+#[utoipa::path(
+	put,
+	security(
+		("Bearer" = [])
+	),
+	path = "/v1/teams/{id}/members/{user_id}/role",
+	params(
+		("id" = String, Path, description = "Team ID"),
+		("user_id" = String, Path, description = "User ID")
+	),
+	request_body = UpdateMemberRoleRequestDto,
+	responses(
+		(status = 200, description = "[AUTH] Member role updated successfully", body = ResponseSuccessDto<String>),
+		(status = 401, description = "[AUTH] Unauthorized"),
+		(status = 403, description = "[AUTH] Only team leader can update roles"),
+		(status = 404, description = "[AUTH] Team or member not found")
+	),
+	tag = "Teams"
+)]
+pub async fn put_update_member_role(
+	headers: HeaderMap,
+	Extension(state): Extension<AppState>,
+	Path((team_id, user_id)): Path<(String, String)>,
+	Json(payload): Json<UpdateMemberRoleRequestDto>,
+) -> impl IntoResponse {
+	let state_clone = state.clone();
+	let is_admin = crate::permissions_guard(headers.clone(), axum::Extension(state_clone.clone()), vec![PermissionsEnum::ManageAllTeams]).await.is_ok();
+
+	let auth = permissions_guard(headers, axum::Extension(state.clone()), vec![]).await;
+	let (claims, state) = match auth {
+		Ok((c, s)) => (c, s),
+		Err(response) => return response,
+	};
+
+	let repo = TeamsRepository::new(&state);
+	let thing_id = imphnen_utils::make_thing_from_enum(imphnen_libs::ResourceEnum::Teams, &team_id);
+	let team = match repo.query_team_by_id(&thing_id).await {
+		Ok(t) => t,
+		Err(_) => return crate::common_response(axum::http::StatusCode::NOT_FOUND, "Team not found"),
+	};
+
+	if !is_admin {
+		// Only leader can update roles
+		if team.leader_id.id.to_raw() != claims.user_id {
+			return crate::common_response(axum::http::StatusCode::FORBIDDEN, "Only team leader can update member roles");
+		}
+	}
+
+	let user_thing = imphnen_utils::make_thing_from_enum(imphnen_libs::ResourceEnum::Users, &user_id);
+	match repo.query_update_team_member_role(&thing_id, &user_thing, &payload.role).await {
+		Ok(_) => crate::success_response(crate::ResponseSuccessDto { 
+			data: format!("Member role updated to: {}", payload.role) 
+		}),
 		Err(e) => crate::common_response(axum::http::StatusCode::BAD_REQUEST, &e.to_string()),
 	}
 }
@@ -411,6 +500,75 @@ pub async fn get_my_team(
 }
 
 #[utoipa::path(
+	get,
+	security(
+		("Bearer" = [])
+	),
+	path = "/v1/teams/{id}/invitations",
+	params(
+		("id" = String, Path, description = "Team ID")
+	),
+	responses(
+		(status = 200, description = "[AUTH] Get team invitations", body = ResponseSuccessDto<Vec<TeamInvitationListDto>>),
+		(status = 401, description = "[AUTH] Unauthorized"),
+		(status = 403, description = "[AUTH] Only team leader can view invitations"),
+		(status = 404, description = "[AUTH] Team not found")
+	),
+	tag = "Teams"
+)]
+pub async fn get_team_invitations(
+	headers: HeaderMap,
+	Extension(state): Extension<AppState>,
+	Path(team_id): Path<String>,
+) -> impl IntoResponse {
+	authenticated(headers, Extension(state), move |claims, state| TeamsService::get_team_invitations(&state, claims, team_id)).await
+}
+
+#[utoipa::path(
+	delete,
+	security(
+		("Bearer" = [])
+	),
+	path = "/v1/teams/invitations/{token}",
+	params(
+		("token" = String, Path, description = "Invitation token")
+	),
+	responses(
+		(status = 200, description = "[AUTH] Invitation cancelled", body = ResponseSuccessDto<String>),
+		(status = 401, description = "[AUTH] Unauthorized"),
+		(status = 403, description = "[AUTH] Only team leader can cancel invitations"),
+		(status = 404, description = "[AUTH] Invitation not found")
+	),
+	tag = "Teams"
+)]
+pub async fn delete_invitation(
+	headers: HeaderMap,
+	Extension(state): Extension<AppState>,
+	Path(token): Path<String>,
+) -> impl IntoResponse {
+	authenticated(headers, Extension(state), move |claims, state| TeamsService::cancel_invitation(&state, claims, token)).await
+}
+
+#[utoipa::path(
+	get,
+	security(
+		("Bearer" = [])
+	),
+	path = "/v1/teams/me/invitations",
+	responses(
+		(status = 200, description = "[AUTH] Get my pending invitations", body = ResponseSuccessDto<Vec<MyInvitationDto>>),
+		(status = 401, description = "[AUTH] Unauthorized")
+	),
+	tag = "Teams"
+)]
+pub async fn get_my_invitations(
+	headers: HeaderMap,
+	Extension(state): Extension<AppState>,
+) -> impl IntoResponse {
+	authenticated(headers, Extension(state), |claims, state| TeamsService::get_my_invitations(&state, claims)).await
+}
+
+#[utoipa::path(
   get,
   security(
     ("Bearer" = [])
@@ -504,7 +662,11 @@ pub fn teams_router() -> Router {
 		.route("/{id}/members", axum::routing::get(get_team_members))
 			.route("/{id}/members", axum::routing::post(post_add_team_member))
 			.route("/{id}/members/{user_id}", axum::routing::delete(delete_remove_team_member))
+			.route("/{id}/members/{user_id}/role", axum::routing::put(put_update_member_role))
+		.route("/{id}/invitations", axum::routing::get(get_team_invitations))
+		.route("/invitations/{token}", axum::routing::delete(delete_invitation))
 		.route("/{id}/leave", axum::routing::post(post_leave_team))
 		.route("/leave-me", axum::routing::post(post_leave_current_team))
 		.route("/me", axum::routing::get(get_my_team))
+		.route("/me/invitations", axum::routing::get(get_my_invitations))
 }

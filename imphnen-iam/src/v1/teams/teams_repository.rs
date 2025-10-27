@@ -431,6 +431,102 @@ impl<'a> TeamsRepository<'a> {
 			println!("Query 'query_remove_team_member' took: {elapsed:.2?}");
 		}
 
-		Ok("Success remove team member".into())
+				Ok("Success remove team member".into())
+	}
+
+	pub async fn query_update_team_member_role(&self, team_id: &Thing, user_id: &Thing, role: &str) -> Result<String> {
+		let now = Instant::now();
+		let db = &self.state.surrealdb_ws;
+		
+		let conditions = build_multi_thing_condition(&[("team_id", team_id), ("user_id", user_id)]);
+		let sql = format!(
+			"UPDATE {} SET role = '{}' WHERE {} AND is_active = true",
+			ResourceEnum::TeamMembers,
+			role,
+			conditions
+		);
+		
+		execute_safe_update_query(db, sql).await?;
+		
+		let elapsed = now.elapsed();
+
+		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
+			== "development"
+		{
+			println!("Query 'query_update_team_member_role' took: {elapsed:.2?}");
+		}
+
+		Ok("Success update team member role".into())
+	}
+
+	pub async fn query_team_invitations(&self, team_id: &Thing) -> Result<Vec<TeamInvitationsQueryDto>> {
+		let now = Instant::now();
+		let db = &self.state.surrealdb_ws;
+		let team_id_clone = team_id.clone();
+		
+		let sql = format!(
+			"SELECT * FROM {} WHERE team_id = $team_id AND status = 'pending' ORDER BY invited_at DESC",
+			ResourceEnum::TeamInvitations
+		);
+		
+		let mut result = db.query(&sql).bind(("team_id", team_id_clone)).await?;
+		let invitations: Vec<TeamInvitationsQueryDto> = result.take(0)?;
+		
+		let elapsed = now.elapsed();
+
+		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
+			== "development"
+		{
+			println!("Query 'query_team_invitations' took: {elapsed:.2?}");
+		}
+
+		Ok(invitations)
+	}
+
+	pub async fn query_user_invitations(&self, email: &str) -> Result<Vec<TeamInvitationsQueryDto>> {
+		let now = Instant::now();
+		let db = &self.state.surrealdb_ws;
+		
+		let sql = format!(
+			"SELECT * FROM {} WHERE email = '{}' AND status = 'pending' ORDER BY invited_at DESC",
+			ResourceEnum::TeamInvitations,
+			email
+		);
+		
+		let mut result = db.query(&sql).await?;
+		let invitations: Vec<TeamInvitationsQueryDto> = result.take(0)?;
+		
+		let elapsed = now.elapsed();
+
+		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
+			== "development"
+		{
+			println!("Query 'query_user_invitations' took: {elapsed:.2?}");
+		}
+
+		Ok(invitations)
+	}
+
+	pub async fn query_delete_invitation(&self, token: &str) -> Result<String> {
+		let now = Instant::now();
+		let db = &self.state.surrealdb_ws;
+		
+		let sql = format!(
+			"UPDATE {} SET status = 'cancelled' WHERE invite_code = '{}'",
+			ResourceEnum::TeamInvitations,
+			token
+		);
+		
+		execute_safe_update_query(db, sql).await?;
+		
+		let elapsed = now.elapsed();
+
+		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
+			== "development"
+		{
+			println!("Query 'query_delete_invitation' took: {elapsed:.2?}");
+		}
+
+		Ok("Invitation cancelled successfully".into())
 	}
 }

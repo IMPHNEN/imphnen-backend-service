@@ -39,6 +39,9 @@ pub trait TeamsServiceTrait: Send + Sync + 'static {
 	fn leave_team(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims, team_id: String) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn leave_current_team(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn get_my_team(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims) -> Pin<Box<dyn Future<Output = Response> + Send>>;
+	fn get_team_invitations(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims, team_id: String) -> Pin<Box<dyn Future<Output = Response> + Send>>;
+	fn cancel_invitation(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims, token: String) -> Pin<Box<dyn Future<Output = Response> + Send>>;
+	fn get_my_invitations(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn search_teams(state: &AppState, search_params: TeamsSearchQueryDto) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn get_admin_team_list(state: &AppState, meta: MetaRequestDto) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn get_admin_team_by_id(state: &AppState, id: String) -> Pin<Box<dyn Future<Output = Response> + Send>>;
@@ -1085,6 +1088,146 @@ impl TeamsServiceTrait for TeamsService {
 			
 			// Get full team details
 			Self::get_public_team_by_id(&state, team_id).await
+		})
+	}
+
+	fn get_team_invitations(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims, team_id: String) -> Pin<Box<dyn Future<Output = Response> + Send>> {
+		let state = state.to_owned();
+		Box::pin(async move {
+			let repo = TeamsRepository::new(&state);
+			let team_thing = make_thing_from_enum(ResourceEnum::Teams, &team_id);
+			
+			// Check if team exists and user is leader
+			let team = match repo.query_team_by_id(&team_thing).await {
+				Ok(t) => t,
+				Err(_) => return common_response(StatusCode::NOT_FOUND, "Team not found"),
+			};
+
+			if team.leader_id.id.to_raw() != claims.user_id {
+				return common_response(StatusCode::FORBIDDEN, "Only team leader can view invitations");
+			}
+
+			// Get invitations
+			match repo.query_team_invitations(&team_thing).await {
+				Ok(invitations) => {
+					use crate::{v1::teams::TeamInvitationListDto, UsersRepository};
+					let users_repo = UsersRepository::new(&state);
+					
+					let mut invitation_list = Vec::new();
+					for inv in invitations {
+						// Get inviter name
+						let inviter_name = match users_repo.query_user_by_id(&inv.inviter_id).await {
+							Ok(user) => user.fullname,
+							Err(_) => "Unknown".to_string(),
+						};
+
+						invitation_list.push(TeamInvitationListDto {
+							id: inv.id.id.to_raw(),
+							team_id: inv.team_id.id.to_raw(),
+							team_name: team.name.clone(),
+							email: inv.email,
+							inviter_id: inv.inviter_id.id.to_raw(),
+							inviter_name,
+							status: inv.status,
+							invite_code: inv.invite_code,
+							expires_at: inv.expires_at,
+							invited_at: inv.invited_at,
+						});
+					}
+
+					success_response(ResponseSuccessDto { data: invitation_list })
+				},
+				Err(e) => {
+					error!("Failed to get team invitations: {}", e);
+					common_response(StatusCode::INTERNAL_SERVER_ERROR, "Failed to retrieve invitations")
+				}
+			}
+		})
+	}
+
+	fn cancel_invitation(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims, token: String) -> Pin<Box<dyn Future<Output = Response> + Send>> {
+		let state = state.to_owned();
+		Box::pin(async move {
+			let repo = TeamsRepository::new(&state);
+			
+			// Get invitation to check ownership
+			let invitation = match repo.query_invitation_by_token(&token).await {
+				Ok(inv) => inv,
+				Err(_) => return common_response(StatusCode::NOT_FOUND, "Invitation not found"),
+			};
+
+			// Check if user is the team leader
+			let team_thing = invitation.team_id.clone();
+			let team = match repo.query_team_by_id(&team_thing).await {
+				Ok(t) => t,
+				Err(_) => return common_response(StatusCode::NOT_FOUND, "Team not found"),
+			};
+
+			if team.leader_id.id.to_raw() != claims.user_id {
+				return common_response(StatusCode::FORBIDDEN, "Only team leader can cancel invitations");
+			}
+
+			match repo.query_delete_invitation(&token).await {
+				Ok(msg) => success_response(ResponseSuccessDto { data: msg }),
+				Err(e) => {
+					error!("Failed to cancel invitation: {}", e);
+					common_response(StatusCode::INTERNAL_SERVER_ERROR, "Failed to cancel invitation")
+				}
+			}
+		})
+	}
+
+	fn get_my_invitations(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims) -> Pin<Box<dyn Future<Output = Response> + Send>> {
+		let state = state.to_owned();
+		Box::pin(async move {
+			use crate::{v1::teams::MyInvitationDto, UsersRepository};
+			let users_repo = UsersRepository::new(&state);
+			
+			// Get user email
+			let user_thing = make_thing_from_enum(ResourceEnum::Users, &claims.user_id);
+			let user = match users_repo.query_user_by_id(&user_thing).await {
+				Ok(u) => u,
+				Err(_) => return common_response(StatusCode::NOT_FOUND, "User not found"),
+			};
+
+			let repo = TeamsRepository::new(&state);
+			match repo.query_user_invitations(&user.email).await {
+				Ok(invitations) => {
+					let mut my_invitations = Vec::new();
+					for inv in invitations {
+						// Get team details
+						let team = match repo.query_team_by_id(&inv.team_id).await {
+							Ok(t) => t,
+							Err(_) => continue,
+						};
+
+						// Get inviter name
+						let inviter_name = match users_repo.query_user_by_id(&inv.inviter_id).await {
+							Ok(u) => u.fullname,
+							Err(_) => "Unknown".to_string(),
+						};
+
+						my_invitations.push(MyInvitationDto {
+							id: inv.id.id.to_raw(),
+							team_id: inv.team_id.id.to_raw(),
+							team_name: team.name,
+							team_description: team.description,
+							team_avatar: team.avatar,
+							inviter_name,
+							invite_code: inv.invite_code,
+							status: inv.status,
+							expires_at: inv.expires_at,
+							invited_at: inv.invited_at,
+						});
+					}
+
+					success_response(ResponseSuccessDto { data: my_invitations })
+				},
+				Err(e) => {
+					error!("Failed to get user invitations: {}", e);
+					common_response(StatusCode::INTERNAL_SERVER_ERROR, "Failed to retrieve invitations")
+				}
+			}
 		})
 	}
 }

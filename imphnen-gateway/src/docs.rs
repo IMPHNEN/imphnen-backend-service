@@ -14,6 +14,13 @@ use imphnen_dimentorin::v1::mentors::{
 		MentoringLogistics, MentoringRate, ProfessionalProfile,
 	},
 };
+use imphnen_dimentorin::v1::sessions::{
+	sessions_controller,
+	BookSessionRequestDto, BookSessionResponseDto, MentorAvailabilityDto,
+	SessionFeedbackRequestDto, SessionFeedbackResponseDto, SessionListItemDto,
+	SessionListResponseDto, UpdateSessionStatusRequestDto, UpdateSessionStatusResponseDto,
+	AvailabilitySlotDto,
+};
 use imphnen_gacha::v1::gacha_claims::{gacha_claims_controller, GachaClaimItemDto, GachaClaimRequestDto};
 use imphnen_gacha::v1::gacha_items::{gacha_items_controller, GachaItemDto};
 use imphnen_gacha::v1::gacha_items::gacha_items_dto::GachaItemRequestDto;
@@ -27,6 +34,13 @@ use imphnen_hackathon::v1::hackathon::{
         HackathonSubmissionDto, HackathonSubmissionUpdateRequestDto, HackathonTimelineCreateRequestDto,
         HackathonTimelineDto, HackathonTimelineUpdateRequestDto, HackathonUpdateRequestDto,
     },
+};
+use imphnen_hackathon::v1::registrations::{
+    registration_controller,
+    RegistrationRequestDto, RegistrationResponseDto, RegistrationListResponseDto,
+    RegistrationListItemDto, UpdateRegistrationStatusRequestDto, UpdateRegistrationStatusResponseDto,
+    CheckInResponseDto, RegistrationStatsDto, UserHackathonsResponseDto, UserHackathonDto,
+    RegistrationStatus, ParticipantRole,
 };
 use imphnen_entities::{PermissionsItemDto, RolesDetailItemDto};
 use imphnen_entities::{MessageResponseDto, MetaRequestDto, MetaResponseDto, ResponseListSuccessDto, ResponseSuccessDto};
@@ -113,6 +127,12 @@ use utoipa::{
      mentors_controller::put_update_mentor,
      mentors_controller::put_verify_mentor,
      mentors_controller::delete_mentor,
+     sessions_controller::post_book_session,
+     sessions_controller::get_mentor_sessions,
+     sessions_controller::get_mentor_availability,
+     sessions_controller::put_update_session_status,
+     sessions_controller::post_submit_feedback,
+     sessions_controller::get_my_sessions,
      hackathon_controller::create_hackathon,
      hackathon_controller::get_hackathon,
      hackathon_controller::list_hackathons,
@@ -131,6 +151,12 @@ use utoipa::{
      hackathon_controller::update_hackathon_submission,
      hackathon_controller::submit_hackathon_submission,
      hackathon_controller::delete_hackathon_submission,
+     registration_controller::post_register_hackathon,
+     registration_controller::get_hackathon_registrations,
+     registration_controller::get_my_hackathons,
+     registration_controller::put_update_registration_status,
+     registration_controller::post_check_in_participant,
+     registration_controller::get_registration_stats,
     ),
     components(
         schemas(
@@ -191,6 +217,21 @@ use utoipa::{
            ResponseListSuccessDto<Vec<MentorListResponseDto>>,
            ResponseSuccessDto<MentorDetailResponseDto>,
            ResponseSuccessDto<MentorRegisterResponseDto>,
+           BookSessionRequestDto,
+           BookSessionResponseDto,
+           SessionListResponseDto,
+           SessionListItemDto,
+           MentorAvailabilityDto,
+           AvailabilitySlotDto,
+           UpdateSessionStatusRequestDto,
+           UpdateSessionStatusResponseDto,
+           SessionFeedbackRequestDto,
+           SessionFeedbackResponseDto,
+           ResponseSuccessDto<BookSessionResponseDto>,
+           ResponseSuccessDto<SessionListResponseDto>,
+           ResponseSuccessDto<MentorAvailabilityDto>,
+           ResponseSuccessDto<UpdateSessionStatusResponseDto>,
+           ResponseSuccessDto<SessionFeedbackResponseDto>,
                        TeamsCreateRequestDto,
                        TeamsUpdateRequestDto,
                        TeamInviteRequestDto,
@@ -214,6 +255,24 @@ use utoipa::{
                        HackathonTimelineDto,
                        HackathonTimelineUpdateRequestDto,
                        HackathonUpdateRequestDto,
+                       RegistrationRequestDto,
+                       RegistrationResponseDto,
+                       RegistrationListResponseDto,
+                       RegistrationListItemDto,
+                       UpdateRegistrationStatusRequestDto,
+                       UpdateRegistrationStatusResponseDto,
+                       CheckInResponseDto,
+                       RegistrationStatsDto,
+                       UserHackathonsResponseDto,
+                       UserHackathonDto,
+                       RegistrationStatus,
+                       ParticipantRole,
+                       ResponseSuccessDto<RegistrationResponseDto>,
+                       ResponseSuccessDto<RegistrationListResponseDto>,
+                       ResponseSuccessDto<UpdateRegistrationStatusResponseDto>,
+                       ResponseSuccessDto<CheckInResponseDto>,
+                       ResponseSuccessDto<RegistrationStatsDto>,
+                       ResponseSuccessDto<UserHackathonsResponseDto>,
                        ResponseListSuccessDto<Vec<HackathonDto>>,
                        ResponseSuccessDto<HackathonDto>,
                        ResponseListSuccessDto<Vec<HackathonEventDto>>,
@@ -247,11 +306,13 @@ use utoipa::{
         (name = "Testimonials", description = "Testimonial Management Endpoints"),
         (name = "Mentors", description = "Mentor Management Endpoints"),
         (name = "Mentors - Admin", description = "Mentor Admin Management Endpoints (Admin Access Required)"),
+        (name = "sessions", description = "Mentoring Sessions Management API"),
         (name = "Gacha", description = "Gacha System Endpoints"),
         (name = "Hackathons", description = "Hackathon Management Endpoints"),
         (name = "Hackathon Events", description = "Hackathon Event Management Endpoints"),
         (name = "Hackathon Timeline", description = "Hackathon Timeline Management Endpoints"),
         (name = "Hackathon Submissions", description = "Hackathon Submission Management Endpoints"),
+        (name = "registrations", description = "Hackathon Registration Management API"),
     )
 )]
     pub struct ApiDoc;
