@@ -28,7 +28,7 @@ while getopts "s:" opt; do
     \?)
       echo "Usage: $0 [-s suite_name]"
       echo "  -s suite_name: Run only a specific test suite"
-      echo "  Available suites: auth, users, roles, teams, mentors, cms, gacha, hackathon"
+      echo "  Available suites: auth, users, roles, teams, security, mentors, cms, gacha, hackathon"
       exit 1
       ;;
   esac
@@ -231,6 +231,9 @@ if [ -n "$SPECIFIC_SUITE" ]; then
     teams)
       run_test_suite "IAM - Teams" "$SCRIPT_DIR/tests/iam/test-teams.sh"
       ;;
+    security)
+      run_test_suite "IAM - Security & Authorization" "$SCRIPT_DIR/tests/iam/test-security.sh"
+      ;;
     mentors)
       run_test_suite "Dimentorin - Mentors" "$SCRIPT_DIR/tests/dimentorin/test-mentors.sh"
       ;;
@@ -245,7 +248,7 @@ if [ -n "$SPECIFIC_SUITE" ]; then
       ;;
     *)
       echo -e "${RED}Unknown suite: $SPECIFIC_SUITE${NC}"
-      echo -e "${YELLOW}Available suites: auth, users, roles, teams, mentors, cms, gacha, hackathon${NC}"
+      echo -e "${YELLOW}Available suites: auth, users, roles, teams, security, mentors, cms, gacha, hackathon${NC}"
       cleanup
       exit 1
       ;;
@@ -256,6 +259,7 @@ else
   run_test_suite "IAM - Users" "$SCRIPT_DIR/tests/iam/test-users.sh"
   run_test_suite "IAM - Roles & Permissions" "$SCRIPT_DIR/tests/iam/test-roles-permissions.sh"
   run_test_suite "IAM - Teams" "$SCRIPT_DIR/tests/iam/test-teams.sh"
+  run_test_suite "IAM - Security & Authorization" "$SCRIPT_DIR/tests/iam/test-security.sh"
   run_test_suite "Dimentorin - Mentors" "$SCRIPT_DIR/tests/dimentorin/test-mentors.sh"
   run_test_suite "CMS - Events & Testimonials" "$SCRIPT_DIR/tests/cms/test-cms.sh"
   run_test_suite "Gacha - Items & Rolls" "$SCRIPT_DIR/tests/gacha/test-gacha.sh"
