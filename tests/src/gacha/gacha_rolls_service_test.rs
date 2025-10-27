@@ -182,13 +182,13 @@ mod tests {
 			weight: 1.0,
 			quantity: 10,
 		};
-		let _ = GachaRollService::create_gacha_roll(&app_state, roll_dto).await;
+	let _ = GachaRollService::create_gacha_roll(&app_state, roll_dto).await;
 
-		// Create auth header
-		let mut headers = HeaderMap::new();
-		headers.insert("authorization", format!("Bearer {}", email).parse().unwrap());
+	// Create auth header
+	let mut headers = HeaderMap::new();
+	headers.insert("Authorization", format!("Bearer {}", email).parse().unwrap());
 
-		// Execute roll once
+	// Execute roll once
 		let response = GachaRollService::execute_roll_once(headers, &app_state).await;
 
 		// Verify response (status + body)
@@ -219,13 +219,13 @@ mod tests {
 			phone_number: Some("1234567890".to_string()),
 			role_id: get_role_id(&app_state, "user").await.unwrap(),
 		};
-		let _ = UsersService::create_user(&app_state, user_dto).await;
+	let _ = UsersService::create_user(&app_state, user_dto).await;
 
-		// Create auth header
-		let mut headers = HeaderMap::new();
-		headers.insert("authorization", format!("Bearer {}", email).parse().unwrap());
+	// Create auth header
+	let mut headers = HeaderMap::new();
+	headers.insert("Authorization", format!("Bearer {}", email).parse().unwrap());
 
-		// Execute roll once with no active rolls
+	// Execute roll once with no active rolls
 		let response = GachaRollService::execute_roll_once(headers, &app_state).await;
 
 		// Verify response (status + body)

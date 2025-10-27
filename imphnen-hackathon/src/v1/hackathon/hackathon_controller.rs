@@ -176,16 +176,20 @@ pub async fn delete_hackathon(
 // Hackathon Events routes
 #[utoipa::path(
     post,
+    security(
+        ("Bearer" = [])
+    ),
     path = "/v1/hackathons/{hackathon_id}/events",
     params(
         ("hackathon_id" = String, Path, description = "Hackathon ID")
     ),
     request_body = HackathonEventCreateRequestDto,
     responses(
-        (status = 201, description = "[PUBLIC] Event created successfully", body = ResponseSuccessDto<HackathonEventDto>),
-        (status = 400, description = "[PUBLIC] Bad request", body = ErrorDto),
-        (status = 404, description = "[PUBLIC] Hackathon not found", body = ErrorDto),
-        (status = 500, description = "[PUBLIC] Internal server error", body = ErrorDto)
+        (status = 201, description = "[ADMIN] Event created successfully", body = ResponseSuccessDto<HackathonEventDto>),
+        (status = 400, description = "[ADMIN] Bad request", body = ErrorDto),
+        (status = 403, description = "[ADMIN] Forbidden - Administrator permission required", body = ErrorDto),
+        (status = 404, description = "[ADMIN] Hackathon not found", body = ErrorDto),
+        (status = 500, description = "[ADMIN] Internal server error", body = ErrorDto)
     ),
     tag = "Hackathon Events"
 )]
@@ -232,16 +236,20 @@ pub async fn list_hackathon_events(
 
 #[utoipa::path(
     put,
+    security(
+        ("Bearer" = [])
+    ),
     path = "/v1/hackathons/events/{id}",
     params(
         ("id" = String, Path, description = "Event ID")
     ),
     request_body = HackathonEventUpdateRequestDto,
     responses(
-        (status = 200, description = "[PUBLIC] Event updated successfully", body = ResponseSuccessDto<HackathonEventDto>),
-        (status = 400, description = "[PUBLIC] Bad request", body = ErrorDto),
-        (status = 404, description = "[PUBLIC] Event not found", body = ErrorDto),
-        (status = 500, description = "[PUBLIC] Internal server error", body = ErrorDto)
+        (status = 200, description = "[ADMIN] Event updated successfully", body = ResponseSuccessDto<HackathonEventDto>),
+        (status = 400, description = "[ADMIN] Bad request", body = ErrorDto),
+        (status = 403, description = "[ADMIN] Forbidden - Administrator permission required", body = ErrorDto),
+        (status = 404, description = "[ADMIN] Event not found", body = ErrorDto),
+        (status = 500, description = "[ADMIN] Internal server error", body = ErrorDto)
     ),
     tag = "Hackathon Events"
 )]
@@ -258,14 +266,18 @@ pub async fn update_hackathon_event(
 
 #[utoipa::path(
     delete,
+    security(
+        ("Bearer" = [])
+    ),
     path = "/v1/hackathons/events/{id}",
     params(
         ("id" = String, Path, description = "Event ID")
     ),
     responses(
-        (status = 200, description = "[PUBLIC] Event deleted successfully", body = ResponseSuccessDto<String>),
-        (status = 404, description = "[PUBLIC] Event not found", body = ErrorDto),
-        (status = 500, description = "[PUBLIC] Internal server error", body = ErrorDto)
+        (status = 200, description = "[ADMIN] Event deleted successfully", body = ResponseSuccessDto<String>),
+        (status = 403, description = "[ADMIN] Forbidden - Administrator permission required", body = ErrorDto),
+        (status = 404, description = "[ADMIN] Event not found", body = ErrorDto),
+        (status = 500, description = "[ADMIN] Internal server error", body = ErrorDto)
     ),
     tag = "Hackathon Events"
 )]
@@ -400,6 +412,9 @@ pub async fn delete_hackathon_timeline(
 // Hackathon Submissions routes with timeline enforcement
 #[utoipa::path(
     post,
+    security(
+        ("Bearer" = [])
+    ),
     path = "/v1/hackathons/{hackathon_id}/teams/{team_id}/submissions",
     params(
         ("hackathon_id" = String, Path, description = "Hackathon ID"),
@@ -407,11 +422,12 @@ pub async fn delete_hackathon_timeline(
     ),
     request_body = HackathonSubmissionCreateRequestDto,
     responses(
-        (status = 201, description = "[PUBLIC] Submission created successfully", body = ResponseSuccessDto<HackathonSubmissionDto>),
-        (status = 400, description = "[PUBLIC] Bad request", body = ErrorDto),
-        (status = 403, description = "[PUBLIC] Forbidden - Submissions only allowed during submission phase", body = ErrorDto),
-        (status = 404, description = "[PUBLIC] Hackathon not found", body = ErrorDto),
-        (status = 500, description = "[PUBLIC] Internal server error", body = ErrorDto)
+        (status = 201, description = "[AUTH] Submission created successfully", body = ResponseSuccessDto<HackathonSubmissionDto>),
+        (status = 400, description = "[AUTH] Bad request", body = ErrorDto),
+        (status = 401, description = "[AUTH] Unauthorized", body = ErrorDto),
+        (status = 403, description = "[AUTH] Forbidden - Submissions only allowed during submission phase", body = ErrorDto),
+        (status = 404, description = "[AUTH] Hackathon not found", body = ErrorDto),
+        (status = 500, description = "[AUTH] Internal server error", body = ErrorDto)
     ),
     tag = "Hackathon Submissions"
 )]
@@ -529,16 +545,20 @@ pub async fn get_hackathon_submission(
 
 #[utoipa::path(
     put,
+    security(
+        ("Bearer" = [])
+    ),
     path = "/v1/hackathons/submissions/{id}",
     params(
         ("id" = String, Path, description = "Submission ID")
     ),
     request_body = HackathonSubmissionUpdateRequestDto,
     responses(
-        (status = 200, description = "[PUBLIC] Submission updated successfully", body = ResponseSuccessDto<HackathonSubmissionDto>),
-        (status = 400, description = "[PUBLIC] Bad request", body = ErrorDto),
-        (status = 404, description = "[PUBLIC] Submission not found", body = ErrorDto),
-        (status = 500, description = "[PUBLIC] Internal server error", body = ErrorDto)
+        (status = 200, description = "[AUTH] Submission updated successfully", body = ResponseSuccessDto<HackathonSubmissionDto>),
+        (status = 400, description = "[AUTH] Bad request", body = ErrorDto),
+        (status = 401, description = "[AUTH] Unauthorized", body = ErrorDto),
+        (status = 404, description = "[AUTH] Submission not found", body = ErrorDto),
+        (status = 500, description = "[AUTH] Internal server error", body = ErrorDto)
     ),
     tag = "Hackathon Submissions"
 )]
@@ -555,15 +575,19 @@ pub async fn update_hackathon_submission(
 
 #[utoipa::path(
     post,
+    security(
+        ("Bearer" = [])
+    ),
     path = "/v1/hackathons/submissions/{id}/submit",
     params(
         ("id" = String, Path, description = "Submission ID")
     ),
     responses(
-        (status = 200, description = "[PUBLIC] Submission submitted successfully", body = ResponseSuccessDto<HackathonSubmissionDto>),
-        (status = 403, description = "[PUBLIC] Forbidden - Submissions only allowed during submission phase", body = ErrorDto),
-        (status = 404, description = "[PUBLIC] Submission not found", body = ErrorDto),
-        (status = 500, description = "[PUBLIC] Internal server error", body = ErrorDto)
+        (status = 200, description = "[AUTH] Submission submitted successfully", body = ResponseSuccessDto<HackathonSubmissionDto>),
+        (status = 401, description = "[AUTH] Unauthorized", body = ErrorDto),
+        (status = 403, description = "[AUTH] Forbidden - Submissions only allowed during submission phase", body = ErrorDto),
+        (status = 404, description = "[AUTH] Submission not found", body = ErrorDto),
+        (status = 500, description = "[AUTH] Internal server error", body = ErrorDto)
     ),
     tag = "Hackathon Submissions"
 )]
@@ -581,14 +605,18 @@ pub async fn submit_hackathon_submission(
 
 #[utoipa::path(
     delete,
+    security(
+        ("Bearer" = [])
+    ),
     path = "/v1/hackathons/submissions/{id}",
     params(
         ("id" = String, Path, description = "Submission ID")
     ),
     responses(
-        (status = 200, description = "[PUBLIC] Submission deleted successfully", body = ResponseSuccessDto<String>),
-        (status = 404, description = "[PUBLIC] Submission not found", body = ErrorDto),
-        (status = 500, description = "[PUBLIC] Internal server error", body = ErrorDto)
+        (status = 200, description = "[AUTH] Submission deleted successfully", body = ResponseSuccessDto<String>),
+        (status = 401, description = "[AUTH] Unauthorized", body = ErrorDto),
+        (status = 404, description = "[AUTH] Submission not found", body = ErrorDto),
+        (status = 500, description = "[AUTH] Internal server error", body = ErrorDto)
     ),
     tag = "Hackathon Submissions"
 )]

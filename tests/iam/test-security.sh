@@ -50,7 +50,7 @@ test_invalid_token_access() {
   test_api_endpoint "GET User Me with Invalid Token" "GET" "/v1/users/me" 401 "" true
   
   # Test with malformed token
-  AUTH_TOKEN="Bearer.malformed.token"
+  AUTH_TOKEN="malformed.token"
   test_api_endpoint "GET Users with Malformed Token" "GET" "/v1/users" 401 "" true
   
   # Test with empty token
