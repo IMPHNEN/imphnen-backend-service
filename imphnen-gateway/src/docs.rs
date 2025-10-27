@@ -42,6 +42,13 @@ use imphnen_hackathon::v1::registrations::{
     CheckInResponseDto, RegistrationStatsDto, UserHackathonsResponseDto, UserHackathonDto,
     RegistrationStatus, ParticipantRole,
 };
+use imphnen_hackathon::v1::notifications::{
+    notification_controller,
+    notification_dto::{
+        NotificationDto, NotificationListResponseDto, MarkAsReadResponseDto,
+        MarkAllAsReadResponseDto, DeleteNotificationResponseDto, UnreadCountResponseDto,
+    },
+};
 use imphnen_entities::{PermissionsItemDto, RolesDetailItemDto};
 use imphnen_entities::{MessageResponseDto, MetaRequestDto, MetaResponseDto, ResponseListSuccessDto, ResponseSuccessDto};
 use imphnen_iam::v1::auth::auth_dto::{AuthLoginRequestDto, AuthLoginResponsetDto, AuthNewPasswordRequestDto, AuthRefreshTokenRequestDto, AuthResendOtpRequestDto, AuthVerifyEmailRequestDto, TokenDto};
@@ -157,6 +164,11 @@ use utoipa::{
      registration_controller::put_update_registration_status,
      registration_controller::post_check_in_participant,
      registration_controller::get_registration_stats,
+     notification_controller::get_notifications_handler,
+     notification_controller::mark_as_read_handler,
+     notification_controller::mark_all_as_read_handler,
+     notification_controller::delete_notification_handler,
+     notification_controller::get_unread_count_handler,
     ),
     components(
         schemas(
@@ -267,12 +279,23 @@ use utoipa::{
                        UserHackathonDto,
                        RegistrationStatus,
                        ParticipantRole,
+                       NotificationDto,
+                       NotificationListResponseDto,
+                       MarkAsReadResponseDto,
+                       MarkAllAsReadResponseDto,
+                       DeleteNotificationResponseDto,
+                       UnreadCountResponseDto,
                        ResponseSuccessDto<RegistrationResponseDto>,
                        ResponseSuccessDto<RegistrationListResponseDto>,
                        ResponseSuccessDto<UpdateRegistrationStatusResponseDto>,
                        ResponseSuccessDto<CheckInResponseDto>,
                        ResponseSuccessDto<RegistrationStatsDto>,
                        ResponseSuccessDto<UserHackathonsResponseDto>,
+                       ResponseSuccessDto<NotificationListResponseDto>,
+                       ResponseSuccessDto<MarkAsReadResponseDto>,
+                       ResponseSuccessDto<MarkAllAsReadResponseDto>,
+                       ResponseSuccessDto<DeleteNotificationResponseDto>,
+                       ResponseSuccessDto<UnreadCountResponseDto>,
                        ResponseListSuccessDto<Vec<HackathonDto>>,
                        ResponseSuccessDto<HackathonDto>,
                        ResponseListSuccessDto<Vec<HackathonEventDto>>,
@@ -313,6 +336,8 @@ use utoipa::{
         (name = "Hackathon Timeline", description = "Hackathon Timeline Management Endpoints"),
         (name = "Hackathon Submissions", description = "Hackathon Submission Management Endpoints"),
         (name = "registrations", description = "Hackathon Registration Management API"),
+        (name = "notifications", description = "User Notifications Management API"),
+        (name = "Teams", description = "Team Management Endpoints"),
     )
 )]
     pub struct ApiDoc;

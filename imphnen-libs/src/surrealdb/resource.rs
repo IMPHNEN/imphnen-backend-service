@@ -53,6 +53,8 @@ pub enum ResourceEnum {
     HackathonSubmissions,
     /// Hackathon registrations table for participant registrations
     HackathonRegistrations,
+    /// Notifications table for user notifications
+    Notifications,
     /// Rate limiting table for IP-based rate limiting
     RateLimit,
     /// Audit log table for admin action tracking
@@ -85,6 +87,7 @@ impl fmt::Display for ResourceEnum {
             ResourceEnum::HackathonTimeline => "app_hackathon_timeline",
             ResourceEnum::HackathonSubmissions => "app_hackathon_submissions",
             ResourceEnum::HackathonRegistrations => "hackathon_registrations",
+            ResourceEnum::Notifications => "notifications",
             ResourceEnum::RateLimit => "app_rate_limit",
             ResourceEnum::AuditLog => "app_audit_log",
             ResourceEnum::Sessions => "app_sessions",
@@ -129,6 +132,7 @@ impl ResourceEnum {
             ResourceEnum::HackathonTimeline => "app_hackathon_timeline",
             ResourceEnum::HackathonSubmissions => "app_hackathon_submissions",
             ResourceEnum::HackathonRegistrations => "hackathon_registrations",
+            ResourceEnum::Notifications => "notifications",
             ResourceEnum::RateLimit => "app_rate_limit",
             ResourceEnum::AuditLog => "app_audit_log",
             ResourceEnum::Sessions => "app_sessions",

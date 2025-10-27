@@ -1,10 +1,12 @@
 use axum::Router;
 
 pub mod hackathon;
+pub mod notifications;
 pub mod registrations;
 
 // Export the router function from hackathon module
 pub use hackathon::hackathon_router;
+pub use notifications::notifications_router;
 pub use registrations::registrations_router;
 
 // Main route constructor
@@ -17,6 +19,7 @@ pub fn hackathon_protected_routes() -> Router {
         .route("/hackathons/submissions/{id}/status", axum::routing::patch(update_submission_status))
         .route("/hackathons/{hackathon_id}/admin/results", axum::routing::get(get_admin_hackathon_results))
         .merge(registrations_router())
+        .merge(notifications_router())
 }
 
 // Public routes for hackathons (only listing and retrieving)
