@@ -38,6 +38,7 @@ pub trait TeamsServiceTrait: Send + Sync + 'static {
 	fn get_team_members(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims, team_id: String) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn leave_team(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims, team_id: String) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn leave_current_team(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims) -> Pin<Box<dyn Future<Output = Response> + Send>>;
+	fn get_my_team(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn search_teams(state: &AppState, search_params: TeamsSearchQueryDto) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn get_admin_team_list(state: &AppState, meta: MetaRequestDto) -> Pin<Box<dyn Future<Output = Response> + Send>>;
 	fn get_admin_team_by_id(state: &AppState, id: String) -> Pin<Box<dyn Future<Output = Response> + Send>>;
@@ -1056,6 +1057,34 @@ impl TeamsServiceTrait for TeamsService {
 					common_response(StatusCode::INTERNAL_SERVER_ERROR, "Failed to leave team")
 				},
 			}
+		})
+	}
+
+	fn get_my_team(state: &AppState, claims: imphnen_libs::jsonwebtoken::Claims) -> Pin<Box<dyn Future<Output = Response> + Send>> {
+		let state = state.to_owned();
+		Box::pin(async move {
+			let repo = TeamsRepository::new(&state);
+			let user_thing = make_thing_from_enum(ResourceEnum::Users, &claims.user_id);
+			
+			// Find the teams that the user is a member of
+			let teams = match repo.query_teams_by_user(&user_thing).await {
+				Ok(teams) => teams,
+				Err(e) => {
+					error!("Failed to query user teams: {}", e);
+					return common_response(StatusCode::INTERNAL_SERVER_ERROR, "Failed to retrieve user teams")
+				},
+			};
+
+			if teams.is_empty() {
+				return common_response(StatusCode::NOT_FOUND, "User is not a member of any team");
+			}
+
+			// Return the first team (most common case - user is in one team)
+			let team = &teams[0];
+			let team_id = team.id.id.to_raw();
+			
+			// Get full team details
+			Self::get_public_team_by_id(&state, team_id).await
 		})
 	}
 }

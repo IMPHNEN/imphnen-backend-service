@@ -391,6 +391,26 @@ pub async fn post_leave_current_team(
 }
 
 #[utoipa::path(
+	get,
+	security(
+		("Bearer" = [])
+	),
+	path = "/v1/teams/me",
+	responses(
+		(status = 200, description = "[AUTH] Get my team", body = ResponseSuccessDto<PublicTeamsDetailItemDto>),
+		(status = 401, description = "[AUTH] Unauthorized"),
+		(status = 404, description = "[AUTH] User is not a member of any team")
+	),
+	tag = "Teams"
+)]
+pub async fn get_my_team(
+	headers: HeaderMap,
+	Extension(state): Extension<AppState>,
+) -> impl IntoResponse {
+	authenticated(headers, Extension(state), |claims, state| TeamsService::get_my_team(&state, claims)).await
+}
+
+#[utoipa::path(
   get,
   security(
     ("Bearer" = [])
@@ -486,4 +506,5 @@ pub fn teams_router() -> Router {
 			.route("/{id}/members/{user_id}", axum::routing::delete(delete_remove_team_member))
 		.route("/{id}/leave", axum::routing::post(post_leave_team))
 		.route("/leave-me", axum::routing::post(post_leave_current_team))
+		.route("/me", axum::routing::get(get_my_team))
 }

@@ -84,6 +84,9 @@ test_team_endpoints() {
     # test_api_endpoint "POST Leave Team" "POST" "/v1/teams/$created_team_id/leave" 200 "" true
     # test_api_endpoint "POST Leave Current Team" "POST" "/v1/teams/leave-me" 200 "" true
     
+    # === Get My Team ===
+    test_api_endpoint "GET My Team" "GET" "/v1/teams/me" 200 "" true
+    
     # Delete team (cleanup)
     test_api_endpoint "DELETE Team" "DELETE" "/v1/teams/delete/$created_team_id" 200 "" true
   fi
