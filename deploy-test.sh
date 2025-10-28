@@ -8,8 +8,8 @@ REMOTE_HOST="70.153.9.42"
 REMOTE_PATH="/home/asephs/imphnen-backend-service"
 
 # Build project
-taskset -c 0,1 cargo build --release -j 2 
-
+# taskset -c 0,1 cargo build --release -j 2 
+cargo build --release
 # Rsync hasil build dan file yang diperlukan
 rsync -avz --delete \
     target/release/ \

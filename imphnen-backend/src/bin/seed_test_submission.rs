@@ -281,8 +281,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
             let alias_hackathon = HackathonSchema {
                 id: Thing::from(("app_hackathons", alias_id)),
-                name: name.clone().into(),
-                description: description.clone().into(),
+                name: name.into(),
+                description: description.into(),
                 start_date: DateTime::parse_from_rfc3339(start_date)?.with_timezone(&Utc),
                 end_date: DateTime::parse_from_rfc3339(end_date)?.with_timezone(&Utc),
                 registration_deadline: DateTime::parse_from_rfc3339(registration_deadline)?.with_timezone(&Utc),
@@ -357,7 +357,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 id: Thing::from(("app_hackathon_timeline", alias_timeline_id.as_str())),
                 hackathon_id: Thing::from(("app_hackathons", alias_hackathon_id)),
                 phase: phase.clone(),
-                title: title.clone().into(),
+                title: title.into(),
                 description: description.clone(),
                 start_date: DateTime::parse_from_rfc3339(start_date)?.with_timezone(&Utc),
                 end_date: DateTime::parse_from_rfc3339(end_date)?.with_timezone(&Utc),
