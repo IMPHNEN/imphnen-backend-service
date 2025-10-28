@@ -5,12 +5,20 @@ pub mod hackathon_dto;
 pub mod hackathon_repository;
 pub mod hackathon_schema;
 pub mod hackathon_service;
+pub mod hackathon_audit_schema;
+pub mod hackathon_audit_repository;
+pub mod hackathon_validation;
+pub mod hackathon_atomic_service;
 
 // Export types and functions
 pub use hackathon_dto::*;
 pub use hackathon_repository::HackathonRepository;
 pub use hackathon_schema::*;
 pub use hackathon_service::{HackathonService, HackathonServiceTrait};
+pub use hackathon_audit_schema::*;
+pub use hackathon_audit_repository::HackathonAuditRepository;
+pub use hackathon_validation::*;
+pub use hackathon_atomic_service::*;
 
 // Export controller functions
 pub use hackathon_controller::*;

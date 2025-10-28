@@ -246,6 +246,31 @@ impl<'a> HackathonRepository<'a> {
             None => bail!("Failed to delete hackathon"),
         }
     }
+
+    #[instrument(skip(self, id, status), err)]
+    pub async fn update_hackathon_status(&self, id: String, status: super::hackathon_schema::HackathonStatus) -> Result<HackathonSchema> {
+        let table = ResourceEnum::Hackathons.to_string();
+
+        // Get existing hackathon
+        let mut existing = self.get_hackathon_by_id(id.clone()).await?;
+
+        // Update status
+        existing.status = status;
+        existing.updated_at = Some(get_iso_date());
+
+        info!(query = %format!("UPDATE {} SET status = {:?} WHERE id = '{}'", table, existing.status, id), "Executing SurrealDB query");
+        let normalized_id = self.normalize_id(&table, &id);
+        let record: Option<HackathonSchema> = self
+            .state.surrealdb_ws
+            .update((table, normalized_id))
+            .content(existing.clone())
+            .await?;
+
+        match record {
+            Some(h) => Ok(h),
+            None => bail!("Failed to update hackathon status"),
+        }
+    }
 }
 
 // Hackathon Events CRUD operations

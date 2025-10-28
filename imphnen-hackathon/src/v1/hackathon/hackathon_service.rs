@@ -11,6 +11,13 @@ use super::hackathon_dto::{
 };
 use super::hackathon_repository::HackathonRepository;
 use super::hackathon_schema::SubmissionStatus;
+use super::hackathon_audit_schema::{AuditAction, HackathonAuditLogSchema};
+use super::hackathon_audit_repository::HackathonAuditRepository;
+use super::hackathon_validation::{
+    can_transition_status, validate_dates, validate_organizers, 
+    validate_prizes, validate_ready_for_registration, validate_timeline_phases,
+    validate_can_delete, validate_registration_allowed, validate_submission_allowed,
+};
 use crate::{AppState, ResponseSuccessDto, ErrorDto};
 use imphnen_utils::{validator::validate_request};
 use imphnen_libs::{MetaRequestDto, ResponseListSuccessDto};
@@ -156,7 +163,7 @@ impl HackathonServiceTrait for HackathonService {
         
         let state = state.to_owned();
         Box::pin(async move {
-            // Validate request
+            // 1. Validate request input
             if let Err((_, error_message)) = validate_request(&payload) {
                 return Err(ErrorDto {
                     status: StatusCode::BAD_REQUEST.as_u16(),
@@ -165,38 +172,70 @@ impl HackathonServiceTrait for HackathonService {
                 });
             }
 
-            // Business logic validation
-            if payload.end_date <= payload.start_date {
+            // 2. Validate dates consistency
+            if let Err(e) = validate_dates(
+                &payload.start_date,
+                &payload.end_date,
+                &payload.registration_deadline,
+            ) {
                 return Err(ErrorDto {
                     status: StatusCode::BAD_REQUEST.as_u16(),
-                    message: "End date must be after start date".to_string(),
+                    message: e.to_string(),
                     details: None,
                 });
             }
 
-            // Registration deadline should be before the hackathon end date (allowing registration up
-            // to the start of or during the hackathon depending on business rules). Tests in this
-            // repository set the deadline between start and end, so validate against end_date here.
-            if payload.registration_deadline >= payload.end_date {
+            // 3. Validate organizers
+            if let Err(e) = validate_organizers(&payload.organizers) {
                 return Err(ErrorDto {
                     status: StatusCode::BAD_REQUEST.as_u16(),
-                    message: "Registration deadline must be before end date".to_string(),
+                    message: e.to_string(),
                     details: None,
                 });
             }
 
-            if payload.organizers.is_empty() {
-                return Err(ErrorDto {
-                    status: StatusCode::BAD_REQUEST.as_u16(),
-                    message: "At least one organizer is required".to_string(),
-                    details: None,
-                });
+            // 4. Validate prizes if provided
+            if let Some(ref prizes) = payload.prizes {
+                let prize_schemas: Vec<super::hackathon_schema::Prize> = prizes
+                    .iter()
+                    .map(|p| super::hackathon_schema::Prize {
+                        position: p.position,
+                        title: p.title.clone(),
+                        description: p.description.clone(),
+                        value: p.value.clone(),
+                    })
+                    .collect();
+                    
+                if let Err(e) = validate_prizes(&prize_schemas) {
+                    return Err(ErrorDto {
+                        status: StatusCode::BAD_REQUEST.as_u16(),
+                        message: e.to_string(),
+                        details: None,
+                    });
+                }
             }
 
             let repo = HackathonRepository::new(&state);
+            let audit_repo = HackathonAuditRepository::new(&state);
 
-            match repo.create_hackathon(payload).await {
+            // 5. Create hackathon
+            match repo.create_hackathon(payload.clone()).await {
                 Ok(hackathon) => {
+                    // 6. Create audit log
+                    let audit_log = HackathonAuditLogSchema::new(
+                        Some(hackathon.id.clone()),
+                        AuditAction::HackathonCreated,
+                        payload.organizers.first().unwrap_or(&"system".to_string()).clone(),
+                        "hackathon".to_string(),
+                        Some(hackathon.id.id.to_string()),
+                    )
+                    .with_changes(serde_json::to_value(&hackathon).unwrap_or_default());
+
+                    if let Err(e) = audit_repo.log(audit_log).await {
+                        tracing::error!("Failed to create audit log: {}", e);
+                        // Don't fail the request if audit logging fails
+                    }
+
                     let dto = HackathonDto::from(hackathon);
                     Ok(ResponseSuccessDto { data: dto })
                 }
@@ -273,7 +312,7 @@ impl HackathonServiceTrait for HackathonService {
         
         let state = state.to_owned();
         Box::pin(async move {
-            // Validate request
+            // 1. Validate request
             if let Err(errors) = validate_request(&payload) {
                 return Err(ErrorDto {
                     status: StatusCode::BAD_REQUEST.as_u16(),
@@ -283,8 +322,9 @@ impl HackathonServiceTrait for HackathonService {
             }
 
             let repo = HackathonRepository::new(&state);
+            let audit_repo = HackathonAuditRepository::new(&state);
 
-            // Get existing hackathon for validation
+            // 2. Get existing hackathon for validation
             let existing = match repo.get_hackathon_by_id(id.clone()).await {
                 Ok(h) => h,
                 Err(_) => {
@@ -296,30 +336,75 @@ impl HackathonServiceTrait for HackathonService {
                 }
             };
 
-            // Business logic validation
+            // 3. Validate dates consistency
             let start_date = payload.start_date.unwrap_or(existing.start_date);
             let end_date = payload.end_date.unwrap_or(existing.end_date);
             let registration_deadline = payload.registration_deadline.unwrap_or(existing.registration_deadline);
 
-            if end_date <= start_date {
+            if let Err(e) = validate_dates(&start_date, &end_date, &registration_deadline) {
                 return Err(ErrorDto {
                     status: StatusCode::BAD_REQUEST.as_u16(),
-                    message: "End date must be after start date".to_string(),
+                    message: e.to_string(),
                     details: None,
                 });
             }
 
-            // Same rule as create_hackathon: the registration deadline must be before the end date.
-            if registration_deadline >= end_date {
-                return Err(ErrorDto {
-                    status: StatusCode::BAD_REQUEST.as_u16(),
-                    message: "Registration deadline must be before end date".to_string(),
-                    details: None,
-                });
+            // 4. Validate organizers if being updated
+            if let Some(ref organizers) = payload.organizers {
+                if let Err(e) = validate_organizers(organizers) {
+                    return Err(ErrorDto {
+                        status: StatusCode::BAD_REQUEST.as_u16(),
+                        message: e.to_string(),
+                        details: None,
+                    });
+                }
             }
 
-            match repo.update_hackathon(id, payload).await {
+            // 5. Validate prizes if being updated
+            if let Some(ref prizes) = payload.prizes {
+                let prize_schemas: Vec<super::hackathon_schema::Prize> = prizes
+                    .iter()
+                    .map(|p| super::hackathon_schema::Prize {
+                        position: p.position,
+                        title: p.title.clone(),
+                        description: p.description.clone(),
+                        value: p.value.clone(),
+                    })
+                    .collect();
+                    
+                if let Err(e) = validate_prizes(&prize_schemas) {
+                    return Err(ErrorDto {
+                        status: StatusCode::BAD_REQUEST.as_u16(),
+                        message: e.to_string(),
+                        details: None,
+                    });
+                }
+            }
+
+            // 6. Store old value for audit log
+            let old_value = serde_json::to_value(&existing).unwrap_or_default();
+
+            // 7. Update hackathon
+            match repo.update_hackathon(id.clone(), payload.clone()).await {
                 Ok(hackathon) => {
+                    // 8. Create audit log
+                    let new_value = serde_json::to_value(&hackathon).unwrap_or_default();
+                    let changes = serde_json::to_value(&payload).unwrap_or_default();
+
+                    let audit_log = HackathonAuditLogSchema::new(
+                        Some(hackathon.id.clone()),
+                        AuditAction::HackathonUpdated,
+                        existing.organizers.first().unwrap_or(&"system".to_string()).clone(),
+                        "hackathon".to_string(),
+                        Some(id),
+                    )
+                    .with_changes(changes)
+                    .with_old_new_values(old_value, new_value);
+
+                    if let Err(e) = audit_repo.log(audit_log).await {
+                        tracing::error!("Failed to create audit log: {}", e);
+                    }
+
                     let dto = HackathonDto::from(hackathon);
                     Ok(ResponseSuccessDto { data: dto })
                 }

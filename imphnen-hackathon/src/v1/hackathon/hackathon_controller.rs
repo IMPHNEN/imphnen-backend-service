@@ -4,19 +4,21 @@ use super::hackathon_dto::{
     HackathonEventUpdateRequestDto, HackathonSubmissionCreateRequestDto,
     HackathonSubmissionDto, HackathonSubmissionUpdateRequestDto, HackathonTimelineCreateRequestDto,
     HackathonTimelineDto, HackathonTimelineUpdateRequestDto, HackathonUpdateRequestDto,
+    HackathonStatusChangeRequestDto,
 };
 use super::hackathon_service::{HackathonService, HackathonServiceTrait};
 use super::hackathon_schema::SubmissionStatus;
+use super::hackathon_atomic_service::{HackathonAtomicService, HackathonCompleteSetupRequestDto, HackathonCompleteSetupResponseDto};
 use crate::v1::hackathon::HackathonRepository;
 use crate::{AppState, ResponseSuccessDto, ErrorDto};
 use imphnen_entities::{PermissionsEnum, UsersDetailQueryDto};
-use imphnen_libs::{MetaRequestDto, ResponseListSuccessDto};
+use imphnen_libs::{MetaRequestDto, ResponseListSuccessDto, jsonwebtoken::Claims};
 use axum::{
     extract::{Extension, Path, Query},
     http::StatusCode,
     Json, Router,
     response::IntoResponse,
-    routing::{delete, get, post, put},
+    routing::{delete, get, patch, post, put},
 };
 use axum::body::Bytes;
 use futures::future;
@@ -1066,14 +1068,158 @@ pub async fn post_admin_manage_sensitive_data(
     Ok((StatusCode::OK, Json(response)).into_response())
 }
 
-pub fn hackathon_routes() -> Router {
-    // AppState would be properly injected in real usage via Axum's state management
-    // For now, we'll create routes without middleware that requires AppState
+// Atomic hackathon creation with timeline and events
+#[utoipa::path(
+    post,
+    security(
+        ("Bearer" = [])
+    ),
+    path = "/v1/hackathons/complete",
+    request_body = HackathonCompleteSetupRequestDto,
+    responses(
+        (status = 201, description = "[ADMIN] Hackathon created atomically with timeline and events", body = ResponseSuccessDto<HackathonCompleteSetupResponseDto>),
+        (status = 400, description = "[ADMIN] Bad request or validation failed", body = ErrorDto),
+        (status = 403, description = "[ADMIN] Forbidden", body = ErrorDto),
+        (status = 500, description = "[ADMIN] Internal server error, changes rolled back", body = ErrorDto)
+    ),
+    tag = "Hackathons"
+)]
+pub async fn create_hackathon_complete(
+    _headers: HeaderMap,
+    Extension(state): Extension<AppState>,
+    Json(payload): Json<HackathonCompleteSetupRequestDto>,
+) -> impl IntoResponse {
+    match HackathonAtomicService::create_hackathon_complete(payload, &state).await {
+        Ok(response) => {
+            (axum::http::StatusCode::CREATED, Json(serde_json::json!({
+                "message": "Hackathon created successfully with timeline and events",
+                "data": response.data
+            }))).into_response()
+        }
+        Err(error) => (StatusCode::from_u16(error.status).unwrap(), Json(error)).into_response(),
+    }
+}
 
+// Change hackathon status with validation
+#[utoipa::path(
+    patch,
+    security(
+        ("Bearer" = [])
+    ),
+    path = "/v1/hackathons/{id}/status",
+    params(
+        ("id" = String, Path, description = "Hackathon ID")
+    ),
+    request_body = HackathonStatusChangeRequestDto,
+    responses(
+        (status = 200, description = "[ADMIN] Status changed successfully", body = ResponseSuccessDto<HackathonDto>),
+        (status = 400, description = "[ADMIN] Invalid status transition", body = ErrorDto),
+        (status = 403, description = "[ADMIN] Forbidden", body = ErrorDto),
+        (status = 404, description = "[ADMIN] Hackathon not found", body = ErrorDto),
+        (status = 500, description = "[ADMIN] Internal server error", body = ErrorDto)
+    ),
+    tag = "Hackathons"
+)]
+pub async fn change_hackathon_status(
+    _headers: HeaderMap,
+    Extension(state): Extension<AppState>,
+    Path(id): Path<String>,
+    Json(payload): Json<HackathonStatusChangeRequestDto>,
+) -> impl IntoResponse {
+    use super::hackathon_validation::{can_transition_status, validate_ready_for_registration};
+    use super::hackathon_audit_schema::{AuditAction, HackathonAuditLogSchema};
+    use super::hackathon_audit_repository::HackathonAuditRepository;
+    
+    let repo = HackathonRepository::new(&state);
+    let audit_repo = HackathonAuditRepository::new(&state);
+    
+    // Get existing hackathon
+    let existing = match repo.get_hackathon_by_id(id.clone()).await {
+        Ok(h) => h,
+        Err(_) => {
+            return (StatusCode::NOT_FOUND, Json(ErrorDto {
+                status: StatusCode::NOT_FOUND.as_u16(),
+                message: "Hackathon not found".to_string(),
+                details: None,
+            })).into_response();
+        }
+    };
+    
+    // Validate status transition
+    if let Err(e) = can_transition_status(&existing.status, &payload.status) {
+        return (StatusCode::BAD_REQUEST, Json(ErrorDto {
+            status: StatusCode::BAD_REQUEST.as_u16(),
+            message: e.to_string(),
+            details: None,
+        })).into_response();
+    }
+    
+    // Additional validation for RegistrationOpen
+    if payload.status == super::hackathon_schema::HackathonStatus::RegistrationOpen {
+        if let Err(e) = validate_ready_for_registration(&existing) {
+            return (StatusCode::BAD_REQUEST, Json(ErrorDto {
+                status: StatusCode::BAD_REQUEST.as_u16(),
+                message: format!("Cannot open registration: {}", e),
+                details: None,
+            })).into_response();
+        }
+    }
+    
+    // Update status
+    let update_dto = HackathonUpdateRequestDto {
+        name: None,
+        description: None,
+        start_date: None,
+        end_date: None,
+        registration_deadline: None,
+        max_participants: None,
+        theme: None,
+        rules: None,
+        prizes: None,
+        previous_winners: None,
+        organizers: None,
+    };
+    
+    // Manually update status in repository
+    let updated = match repo.update_hackathon_status(id.clone(), payload.status.clone()).await {
+        Ok(h) => h,
+        Err(e) => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorDto {
+                status: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+                message: format!("Failed to update status: {}", e),
+                details: None,
+            })).into_response();
+        }
+    };
+    
+    // Create audit log
+    let old_value = serde_json::json!({"status": existing.status});
+    let new_value = serde_json::json!({"status": payload.status, "reason": payload.reason});
+    
+    let audit_log = HackathonAuditLogSchema::new(
+        Some(updated.id.clone()),
+        AuditAction::HackathonStatusChanged,
+        payload.actor_id.unwrap_or_else(|| "system".to_string()),
+        "hackathon".to_string(),
+        Some(id),
+    )
+    .with_old_new_values(old_value, new_value);
+    
+    if let Err(e) = audit_repo.log(audit_log).await {
+        tracing::error!("Failed to create audit log: {}", e);
+    }
+    
+    let dto = HackathonDto::from(updated);
+    (StatusCode::OK, Json(ResponseSuccessDto { data: dto })).into_response()
+}
+
+pub fn hackathon_routes() -> Router {
     Router::new()
-            // Hackathon routes - simplified for compilation
+            // Hackathon routes
             .route("/", post(create_hackathon))
+            .route("/complete", post(create_hackathon_complete))
             .route("/{id}", put(update_hackathon))
+            .route("/{id}/status", patch(change_hackathon_status))
             .route("/{id}", delete(delete_hackathon))
 
             // Hackathon Events routes

@@ -619,3 +619,12 @@ pub struct AdminSensitiveDataResponseDto {
     pub data: Vec<AdminSensitiveDataDto>,
     pub message: String,
 }
+// Status Change DTOs
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Validate)]
+pub struct HackathonStatusChangeRequestDto {
+    pub status: HackathonStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub actor_id: Option<String>,
+}
