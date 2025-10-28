@@ -1,6 +1,6 @@
 use axum::{
     body::Body,
-    http::{Request, Response, StatusCode, header::HeaderMap},
+    http::{Request, Response, StatusCode},
 };
 use futures::future::BoxFuture;
 use imphnen_libs::AppState;
