@@ -1,4 +1,5 @@
 pub mod v1;
+pub mod permission_macros;
 
 // Re-export core entity types used throughout the IAM module
 pub use imphnen_entities::{
@@ -70,6 +71,9 @@ pub use v1::{
     teams_router,
     permissions_guard,
 };
+
+// Export permission macros
+pub use permission_macros::{check_permissions, check_authenticated};
 
 // Export IAM-specific types
 pub use v1::auth::{

@@ -19,6 +19,7 @@ pub mod query_builder;
 pub mod errors;
 pub mod query_list;
 pub mod response_format;
+pub mod sanitization;
 pub mod serde_helpers;
 pub mod validator;
 
@@ -43,6 +44,16 @@ pub use query_builder::{
 pub use query_list::QueryListBuilder;
 pub use errors::AppError;
 pub use response_format::{common_response, success_created_response, success_list_response, success_response, error_response};
+pub use sanitization::{
+    sanitize_html,
+    sanitize_dangerous_patterns,
+    sanitize_filename,
+    sanitize_user_text,
+    sanitize_email,
+    sanitize_url,
+    normalize_whitespace,
+    contains_path_traversal,
+};
 pub use serde_helpers::{
     deserialize_datetime,
     option_thing_or_string,

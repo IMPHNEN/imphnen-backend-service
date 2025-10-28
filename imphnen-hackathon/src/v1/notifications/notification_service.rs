@@ -4,14 +4,14 @@ use super::notification_dto::{
     UnreadCountResponseDto,
 };
 use super::notification_repository::Repository;
-use super::notification_schema::NotificationSchema;
 use axum::http::{Response, StatusCode};
 use axum::response::IntoResponse;
 use axum::body::Body;
 use imphnen_entities::common_dto::ResponseSuccessDto;
 use imphnen_libs::AppState;
 use imphnen_utils::{
-    extract_id, make_thing, response_format::success_response, validator::validate_request,
+    extract_id, make_thing, response_format::success_response, error_response,
+    validator::validate_request, AppError,
 };
 
 pub struct Service<'a> {
@@ -28,8 +28,8 @@ impl<'a> Service<'a> {
         user_email: &str,
         query: NotificationListQueryDto,
     ) -> Response<Body> {
-        if let Err((status, message)) = validate_request(&query) {
-            return (status, message).into_response();
+        if let Err((_status, message)) = validate_request(&query) {
+            return error_response(AppError::ValidationError(message));
         }
 
         let user_id = make_thing("users", user_email);
@@ -48,7 +48,7 @@ impl<'a> Service<'a> {
         let notifications = match notifications_result {
             Ok(notifs) => notifs,
             Err(err) => {
-                return (StatusCode::INTERNAL_SERVER_ERROR, err).into_response();
+                return error_response(AppError::InternalServerError(err.to_string()));
             }
         };
 
@@ -59,7 +59,7 @@ impl<'a> Service<'a> {
         let total = match total_result {
             Ok(count) => count,
             Err(err) => {
-                return (StatusCode::INTERNAL_SERVER_ERROR, err).into_response();
+                return error_response(AppError::InternalServerError(err.to_string()));
             }
         };
 
@@ -68,7 +68,7 @@ impl<'a> Service<'a> {
         let unread_count = match unread_count_result {
             Ok(count) => count,
             Err(err) => {
-                return (StatusCode::INTERNAL_SERVER_ERROR, err).into_response();
+                return error_response(AppError::InternalServerError(err.to_string()));
             }
         };
 

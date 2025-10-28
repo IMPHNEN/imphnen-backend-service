@@ -27,7 +27,7 @@ pub mod services;
 pub mod surrealdb;
 
 pub use argon::{hash_password, verify_password};
-pub use axum::axum_init;
+pub use axum::{axum_init, ValidatedJson};
 pub use environment::{ENV, Env};
 pub use imphnen_entities::{
     MessageResponseDto,

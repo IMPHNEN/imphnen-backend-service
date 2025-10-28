@@ -3,11 +3,15 @@
 //! This module provides utilities for initializing and running an Axum web server
 //! with SurrealDB connections for both WebSocket and in-memory databases.
 
+pub mod validated_json;
+
 use crate::{surrealdb_init_mem, surrealdb_init_ws, SurrealMemClient, SurrealWsClient};
 use axum::{Router, serve};
 use std::{future::Future, net::SocketAddr};
 use tokio::net::TcpListener;
 use crate::environment::ENV;
+
+pub use validated_json::ValidatedJson;
 
 /// Initialize and start the Axum server with SurrealDB connections.
 ///

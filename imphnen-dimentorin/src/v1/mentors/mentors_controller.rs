@@ -4,13 +4,13 @@ use super::{
 };
 use crate::v1::mentors::mentors_dto::MentorRegisterResponseDto;
 use ::axum::{
-	extract::{Extension, Json, Path, Query},
+	extract::{Extension, Path, Query},
 	http::HeaderMap,
 	response::Response,
 };
 use imphnen_entities::MetaRequestDto;
-use imphnen_libs::AppState;
-use imphnen_iam::{PermissionsEnum, permissions_guard};
+use imphnen_libs::{AppState, ValidatedJson};
+use imphnen_iam::{PermissionsEnum, require_permissions};
 use imphnen_utils::extract_email;
 
 #[utoipa::path(
@@ -27,7 +27,7 @@ use imphnen_utils::extract_email;
 )]
 pub async fn post_register_mentor(
 	Extension(app_state): Extension<AppState>,
-	Json(dto): Json<MentorUserRegisterRequestDto>,
+	ValidatedJson(dto): ValidatedJson<MentorUserRegisterRequestDto>,
 ) -> Response {
 	MentorsService::register_mentor(&app_state, dto).await
 }
@@ -56,16 +56,9 @@ pub async fn get_mentor_list(
 	Extension(app_state): Extension<AppState>,
 	Query(meta): Query<MetaRequestDto>,
 ) -> Response {
-	match permissions_guard(
-		headers,
-		Extension(app_state),
-		vec![PermissionsEnum::ReadListMentors],
-	)
-	.await
-	{
-		Ok((_user, app_state)) => MentorsService::get_mentor_list(&app_state, meta).await,
-		Err(response) => response,
-	}
+	require_permissions!(headers, app_state, [PermissionsEnum::ReadListMentors], {
+		MentorsService::get_mentor_list(&app_state, meta).await
+	})
 }
 
 #[utoipa::path(
@@ -89,16 +82,9 @@ pub async fn get_mentor_by_id(
 	Extension(app_state): Extension<AppState>,
 	Path(id): Path<String>,
 ) -> Response {
-	match permissions_guard(
-		headers,
-		Extension(app_state),
-		vec![PermissionsEnum::ReadDetailMentors],
-	)
-	.await
-	{
-		Ok((_user, app_state)) => MentorsService::get_mentor_by_id(&app_state, &id).await,
-		Err(response) => response,
-	}
+	require_permissions!(headers, app_state, [PermissionsEnum::ReadDetailMentors], {
+		MentorsService::get_mentor_by_id(&app_state, &id).await
+	})
 }
 
 #[utoipa::path(
@@ -123,18 +109,11 @@ pub async fn put_update_mentor(
 	headers: HeaderMap,
 	Extension(app_state): Extension<AppState>,
 	Path(id): Path<String>,
-	Json(dto): Json<MentorUpdateRequestDto>,
+	ValidatedJson(dto): ValidatedJson<MentorUpdateRequestDto>,
 ) -> Response {
-	match permissions_guard(
-		headers,
-		Extension(app_state),
-		vec![PermissionsEnum::UpdateMentors],
-	)
-	.await
-	{
-		Ok((_user, app_state)) => MentorsService::update_mentor(&app_state, &id, dto).await,
-		Err(response) => response,
-	}
+	require_permissions!(headers, app_state, [PermissionsEnum::UpdateMentors], {
+		MentorsService::update_mentor(&app_state, &id, dto).await
+	})
 }
 
 #[utoipa::path(
@@ -158,16 +137,9 @@ pub async fn delete_mentor(
 	Extension(app_state): Extension<AppState>,
 	Path(id): Path<String>,
 ) -> Response {
-	match permissions_guard(
-		headers,
-		Extension(app_state),
-		vec![PermissionsEnum::DeleteMentors],
-	)
-	.await
-	{
-		Ok((_user, app_state)) => MentorsService::delete_mentor(&app_state, &id).await,
-		Err(response) => response,
-	}
+	require_permissions!(headers, app_state, [PermissionsEnum::DeleteMentors], {
+		MentorsService::delete_mentor(&app_state, &id).await
+	})
 }
 
 #[utoipa::path(
@@ -192,18 +164,11 @@ pub async fn put_verify_mentor(
 	headers: HeaderMap,
 	Extension(app_state): Extension<AppState>,
 	Path(id): Path<String>,
-	Json(dto): Json<MentorVerifyRequestDto>,
+	ValidatedJson(dto): ValidatedJson<MentorVerifyRequestDto>,
 ) -> Response {
-	match permissions_guard(
-		headers,
-		Extension(app_state),
-		vec![PermissionsEnum::VerifyMentors],
-	)
-	.await
-	{
-		Ok((_user, app_state)) => MentorsService::verify_mentor(&app_state, &id, dto).await,
-		Err(response) => response,
-	}
+	require_permissions!(headers, app_state, [PermissionsEnum::VerifyMentors], {
+		MentorsService::verify_mentor(&app_state, &id, dto).await
+	})
 }
 
 #[utoipa::path(
@@ -224,27 +189,18 @@ pub async fn get_mentor_me(
 	headers: HeaderMap,
 	Extension(app_state): Extension<AppState>,
 ) -> Response {
-	match permissions_guard(
-		headers.clone(),
-		Extension(app_state),
-		vec![PermissionsEnum::ReadOwnMentorProfile],
-	)
-	.await
-	{
-		Ok((_user, app_state)) => {
-			let email = match extract_email(&headers) {
-				Some(email) => email,
-				None => {
-					return imphnen_utils::common_response(
-						axum::http::StatusCode::UNAUTHORIZED,
-						"Token tidak valid",
-					);
-				}
-			};
-			MentorsService::get_mentor_me(&app_state, &email).await
-		}
-		Err(response) => response,
-	}
+	require_permissions!(headers.clone(), app_state, [PermissionsEnum::ReadOwnMentorProfile], {
+		let email = match extract_email(&headers) {
+			Some(email) => email,
+			None => {
+				return imphnen_utils::common_response(
+					axum::http::StatusCode::UNAUTHORIZED,
+					"Token tidak valid",
+				);
+			}
+		};
+		MentorsService::get_mentor_me(&app_state, &email).await
+	})
 }
 
 #[utoipa::path(
@@ -266,29 +222,20 @@ pub async fn get_mentor_me(
 pub async fn put_update_mentor_me(
 	headers: HeaderMap,
 	Extension(app_state): Extension<AppState>,
-	Json(dto): Json<MentorUpdateRequestDto>,
+	ValidatedJson(dto): ValidatedJson<MentorUpdateRequestDto>,
 ) -> Response {
-	match permissions_guard(
-		headers.clone(),
-		Extension(app_state),
-		vec![PermissionsEnum::UpdateOwnMentorProfile],
-	)
-	.await
-	{
-		Ok((_user, app_state)) => {
-			let email = match extract_email(&headers) {
-				Some(email) => email,
-				None => {
-					return imphnen_utils::common_response(
-						axum::http::StatusCode::UNAUTHORIZED,
-						"Token tidak valid",
-					);
-				}
-			};
-			MentorsService::update_mentor_me(&app_state, &email, dto).await
-		}
-		Err(response) => response,
-	}
+	require_permissions!(headers.clone(), app_state, [PermissionsEnum::UpdateOwnMentorProfile], {
+		let email = match extract_email(&headers) {
+			Some(email) => email,
+			None => {
+				return imphnen_utils::common_response(
+					axum::http::StatusCode::UNAUTHORIZED,
+					"Token tidak valid",
+				);
+			}
+		};
+		MentorsService::update_mentor_me(&app_state, &email, dto).await
+	})
 }
 #[utoipa::path(
     put,
@@ -324,25 +271,16 @@ pub async fn get_mentor_status(
 	headers: HeaderMap,
 	Extension(app_state): Extension<AppState>,
 ) -> Response {
-	match permissions_guard(
-		headers.clone(),
-		Extension(app_state),
-		vec![PermissionsEnum::ReadOwnMentorStatus],
-	)
-	.await
-	{
-		Ok((_user, app_state)) => {
-			let email = match extract_email(&headers) {
-				Some(email) => email,
-				None => {
-					return imphnen_utils::common_response(
-						axum::http::StatusCode::UNAUTHORIZED,
-						"Token tidak valid",
-					);
-				}
-			};
-			MentorsService::get_mentor_status(&app_state, &email).await
-		}
-		Err(response) => response,
-	}
+	require_permissions!(headers.clone(), app_state, [PermissionsEnum::ReadOwnMentorStatus], {
+		let email = match extract_email(&headers) {
+			Some(email) => email,
+			None => {
+				return imphnen_utils::common_response(
+					axum::http::StatusCode::UNAUTHORIZED,
+					"Token tidak valid",
+				);
+			}
+		};
+		MentorsService::get_mentor_status(&app_state, &email).await
+	})
 }

@@ -10,7 +10,8 @@ use super::hackathon_schema::SubmissionStatus;
 use crate::v1::hackathon::HackathonRepository;
 use crate::{AppState, ResponseSuccessDto, ErrorDto};
 use imphnen_entities::{PermissionsEnum, UsersDetailQueryDto};
-use imphnen_libs::{MetaRequestDto, ResponseListSuccessDto};
+use imphnen_libs::{MetaRequestDto, ResponseListSuccessDto, ValidatedJson};
+use imphnen_iam::require_permissions;
 use axum::{
     extract::{Extension, Path, Query},
     http::StatusCode,

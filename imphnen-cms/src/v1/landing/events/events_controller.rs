@@ -7,12 +7,12 @@ use super::{
 };
 use axum::extract::{Path, Query};
 use axum::response::IntoResponse;
-use axum::{Extension, Json, http::HeaderMap};
+use axum::{Extension, http::HeaderMap};
 use imphnen_libs::{
     AppState, MessageResponseDto, MetaRequestDto, ResponseListSuccessDto,
-    ResponseSuccessDto,
+    ResponseSuccessDto, ValidatedJson,
 };
-use imphnen_iam::{PermissionsEnum, permissions_guard};
+use imphnen_iam::{PermissionsEnum, require_permissions};
 
 #[utoipa::path(
     get,
@@ -71,12 +71,11 @@ pub async fn get_event_by_id(
 pub async fn post_create_event(
     headers: HeaderMap,
     Extension(state): Extension<AppState>,
-    Json(payload): Json<EventsCreateRequestDto>,
+    ValidatedJson(payload): ValidatedJson<EventsCreateRequestDto>,
 ) -> impl IntoResponse {
-    match permissions_guard(headers, Extension(state), vec![PermissionsEnum::Administrator]).await {
-        Ok((_claims, state)) => EventsService::create_event(&state, payload).await,
-        Err(response) => response,
-    }
+    require_permissions!(headers, state, [PermissionsEnum::Administrator], {
+        EventsService::create_event(&state, payload).await
+    })
 }
 
 #[utoipa::path(
@@ -98,12 +97,11 @@ pub async fn patch_update_event(
     headers: HeaderMap,
     Extension(state): Extension<AppState>,
     Path(id): Path<String>,
-    Json(payload): Json<EventsUpdateRequestDto>,
+    ValidatedJson(payload): ValidatedJson<EventsUpdateRequestDto>,
 ) -> impl IntoResponse {
-    match permissions_guard(headers, Extension(state), vec![PermissionsEnum::Administrator]).await {
-        Ok((_claims, state)) => EventsService::update_event(&state, id, payload).await,
-        Err(response) => response,
-    }
+    require_permissions!(headers, state, [PermissionsEnum::Administrator], {
+        EventsService::update_event(&state, id, payload).await
+    })
 }
 
 #[utoipa::path(
@@ -125,8 +123,7 @@ pub async fn delete_event(
     Extension(state): Extension<AppState>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
-    match permissions_guard(headers, Extension(state), vec![PermissionsEnum::Administrator]).await {
-        Ok((_claims, state)) => EventsService::delete_event(&state, id).await,
-        Err(response) => response,
-    }
+    require_permissions!(headers, state, [PermissionsEnum::Administrator], {
+        EventsService::delete_event(&state, id).await
+    })
 }

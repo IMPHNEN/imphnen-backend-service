@@ -4,12 +4,13 @@ use crate::v1::gacha_items::GachaItemDto;
 use crate::v1::gacha_items::gacha_items_dto::{GachaItemRequestDto, GachaItemUpdateRequestDto};
 use crate::v1::gacha_items::gacha_items_service::GachaItemService;
 use axum::{
-	Extension, Json,
+	Extension,
 	extract::{Path, Query},
 	http::HeaderMap,
 	response::IntoResponse,
 };
-use imphnen_iam::{PermissionsEnum, permissions_guard};
+use imphnen_iam::{PermissionsEnum, require_permissions};
+use imphnen_libs::ValidatedJson;
 
 #[utoipa::path(
     get,
@@ -36,16 +37,9 @@ pub async fn get_gacha_item_list(
 	Extension(state): Extension<AppState>,
 	Query(meta): Query<MetaRequestDto>,
 ) -> impl IntoResponse {
-	match permissions_guard(
-		headers,
-		Extension(state),
-		vec![PermissionsEnum::ReadListGachaItems],
-	)
-	.await
-	{
-		Ok((_user, state)) => GachaItemService::get_gacha_item_list(&state, meta).await,
-		Err(response) => response,
-	}
+	require_permissions!(headers, state, [PermissionsEnum::ReadListGachaItems], {
+		GachaItemService::get_gacha_item_list(&state, meta).await
+	})
 }
 
 #[utoipa::path(
@@ -65,16 +59,9 @@ pub async fn get_gacha_item_by_id(
 	Extension(state): Extension<AppState>,
 	Path(id): Path<String>,
 ) -> impl IntoResponse {
-	match permissions_guard(
-		headers,
-		Extension(state),
-		vec![PermissionsEnum::ReadDetailGachaItems],
-	)
-	.await
-	{
-		Ok((_user, state)) => GachaItemService::get_gacha_item_by_id(&state, id).await,
-		Err(response) => response,
-	}
+	require_permissions!(headers, state, [PermissionsEnum::ReadDetailGachaItems], {
+		GachaItemService::get_gacha_item_by_id(&state, id).await
+	})
 }
 
 #[utoipa::path(
@@ -92,18 +79,11 @@ pub async fn get_gacha_item_by_id(
 pub async fn post_create_gacha_item(
 	headers: HeaderMap,
 	Extension(state): Extension<AppState>,
-	Json(payload): Json<GachaItemRequestDto>,
+	ValidatedJson(payload): ValidatedJson<GachaItemRequestDto>,
 ) -> impl IntoResponse {
-	match permissions_guard(
-		headers,
-		Extension(state),
-		vec![PermissionsEnum::CreateGachaItems],
-	)
-	.await
-	{
-		Ok((_user, state)) => GachaItemService::create_gacha_item(&state, payload).await,
-		Err(response) => response,
-	}
+	require_permissions!(headers, state, [PermissionsEnum::CreateGachaItems], {
+		GachaItemService::create_gacha_item(&state, payload).await
+	})
 }
 
 #[utoipa::path(
@@ -122,18 +102,11 @@ pub async fn put_update_gacha_item(
 	headers: HeaderMap,
 	Extension(state): Extension<AppState>,
 	Path(id): Path<String>,
-	Json(payload): Json<GachaItemUpdateRequestDto>,
+	ValidatedJson(payload): ValidatedJson<GachaItemUpdateRequestDto>,
 ) -> impl IntoResponse {
-	match permissions_guard(
-		headers,
-		Extension(state),
-		vec![PermissionsEnum::UpdateGachaItems],
-	)
-	.await
-	{
-		Ok((_user, state)) => GachaItemService::update_gacha_item(&state, payload, id).await,
-		Err(response) => response,
-	}
+	require_permissions!(headers, state, [PermissionsEnum::UpdateGachaItems], {
+		GachaItemService::update_gacha_item(&state, payload, id).await
+	})
 }
 
 #[utoipa::path(
@@ -152,14 +125,7 @@ pub async fn delete_gacha_item(
 	Extension(state): Extension<AppState>,
 	Path(id): Path<String>,
 ) -> impl IntoResponse {
-	match permissions_guard(
-		headers,
-		Extension(state),
-		vec![PermissionsEnum::DeleteGachaItems],
-	)
-	.await
-	{
-		Ok((_user, state)) => GachaItemService::delete_gacha_item(&state, id).await,
-		Err(response) => response,
-	}
+	require_permissions!(headers, state, [PermissionsEnum::DeleteGachaItems], {
+		GachaItemService::delete_gacha_item(&state, id).await
+	})
 }

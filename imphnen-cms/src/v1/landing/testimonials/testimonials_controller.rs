@@ -7,13 +7,12 @@ use super::{
 };
 use axum::extract::{Path, Query};
 use axum::response::IntoResponse;
-use axum::{Extension, Json, http::HeaderMap};
-use imphnen_iam::UsersDetailQueryDto;
+use axum::{Extension, http::HeaderMap};
+use imphnen_iam::{UsersDetailQueryDto, require_auth};
 use imphnen_libs::{
     AppState, MessageResponseDto, MetaRequestDto, ResponseListSuccessDto,
-    ResponseSuccessDto,
+    ResponseSuccessDto, ValidatedJson,
 };
-use imphnen_iam::permissions_guard;
 
 #[utoipa::path(
     get,
@@ -73,12 +72,11 @@ pub async fn post_create_testimonial(
     headers: HeaderMap,
     Extension(state): Extension<AppState>,
     Extension(authenticated_user): Extension<UsersDetailQueryDto>,
-    Json(payload): Json<TestimonialsCreateRequestDto>,
+    ValidatedJson(payload): ValidatedJson<TestimonialsCreateRequestDto>,
 ) -> impl IntoResponse {
-    match permissions_guard(headers, Extension(state), vec![]).await {
-        Ok((_claims, state)) => TestimonialsService::create_testimonial(&state, payload, &authenticated_user).await,
-        Err(response) => response,
-    }
+    require_auth!(headers, state, {
+        TestimonialsService::create_testimonial(&state, payload, &authenticated_user).await
+    })
 }
 
 #[utoipa::path(
@@ -101,12 +99,11 @@ pub async fn patch_update_testimonial(
     Path(id): Path<String>,
     Extension(state): Extension<AppState>,
     Extension(authenticated_user): Extension<UsersDetailQueryDto>,
-    Json(payload): Json<TestimonialsUpdateRequestDto>,
+    ValidatedJson(payload): ValidatedJson<TestimonialsUpdateRequestDto>,
 ) -> impl IntoResponse {
-    match permissions_guard(headers, Extension(state), vec![]).await {
-        Ok((_claims, state)) => TestimonialsService::update_testimonial(&state, id, payload, &authenticated_user).await,
-        Err(response) => response,
-    }
+    require_auth!(headers, state, {
+        TestimonialsService::update_testimonial(&state, id, payload, &authenticated_user).await
+    })
 }
 
 #[utoipa::path(
@@ -129,8 +126,7 @@ pub async fn delete_testimonial(
     Extension(authenticated_user): Extension<UsersDetailQueryDto>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
-    match permissions_guard(headers, Extension(state), vec![]).await {
-        Ok((_claims, state)) => TestimonialsService::delete_testimonial(&state, id, &authenticated_user).await,
-        Err(response) => response,
-    }
+    require_auth!(headers, state, {
+        TestimonialsService::delete_testimonial(&state, id, &authenticated_user).await
+    })
 }
