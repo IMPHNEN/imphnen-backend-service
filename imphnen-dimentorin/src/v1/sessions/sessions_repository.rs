@@ -267,6 +267,86 @@ impl<'a> SessionsRepository<'a> {
     }
 
     // ============================================
+    // Count Mentor Sessions
+    // ============================================
+    pub async fn count_mentor_sessions(
+        &self,
+        mentor_id: &Thing,
+        status_filter: Option<String>,
+    ) -> Result<usize, String> {
+        let query = if status_filter.is_some() {
+            "SELECT count() FROM sessions WHERE mentor_id = $mentor_id AND status = $status GROUP ALL"
+        } else {
+            "SELECT count() FROM sessions WHERE mentor_id = $mentor_id GROUP ALL"
+        };
+
+        let db = &self.state.surrealdb_ws;
+        let mentor_id_clone = mentor_id.clone();
+        let mut result = if let Some(status_val) = status_filter {
+            db.query(query)
+                .bind(("mentor_id", mentor_id_clone))
+                .bind(("status", status_val))
+                .await
+        } else {
+            db.query(query)
+                .bind(("mentor_id", mentor_id_clone))
+                .await
+        }
+        .map_err(|e| format!("Failed to count mentor sessions: {}", e))?;
+
+        #[derive(serde::Deserialize)]
+        struct CountResult {
+            count: usize,
+        }
+
+        let count_result: Option<CountResult> = result
+            .take(0)
+            .map_err(|e| format!("Failed to parse count: {}", e))?;
+
+        Ok(count_result.map(|r| r.count).unwrap_or(0))
+    }
+
+    // ============================================
+    // Count User Sessions
+    // ============================================
+    pub async fn count_user_sessions(
+        &self,
+        user_id: &Thing,
+        status_filter: Option<String>,
+    ) -> Result<usize, String> {
+        let query = if status_filter.is_some() {
+            "SELECT count() FROM sessions WHERE mentee_id = $user_id AND status = $status GROUP ALL"
+        } else {
+            "SELECT count() FROM sessions WHERE mentee_id = $user_id GROUP ALL"
+        };
+
+        let db = &self.state.surrealdb_ws;
+        let user_id_clone = user_id.clone();
+        let mut result = if let Some(status_val) = status_filter {
+            db.query(query)
+                .bind(("user_id", user_id_clone))
+                .bind(("status", status_val))
+                .await
+        } else {
+            db.query(query)
+                .bind(("user_id", user_id_clone))
+                .await
+        }
+        .map_err(|e| format!("Failed to count user sessions: {}", e))?;
+
+        #[derive(serde::Deserialize)]
+        struct CountResult {
+            count: usize,
+        }
+
+        let count_result: Option<CountResult> = result
+            .take(0)
+            .map_err(|e| format!("Failed to parse count: {}", e))?;
+
+        Ok(count_result.map(|r| r.count).unwrap_or(0))
+    }
+
+    // ============================================
     // Delete Session (soft delete)
     // ============================================
     // Delete Session (soft delete)

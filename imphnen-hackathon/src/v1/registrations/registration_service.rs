@@ -9,10 +9,12 @@ use surrealdb::sql::Thing;
 
 use super::{
     CheckInResponseDto, RegistrationListItemDto, RegistrationListResponseDto,
-    RegistrationRequestDto, RegistrationResponseDto, RegistrationSchema, RegistrationStatsDto,
-    RegistrationStatus, RegistrationsRepository, UpdateRegistrationStatusRequestDto,
+    RegistrationRequestDto, RegistrationResponseDto, RegistrationSchema, 
+    RegistrationStatsDto, RegistrationStatus,
+    RegistrationsRepository, UpdateRegistrationStatusRequestDto,
     UpdateRegistrationStatusResponseDto, UserHackathonDto, UserHackathonsResponseDto,
 };
+use crate::v1::hackathon::HackathonRepository;
 use imphnen_libs::ResourceEnum;
 
 pub struct RegistrationsService<'a> {
@@ -44,7 +46,16 @@ impl<'a> RegistrationsService<'a> {
         let user_id = make_thing_from_enum(ResourceEnum::Users, user_email);
 
         // Check if hackathon exists
-        // TODO: Add hackathon existence check via hackathon repository
+        let hackathon_repo = HackathonRepository::new(self.state);
+        match hackathon_repo.get_by_id(hackathon_id).await {
+            Ok(None) => {
+                return common_response(StatusCode::NOT_FOUND, "Hackathon not found");
+            }
+            Err(e) => {
+                return common_response(StatusCode::INTERNAL_SERVER_ERROR, &format!("Failed to verify hackathon: {}", e));
+            }
+            Ok(Some(_)) => {} // Hackathon exists, continue
+        }
 
         // Check if user already registered
         match repository

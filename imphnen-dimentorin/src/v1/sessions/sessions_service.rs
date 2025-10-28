@@ -64,6 +64,13 @@ impl SessionsService {
         let mentor_thing = make_thing("mentors", &mentor_id);
         
         let repo = SessionsRepository::new(state);
+        
+        // Get count and sessions
+        let count = match repo.count_mentor_sessions(&mentor_thing, status_filter.clone()).await {
+            Ok(c) => c,
+            Err(e) => return common_response(StatusCode::INTERNAL_SERVER_ERROR, &format!("Failed to count sessions: {}", e)),
+        };
+        
         match repo.query_mentor_sessions(&mentor_thing, status_filter).await {
             Ok(sessions) => {
                 let session_items: Vec<SessionListItemDto> = sessions
@@ -86,7 +93,7 @@ impl SessionsService {
 
                 let response = SessionListResponseDto {
                     sessions: session_items,
-                    total: 0, // TODO: implement proper pagination
+                    total: count,
                 };
                 success_response(ResponseSuccessDto { data: response })
             }
@@ -105,6 +112,13 @@ impl SessionsService {
         let user_thing = make_thing("users", &user_id);
         
         let repo = SessionsRepository::new(state);
+        
+        // Get count and sessions
+        let count = match repo.count_user_sessions(&user_thing, status_filter.clone()).await {
+            Ok(c) => c,
+            Err(e) => return common_response(StatusCode::INTERNAL_SERVER_ERROR, &format!("Failed to count sessions: {}", e)),
+        };
+        
         match repo.query_user_sessions(&user_thing, status_filter).await {
             Ok(sessions) => {
                 let session_items: Vec<SessionListItemDto> = sessions
@@ -127,7 +141,7 @@ impl SessionsService {
 
                 let response = SessionListResponseDto {
                     sessions: session_items,
-                    total: 0, // TODO: implement proper pagination
+                    total: count,
                 };
                 success_response(ResponseSuccessDto { data: response })
             }

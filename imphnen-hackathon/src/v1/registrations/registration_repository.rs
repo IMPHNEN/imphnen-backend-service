@@ -82,14 +82,18 @@ impl<'a> RegistrationsRepository<'a> {
     ) -> Result<Vec<RegistrationListQueryDto>, String> {
         let db = &self.state.surrealdb_ws;
         
-        // Use string::join with coalesce to handle NULL team_id
+        // Use FETCH to retrieve related data in a single query
         let query = if status_filter.is_some() {
             r#"
                 SELECT 
                     string::join(':', id.tb, id.id) AS id,
                     string::join(':', hackathon_id.tb, hackathon_id.id) AS hackathon_id,
+                    hackathon_id.name AS hackathon_name,
                     string::join(':', user_id.tb, user_id.id) AS user_id,
+                    user_id.fullname AS user_fullname,
+                    user_id.email AS user_email,
                     (IF team_id != NONE THEN string::join(':', team_id.tb, team_id.id) ELSE NONE END) AS team_id,
+                    (IF team_id != NONE THEN team_id.name ELSE NONE END) AS team_name,
                     status,
                     role,
                     registration_date,
@@ -101,6 +105,7 @@ impl<'a> RegistrationsRepository<'a> {
                 WHERE hackathon_id = $hackathon_id 
                 AND status = $status
                 AND is_deleted = false
+                FETCH hackathon_id, user_id, team_id
                 ORDER BY registration_date DESC
             "#
         } else {
@@ -108,8 +113,12 @@ impl<'a> RegistrationsRepository<'a> {
                 SELECT 
                     string::join(':', id.tb, id.id) AS id,
                     string::join(':', hackathon_id.tb, hackathon_id.id) AS hackathon_id,
+                    hackathon_id.name AS hackathon_name,
                     string::join(':', user_id.tb, user_id.id) AS user_id,
+                    user_id.fullname AS user_fullname,
+                    user_id.email AS user_email,
                     (IF team_id != NONE THEN string::join(':', team_id.tb, team_id.id) ELSE NONE END) AS team_id,
+                    (IF team_id != NONE THEN team_id.name ELSE NONE END) AS team_name,
                     status,
                     role,
                     registration_date,
@@ -120,6 +129,7 @@ impl<'a> RegistrationsRepository<'a> {
                 FROM hackathon_registrations
                 WHERE hackathon_id = $hackathon_id 
                 AND is_deleted = false
+                FETCH hackathon_id, user_id, team_id
                 ORDER BY registration_date DESC
             "#
         };
@@ -137,13 +147,17 @@ impl<'a> RegistrationsRepository<'a> {
         }
         .map_err(|e| format!("Failed to query hackathon registrations: {}", e))?;
 
-        // Use intermediate struct for parsing (without optional name fields)
+        // Use intermediate struct for parsing with all fields including related data
         #[derive(Debug, Serialize, Deserialize)]
         struct SimpleReg {
             id: String,
             hackathon_id: String,
+            hackathon_name: Option<String>,
             user_id: String,
+            user_fullname: Option<String>,
+            user_email: Option<String>,
             team_id: Option<String>,
+            team_name: Option<String>,
             status: RegistrationStatus,
             role: ParticipantRole,
             registration_date: String,
@@ -157,18 +171,18 @@ impl<'a> RegistrationsRepository<'a> {
             .take(0)
             .map_err(|e| format!("Failed to parse registrations: {}", e))?;
 
-        // Convert to full DTO (name fields will be None for now)
+        // Convert to full DTO with all fetched data
         let registrations = simple
             .into_iter()
             .map(|r| RegistrationListQueryDto {
                 id: r.id,
                 hackathon_id: r.hackathon_id,
-                hackathon_name: None, // TODO: Fetch separately if needed
+                hackathon_name: r.hackathon_name,
                 user_id: r.user_id,
-                user_fullname: None, // TODO: Fetch separately if needed
-                user_email: None, // TODO: Fetch separately if needed
+                user_fullname: r.user_fullname,
+                user_email: r.user_email,
                 team_id: r.team_id,
-                team_name: None, // TODO: Fetch separately if needed
+                team_name: r.team_name,
                 status: r.status,
                 role: r.role,
                 registration_date: r.registration_date,
@@ -187,19 +201,25 @@ impl<'a> RegistrationsRepository<'a> {
     // ============================================
     pub async fn query_user_hackathons(&self, user_id: &Thing) -> Result<Vec<UserHackathonQueryDto>, String> {
         let db = &self.state.surrealdb_ws;
-        // Use string::join with IF to handle NULL team_id
+        // Use FETCH to retrieve related hackathon and team data
         let query = r#"
             SELECT 
                 string::join(':', id.tb, id.id) AS registration_id,
                 string::join(':', hackathon_id.tb, hackathon_id.id) AS hackathon_id,
+                hackathon_id.name AS hackathon_name,
+                hackathon_id.description AS hackathon_description,
+                hackathon_id.start_date AS start_date,
+                hackathon_id.end_date AS end_date,
                 status,
                 role,
                 registration_date,
                 checked_in,
-                (IF team_id != NONE THEN string::join(':', team_id.tb, team_id.id) ELSE NONE END) AS team_id
+                (IF team_id != NONE THEN string::join(':', team_id.tb, team_id.id) ELSE NONE END) AS team_id,
+                (IF team_id != NONE THEN team_id.name ELSE NONE END) AS team_name
             FROM hackathon_registrations
             WHERE user_id = $user_id 
             AND is_deleted = false
+            FETCH hackathon_id, team_id
             ORDER BY registration_date DESC
         "#;
 
@@ -214,33 +234,38 @@ impl<'a> RegistrationsRepository<'a> {
         struct SimpleUserHackathon {
             registration_id: String,
             hackathon_id: String,
+            hackathon_name: Option<String>,
+            hackathon_description: Option<String>,
+            start_date: Option<String>,
+            end_date: Option<String>,
             status: RegistrationStatus,
             role: ParticipantRole,
             registration_date: String,
             checked_in: bool,
             team_id: Option<String>,
+            team_name: Option<String>,
         }
 
         let simple: Vec<SimpleUserHackathon> = result
             .take(0)
             .map_err(|e| format!("Failed to parse user hackathons: {}", e))?;
 
-        // Convert to full DTO (name/desc fields will be None for now)
+        // Convert to full DTO with all fetched data
         let hackathons = simple
             .into_iter()
             .map(|h| UserHackathonQueryDto {
                 registration_id: h.registration_id,
                 hackathon_id: h.hackathon_id,
-                hackathon_name: None, // TODO: Fetch separately if needed
-                hackathon_description: None, // TODO: Fetch separately if needed
-                start_date: None, // TODO: Fetch separately if needed
-                end_date: None, // TODO: Fetch separately if needed
+                hackathon_name: h.hackathon_name,
+                hackathon_description: h.hackathon_description,
+                start_date: h.start_date,
+                end_date: h.end_date,
                 status: h.status,
                 role: h.role,
                 registration_date: h.registration_date,
                 checked_in: h.checked_in,
                 team_id: h.team_id,
-                team_name: None, // TODO: Fetch separately if needed
+                team_name: h.team_name,
             })
             .collect();
 
@@ -253,14 +278,36 @@ impl<'a> RegistrationsRepository<'a> {
     pub async fn query_registration_stats(&self, hackathon_id: &Thing) -> Result<RegistrationStatsQueryDto, String> {
         let db = &self.state.surrealdb_ws;
         
-        // Get all registrations first
+        // Get hackathon name first
+        let hackathon_query = r#"
+            SELECT name FROM hackathons WHERE id = $hackathon_id LIMIT 1
+        "#;
+        
+        let hackathon_id_clone = hackathon_id.clone();
+        let mut hackathon_result = db
+            .query(hackathon_query)
+            .bind(("hackathon_id", hackathon_id_clone.clone()))
+            .await
+            .map_err(|e| format!("Failed to fetch hackathon name: {}", e))?;
+        
+        #[derive(Debug, Serialize, Deserialize)]
+        struct HackathonName {
+            name: String,
+        }
+        
+        let hackathon_names: Vec<HackathonName> = hackathon_result
+            .take(0)
+            .map_err(|e| format!("Failed to parse hackathon name: {}", e))?;
+        
+        let hackathon_name = hackathon_names.first().map(|h| h.name.clone());
+        
+        // Get all registrations
         let query = r#"
             SELECT * FROM hackathon_registrations 
             WHERE hackathon_id = $hackathon_id 
             AND is_deleted = false
         "#;
 
-        let hackathon_id_clone = hackathon_id.clone();
         let mut result = db
             .query(query)
             .bind(("hackathon_id", hackathon_id_clone))
@@ -293,7 +340,7 @@ impl<'a> RegistrationsRepository<'a> {
         
         Ok(RegistrationStatsQueryDto {
             hackathon_id: hackathon_id_str,
-            hackathon_name: None, // TODO: Fetch if needed
+            hackathon_name,
             total_registrations: total,
             pending,
             approved,
