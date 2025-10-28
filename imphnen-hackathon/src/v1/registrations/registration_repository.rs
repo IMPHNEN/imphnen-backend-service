@@ -105,8 +105,7 @@ impl<'a> RegistrationsRepository<'a> {
                 WHERE hackathon_id = $hackathon_id 
                 AND status = $status
                 AND is_deleted = false
-                FETCH hackathon_id, user_id, team_id
-                ORDER BY registration_date DESC
+                FETCH hackathon_id, user_id, team_id;
             "#
         } else {
             r#"
@@ -129,8 +128,7 @@ impl<'a> RegistrationsRepository<'a> {
                 FROM hackathon_registrations
                 WHERE hackathon_id = $hackathon_id 
                 AND is_deleted = false
-                FETCH hackathon_id, user_id, team_id
-                ORDER BY registration_date DESC
+                FETCH hackathon_id, user_id, team_id;
             "#
         };
 
@@ -172,7 +170,7 @@ impl<'a> RegistrationsRepository<'a> {
             .map_err(|e| format!("Failed to parse registrations: {}", e))?;
 
         // Convert to full DTO with all fetched data
-        let registrations = simple
+        let mut registrations: Vec<RegistrationListQueryDto> = simple
             .into_iter()
             .map(|r| RegistrationListQueryDto {
                 id: r.id,
@@ -185,13 +183,16 @@ impl<'a> RegistrationsRepository<'a> {
                 team_name: r.team_name,
                 status: r.status,
                 role: r.role,
-                registration_date: r.registration_date,
+                registration_date: r.registration_date.clone(),
                 checked_in: r.checked_in,
                 check_in_time: r.check_in_time,
                 experience_level: r.experience_level,
                 skills: r.skills,
             })
             .collect();
+
+        // Sort by registration_date DESC (newest first)
+        registrations.sort_by(|a, b| b.registration_date.cmp(&a.registration_date));
 
         Ok(registrations)
     }
@@ -219,8 +220,7 @@ impl<'a> RegistrationsRepository<'a> {
             FROM hackathon_registrations
             WHERE user_id = $user_id 
             AND is_deleted = false
-            FETCH hackathon_id, team_id
-            ORDER BY registration_date DESC
+            FETCH hackathon_id, team_id;
         "#;
 
         let user_id_clone = user_id.clone();
@@ -251,7 +251,7 @@ impl<'a> RegistrationsRepository<'a> {
             .map_err(|e| format!("Failed to parse user hackathons: {}", e))?;
 
         // Convert to full DTO with all fetched data
-        let hackathons = simple
+        let mut hackathons: Vec<UserHackathonQueryDto> = simple
             .into_iter()
             .map(|h| UserHackathonQueryDto {
                 registration_id: h.registration_id,
@@ -262,12 +262,15 @@ impl<'a> RegistrationsRepository<'a> {
                 end_date: h.end_date,
                 status: h.status,
                 role: h.role,
-                registration_date: h.registration_date,
+                registration_date: h.registration_date.clone(),
                 checked_in: h.checked_in,
                 team_id: h.team_id,
                 team_name: h.team_name,
             })
             .collect();
+
+        // Sort by registration_date DESC (newest first)
+        hackathons.sort_by(|a, b| b.registration_date.cmp(&a.registration_date));
 
         Ok(hackathons)
     }

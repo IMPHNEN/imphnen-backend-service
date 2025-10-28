@@ -1,6 +1,6 @@
 use crate::v1::notifications::notification_schema::NotificationSchema;
 use imphnen_libs::AppState;
-use imphnen_utils::{get_id, make_thing};
+use imphnen_utils::get_id;
 use surrealdb::sql::Thing;
 
 pub struct Repository<'a> {

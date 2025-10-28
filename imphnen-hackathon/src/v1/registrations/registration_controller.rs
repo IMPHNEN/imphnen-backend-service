@@ -57,7 +57,7 @@ pub async fn post_register_hackathon(
     let hackathon_id = make_thing_from_enum(ResourceEnum::Hackathons, &id);
 
     let service = RegistrationsService::new(&state);
-    service.register_hackathon(&hackathon_id, &user_email, data).await
+    service.register_hackathon(&hackathon_id, &id, &user_email, data).await
 }
 
 // ============================================

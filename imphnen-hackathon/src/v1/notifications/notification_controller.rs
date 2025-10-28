@@ -1,17 +1,14 @@
 use super::notification_dto::{
-    DeleteNotificationResponseDto, MarkAllAsReadResponseDto, MarkAsReadResponseDto,
-    NotificationDto, NotificationListQueryDto, NotificationListResponseDto,
+    DeleteNotificationResponseDto, MarkAllAsReadResponseDto, MarkAsReadResponseDto, NotificationListQueryDto, NotificationListResponseDto,
     UnreadCountResponseDto,
 };
 use super::notification_service::Service;
 use axum::{
     extract::{Extension, Path, Query},
     http::{HeaderMap, Response, StatusCode},
-    response::IntoResponse,
     routing::{delete, get, put},
     Router, body::Body,
 };
-use imphnen_entities::common_dto::ResponseSuccessDto;
 use imphnen_libs::AppState;
 use imphnen_utils::{extract_email::extract_email, response_format::common_response};
 

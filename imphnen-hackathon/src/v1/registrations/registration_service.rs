@@ -32,6 +32,7 @@ impl<'a> RegistrationsService<'a> {
     pub async fn register_hackathon(
         &self,
         hackathon_id: &Thing,
+        hackathon_id_str: &str,
         user_email: &str,
         data: RegistrationRequestDto,
     ) -> Response {
@@ -47,14 +48,17 @@ impl<'a> RegistrationsService<'a> {
 
         // Check if hackathon exists
         let hackathon_repo = HackathonRepository::new(self.state);
-        match hackathon_repo.get_by_id(hackathon_id).await {
-            Ok(None) => {
-                return common_response(StatusCode::NOT_FOUND, "Hackathon not found");
-            }
+        // Use the raw string ID from the path parameter
+        match hackathon_repo.get_hackathon_by_id(hackathon_id_str.to_string()).await {
             Err(e) => {
+                // Method returns error if hackathon not found or is deleted
+                let error_msg = e.to_string();
+                if error_msg.contains("not found") || error_msg.contains("Hackathon not found") {
+                    return common_response(StatusCode::NOT_FOUND, "Hackathon not found");
+                }
                 return common_response(StatusCode::INTERNAL_SERVER_ERROR, &format!("Failed to verify hackathon: {}", e));
             }
-            Ok(Some(_)) => {} // Hackathon exists, continue
+            Ok(_) => {} // Hackathon exists, continue
         }
 
         // Check if user already registered
