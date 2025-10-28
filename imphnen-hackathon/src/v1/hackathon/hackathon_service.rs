@@ -14,9 +14,7 @@ use super::hackathon_schema::SubmissionStatus;
 use super::hackathon_audit_schema::{AuditAction, HackathonAuditLogSchema};
 use super::hackathon_audit_repository::HackathonAuditRepository;
 use super::hackathon_validation::{
-    can_transition_status, validate_dates, validate_organizers, 
-    validate_prizes, validate_ready_for_registration, validate_timeline_phases,
-    validate_can_delete, validate_registration_allowed, validate_submission_allowed,
+    validate_dates, validate_organizers, validate_prizes,
 };
 use crate::{AppState, ResponseSuccessDto, ErrorDto};
 use imphnen_utils::{validator::validate_request};

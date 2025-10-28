@@ -3,7 +3,6 @@ use super::hackathon_dto::{
     HackathonTimelineCreateRequestDto,
 };
 use super::hackathon_repository::HackathonRepository;
-use super::hackathon_schema::{HackathonSchema, HackathonEventsSchema, HackathonTimelineSchema};
 use super::hackathon_audit_schema::{AuditAction, HackathonAuditLogSchema};
 use super::hackathon_audit_repository::HackathonAuditRepository;
 use super::hackathon_validation::{validate_timeline_phases, validate_dates, validate_organizers, validate_prizes, MAX_EVENTS_PER_HACKATHON};

@@ -12,7 +12,7 @@ use super::hackathon_atomic_service::{HackathonAtomicService, HackathonCompleteS
 use crate::v1::hackathon::HackathonRepository;
 use crate::{AppState, ResponseSuccessDto, ErrorDto};
 use imphnen_entities::{PermissionsEnum, UsersDetailQueryDto};
-use imphnen_libs::{MetaRequestDto, ResponseListSuccessDto, jsonwebtoken::Claims};
+use imphnen_libs::{MetaRequestDto, ResponseListSuccessDto};
 use axum::{
     extract::{Extension, Path, Query},
     http::StatusCode,
@@ -1165,22 +1165,7 @@ pub async fn change_hackathon_status(
         }
     }
     
-    // Update status
-    let update_dto = HackathonUpdateRequestDto {
-        name: None,
-        description: None,
-        start_date: None,
-        end_date: None,
-        registration_deadline: None,
-        max_participants: None,
-        theme: None,
-        rules: None,
-        prizes: None,
-        previous_winners: None,
-        organizers: None,
-    };
-    
-    // Manually update status in repository
+    // Update status in repository
     let updated = match repo.update_hackathon_status(id.clone(), payload.status.clone()).await {
         Ok(h) => h,
         Err(e) => {
