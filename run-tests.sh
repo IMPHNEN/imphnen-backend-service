@@ -28,7 +28,7 @@ while getopts "s:" opt; do
     \?)
       echo "Usage: $0 [-s suite_name]"
       echo "  -s suite_name: Run only a specific test suite"
-      echo "  Available suites: auth, users, roles, teams, security, mentors, cms, gacha, hackathon"
+      echo "  Available suites: auth, users, roles, teams, security, mentors, cms, gacha, hackathon, registrations, notifications"
       exit 1
       ;;
   esac
@@ -246,9 +246,15 @@ if [ -n "$SPECIFIC_SUITE" ]; then
     hackathon)
       run_test_suite "Hackathon - Full Suite" "$SCRIPT_DIR/tests/hackathon/test-hackathon.sh"
       ;;
+    registrations)
+      run_test_suite "Hackathon - Registrations" "$SCRIPT_DIR/tests/hackathon/test-registrations.sh"
+      ;;
+    notifications)
+      run_test_suite "Hackathon - Notifications" "$SCRIPT_DIR/tests/hackathon/test-notifications.sh"
+      ;;
     *)
       echo -e "${RED}Unknown suite: $SPECIFIC_SUITE${NC}"
-      echo -e "${YELLOW}Available suites: auth, users, roles, teams, security, mentors, cms, gacha, hackathon${NC}"
+      echo -e "${YELLOW}Available suites: auth, users, roles, teams, security, mentors, cms, gacha, hackathon, registrations, notifications${NC}"
       cleanup
       exit 1
       ;;
@@ -264,6 +270,8 @@ else
   run_test_suite "CMS - Events & Testimonials" "$SCRIPT_DIR/tests/cms/test-cms.sh"
   run_test_suite "Gacha - Items & Rolls" "$SCRIPT_DIR/tests/gacha/test-gacha.sh"
   run_test_suite "Hackathon - Full Suite" "$SCRIPT_DIR/tests/hackathon/test-hackathon.sh"
+  run_test_suite "Hackathon - Registrations" "$SCRIPT_DIR/tests/hackathon/test-registrations.sh"
+  run_test_suite "Hackathon - Notifications" "$SCRIPT_DIR/tests/hackathon/test-notifications.sh"
 fi
 
 END_TIME=$(date +%s)

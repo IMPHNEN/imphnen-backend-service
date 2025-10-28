@@ -168,8 +168,8 @@ pub async fn get_unread_count_handler(
 pub fn notifications_router() -> Router {
     Router::new()
         .route("/notifications", get(get_notifications_handler))
-        .route("/notifications/:id/read", put(mark_as_read_handler))
+        .route("/notifications/{id}/read", put(mark_as_read_handler))
         .route("/notifications/read-all", put(mark_all_as_read_handler))
-        .route("/notifications/:id", delete(delete_notification_handler))
+        .route("/notifications/{id}", delete(delete_notification_handler))
         .route("/notifications/unread/count", get(get_unread_count_handler))
 }

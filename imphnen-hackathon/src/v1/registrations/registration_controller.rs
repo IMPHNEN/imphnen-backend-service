@@ -268,23 +268,23 @@ pub async fn get_registration_stats(
 pub fn registrations_router() -> Router {
     Router::new()
         .route(
-            "/hackathons/:id/register",
+            "/hackathons/{id}/register",
             post(post_register_hackathon),
         )
         .route(
-            "/hackathons/:id/registrations",
+            "/hackathons/{id}/registrations",
             get(get_hackathon_registrations),
         )
         .route(
-            "/hackathons/:id/registrations/stats",
+            "/hackathons/{id}/registrations/stats",
             get(get_registration_stats),
         )
         .route(
-            "/hackathons/:hackathon_id/registrations/:registration_id/status",
+            "/hackathons/{hackathon_id}/registrations/{registration_id}/status",
             put(put_update_registration_status),
         )
         .route(
-            "/hackathons/:hackathon_id/registrations/:registration_id/check-in",
+            "/hackathons/{hackathon_id}/registrations/{registration_id}/check-in",
             post(post_check_in_participant),
         )
         .route("/users/me/hackathons", get(get_my_hackathons))

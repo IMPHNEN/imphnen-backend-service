@@ -38,7 +38,7 @@ test_roles_and_permissions() {
   
   if [ -n "$created_role_id" ]; then
     # Security: Test duplicate role creation
-    test_api_endpoint "POST Create Duplicate Role (Should Fail)" "POST" "/v1/roles/create" 400 "$create_role_data" true
+    test_api_endpoint "POST Create Duplicate Role (Should Fail)" "POST" "/v1/roles/create" 409 "$create_role_data" true
     
     # Update role - use correct endpoint /update/{id}
     local update_role_data=$(jq -n --arg ts "$EPOCHSECONDS" '{

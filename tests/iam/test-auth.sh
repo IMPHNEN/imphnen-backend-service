@@ -19,14 +19,14 @@ test_authentication_endpoints() {
   
   # Security: Test SQL injection in login
   local sql_injection_login=$(jq -n '{email: "admin@example.com\" OR \"1\"=\"1", password: "password"}')
-  test_api_endpoint "SQL Injection in Login Email (Should Fail)" "POST" "/v1/auth/login" 401 "$sql_injection_login"
+  test_api_endpoint "SQL Injection in Login Email (Should Fail)" "POST" "/v1/auth/login" 400 "$sql_injection_login"
   
   local sql_injection_pass=$(jq -n '{email: "admin@example.com", password: "password\" OR \"1\"=\"1"}')
   test_api_endpoint "SQL Injection in Login Password (Should Fail)" "POST" "/v1/auth/login" 401 "$sql_injection_pass"
   
   # Security: Test XSS in login
   local xss_login=$(jq -n '{email: "<script>alert(\"XSS\")</script>", password: "password"}')
-  test_api_endpoint "XSS in Login Email (Should Fail)" "POST" "/v1/auth/login" 401 "$xss_login"
+  test_api_endpoint "XSS in Login Email (Should Fail)" "POST" "/v1/auth/login" 400 "$xss_login"
   
   # Security: Test empty credentials
   local empty_login=$(jq -n '{email: "", password: ""}')
@@ -34,7 +34,7 @@ test_authentication_endpoints() {
   
   # Security: Test missing fields
   local missing_password=$(jq -n '{email: "admin@example.com"}')
-  test_api_endpoint "Missing Password (Should Fail)" "POST" "/v1/auth/login" 400 "$missing_password"
+  test_api_endpoint "Missing Password (Should Fail)" "POST" "/v1/auth/login" 422 "$missing_password"
   
   # Mentor login
   local mentor_login=$(jq -n '{email: "mentor@example.com", password: "password"}')

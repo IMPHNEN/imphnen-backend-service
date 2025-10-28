@@ -1,4 +1,4 @@
-use super::{RegistrationListQueryDto, RegistrationSchema, RegistrationStatus, UserHackathonQueryDto};
+use super::{ParticipantRole, RegistrationListQueryDto, RegistrationSchema, RegistrationStatus, UserHackathonQueryDto};
 use imphnen_libs::AppState;
 use imphnen_utils::get_id;
 use serde::{Deserialize, Serialize};
@@ -82,17 +82,14 @@ impl<'a> RegistrationsRepository<'a> {
     ) -> Result<Vec<RegistrationListQueryDto>, String> {
         let db = &self.state.surrealdb_ws;
         
+        // Use string::join with coalesce to handle NULL team_id
         let query = if status_filter.is_some() {
             r#"
                 SELECT 
-                    id,
-                    hackathon_id,
-                    (SELECT name FROM $parent.hackathon_id)[0].name AS hackathon_name,
-                    user_id,
-                    (SELECT fullname FROM $parent.user_id)[0].fullname AS user_fullname,
-                    (SELECT email FROM $parent.user_id)[0].email AS user_email,
-                    team_id,
-                    (SELECT name FROM $parent.team_id)[0].name AS team_name,
+                    string::join(':', id.tb, id.id) AS id,
+                    string::join(':', hackathon_id.tb, hackathon_id.id) AS hackathon_id,
+                    string::join(':', user_id.tb, user_id.id) AS user_id,
+                    (IF team_id != NONE THEN string::join(':', team_id.tb, team_id.id) ELSE NONE END) AS team_id,
                     status,
                     role,
                     registration_date,
@@ -109,14 +106,10 @@ impl<'a> RegistrationsRepository<'a> {
         } else {
             r#"
                 SELECT 
-                    id,
-                    hackathon_id,
-                    (SELECT name FROM $parent.hackathon_id)[0].name AS hackathon_name,
-                    user_id,
-                    (SELECT fullname FROM $parent.user_id)[0].fullname AS user_fullname,
-                    (SELECT email FROM $parent.user_id)[0].email AS user_email,
-                    team_id,
-                    (SELECT name FROM $parent.team_id)[0].name AS team_name,
+                    string::join(':', id.tb, id.id) AS id,
+                    string::join(':', hackathon_id.tb, hackathon_id.id) AS hackathon_id,
+                    string::join(':', user_id.tb, user_id.id) AS user_id,
+                    (IF team_id != NONE THEN string::join(':', team_id.tb, team_id.id) ELSE NONE END) AS team_id,
                     status,
                     role,
                     registration_date,
@@ -144,9 +137,47 @@ impl<'a> RegistrationsRepository<'a> {
         }
         .map_err(|e| format!("Failed to query hackathon registrations: {}", e))?;
 
-        let registrations: Vec<RegistrationListQueryDto> = result
+        // Use intermediate struct for parsing (without optional name fields)
+        #[derive(Debug, Serialize, Deserialize)]
+        struct SimpleReg {
+            id: String,
+            hackathon_id: String,
+            user_id: String,
+            team_id: Option<String>,
+            status: RegistrationStatus,
+            role: ParticipantRole,
+            registration_date: String,
+            checked_in: bool,
+            check_in_time: Option<String>,
+            experience_level: Option<String>,
+            skills: Option<Vec<String>>,
+        }
+
+        let simple: Vec<SimpleReg> = result
             .take(0)
             .map_err(|e| format!("Failed to parse registrations: {}", e))?;
+
+        // Convert to full DTO (name fields will be None for now)
+        let registrations = simple
+            .into_iter()
+            .map(|r| RegistrationListQueryDto {
+                id: r.id,
+                hackathon_id: r.hackathon_id,
+                hackathon_name: None, // TODO: Fetch separately if needed
+                user_id: r.user_id,
+                user_fullname: None, // TODO: Fetch separately if needed
+                user_email: None, // TODO: Fetch separately if needed
+                team_id: r.team_id,
+                team_name: None, // TODO: Fetch separately if needed
+                status: r.status,
+                role: r.role,
+                registration_date: r.registration_date,
+                checked_in: r.checked_in,
+                check_in_time: r.check_in_time,
+                experience_level: r.experience_level,
+                skills: r.skills,
+            })
+            .collect();
 
         Ok(registrations)
     }
@@ -156,20 +187,16 @@ impl<'a> RegistrationsRepository<'a> {
     // ============================================
     pub async fn query_user_hackathons(&self, user_id: &Thing) -> Result<Vec<UserHackathonQueryDto>, String> {
         let db = &self.state.surrealdb_ws;
+        // Use string::join with IF to handle NULL team_id
         let query = r#"
             SELECT 
-                id AS registration_id,
-                hackathon_id,
-                (SELECT name FROM $parent.hackathon_id)[0].name AS hackathon_name,
-                (SELECT description FROM $parent.hackathon_id)[0].description AS hackathon_description,
-                (SELECT start_date FROM $parent.hackathon_id)[0].start_date AS start_date,
-                (SELECT end_date FROM $parent.hackathon_id)[0].end_date AS end_date,
+                string::join(':', id.tb, id.id) AS registration_id,
+                string::join(':', hackathon_id.tb, hackathon_id.id) AS hackathon_id,
                 status,
                 role,
                 registration_date,
                 checked_in,
-                team_id,
-                (SELECT name FROM $parent.team_id)[0].name AS team_name
+                (IF team_id != NONE THEN string::join(':', team_id.tb, team_id.id) ELSE NONE END) AS team_id
             FROM hackathon_registrations
             WHERE user_id = $user_id 
             AND is_deleted = false
@@ -183,9 +210,39 @@ impl<'a> RegistrationsRepository<'a> {
             .await
             .map_err(|e| format!("Failed to query user hackathons: {}", e))?;
 
-        let hackathons: Vec<UserHackathonQueryDto> = result
+        #[derive(Debug, Serialize, Deserialize)]
+        struct SimpleUserHackathon {
+            registration_id: String,
+            hackathon_id: String,
+            status: RegistrationStatus,
+            role: ParticipantRole,
+            registration_date: String,
+            checked_in: bool,
+            team_id: Option<String>,
+        }
+
+        let simple: Vec<SimpleUserHackathon> = result
             .take(0)
             .map_err(|e| format!("Failed to parse user hackathons: {}", e))?;
+
+        // Convert to full DTO (name/desc fields will be None for now)
+        let hackathons = simple
+            .into_iter()
+            .map(|h| UserHackathonQueryDto {
+                registration_id: h.registration_id,
+                hackathon_id: h.hackathon_id,
+                hackathon_name: None, // TODO: Fetch separately if needed
+                hackathon_description: None, // TODO: Fetch separately if needed
+                start_date: None, // TODO: Fetch separately if needed
+                end_date: None, // TODO: Fetch separately if needed
+                status: h.status,
+                role: h.role,
+                registration_date: h.registration_date,
+                checked_in: h.checked_in,
+                team_id: h.team_id,
+                team_name: None, // TODO: Fetch separately if needed
+            })
+            .collect();
 
         Ok(hackathons)
     }
@@ -195,22 +252,12 @@ impl<'a> RegistrationsRepository<'a> {
     // ============================================
     pub async fn query_registration_stats(&self, hackathon_id: &Thing) -> Result<RegistrationStatsQueryDto, String> {
         let db = &self.state.surrealdb_ws;
+        
+        // Get all registrations first
         let query = r#"
-            LET $hackathon = (SELECT name FROM $hackathon_id)[0].name;
-            LET $regs = (SELECT * FROM hackathon_registrations WHERE hackathon_id = $hackathon_id AND is_deleted = false);
-            RETURN {
-                hackathon_id: $hackathon_id,
-                hackathon_name: $hackathon,
-                total_registrations: count($regs),
-                pending: count($regs[WHERE status = 'pending']),
-                approved: count($regs[WHERE status = 'approved']),
-                rejected: count($regs[WHERE status = 'rejected']),
-                waitlisted: count($regs[WHERE status = 'waitlisted']),
-                cancelled: count($regs[WHERE status = 'cancelled']),
-                checked_in: count($regs[WHERE checked_in = true]),
-                team_registrations: count($regs[WHERE team_id != NONE]),
-                individual_registrations: count($regs[WHERE team_id = NONE])
-            };
+            SELECT * FROM hackathon_registrations 
+            WHERE hackathon_id = $hackathon_id 
+            AND is_deleted = false
         "#;
 
         let hackathon_id_clone = hackathon_id.clone();
@@ -218,13 +265,45 @@ impl<'a> RegistrationsRepository<'a> {
             .query(query)
             .bind(("hackathon_id", hackathon_id_clone))
             .await
-            .map_err(|e| format!("Failed to query registration stats: {}", e))?;
+            .map_err(|e| format!("Failed to query registrations for stats: {}", e))?;
 
-        let stats: Option<RegistrationStatsQueryDto> = result
+        #[derive(Debug, Serialize, Deserialize)]
+        struct RegForStats {
+            status: RegistrationStatus,
+            checked_in: bool,
+            team_id: Option<String>,
+        }
+
+        let regs: Vec<RegForStats> = result
             .take(0)
-            .map_err(|e| format!("Failed to parse registration stats: {}", e))?;
+            .map_err(|e| format!("Failed to parse registrations for stats: {}", e))?;
 
-        stats.ok_or_else(|| "Stats query returned None".to_string())
+        // Calculate stats manually
+        let total = regs.len();
+        let pending = regs.iter().filter(|r| matches!(r.status, RegistrationStatus::Pending)).count();
+        let approved = regs.iter().filter(|r| matches!(r.status, RegistrationStatus::Approved)).count();
+        let rejected = regs.iter().filter(|r| matches!(r.status, RegistrationStatus::Rejected)).count();
+        let waitlisted = regs.iter().filter(|r| matches!(r.status, RegistrationStatus::Waitlisted)).count();
+        let cancelled = regs.iter().filter(|r| matches!(r.status, RegistrationStatus::Cancelled)).count();
+        let checked_in = regs.iter().filter(|r| r.checked_in).count();
+        let team_registrations = regs.iter().filter(|r| r.team_id.is_some()).count();
+        let individual_registrations = regs.iter().filter(|r| r.team_id.is_none()).count();
+
+        let hackathon_id_str = format!("{}", hackathon_id);
+        
+        Ok(RegistrationStatsQueryDto {
+            hackathon_id: hackathon_id_str,
+            hackathon_name: None, // TODO: Fetch if needed
+            total_registrations: total,
+            pending,
+            approved,
+            rejected,
+            waitlisted,
+            cancelled,
+            checked_in,
+            team_registrations,
+            individual_registrations,
+        })
     }
 
     // ============================================

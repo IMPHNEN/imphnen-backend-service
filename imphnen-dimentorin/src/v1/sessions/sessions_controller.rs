@@ -283,15 +283,15 @@ pub async fn get_my_sessions(
 pub fn sessions_router() -> Router {
     Router::new()
         // Book session (under mentors path)
-        .route("/mentors/:id/sessions/book", post(post_book_session))
+        .route("/mentors/{id}/sessions/book", post(post_book_session))
         // Get mentor's sessions
-        .route("/mentors/:id/sessions", get(get_mentor_sessions))
+        .route("/mentors/{id}/sessions", get(get_mentor_sessions))
         // Get mentor availability (public - no auth)
-        .route("/mentors/:id/availability", get(get_mentor_availability))
+        .route("/mentors/{id}/availability", get(get_mentor_availability))
         // Update session status
-        .route("/sessions/:id/status", put(put_update_session_status))
+        .route("/sessions/{id}/status", put(put_update_session_status))
         // Submit feedback
-        .route("/sessions/:id/feedback", post(post_submit_feedback))
+        .route("/sessions/{id}/feedback", post(post_submit_feedback))
         // Get my sessions
         .route("/users/me/sessions", get(get_my_sessions))
 }
