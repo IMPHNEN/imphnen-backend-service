@@ -80,7 +80,7 @@ pub async fn get_team_list(
 
 #[utoipa::path(
   get,
-  path = "/v1/teams/{id}",
+  path = "/v1/teams/detail/{id}",
   params(
     ("id" = String, Path, description = "Team ID")
   ),
@@ -160,7 +160,7 @@ pub async fn put_update_team(
 	security(
 		("Bearer" = [])
 	),
-	path = "/v1/teams/{id}/members",
+	path = "/v1/teams/{id}/members/create",
 	params(
 		("id" = String, Path, description = "Team ID")
 	),
@@ -220,7 +220,7 @@ pub async fn post_add_team_member(
 	security(
 		("Bearer" = [])
 	),
-	path = "/v1/teams/{id}/members/{user_id}",
+	path = "/v1/teams/{id}/members/delete/{user_id}",
 	params(
 		("id" = String, Path, description = "Team ID"),
 		("user_id" = String, Path, description = "User ID to remove")
@@ -273,7 +273,7 @@ pub async fn delete_remove_team_member(
 	security(
 		("Bearer" = [])
 	),
-	path = "/v1/teams/{id}/members/{user_id}/role",
+	path = "/v1/teams/{id}/members/update/{user_id}/role",
 	params(
 		("id" = String, Path, description = "Team ID"),
 		("user_id" = String, Path, description = "User ID")
@@ -529,7 +529,7 @@ pub async fn get_team_invitations(
 	security(
 		("Bearer" = [])
 	),
-	path = "/v1/teams/invitations/{token}",
+	path = "/v1/teams/invitations/delete/{token}",
 	params(
 		("token" = String, Path, description = "Invitation token")
 	),
@@ -652,7 +652,7 @@ pub async fn get_admin_team_members(
 pub fn teams_router() -> Router {
 	Router::new()
 		.route("/", axum::routing::get(get_team_list))
-		.route("/{id}", axum::routing::get(get_team_by_id))
+		.route("/detail/{id}", axum::routing::get(get_team_by_id))
 		.route("/create", axum::routing::post(post_create_team))
 		.route("/update/{id}", axum::routing::put(put_update_team))
 		.route("/delete/{id}", axum::routing::delete(delete_team))
@@ -660,11 +660,11 @@ pub fn teams_router() -> Router {
 		.route("/accept/{token}", axum::routing::post(post_accept_invitation))
 		.route("/search", axum::routing::get(get_public_team_search))
 		.route("/{id}/members", axum::routing::get(get_team_members))
-			.route("/{id}/members", axum::routing::post(post_add_team_member))
-			.route("/{id}/members/{user_id}", axum::routing::delete(delete_remove_team_member))
-			.route("/{id}/members/{user_id}/role", axum::routing::put(put_update_member_role))
+		.route("/{id}/members/create", axum::routing::post(post_add_team_member))
+		.route("/{id}/members/delete/{user_id}", axum::routing::delete(delete_remove_team_member))
+		.route("/{id}/members/update/{user_id}/role", axum::routing::put(put_update_member_role))
 		.route("/{id}/invitations", axum::routing::get(get_team_invitations))
-		.route("/invitations/{token}", axum::routing::delete(delete_invitation))
+		.route("/invitations/delete/{token}", axum::routing::delete(delete_invitation))
 		.route("/{id}/leave", axum::routing::post(post_leave_team))
 		.route("/leave-me", axum::routing::post(post_leave_current_team))
 		.route("/me", axum::routing::get(get_my_team))

@@ -4,6 +4,9 @@
 # IMPHNEN API Test Runner - Modular Test Suite
 # ==============================================================================
 
+# Disable MSYS path conversion for Windows compatibility
+export MSYS_NO_PATHCONV=1
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE_URL="${BASE_URL:-http://127.0.0.1:4099}"
 TEST_EMAIL="${TEST_EMAIL:-admin@example.com}"
@@ -64,23 +67,49 @@ echo -e "${YELLOW}Starting API server...${NC}"
 
 # Force kill any existing api processes first
 echo -e "${CYAN}Cleaning up any existing API processes...${NC}"
-ps aux | grep "target/release/api" | grep -v grep | awk '{print $1}' | xargs kill -9 2>/dev/null || true
-ps aux | grep "cargo run --bin api" | grep -v grep | awk '{print $1}' | xargs kill -9 2>/dev/null || true
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" || "$OSTYPE" == "cygwin" ]]; then
+  # Windows - use taskkill
+  taskkill //F //IM api.exe 2>/dev/null || true
+else
+  # Linux/Mac - use kill
+  ps aux | grep "target/release/api" | grep -v grep | awk '{print $2}' | xargs kill -9 2>/dev/null || true
+  ps aux | grep "cargo run --bin api" | grep -v grep | awk '{print $2}' | xargs kill -9 2>/dev/null || true
+fi
 sleep 2
 
-echo -e "${CYAN}Building server in release mode...${NC}"
-cargo build --bin api --release
+# Check if binary already exists - detect Windows environment
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" || "$OSTYPE" == "cygwin" ]]; then
+  API_BINARY="./target/release/api.exe"
+else
+  API_BINARY="./target/release/api"
+fi
 
-if [ $? -ne 0 ]; then
-  echo -e "${RED}Failed to compile server${NC}"
-  exit 1
+if [ ! -f "$API_BINARY" ]; then
+  echo -e "${CYAN}Building server in release mode...${NC}"
+  # Ensure cargo is in PATH
+  export PATH="$HOME/.cargo/bin:/c/Users/$USER/.cargo/bin:$PATH"
+  cargo build --bin api --release
+
+  if [ $? -ne 0 ]; then
+    echo -e "${RED}Failed to compile server${NC}"
+    exit 1
+  fi
+else
+  echo -e "${CYAN}Using existing binary: $API_BINARY${NC}"
 fi
   
 echo -e "${CYAN}Starting server in background...${NC}"
 
-# Start server directly from binary in background
-nohup ./target/release/api > server.log 2>&1 &
-SERVER_PID=$!
+# Detect OS and use appropriate binary
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" || "$OSTYPE" == "cygwin" ]]; then
+  # Windows - start .exe directly
+  ./target/release/api.exe > server.log 2>&1 &
+  SERVER_PID=$!
+else
+  # Linux/Mac - use nohup
+  nohup ./target/release/api > server.log 2>&1 &
+  SERVER_PID=$!
+fi
 
 echo -e "${CYAN}Server started with PID: $SERVER_PID${NC}"
   
@@ -90,7 +119,7 @@ MAX_WAIT=30
 WAIT_COUNT=0
 while true; do
   # Check if any HTTP status code is returned (even 404/405 means server is up)
-  HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/v1/auth/login" 2>/dev/null || echo "000")
+  HTTP_CODE=$(MSYS_NO_PATHCONV=1 curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/health" 2>/dev/null || echo "000")
   if [ "$HTTP_CODE" != "000" ] && [ "$HTTP_CODE" != "" ]; then
     break
   fi
@@ -102,7 +131,11 @@ while true; do
     echo -e "${RED}Server log:${NC}"
     tail -20 server.log
     if [ -n "$SERVER_PID" ]; then
-      kill $SERVER_PID 2>/dev/null
+      if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" || "$OSTYPE" == "cygwin" ]]; then
+        taskkill //F //PID $SERVER_PID 2>/dev/null || true
+      else
+        kill $SERVER_PID 2>/dev/null
+      fi
     fi
     exit 1
   fi
@@ -123,11 +156,17 @@ echo ""
 cleanup() {
   if [ -n "$SERVER_PID" ]; then
     echo -e "\n${YELLOW}Stopping server (PID: $SERVER_PID)...${NC}"
-    kill $SERVER_PID 2>/dev/null
-    sleep 1
-    # Force kill if still running
-    if kill -0 $SERVER_PID 2>/dev/null; then
-      kill -9 $SERVER_PID 2>/dev/null
+    if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" || "$OSTYPE" == "cygwin" ]]; then
+      # Windows - use taskkill
+      taskkill //F //PID $SERVER_PID 2>/dev/null || true
+    else
+      # Linux/Mac - use kill
+      kill $SERVER_PID 2>/dev/null
+      sleep 1
+      # Force kill if still running
+      if kill -0 $SERVER_PID 2>/dev/null; then
+        kill -9 $SERVER_PID 2>/dev/null
+      fi
     fi
     echo -e "${GREEN}✓ Server stopped${NC}"
   fi
@@ -183,17 +222,18 @@ run_test_suite() {
     local suite_exit=1
   fi
   
-  # Extract test counts from output (use API Requests line for accurate count)
-  local api_line=$(grep -oP "API Requests: \K\d+ \(Passed: \d+, Failed: \d+\)" "$output_file" | tail -1 || echo "0 (Passed: 0, Failed: 0)")
-  local suite_total=$(echo "$api_line" | grep -oP "^\d+" || echo "0")
-  local suite_passed=$(echo "$api_line" | grep -oP "Passed: \K\d+" || echo "0")
-  local suite_failed=$(echo "$api_line" | grep -oP "Failed: \K\d+" || echo "0")
+  # Extract test counts from output (prioritize Total Tests from summary)
+  # Look for the test summary block specifically
+  suite_total=$(grep -A 3 "=== Test Summary ===" "$output_file" | grep -oP "Total Tests: \K\d+" | tail -1 || echo "0")
+  suite_passed=$(grep -A 3 "=== Test Summary ===" "$output_file" | grep -oP "Passed: \K\d+" | tail -1 || echo "0")
+  suite_failed=$(grep -A 3 "=== Test Summary ===" "$output_file" | grep -oP "Failed: \K\d+" | tail -1 || echo "0")
   
-  # If no API line found, try Total Tests line as fallback
+  # If no Test Summary found, try API Requests line as fallback
   if [ "$suite_total" = "0" ]; then
-    suite_total=$(grep -oP "Total Tests: \K\d+" "$output_file" | tail -1 || echo "0")
-    suite_passed=$(grep -oP "^Passed: \K\d+" "$output_file" | tail -1 || echo "0")
-    suite_failed=$(grep -oP "^Failed: \K\d+" "$output_file" | tail -1 || echo "0")
+    local api_line=$(grep -oP "API Requests: \K\d+ \(Passed: \d+, Failed: \d+\)" "$output_file" | tail -1 || echo "0 (Passed: 0, Failed: 0)")
+    suite_total=$(echo "$api_line" | grep -oP "^\d+" || echo "0")
+    suite_passed=$(echo "$api_line" | grep -oP "Passed: \K\d+" || echo "0")
+    suite_failed=$(echo "$api_line" | grep -oP "Failed: \K\d+" || echo "0")
   fi
   
   # Store suite test counts

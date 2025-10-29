@@ -4,7 +4,8 @@
 # Common Functions and Variables for IMPHNEN API Tests
 # ==============================================================================
 
-#!/bin/bash
+# Disable MSYS path conversion for Windows compatibility
+export MSYS_NO_PATHCONV=1
 
 # Common configuration and functions for API testing
 
@@ -158,6 +159,7 @@ test_api_endpoint() {
   local temp_file=$(mktemp)
   local status_file=$(mktemp)
   
+  # MSYS path conversion disabled via export at top of file
   curl -s -X "$method" "${headers[@]}" -d "$body" "$BASE_URL$endpoint" \
     -D "$status_file" -o "$temp_file"
   
@@ -236,6 +238,7 @@ get_auth_token() {
   local temp_file=$(mktemp)
   local status_file=$(mktemp)
   
+  # MSYS path conversion disabled via export at top of file
   curl -s -X "POST" -H "Content-Type: application/json" -d "$login_data" "$BASE_URL/v1/auth/login" \
     -D "$status_file" -o "$temp_file"
   

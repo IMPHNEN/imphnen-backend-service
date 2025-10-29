@@ -58,6 +58,10 @@ pub trait HackathonServiceTrait: Send + Sync + 'static {
         payload: HackathonEventCreateRequestDto,
         state: &AppState,
     ) -> Pin<Box<dyn Future<Output = Result<ResponseSuccessDto<HackathonEventDto>, ErrorDto>> + Send>>;
+    fn get_hackathon_event(
+        id: String,
+        state: &AppState,
+    ) -> Pin<Box<dyn Future<Output = Result<ResponseSuccessDto<HackathonEventDto>, ErrorDto>> + Send>>;
     fn list_hackathon_events(
         meta: MetaRequestDto,
         hackathon_id: String,
@@ -77,6 +81,10 @@ pub trait HackathonServiceTrait: Send + Sync + 'static {
     fn create_hackathon_timeline(
         hackathon_id: String,
         payload: HackathonTimelineCreateRequestDto,
+        state: &AppState,
+    ) -> Pin<Box<dyn Future<Output = Result<ResponseSuccessDto<HackathonTimelineDto>, ErrorDto>> + Send>>;
+    fn get_hackathon_timeline(
+        id: String,
         state: &AppState,
     ) -> Pin<Box<dyn Future<Output = Result<ResponseSuccessDto<HackathonTimelineDto>, ErrorDto>> + Send>>;
     fn list_hackathon_timeline(
@@ -503,6 +511,40 @@ impl HackathonServiceTrait for HackathonService {
         })
     }
 
+    fn get_hackathon_event(
+        id: String,
+        state: &AppState,
+    ) -> Pin<Box<dyn Future<Output = Result<ResponseSuccessDto<HackathonEventDto>, ErrorDto>> + Send>> {
+        let state = state.to_owned();
+        Box::pin(async move {
+            let repo = HackathonRepository::new(&state);
+
+            match repo.get_hackathon_event_by_id(id).await {
+                Ok(event) => {
+                    let dto = HackathonEventDto::from(event);
+                    Ok(ResponseSuccessDto { data: dto })
+                }
+                Err(e) => {
+                    let error_msg = e.to_string();
+                    if error_msg.contains("not found") {
+                        Err(ErrorDto {
+                            status: StatusCode::NOT_FOUND.as_u16(),
+                            message: "Event not found".to_string(),
+                            details: None,
+                        })
+                    } else {
+                        error!("Failed to get event: {}", e);
+                        Err(ErrorDto {
+                            status: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+                            message: "Failed to get event".to_string(),
+                            details: None,
+                        })
+                    }
+                }
+            }
+        })
+    }
+
     fn list_hackathon_events(
         meta: MetaRequestDto,
         hackathon_id: String,
@@ -657,6 +699,40 @@ impl HackathonServiceTrait for HackathonService {
                         message: "Failed to create hackathon timeline".to_string(),
                         details: None,
                     })
+                }
+            }
+        })
+    }
+
+    fn get_hackathon_timeline(
+        id: String,
+        state: &AppState,
+    ) -> Pin<Box<dyn Future<Output = Result<ResponseSuccessDto<HackathonTimelineDto>, ErrorDto>> + Send>> {
+        let state = state.to_owned();
+        Box::pin(async move {
+            let repo = HackathonRepository::new(&state);
+
+            match repo.get_hackathon_timeline_by_id(id).await {
+                Ok(timeline) => {
+                    let dto = HackathonTimelineDto::from(timeline);
+                    Ok(ResponseSuccessDto { data: dto })
+                }
+                Err(e) => {
+                    let error_msg = e.to_string();
+                    if error_msg.contains("not found") {
+                        Err(ErrorDto {
+                            status: StatusCode::NOT_FOUND.as_u16(),
+                            message: "Timeline not found".to_string(),
+                            details: None,
+                        })
+                    } else {
+                        error!("Failed to get timeline: {}", e);
+                        Err(ErrorDto {
+                            status: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+                            message: "Failed to get timeline".to_string(),
+                            details: None,
+                        })
+                    }
                 }
             }
         })

@@ -18,11 +18,11 @@ use super::{
 };
 
 // ============================================
-// POST /v1/hackathons/{id}/register
+// POST /v1/hackathons/{id}/registrations/create
 // ============================================
 #[utoipa::path(
     post,
-    path = "/v1/hackathons/{id}/register",
+    path = "/v1/hackathons/{id}/registrations/create",
     tag = "registrations",
     summary = "Register for a hackathon",
     description = "Submit a registration for a hackathon. User must be authenticated.",
@@ -137,14 +137,14 @@ pub async fn get_my_hackathons(
 }
 
 // ============================================
-// PUT /v1/hackathons/{hackathon_id}/registrations/{registration_id}/status
+// PUT /v1/hackathons/{hackathon_id}/registrations/update/{registration_id}/status
 // ============================================
 #[utoipa::path(
     put,
-    path = "/v1/hackathons/{hackathon_id}/registrations/{registration_id}/status",
+    path = "/v1/hackathons/{hackathon_id}/registrations/update/{registration_id}/status",
     tag = "registrations",
     summary = "Update registration status",
-    description = "Approve, reject, or update the status of a registration. Requires admin/organizer permissions.",
+    description = "Update the status of a hackathon registration (admin/organizer only).",
     params(
         ("hackathon_id" = String, Path, description = "Hackathon ID"),
         ("registration_id" = String, Path, description = "Registration ID")
@@ -268,7 +268,7 @@ pub async fn get_registration_stats(
 pub fn registrations_router() -> Router {
     Router::new()
         .route(
-            "/hackathons/{id}/register",
+            "/hackathons/{id}/registrations/create",
             post(post_register_hackathon),
         )
         .route(
@@ -280,7 +280,7 @@ pub fn registrations_router() -> Router {
             get(get_registration_stats),
         )
         .route(
-            "/hackathons/{hackathon_id}/registrations/{registration_id}/status",
+            "/hackathons/{hackathon_id}/registrations/update/{registration_id}/status",
             put(put_update_registration_status),
         )
         .route(

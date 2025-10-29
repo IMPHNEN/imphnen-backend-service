@@ -35,10 +35,10 @@ test_mentor_endpoints() {
   
   # Note: Mentor Me and Mentor Status endpoints require mentor-specific token
   # test_api_endpoint "GET Mentor Me" "GET" "/v1/mentors/me" 200 "" true
-  # test_api_endpoint "GET Mentor Status" "GET" "/v1/mentors/status" 200 "" true
+  # test_api_endpoint "GET Mentor Status" "GET" "/v1/mentors/me/status" 200 "" true
   
   # Delete mentor (admin)
-  # test_api_endpoint "DELETE Mentor" "DELETE" "/v1/mentors/$test_mentor_id" 200 "" true
+  # test_api_endpoint "DELETE Mentor" "DELETE" "/v1/mentors/delete/$test_mentor_id" 200 "" true
 }
 
 # Run if executed directly

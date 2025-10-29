@@ -35,7 +35,7 @@ use imphnen_iam::v1::teams::teams_repository::TeamsRepository;
     security(
         ("Bearer" = [])
     ),
-    path = "/v1/hackathons",
+    path = "/v1/hackathons/create",
     request_body = HackathonCreateRequestDto,
     responses(
         (status = 201, description = "[ADMIN] Hackathon created successfully", body = ResponseSuccessDto<HackathonDto>),
@@ -61,7 +61,7 @@ pub async fn create_hackathon(
 
 #[utoipa::path(
     get,
-    path = "/v1/hackathons/{id}",
+    path = "/v1/hackathons/detail/{id}",
     params(
         ("id" = String, Path, description = "Hackathon ID")
     ),
@@ -115,7 +115,7 @@ pub async fn list_hackathons(
     security(
         ("Bearer" = [])
     ),
-    path = "/v1/hackathons/{id}",
+    path = "/v1/hackathons/update/{id}",
     params(
         ("id" = String, Path, description = "Hackathon ID")
     ),
@@ -149,7 +149,7 @@ pub async fn update_hackathon(
     security(
         ("Bearer" = [])
     ),
-    path = "/v1/hackathons/{id}",
+    path = "/v1/hackathons/delete/{id}",
     params(
         ("id" = String, Path, description = "Hackathon ID")
     ),
@@ -237,11 +237,34 @@ pub async fn list_hackathon_events(
 }
 
 #[utoipa::path(
+    get,
+    path = "/v1/hackathons/events/detail/{id}",
+    params(
+        ("id" = String, Path, description = "Event ID")
+    ),
+    responses(
+        (status = 200, description = "[PUBLIC] Event retrieved successfully", body = ResponseSuccessDto<HackathonEventDto>),
+        (status = 404, description = "[PUBLIC] Event not found", body = ErrorDto),
+        (status = 500, description = "[PUBLIC] Internal server error", body = ErrorDto)
+    ),
+    tag = "Hackathon Events"
+)]
+pub async fn get_hackathon_event(
+    Extension(state): Extension<AppState>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    match HackathonService::get_hackathon_event(id, &state).await {
+        Ok(response) => (axum::http::StatusCode::OK, Json(response)).into_response(),
+        Err(error) => (StatusCode::from_u16(error.status).unwrap(), Json(error)).into_response(),
+    }
+}
+
+#[utoipa::path(
     put,
     security(
         ("Bearer" = [])
     ),
-    path = "/v1/hackathons/events/{id}",
+    path = "/v1/hackathons/events/update/{id}",
     params(
         ("id" = String, Path, description = "Event ID")
     ),
@@ -271,7 +294,7 @@ pub async fn update_hackathon_event(
     security(
         ("Bearer" = [])
     ),
-    path = "/v1/hackathons/events/{id}",
+    path = "/v1/hackathons/events/delete/{id}",
     params(
         ("id" = String, Path, description = "Event ID")
     ),
@@ -299,7 +322,7 @@ pub async fn delete_hackathon_event(
     security(
         ("Bearer" = [])
     ),
-    path = "/v1/hackathons/{hackathon_id}/timeline",
+    path = "/v1/hackathons/{hackathon_id}/timeline/create",
     params(
         ("hackathon_id" = String, Path, description = "Hackathon ID")
     ),
@@ -355,11 +378,34 @@ pub async fn list_hackathon_timeline(
 }
 
 #[utoipa::path(
+    get,
+    path = "/v1/hackathons/timeline/detail/{id}",
+    params(
+        ("id" = String, Path, description = "Timeline ID")
+    ),
+    responses(
+        (status = 200, description = "[PUBLIC] Timeline retrieved successfully", body = ResponseSuccessDto<HackathonTimelineDto>),
+        (status = 404, description = "[PUBLIC] Timeline not found", body = ErrorDto),
+        (status = 500, description = "[PUBLIC] Internal server error", body = ErrorDto)
+    ),
+    tag = "Hackathon Timeline"
+)]
+pub async fn get_hackathon_timeline(
+    Extension(state): Extension<AppState>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    match HackathonService::get_hackathon_timeline(id, &state).await {
+        Ok(response) => (axum::http::StatusCode::OK, Json(response)).into_response(),
+        Err(error) => (StatusCode::from_u16(error.status).unwrap(), Json(error)).into_response(),
+    }
+}
+
+#[utoipa::path(
     put,
     security(
         ("Bearer" = [])
     ),
-    path = "/v1/hackathons/timeline/{id}",
+    path = "/v1/hackathons/timeline/update/{id}",
     params(
         ("id" = String, Path, description = "Timeline ID")
     ),
@@ -389,7 +435,7 @@ pub async fn update_hackathon_timeline(
     security(
         ("Bearer" = [])
     ),
-    path = "/v1/hackathons/timeline/{id}",
+    path = "/v1/hackathons/timeline/delete/{id}",
     params(
         ("id" = String, Path, description = "Timeline ID")
     ),
@@ -417,7 +463,7 @@ pub async fn delete_hackathon_timeline(
     security(
         ("Bearer" = [])
     ),
-    path = "/v1/hackathons/{hackathon_id}/teams/{team_id}/submissions",
+    path = "/v1/hackathons/{hackathon_id}/teams/{team_id}/submissions/create",
     params(
         ("hackathon_id" = String, Path, description = "Hackathon ID"),
         ("team_id" = String, Path, description = "Team ID")
@@ -524,7 +570,7 @@ pub async fn list_hackathon_submissions(
 
 #[utoipa::path(
     get,
-    path = "/v1/hackathons/submissions/{id}",
+    path = "/v1/hackathons/submissions/detail/{id}",
     params(
         ("id" = String, Path, description = "Submission ID")
     ),
@@ -550,7 +596,7 @@ pub async fn get_hackathon_submission(
     security(
         ("Bearer" = [])
     ),
-    path = "/v1/hackathons/submissions/{id}",
+    path = "/v1/hackathons/submissions/update/{id}",
     params(
         ("id" = String, Path, description = "Submission ID")
     ),
@@ -610,7 +656,7 @@ pub async fn submit_hackathon_submission(
     security(
         ("Bearer" = [])
     ),
-    path = "/v1/hackathons/submissions/{id}",
+    path = "/v1/hackathons/submissions/delete/{id}",
     params(
         ("id" = String, Path, description = "Submission ID")
     ),
@@ -687,7 +733,7 @@ pub struct UpdateStatusPayload {
     security(
         ("Bearer" = [])
     ),
-    path = "/v1/hackathons/submissions/{id}/status",
+    path = "/v1/hackathons/submissions/update/{id}/status",
     params(
         ("id" = String, Path, description = "Submission ID")
     ),
@@ -1201,42 +1247,42 @@ pub async fn change_hackathon_status(
 pub fn hackathon_routes() -> Router {
     Router::new()
             // Hackathon routes
-            .route("/", post(create_hackathon))
-            .route("/complete", post(create_hackathon_complete))
-            .route("/{id}", put(update_hackathon))
+            .route("/create", post(create_hackathon))
+            .route("/create-complete", post(create_hackathon_complete))
+            .route("/detail/{id}", get(get_hackathon))
+            .route("/update/{id}", put(update_hackathon))
+            .route("/delete/{id}", delete(delete_hackathon))
             .route("/{id}/status", patch(change_hackathon_status))
-            .route("/{id}", delete(delete_hackathon))
 
             // Hackathon Events routes
-            .route("/{hackathon_id}/events", post(create_hackathon_event))
+            .route("/{hackathon_id}/events/create", post(create_hackathon_event))
             .route("/{hackathon_id}/events", get(list_hackathon_events))
-            .route("/events/{id}", put(update_hackathon_event))
-            .route("/events/{id}", delete(delete_hackathon_event))
+            .route("/events/detail/{id}", get(get_hackathon_event))
+            .route("/events/update/{id}", put(update_hackathon_event))
+            .route("/events/delete/{id}", delete(delete_hackathon_event))
 
             // Hackathon Timeline routes
-            .route("/{hackathon_id}/timeline", post(create_hackathon_timeline))
+            .route("/{hackathon_id}/timeline/create", post(create_hackathon_timeline))
             .route("/{hackathon_id}/timeline", get(list_hackathon_timeline))
-            .route("/timeline/{id}", put(update_hackathon_timeline))
-            .route("/timeline/{id}", delete(delete_hackathon_timeline))
+            .route("/timeline/detail/{id}", get(get_hackathon_timeline))
+            .route("/timeline/update/{id}", put(update_hackathon_timeline))
+            .route("/timeline/delete/{id}", delete(delete_hackathon_timeline))
 
             // Hackathon Submissions routes
-            .route("/{hackathon_id}/teams/{team_id}/submissions", post(create_hackathon_submission))
+            .route("/{hackathon_id}/teams/{team_id}/submissions/create", post(create_hackathon_submission))
             .route("/{hackathon_id}/submissions", get(list_hackathon_submissions))
-            .route("/submissions/{id}", get(get_hackathon_submission))
-            .route("/submissions/{id}", put(update_hackathon_submission))
+            .route("/submissions/detail/{id}", get(get_hackathon_submission))
+            .route("/submissions/update/{id}", put(update_hackathon_submission))
+            .route("/submissions/delete/{id}", delete(delete_hackathon_submission))
             .route("/submissions/{id}/submit", post(submit_hackathon_submission))
-            .route("/submissions/{id}", delete(delete_hackathon_submission))
-
-            // Admin-only submission status endpoint
-            .route("/submissions/{id}/status", put(update_submission_status))
+            .route("/submissions/update/{id}/status", put(update_submission_status))
             
             // Admin sensitive data endpoint
             .route("/{hackathon_id}/admin/sensitive-data", post(post_admin_manage_sensitive_data))
-            // alias route used by the integration tests
             .route("/{hackathon_id}/admin/manage", post(post_admin_manage_sensitive_data))
 
             // Participants routes
-            .route("/{id}/participants", post(register_participant))
+            .route("/{id}/participants/create", post(register_participant))
             .route("/{id}/participants", get(list_participants))
 }
 

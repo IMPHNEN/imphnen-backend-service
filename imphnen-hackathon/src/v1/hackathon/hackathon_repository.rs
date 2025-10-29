@@ -332,6 +332,23 @@ impl<'a> HackathonRepository<'a> {
     Ok(result)
     }
 
+    #[instrument(skip(self, id), err)]
+    pub async fn get_hackathon_event_by_id(&self, id: String) -> Result<HackathonEventsSchema> {
+        let table = ResourceEnum::HackathonEvents.to_string();
+        
+        let existing: Option<HackathonEventsSchema> = self.state.surrealdb_ws
+            .select((table, id.clone()))
+            .await?;
+        
+        let event = existing.ok_or_else(|| anyhow!("Event not found"))?;
+        
+        if event.is_deleted {
+            bail!("Event not found");
+        }
+        
+        Ok(event)
+    }
+
     #[instrument(skip(self, id, updates), err)]
     pub async fn update_hackathon_event(&self, id: String, updates: HackathonEventUpdateRequestDto) -> Result<HackathonEventsSchema> {
         let table = ResourceEnum::HackathonEvents.to_string();
@@ -463,6 +480,23 @@ impl<'a> HackathonRepository<'a> {
 
     let result = builder.build().await?;
     Ok(result)
+    }
+
+    #[instrument(skip(self, id), err)]
+    pub async fn get_hackathon_timeline_by_id(&self, id: String) -> Result<HackathonTimelineSchema> {
+        let table = ResourceEnum::HackathonTimeline.to_string();
+        
+        let existing: Option<HackathonTimelineSchema> = self.state.surrealdb_ws
+            .select((table, id.clone()))
+            .await?;
+        
+        let timeline = existing.ok_or_else(|| anyhow!("Timeline not found"))?;
+        
+        if timeline.is_deleted {
+            bail!("Timeline not found");
+        }
+        
+        Ok(timeline)
     }
 
     #[instrument(skip(self, id, updates), err)]

@@ -49,10 +49,10 @@ pub use mentors_schema::MentorSchema;
 pub fn mentors_router() -> Router {
 	Router::new()
 		.route("/", get(get_mentor_list))
-		.route("/register", post(post_register_mentor))
+		.route("/create", post(post_register_mentor))
 		.route("/me", get(get_mentor_me))
-		.route("/update/me", put(put_update_mentor_me))
-		.route("/status", get(get_mentor_status))
+		.route("/me/update", put(put_update_mentor_me))
+		.route("/me/status", get(get_mentor_status))
 		.route("/detail/{id}", get(get_mentor_by_id))
 		.route("/update/{id}", put(put_update_mentor))
 		.route("/update", put(put_update_mentor_no_id))

@@ -38,7 +38,7 @@ test_hackathon_registration_endpoints() {
   printf "${GREEN}✓ Created test hackathon: $hackathon_id${NC}\n"
   
   # === 1. Register for Hackathon ===
-  printf "\n${CYAN}Testing: POST /v1/hackathons/{id}/register${NC}\n"
+  printf "\n${CYAN}Testing: POST /v1/hackathons/{id}/registrations/create${NC}\n"
   local register_data=$(jq -n '{
     role: "individual",
     skills: ["Rust", "Web Development", "API Design"],
@@ -53,7 +53,7 @@ test_hackathon_registration_endpoints() {
     emergency_contact_relationship: "Father"
   }')
   
-  local register_response=$(test_api_endpoint "POST Register for Hackathon" "POST" "/v1/hackathons/$hackathon_id/register" 200 "$register_data" true)
+  local register_response=$(test_api_endpoint "POST Register for Hackathon" "POST" "/v1/hackathons/$hackathon_id/registrations/create" 200 "$register_data" true)
   local registration_id=$(echo "$register_response" | jq -r '.data.id // empty')
   
   if [ -z "$registration_id" ]; then
@@ -66,7 +66,7 @@ test_hackathon_registration_endpoints() {
     local dup_response=$(curl -s -w "\n%{http_code}" -X POST \
       -H "Authorization: Bearer $AUTH_TOKEN" \
       -H "Content-Type: application/json" -d "$register_data" \
-      "$BASE_URL/v1/hackathons/$hackathon_id/register")
+      "$BASE_URL/v1/hackathons/$hackathon_id/registrations/create")
     local dup_status=$(echo "$dup_response" | tail -n1)
     if [ "$dup_status" == "400" ]; then
       printf "${GREEN}✓ Duplicate registration prevented${NC}\n"
@@ -85,14 +85,14 @@ test_hackathon_registration_endpoints() {
     test_api_endpoint "GET My Hackathons" "GET" "/v1/users/me/hackathons" 200 "" true
     
     # === 4. Update Registration Status ===
-    printf "\n${CYAN}Testing: PUT /v1/hackathons/{hackathon_id}/registrations/{registration_id}/status${NC}\n"
+    printf "\n${CYAN}Testing: PUT /v1/hackathons/{hackathon_id}/registrations/update/{registration_id}/status${NC}\n"
     
     # Approve registration
     local approve_data=$(jq -n '{
       status: "approved",
       reason: "Your application meets all requirements. Welcome!"
     }')
-    test_api_endpoint "PUT Approve Registration" "PUT" "/v1/hackathons/$hackathon_id/registrations/$registration_id/status" 200 "$approve_data" true
+    test_api_endpoint "PUT Approve Registration" "PUT" "/v1/hackathons/$hackathon_id/registrations/update/$registration_id/status" 200 "$approve_data" true
     
     # Test reject status
     local reject_data=$(jq -n '{
@@ -103,12 +103,12 @@ test_hackathon_registration_endpoints() {
     local reject_response=$(curl -s -w "\n%{http_code}" -X PUT \
       -H "Authorization: Bearer $AUTH_TOKEN" \
       -H "Content-Type: application/json" -d "$reject_data" \
-      "$BASE_URL/v1/hackathons/$hackathon_id/registrations/$registration_id/status")
+      "$BASE_URL/v1/hackathons/$hackathon_id/registrations/update/$registration_id/status")
     
     # Re-approve for check-in test
     curl -s -X PUT -H "Authorization: Bearer $AUTH_TOKEN" \
       -H "Content-Type: application/json" -d "$approve_data" \
-      "$BASE_URL/v1/hackathons/$hackathon_id/registrations/$registration_id/status" > /dev/null
+      "$BASE_URL/v1/hackathons/$hackathon_id/registrations/update/$registration_id/status" > /dev/null
     
     # Test waitlist status
     local waitlist_data=$(jq -n '{
@@ -117,12 +117,12 @@ test_hackathon_registration_endpoints() {
     }')
     curl -s -X PUT -H "Authorization: Bearer $AUTH_TOKEN" \
       -H "Content-Type: application/json" -d "$waitlist_data" \
-      "$BASE_URL/v1/hackathons/$hackathon_id/registrations/$registration_id/status" > /dev/null
+      "$BASE_URL/v1/hackathons/$hackathon_id/registrations/update/$registration_id/status" > /dev/null
     
     # Re-approve again for check-in
     curl -s -X PUT -H "Authorization: Bearer $AUTH_TOKEN" \
       -H "Content-Type: application/json" -d "$approve_data" \
-      "$BASE_URL/v1/hackathons/$hackathon_id/registrations/$registration_id/status" > /dev/null
+      "$BASE_URL/v1/hackathons/$hackathon_id/registrations/update/$registration_id/status" > /dev/null
     
     # === 5. Check-in Participant ===
     printf "\n${CYAN}Testing: POST /v1/hackathons/{hackathon_id}/registrations/{registration_id}/check-in${NC}\n"
@@ -198,11 +198,11 @@ test_hackathon_registration_endpoints() {
           emergency_contact_phone: "+0987654321",
           emergency_contact_relationship: "Mother"
         }')
-        test_api_endpoint "POST Register with Team" "POST" "/v1/hackathons/$hackathon2_id/register" 200 "$team_register_data" true
+        test_api_endpoint "POST Register with Team" "POST" "/v1/hackathons/$hackathon2_id/registrations/create" 200 "$team_register_data" true
         
         # Cleanup second hackathon
         curl -s -X DELETE -H "Authorization: Bearer $AUTH_TOKEN" \
-          "$BASE_URL/v1/hackathons/$hackathon2_id" > /dev/null
+          "$BASE_URL/v1/hackathons/delete/$hackathon2_id" > /dev/null
       fi
     fi
     
@@ -233,18 +233,18 @@ test_hackathon_registration_endpoints() {
         motivation: "I want to challenge myself with advanced projects",
         tshirt_size: "L"
       }')
-      test_api_endpoint "POST Register as Advanced Individual" "POST" "/v1/hackathons/$hackathon3_id/register" 200 "$individual_advanced_register" true
+      test_api_endpoint "POST Register as Advanced Individual" "POST" "/v1/hackathons/$hackathon3_id/registrations/create" 200 "$individual_advanced_register" true
       
       # Cleanup third hackathon
       curl -s -X DELETE -H "Authorization: Bearer $AUTH_TOKEN" \
-        "$BASE_URL/v1/hackathons/$hackathon3_id" > /dev/null
+        "$BASE_URL/v1/hackathons/delete/$hackathon3_id" > /dev/null
     fi
   fi
   
   # Cleanup test hackathon
   if [ -n "$hackathon_id" ]; then
     curl -s -X DELETE -H "Authorization: Bearer $AUTH_TOKEN" \
-      "$BASE_URL/v1/hackathons/$hackathon_id" > /dev/null
+      "$BASE_URL/v1/hackathons/delete/$hackathon_id" > /dev/null
     printf "\n${GREEN}✓ Cleaned up test hackathon${NC}\n"
   fi
 }

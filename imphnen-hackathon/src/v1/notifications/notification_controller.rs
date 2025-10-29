@@ -48,14 +48,13 @@ pub async fn get_notifications_handler(
 /// Mark a notification as read
 #[utoipa::path(
     put,
-    path = "/v1/notifications/{id}/read",
+    path = "/v1/notifications/update/{id}/read",
     tags = ["notifications"],
     params(
-        ("id" = String, Path, description = "Notification ID"),
+        ("id" = String, Path, description = "Notification ID")
     ),
     responses(
-        (status = 200, description = "Successfully marked notification as read", body = MarkAsReadResponseDto),
-        (status = 400, description = "Notification already marked as read"),
+        (status = 200, description = "Successfully marked as read", body = MarkAsReadResponseDto),
         (status = 401, description = "Unauthorized - Invalid or missing token"),
         (status = 403, description = "Forbidden - Not the notification owner"),
         (status = 404, description = "Notification not found"),
@@ -107,7 +106,7 @@ pub async fn mark_all_as_read_handler(
 /// Delete a notification
 #[utoipa::path(
     delete,
-    path = "/v1/notifications/{id}",
+    path = "/v1/notifications/delete/{id}",
     tags = ["notifications"],
     params(
         ("id" = String, Path, description = "Notification ID"),
@@ -165,8 +164,8 @@ pub async fn get_unread_count_handler(
 pub fn notifications_router() -> Router {
     Router::new()
         .route("/notifications", get(get_notifications_handler))
-        .route("/notifications/{id}/read", put(mark_as_read_handler))
+        .route("/notifications/update/{id}/read", put(mark_as_read_handler))
         .route("/notifications/read-all", put(mark_all_as_read_handler))
-        .route("/notifications/{id}", delete(delete_notification_handler))
+        .route("/notifications/delete/{id}", delete(delete_notification_handler))
         .route("/notifications/unread/count", get(get_unread_count_handler))
 }

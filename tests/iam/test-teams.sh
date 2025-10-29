@@ -23,9 +23,9 @@ test_team_endpoints() {
   local test_team_id=$(echo "$teams_response" | jq -r '.data[0].id // empty')
   
   if [ -n "$test_team_id" ]; then
-    test_api_endpoint "GET Team By ID" "GET" "/v1/teams/admin/$test_team_id" 200 "" true
+    test_api_endpoint "GET Team By ID" "GET" "/v1/teams/admin/detail/$test_team_id" 200 "" true
     test_api_endpoint "GET Team Members" "GET" "/v1/teams/admin/$test_team_id/members" 200 "" true
-    test_api_endpoint "GET Team By ID (Public)" "GET" "/v1/teams/$test_team_id" 200 "" true
+    test_api_endpoint "GET Team By ID (Public)" "GET" "/v1/teams/detail/$test_team_id" 200 "" true
     test_api_endpoint "GET Team Members (Public)" "GET" "/v1/teams/$test_team_id/members" 200 "" true
   fi
   
@@ -62,10 +62,10 @@ test_team_endpoints() {
         user_id: $user_id,
         role: "member"
       }')
-      test_api_endpoint "POST Add Team Member" "POST" "/v1/teams/$created_team_id/members" 200 "$add_member_data" true
+      test_api_endpoint "POST Add Team Member" "POST" "/v1/teams/$created_team_id/members/create" 200 "$add_member_data" true
       
       # Remove team member
-      test_api_endpoint "DELETE Remove Team Member" "DELETE" "/v1/teams/$created_team_id/members/$test_user_id" 200 "" true
+      test_api_endpoint "DELETE Remove Team Member" "DELETE" "/v1/teams/$created_team_id/members/delete/$test_user_id" 200 "" true
     fi
     
     # === Team Invitation Flow ===

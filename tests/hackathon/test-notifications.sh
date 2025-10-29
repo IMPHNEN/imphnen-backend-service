@@ -103,14 +103,14 @@ test_notification_endpoints() {
       
       # === 4. Mark Notification as Read ===
       if [ "$first_notif_read" == "false" ]; then
-        printf "\n${CYAN}Testing: PUT /v1/notifications/{id}/read${NC}\n"
-        test_api_endpoint "PUT Mark as Read" "PUT" "/v1/notifications/$first_notif_id/read" 200 "" true
+        printf "\n${CYAN}Testing: PUT /v1/notifications/update/{id}/read${NC}\n"
+        test_api_endpoint "PUT Mark as Read" "PUT" "/v1/notifications/update/$first_notif_id/read" 200 "" true
         
         # Test marking already read notification (should fail)
         printf "\n${CYAN}Testing: Mark already read notification (should fail)${NC}\n"
         local already_read_response=$(curl -s -w "\n%{http_code}" -X PUT \
           -H "Authorization: Bearer $AUTH_TOKEN" \
-          "$BASE_URL/v1/notifications/$first_notif_id/read")
+          "$BASE_URL/v1/notifications/update/$first_notif_id/read")
         local already_read_status=$(echo "$already_read_response" | tail -n1)
         if [ "$already_read_status" == "400" ]; then
           printf "${GREEN}✓ Correctly rejects marking already read notification${NC}\n"
@@ -144,14 +144,14 @@ test_notification_endpoints() {
       
       # === 6. Delete Notification ===
       if [ -n "$deletable_notif_id" ]; then
-        printf "\n${CYAN}Testing: DELETE /v1/notifications/{id}${NC}\n"
-        test_api_endpoint "DELETE Notification" "DELETE" "/v1/notifications/$deletable_notif_id" 200 "" true
+        printf "\n${CYAN}Testing: DELETE /v1/notifications/delete/{id}${NC}\n"
+        test_api_endpoint "DELETE Notification" "DELETE" "/v1/notifications/delete/$deletable_notif_id" 200 "" true
         
         # Test deleting non-existent notification (should fail)
         printf "\n${CYAN}Testing: Delete non-existent notification (should fail)${NC}\n"
         local nonexistent_response=$(curl -s -w "\n%{http_code}" -X DELETE \
           -H "Authorization: Bearer $AUTH_TOKEN" \
-          "$BASE_URL/v1/notifications/nonexistent123")
+          "$BASE_URL/v1/notifications/delete/nonexistent123")
         local nonexistent_status=$(echo "$nonexistent_response" | tail -n1)
         if [ "$nonexistent_status" == "404" ] || [ "$nonexistent_status" == "500" ]; then
           printf "${GREEN}✓ Correctly handles non-existent notification${NC}\n"
@@ -186,7 +186,7 @@ test_notification_endpoints() {
   # This would require knowing another user's notification ID, so we'll test with a fake ID
   local other_user_response=$(curl -s -w "\n%{http_code}" -X PUT \
     -H "Authorization: Bearer $AUTH_TOKEN" \
-    "$BASE_URL/v1/notifications/fake_other_user_notif_123/read")
+    "$BASE_URL/v1/notifications/update/fake_other_user_notif_123/read")
   local other_user_status=$(echo "$other_user_response" | tail -n1)
   if [ "$other_user_status" == "403" ] || [ "$other_user_status" == "404" ]; then
     printf "${GREEN}✓ Correctly prevents access to other user's notification${NC}\n"

@@ -49,7 +49,7 @@ pub struct SessionsApiDoc;
 
 #[utoipa::path(
     post,
-    path = "/v1/mentors/{id}/sessions/book",
+    path = "/v1/mentors/{id}/sessions/create",
     tag = "sessions",
     summary = "Book a mentoring session",
     description = "Book a mentoring session with a specific mentor. Requires authentication.",
@@ -161,7 +161,7 @@ pub async fn get_mentor_availability(
 
 #[utoipa::path(
     put,
-    path = "/v1/sessions/{id}/status",
+    path = "/v1/sessions/update/{id}/status",
     tag = "sessions",
     summary = "Update session status",
     description = "Update the status of a session (confirm, complete, cancel). Only accessible by the mentor.",
@@ -203,7 +203,7 @@ pub async fn put_update_session_status(
 
 #[utoipa::path(
     post,
-    path = "/v1/sessions/{id}/feedback",
+    path = "/v1/sessions/{id}/feedback/create",
     tag = "sessions",
     summary = "Submit session feedback",
     description = "Submit feedback and rating for a completed session. Only accessible by the mentee.",
@@ -283,15 +283,15 @@ pub async fn get_my_sessions(
 pub fn sessions_router() -> Router {
     Router::new()
         // Book session (under mentors path)
-        .route("/mentors/{id}/sessions/book", post(post_book_session))
+        .route("/mentors/{id}/sessions/create", post(post_book_session))
         // Get mentor's sessions
         .route("/mentors/{id}/sessions", get(get_mentor_sessions))
         // Get mentor availability (public - no auth)
         .route("/mentors/{id}/availability", get(get_mentor_availability))
         // Update session status
-        .route("/sessions/{id}/status", put(put_update_session_status))
+        .route("/sessions/update/{id}/status", put(put_update_session_status))
         // Submit feedback
-        .route("/sessions/{id}/feedback", post(post_submit_feedback))
+        .route("/sessions/{id}/feedback/create", post(post_submit_feedback))
         // Get my sessions
         .route("/users/me/sessions", get(get_my_sessions))
 }

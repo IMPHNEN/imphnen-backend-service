@@ -16,7 +16,7 @@ pub fn hackathon_protected_routes() -> Router {
     use hackathon::hackathon_controller::{update_submission_status, get_admin_hackathon_results};
     Router::new()
         .nest("/hackathons", hackathon_router())
-        .route("/hackathons/submissions/{id}/status", axum::routing::patch(update_submission_status))
+        .route("/hackathons/submissions/update/{id}/status", axum::routing::patch(update_submission_status))
         .route("/hackathons/{hackathon_id}/admin/results", axum::routing::get(get_admin_hackathon_results))
         .merge(registrations_router())
         .merge(notifications_router())
@@ -26,7 +26,6 @@ pub fn hackathon_protected_routes() -> Router {
 pub fn hackathon_public_routes() -> Router {
     use hackathon::hackathon_controller::{
         list_hackathons,
-        get_hackathon,
         search_hackathons,
         get_user_hackathon_submissions,
         get_public_hackathon_results,
@@ -35,7 +34,6 @@ pub fn hackathon_public_routes() -> Router {
     Router::new()
         .nest("/hackathons", Router::new()
             .route("/", axum::routing::get(list_hackathons))
-            .route("/{id}", axum::routing::get(get_hackathon))
             .route("/{id}/results", axum::routing::get(get_public_hackathon_results))
             .route("/search", axum::routing::post(search_hackathons))
         )

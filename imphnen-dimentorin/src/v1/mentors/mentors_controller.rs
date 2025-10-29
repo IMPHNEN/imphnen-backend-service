@@ -15,7 +15,7 @@ use imphnen_utils::extract_email;
 
 #[utoipa::path(
     post,
-    path = "/v1/mentors/register",
+    path = "/v1/mentors/create",
     request_body = MentorUserRegisterRequestDto,
     responses(
         (status = 200, description = "[PUBLIC] Mentor registered successfully", body = MentorRegisterResponseDto),
@@ -205,7 +205,7 @@ pub async fn get_mentor_me(
 
 #[utoipa::path(
     put,
-    path = "/v1/mentors/update/me",
+    path = "/v1/mentors/me/update",
     request_body = MentorUpdateRequestDto,
     responses(
         (status = 200, description = "[MENTOR] Mentor profile updated successfully", body = MentorDetailResponseDto),
@@ -255,7 +255,7 @@ pub async fn put_update_mentor_no_id() -> Response {
 
 #[utoipa::path(
     get,
-    path = "/v1/mentors/status",
+    path = "/v1/mentors/me/status",
     responses(
         (status = 200, description = "[MENTOR] Mentor application status", body = String),
         (status = 401, description = "[MENTOR] Unauthorized - invalid token"),

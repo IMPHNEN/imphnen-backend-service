@@ -29,12 +29,12 @@ test_hackathon_endpoints() {
     ],
     organizers: [$user_id]
   }')
-  local create_hackathon_response=$(test_api_endpoint "POST Create Hackathon" "POST" "/v1/hackathons" 201 "$create_hackathon_data" true)
+  local create_hackathon_response=$(test_api_endpoint "POST Create Hackathon" "POST" "/v1/hackathons/create" 201 "$create_hackathon_data" true)
   local created_hackathon_id=$(echo "$create_hackathon_response" | jq -r '.data.id // empty')
   
   if [ -n "$created_hackathon_id" ]; then
-    # Get hackathon by ID
-    test_api_endpoint "GET Hackathon By ID" "GET" "/v1/hackathons/$created_hackathon_id" 200 "" false
+    # Get hackathon by ID (requires auth)
+    test_api_endpoint "GET Hackathon By ID" "GET" "/v1/hackathons/detail/$created_hackathon_id" 200 "" true
     
     # Update hackathon
     local update_hackathon_data=$(jq -n '{
@@ -42,7 +42,7 @@ test_hackathon_endpoints() {
       description: "Updated description",
       max_teams: 150
     }')
-    test_api_endpoint "PUT Update Hackathon" "PUT" "/v1/hackathons/$created_hackathon_id" 200 "$update_hackathon_data" true
+    test_api_endpoint "PUT Update Hackathon" "PUT" "/v1/hackathons/update/$created_hackathon_id" 200 "$update_hackathon_data" true
     
     # === Hackathon Events ===
     local create_event_data=$(jq -n --arg hackathon_id "$created_hackathon_id" '{
@@ -56,7 +56,7 @@ test_hackathon_endpoints() {
       event_type: "workshop",
       is_mandatory: true
     }')
-    local create_event_response=$(test_api_endpoint "POST Create Hackathon Event" "POST" "/v1/hackathons/$created_hackathon_id/events" 201 "$create_event_data" true)
+    local create_event_response=$(test_api_endpoint "POST Create Hackathon Event" "POST" "/v1/hackathons/$created_hackathon_id/events/create" 201 "$create_event_data" true)
     local created_event_id=$(echo "$create_event_response" | jq -r '.data.id // empty')
     
     if [ -n "$created_event_id" ]; then
@@ -66,10 +66,10 @@ test_hackathon_endpoints() {
         description: "Updated description",
         is_mandatory: false
       }')
-      test_api_endpoint "PUT Update Hackathon Event" "PUT" "/v1/hackathons/events/$created_event_id" 200 "$update_event_data" true
+      test_api_endpoint "PUT Update Hackathon Event" "PUT" "/v1/hackathons/events/update/$created_event_id" 200 "$update_event_data" true
       
       # Delete event
-      test_api_endpoint "DELETE Hackathon Event" "DELETE" "/v1/hackathons/events/$created_event_id" 200 "" true
+      test_api_endpoint "DELETE Hackathon Event" "DELETE" "/v1/hackathons/events/delete/$created_event_id" 200 "" true
     fi
     
     # === Hackathon Timeline ===
@@ -82,7 +82,7 @@ test_hackathon_endpoints() {
       end_date: "'$(date -u -d '+2 days' +%Y-%m-%dT%H:%M:%SZ)'",
       allowed_operations: ["REGISTER", "FORM_TEAM"]
     }')
-    local create_timeline_response=$(test_api_endpoint "POST Create Timeline" "POST" "/v1/hackathons/$created_hackathon_id/timeline" 201 "$create_timeline_data" true)
+    local create_timeline_response=$(test_api_endpoint "POST Create Timeline" "POST" "/v1/hackathons/$created_hackathon_id/timeline/create" 201 "$create_timeline_data" true)
     local created_timeline_id=$(echo "$create_timeline_response" | jq -r '.data.id // empty')
     
     if [ -n "$created_timeline_id" ]; then
@@ -92,10 +92,10 @@ test_hackathon_endpoints() {
         phase_name: "Updated Registration Phase",
         description: "Updated description"
       }')
-      test_api_endpoint "PUT Update Timeline" "PUT" "/v1/hackathons/timeline/$created_timeline_id" 200 "$update_timeline_data" true
+      test_api_endpoint "PUT Update Timeline" "PUT" "/v1/hackathons/timeline/update/$created_timeline_id" 200 "$update_timeline_data" true
       
       # Delete timeline
-      test_api_endpoint "DELETE Timeline" "DELETE" "/v1/hackathons/timeline/$created_timeline_id" 200 "" true
+      test_api_endpoint "DELETE Timeline" "DELETE" "/v1/hackathons/timeline/delete/$created_timeline_id" 200 "" true
     fi
     
     # === Hackathon Participants ===
@@ -107,7 +107,7 @@ test_hackathon_endpoints() {
       user_id: $user_id,
       role: "participant"
     }')
-    test_api_endpoint "POST Register Participant" "POST" "/v1/hackathons/$created_hackathon_id/participants" 200 "$register_participant_data" true
+    test_api_endpoint "POST Register Participant" "POST" "/v1/hackathons/$created_hackathon_id/participants/create" 200 "$register_participant_data" true
     
     # List participants
     test_api_endpoint "GET List Participants" "GET" "/v1/hackathons/$created_hackathon_id/participants" 200 "" true
@@ -147,12 +147,12 @@ test_hackathon_endpoints() {
         contact_twitter: "@team_twitter",
         contact_linkedin: "linkedin.com/in/team"
       }')
-      local create_submission_response=$(test_api_endpoint "POST Create Submission" "POST" "/v1/hackathons/$created_hackathon_id/teams/$team_id/submissions" 201 "$create_submission_data" true)
+      local create_submission_response=$(test_api_endpoint "POST Create Submission" "POST" "/v1/hackathons/$created_hackathon_id/teams/$team_id/submissions/create" 201 "$create_submission_data" true)
       local submission_id=$(echo "$create_submission_response" | jq -r '.data.id // empty')
       
       if [ -n "$submission_id" ]; then
         # Get submission by ID
-        test_api_endpoint "GET Submission By ID" "GET" "/v1/hackathons/submissions/$submission_id" 200 "" true
+        test_api_endpoint "GET Submission By ID" "GET" "/v1/hackathons/submissions/detail/$submission_id" 200 "" true
         
         # List all submissions for hackathon
         test_api_endpoint "GET Hackathon Submissions" "GET" "/v1/hackathons/$created_hackathon_id/submissions" 200 "" true
@@ -168,7 +168,7 @@ test_hackathon_endpoints() {
           contact_youtube: "youtube.com/@teamchannel",
           contact_facebook: "facebook.com/teampage"
         }')
-        test_api_endpoint "PUT Update Submission" "PUT" "/v1/hackathons/submissions/$submission_id" 200 "$update_submission_data" true
+        test_api_endpoint "PUT Update Submission" "PUT" "/v1/hackathons/submissions/update/$submission_id" 200 "$update_submission_data" true
         
         # === Test Validation Errors ===
         printf "\n${CYAN}Testing Submission Validation Errors...${NC}\n"
@@ -230,7 +230,7 @@ test_hackathon_endpoints() {
           
           # Cleanup invalid submission
           curl -s -X DELETE -H "Authorization: Bearer $AUTH_TOKEN" \
-            "$BASE_URL/v1/hackathons/submissions/$invalid_sub_id" > /dev/null
+            "$BASE_URL/v1/hackathons/submissions/delete/$invalid_sub_id" > /dev/null
         fi
         
         # === Submit Valid Submission ===
@@ -243,13 +243,13 @@ test_hackathon_endpoints() {
           status: "under_review",
           feedback: "Great project, under review by our panel"
         }')
-        test_api_endpoint "PUT Update Submission Status" "PUT" "/v1/hackathons/submissions/$submission_id/status" 200 "$update_status_data" true
+        test_api_endpoint "PUT Update Submission Status" "PUT" "/v1/hackathons/submissions/update/$submission_id/status" 200 "$update_status_data" true
         
         # Get user submissions
         test_api_endpoint "GET User Submissions" "GET" "/v1/users/$AUTH_USER_ID/hackathon-submissions" 200 "" true
         
         # Delete submission
-        test_api_endpoint "DELETE Submission" "DELETE" "/v1/hackathons/submissions/$submission_id" 200 "" true
+        test_api_endpoint "DELETE Submission" "DELETE" "/v1/hackathons/submissions/delete/$submission_id" 200 "" true
       fi
     fi
     
@@ -267,7 +267,7 @@ test_hackathon_endpoints() {
     test_api_endpoint "POST Search Hackathons" "POST" "/v1/hackathons/search" 200 "$search_data" false
     
     # Delete hackathon (cleanup)
-    test_api_endpoint "DELETE Hackathon" "DELETE" "/v1/hackathons/$created_hackathon_id" 200 "" true
+    test_api_endpoint "DELETE Hackathon" "DELETE" "/v1/hackathons/delete/$created_hackathon_id" 200 "" true
   fi
 }
 
