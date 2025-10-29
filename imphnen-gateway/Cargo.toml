@@ -12,6 +12,7 @@ imphnen-entities.workspace = true
 imphnen-middleware.workspace = true
 imphnen-cms.workspace = true
 imphnen-dimentorin.workspace = true
+imphnen-hackathon.workspace = true
 axum.workspace = true
 serde.workspace = true
 serde_json.workspace = true

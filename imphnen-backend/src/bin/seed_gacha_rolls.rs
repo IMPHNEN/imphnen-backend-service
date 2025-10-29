@@ -5,7 +5,7 @@ use surrealdb::sql::Thing;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-	let env = &imphnen_libs::enviroment::ENV;
+	let env = &imphnen_libs::environment::ENV;
 	use surrealdb::engine::any;
 	let db = any::connect(&env.surrealdb_url).await?;
 	db.signin(Root {
@@ -18,13 +18,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		.await?;
 
 	db.query("DELETE type::thing('app_gacha_items', $id)")
-		.bind(("id", "gacha_item_test_id"))
+		.bind(("id", "1"))
 		.await?;
 	db.query("DELETE type::thing('app_gacha_rolls', $id)")
-		.bind(("id", "gacha_roll_test_id"))
+		.bind(("id", "test-gacha-roll-001"))
 		.await?;
-
-	let gacha_item_id = "gacha_item_test_id";
+	let gacha_item_id = "1";
 	db.query("CREATE type::thing('app_gacha_items', $id) SET name = $name, image_url = $image_url, is_deleted = $is_deleted, created_at = $created_at, updated_at = $updated_at")
         .bind(("id", gacha_item_id))
         .bind(("name", "Test Gacha Item"))
@@ -35,7 +34,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .await?;
 	println!("Gacha Item seeded successfully!");
 
-	let gacha_roll_id = "gacha_roll_test_id";
+	let gacha_roll_id = "test-gacha-roll-001";
 	db.query("CREATE type::thing('app_gacha_rolls', $id) SET item = $item, quantity = $quantity, weight = $weight, is_deleted = $is_deleted, created_at = $created_at, updated_at = $updated_at")
         .bind(("id", gacha_roll_id))
         .bind(("item", Thing::from(("app_gacha_items", gacha_item_id))))

@@ -1,8 +1,7 @@
-use super::GachaItemSchema;
-use crate::{
-	AppState, GachaItemDto, MetaRequestDto, ResourceEnum, ResponseListSuccessDto,
-	get_id, make_thing,
-};
+use crate::v1::gacha_items::gacha_items_schema::GachaItemSchema;
+use crate::{AppState, MetaRequestDto, ResponseListSuccessDto, get_id, make_thing};
+use crate::v1::gacha_items::GachaItemDto;
+use imphnen_libs::ResourceEnum;
 use anyhow::{Result, bail};
 use imphnen_iam::QueryListBuilder;
 use imphnen_utils::get_iso_date;
@@ -28,7 +27,7 @@ impl<'a> GachaItemRepository<'a> {
 		let now = Instant::now();
 		let surreal_query = format!(
 			"SELECT * FROM {} WHERE is_deleted = false AND name LIKE ?",
-			ResourceEnum::GachaItems.to_string()
+			ResourceEnum::GachaItems
 		);
 		info!(query = %surreal_query, "Executing SurrealDB query");
 		let raw_result: ResponseListSuccessDto<Vec<GachaItemSchema>> =
@@ -63,7 +62,7 @@ impl<'a> GachaItemRepository<'a> {
 	pub async fn query_gacha_item_by_id(&self, id: String) -> Result<GachaItemSchema> {
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
-		let surreal_query = format!("SELECT * FROM {} WHERE id = '{}'", ResourceEnum::GachaItems.to_string(), id);
+		let surreal_query = format!("SELECT * FROM {} WHERE id = '{}'", ResourceEnum::GachaItems, id);
 		info!(query = %surreal_query, "Executing SurrealDB query");
 		let result: Option<GachaItemSchema> = db
 			.select((ResourceEnum::GachaItems.to_string(), id.clone()))
@@ -87,7 +86,7 @@ impl<'a> GachaItemRepository<'a> {
 	) -> Result<String> {
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
-		let surreal_query = format!("CREATE {} CONTENT ...", ResourceEnum::GachaItems.to_string());
+		let surreal_query = format!("CREATE {} CONTENT ...", ResourceEnum::GachaItems);
 		info!(query = %surreal_query, "Executing SurrealDB query");
 		let record: Option<GachaItemSchema> = db
 			.create(ResourceEnum::GachaItems.to_string())

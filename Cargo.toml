@@ -1,21 +1,23 @@
 [workspace]
 resolver = "2"
-members = [ 
+members = [
   "tests",
-  "imphnen-iam",
-  "imphnen-cms",
-  "imphnen-libs",
-  "imphnen-utils",
-  "imphnen-gacha",
-  "imphnen-gateway",
-  "imphnen-backend",
-  "imphnen-entities",
-  "imphnen-dimentorin",
-  "imphnen-middleware",
+  "imphnen-entities",  # Most basic - core data structures
+  "imphnen-libs",      # Depends on entities
+  "imphnen-utils",     # Depends on libs and entities
+  "imphnen-middleware",# Utility for permissions
+  "imphnen-iam",       # Core auth service, depends on libs, utils, entities
+  "imphnen-cms",       # Content management, depends on core services
+  "imphnen-gacha",     # Game mechanics, depends on core services
+  "imphnen-dimentorin",# Learning platform, depends on core services
+  "imphnen-hackathon", # Hackathon service, depends on core services
+  "imphnen-gateway",   # API gateway, depends on all services
+  "imphnen-backend",   # Main application, depends on all services
 ]
 
 
 [workspace.dependencies]
+async-trait = "0.1.83"
 oauth2 = "5.0.0"
 reqwest = { version = "0.12.23", features = ["json"] }
 serde_json = "1.0.142"
@@ -78,6 +80,7 @@ imphnen-gateway = { path = "./imphnen-gateway" }
 imphnen-backend = { path = "./imphnen-backend" }
 imphnen-entities = { path = "./imphnen-entities" }
 imphnen-dimentorin = { path = "./imphnen-dimentorin" }
+imphnen-hackathon = { path = "./imphnen-hackathon" }
 imphnen-middleware = { path = "./imphnen-middleware" }
 
 [profile.release]

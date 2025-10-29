@@ -346,4 +346,146 @@ async fn test_delete_non_existent_mentor() -> Result<()> {
         assert!(err.to_string().contains("Mentor not found"), "Expected 'Mentor not found' error, got: {}", err);
     }
     Ok(())
+#[tokio::test]
+async fn test_create_mentor_with_invalid_data() -> Result<()> {
+    cleanup_db().await;
+    let app_state = setup_all_test_environment().await;
+    let repo = MentorsRepository::new(&app_state);
+
+    let id = Uuid::new_v4().to_string();
+    let email = generate_unique_email("test_invalid_data");
+
+    let user_repo = UsersRepository::new(&app_state);
+    let mut user = create_test_user(&email, "Invalid Mentor User", true, &get_role_id(&app_state).await);
+    user.id = Thing::from(("app_users", id.as_str()));
+    user.email = email.to_string();
+    user.mentor_id = Some(Thing::from(("app_mentors", id.as_str())));
+    let _ = user_repo.query_create_user(user.clone()).await;
+
+    // Test with empty legal_name (required field)
+    let mut invalid_mentor = create_full_mentor_schema(&id, &id, &email, "");
+    invalid_mentor.legal_name = "".to_string();
+    let create_res = repo.query_create_mentor(invalid_mentor).await;
+    assert!(create_res.is_err(), "Should fail to create mentor with empty legal_name");
+
+    // Test with invalid email format
+    let mut invalid_mentor2 = create_full_mentor_schema(&id, &id, "invalid-email", "Valid Name");
+    let create_res2 = repo.query_create_mentor(invalid_mentor2).await;
+    assert!(create_res2.is_err(), "Should fail to create mentor with invalid email");
+
+    // Test with negative mentoring rate
+    let mut invalid_mentor3 = create_full_mentor_schema(&id, &id, &email, "Valid Name");
+    invalid_mentor3.mentoring_rate.amount = -1000;
+    let create_res3 = repo.query_create_mentor(invalid_mentor3).await;
+    assert!(create_res3.is_err(), "Should fail to create mentor with negative mentoring rate");
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_boundary_conditions_mentor() -> Result<()> {
+    cleanup_db().await;
+    let app_state = setup_all_test_environment().await;
+    let repo = MentorsRepository::new(&app_state);
+
+    let id = Uuid::new_v4().to_string();
+    let email = generate_unique_email("test_boundary");
+
+    let user_repo = UsersRepository::new(&app_state);
+    let mut user = create_test_user(&email, "Boundary Mentor User", true, &get_role_id(&app_state).await);
+    user.id = Thing::from(("app_users", id.as_str()));
+    user.email = email.to_string();
+    user.mentor_id = Some(Thing::from(("app_mentors", id.as_str())));
+    let _ = user_repo.query_create_user(user.clone()).await;
+
+    // Test with zero years of experience
+    let mut mentor_zero_exp = create_full_mentor_schema(&id, &id, &email, "Zero Exp Mentor");
+    mentor_zero_exp.years_of_experience = 0;
+    let create_res = repo.query_create_mentor(mentor_zero_exp).await;
+    assert!(create_res.is_ok(), "Should allow zero years of experience");
+
+    // Test with very high years of experience
+    let mut mentor_high_exp = create_full_mentor_schema(&Uuid::new_v4().to_string(), &id, &generate_unique_email("test_high_exp"), "High Exp Mentor");
+    mentor_high_exp.years_of_experience = 100;
+    let create_res2 = repo.query_create_mentor(mentor_high_exp).await;
+    assert!(create_res2.is_ok(), "Should allow high years of experience");
+
+    // Test with very long bio
+    let long_bio = "A".repeat(5000);
+    let mut mentor_long_bio = create_full_mentor_schema(&Uuid::new_v4().to_string(), &id, &generate_unique_email("test_long_bio"), "Long Bio Mentor");
+    mentor_long_bio.bio = long_bio;
+    let create_res3 = repo.query_create_mentor(mentor_long_bio).await;
+    assert!(create_res3.is_ok(), "Should allow very long bio");
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_get_mentor_with_deleted_flag() -> Result<()> {
+    cleanup_db().await;
+    let app_state = setup_all_test_environment().await;
+    let repo = MentorsRepository::new(&app_state);
+
+    let id = Uuid::new_v4().to_string();
+    let email = generate_unique_email("test_deleted_flag");
+
+    let user_repo = UsersRepository::new(&app_state);
+    let mut user = create_test_user(&email, "Deleted Flag Mentor User", true, &get_role_id(&app_state).await);
+    user.id = Thing::from(("app_users", id.as_str()));
+    user.email = email.to_string();
+    user.mentor_id = Some(Thing::from(("app_mentors", id.as_str())));
+    let _ = user_repo.query_create_user(user.clone()).await;
+
+    let mentor = create_full_mentor_schema(&id, &id, &email, "Deleted Flag Mentor");
+    let _ = repo.query_create_mentor(mentor.clone()).await;
+
+    // Soft delete the mentor
+    let _ = repo.query_delete_mentor(id.clone()).await;
+
+    // Try to get mentor without including deleted
+    let mentor_res = repo.query_mentor_by_id(&Thing::from(("app_mentors", id.as_str())), false).await;
+    assert!(mentor_res.is_err(), "Should not find deleted mentor when include_deleted=false");
+
+    // Try to get mentor including deleted
+    let mentor_res_incl = repo.query_mentor_by_id(&Thing::from(("app_mentors", id.as_str())), true).await;
+    assert!(mentor_res_incl.is_ok(), "Should find deleted mentor when include_deleted=true");
+    let mentor_incl = mentor_res_incl.unwrap();
+    assert_eq!(mentor_incl.is_deleted, true);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_update_mentor_with_invalid_data() -> Result<()> {
+    cleanup_db().await;
+    let app_state = setup_all_test_environment().await;
+    let repo = MentorsRepository::new(&app_state);
+
+    let id = Uuid::new_v4().to_string();
+    let email = generate_unique_email("test_update_invalid");
+
+    let user_repo = UsersRepository::new(&app_state);
+    let mut user = create_test_user(&email, "Update Invalid Mentor User", true, &get_role_id(&app_state).await);
+    user.id = Thing::from(("app_users", id.as_str()));
+    user.email = email.to_string();
+    user.mentor_id = Some(Thing::from(("app_mentors", id.as_str())));
+    let _ = user_repo.query_create_user(user.clone()).await;
+
+    let mentor = create_full_mentor_schema(&id, &id, &email, "Update Invalid Mentor");
+    let _ = repo.query_create_mentor(mentor.clone()).await;
+
+    // Try to update with empty legal_name
+    let mut invalid_update = mentor.clone();
+    invalid_update.legal_name = "".to_string();
+    let update_res = repo.query_update_mentor(invalid_update).await;
+    assert!(update_res.is_err(), "Should fail to update mentor with empty legal_name");
+
+    // Try to update with negative rate
+    let mut invalid_update2 = mentor.clone();
+    invalid_update2.mentoring_rate.amount = -50000;
+    let update_res2 = repo.query_update_mentor(invalid_update2).await;
+    assert!(update_res2.is_err(), "Should fail to update mentor with negative mentoring rate");
+
+    Ok(())
+}
 }

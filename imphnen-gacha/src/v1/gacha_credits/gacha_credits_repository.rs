@@ -1,5 +1,7 @@
-use super::{GachaCreditRequestDto, GachaCreditSchema};
-use crate::{AppState, ResourceEnum};
+use crate::v1::gacha_credits::gacha_credits_dto::GachaCreditRequestDto;
+use crate::v1::gacha_credits::gacha_credits_schema::GachaCreditSchema;
+use crate::AppState;
+use imphnen_libs::ResourceEnum;
 use anyhow::{Result, bail};
 use imphnen_iam::make_thing;
 use std::time::Instant;
@@ -23,9 +25,9 @@ impl<'a> GachaCreditRepository<'a> {
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
 		let sql = format!(
-			"SELECT * FROM {} WHERE user = {}:⟨$user_id⟩ AND is_deleted = false LIMIT 1",
+			"SELECT * FROM {} WHERE user = type::thing('{}', $user_id) AND is_deleted = false LIMIT 1",
 			ResourceEnum::GachaCredits,
-			ResourceEnum::Users
+			ResourceEnum::Users.as_str()
 		);
 		info!(query = %sql, "Executing SurrealDB query");
 		let result: Vec<GachaCreditSchema> =

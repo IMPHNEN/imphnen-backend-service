@@ -5,7 +5,7 @@ use std::error::Error;
 use surrealdb::{opt::auth::Root, sql::Thing};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-	let env = &imphnen_libs::enviroment::ENV;
+	let env = &imphnen_libs::environment::ENV;
 	use surrealdb::engine::any;
 	let db = any::connect(&env.surrealdb_url).await?;
 	db.signin(Root {
@@ -34,6 +34,24 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			"d5e89c12-72af-4b1a-abc3-ff1234567890",
 			"user@example.com",
 			"User",
+			"5713cb37-dc02-4e87-8048-d7a41d352059",
+		),
+		(
+			"testuser1-id",
+			"testuser1@example.com",
+			"Test User 1",
+			"5713cb37-dc02-4e87-8048-d7a41d352059",
+		),
+		(
+			"testuser2-id",
+			"testuser2@example.com",
+			"Test User 2",
+			"5713cb37-dc02-4e87-8048-d7a41d352059",
+		),
+		(
+			"testuser3-id",
+			"testuser3@example.com",
+			"Test User 3",
 			"5713cb37-dc02-4e87-8048-d7a41d352059",
 		),
 	];

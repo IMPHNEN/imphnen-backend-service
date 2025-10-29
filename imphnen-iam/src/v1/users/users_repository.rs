@@ -1,10 +1,11 @@
-use super::{UsersDetailQueryDto, UsersListItemDto, UsersListQueryDto, UsersSchema};
+use imphnen_entities::UsersDetailQueryDto;
+use super::{UsersListItemDto, UsersListQueryDto, UsersSchema};
 use crate::{
 	AppState, MetaRequestDto, ResourceEnum, ResponseListSuccessDto, get_id, make_thing,
 };
 use surrealdb::sql::Thing;
 use anyhow::{Result, bail};
-use imphnen_utils::{DetailQueryBuilder, QueryListBuilder};
+use imphnen_utils::{DetailQueryBuilder, QueryListBuilder, make_thing_from_enum};
 use serde_json;
 use std::time::Instant;
 use surrealdb::{Surreal, engine::remote::ws::Client};
@@ -86,8 +87,12 @@ impl<'a> UsersRepository<'a> {
 			.with_fetch("role")
 			.with_fetch("role.permissions");
 		let sql = builder.build();
-		let user_opt: Option<UsersDetailQueryDto> =
-			builder.apply_bindings(db.query(sql)).await?.take(0)?;
+		// Some SurrealDB queries may return multiple rows (e.g., duplicates).
+		// Safely take all rows and pick the first valid user (not deleted and with a valid role).
+		let rows: Vec<UsersDetailQueryDto> = builder.apply_bindings(db.query(sql)).await?.take(0)?;
+		let user_opt: Option<UsersDetailQueryDto> = rows
+			.into_iter()
+			.find(|u| !u.is_deleted && !u.role.is_deleted && u.role.updated_at.is_some());
 		let elapsed = now.elapsed();
 
 		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
@@ -105,7 +110,7 @@ impl<'a> UsersRepository<'a> {
 		if user.role.updated_at.is_none() || user.role.is_deleted {
 			bail!("User not found");
 		}
-		Ok(UsersDetailQueryDto::from(&user))
+		Ok(UsersDetailQueryDto::from(user))
 	}
 
 	
@@ -115,7 +120,7 @@ impl<'a> UsersRepository<'a> {
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
 		let builder = DetailQueryBuilder::new(ResourceEnum::Users.to_string())
-			.with_id(&id.id.to_raw())
+			.with_id(id.id.to_raw())
 			.with_select_fields(vec!["*"])
 			.with_fetch("role")
 			.with_fetch("role.permissions");
@@ -139,7 +144,7 @@ impl<'a> UsersRepository<'a> {
 		if user.role.is_deleted {
 			bail!("User's role has been deleted");
 		}
-		Ok(UsersDetailQueryDto::from(&user))
+		Ok(UsersDetailQueryDto::from(user))
 	}
 
 	
@@ -203,7 +208,7 @@ impl<'a> UsersRepository<'a> {
 	pub async fn query_delete_user(&self, id: String) -> Result<String> {
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
-		let user = self.query_user_by_id(&make_thing(&ResourceEnum::Users.to_string(), &id)).await?;
+		let user = self.query_user_by_id(&make_thing_from_enum(ResourceEnum::Users, &id)).await?;
 		if user.is_deleted {
 			bail!("User not found");
 		}

@@ -7,11 +7,12 @@ use super::{
 };
 use axum::extract::{Path, Query};
 use axum::response::IntoResponse;
-use axum::{Extension, Json};
+use axum::{Extension, http::HeaderMap};
 use imphnen_libs::{
-	AppState, MessageResponseDto, MetaRequestDto, ResponseListSuccessDto,
-	ResponseSuccessDto,
+    AppState, MessageResponseDto, MetaRequestDto, ResponseListSuccessDto,
+    ResponseSuccessDto, ValidatedJson,
 };
+use imphnen_iam::{PermissionsEnum, require_permissions};
 
 #[utoipa::path(
     get,
@@ -26,7 +27,7 @@ use imphnen_libs::{
         ("filter_by" = Option<String>, Query, description = "Field to filter by"),
     ),
     responses(
-        (status = 200, description = "Get event list", body = ResponseListSuccessDto<Vec<EventsListItemDto>>)
+        (status = 200, description = "[PUBLIC] Get event list", body = ResponseListSuccessDto<Vec<EventsListItemDto>>)
     ),
     tag = "Events"
 )]
@@ -44,7 +45,7 @@ pub async fn get_event_list(
         ("id" = String, Path, description = "Event ID")
     ),
     responses(
-        (status = 200, description = "Get event by ID", body = ResponseSuccessDto<EventsDetailItemDto>)
+        (status = 200, description = "[PUBLIC] Get event by ID", body = ResponseSuccessDto<EventsDetailItemDto>)
     ),
     tag = "Events"
 )]
@@ -63,15 +64,18 @@ pub async fn get_event_by_id(
     path = "/v1/cms/landing/events/create",
     request_body = EventsCreateRequestDto,
     responses(
-        (status = 201, description = "Create new event", body = MessageResponseDto)
+        (status = 201, description = "[ADMIN] Create new event", body = MessageResponseDto)
     ),
     tag = "Events"
 )]
 pub async fn post_create_event(
-	Extension(state): Extension<AppState>,
-	Json(payload): Json<EventsCreateRequestDto>,
+    headers: HeaderMap,
+    Extension(state): Extension<AppState>,
+    ValidatedJson(payload): ValidatedJson<EventsCreateRequestDto>,
 ) -> impl IntoResponse {
-	EventsService::create_event(&state, payload).await
+    require_permissions!(headers, state, [PermissionsEnum::Administrator], {
+        EventsService::create_event(&state, payload).await
+    })
 }
 
 #[utoipa::path(
@@ -85,16 +89,19 @@ pub async fn post_create_event(
     ),
     request_body = EventsUpdateRequestDto,
     responses(
-        (status = 200, description = "Update event", body = MessageResponseDto)
+        (status = 200, description = "[ADMIN] Update event", body = MessageResponseDto)
     ),
     tag = "Events"
 )]
 pub async fn patch_update_event(
-	Extension(state): Extension<AppState>,
-	Path(id): Path<String>,
-	Json(payload): Json<EventsUpdateRequestDto>,
+    headers: HeaderMap,
+    Extension(state): Extension<AppState>,
+    Path(id): Path<String>,
+    ValidatedJson(payload): ValidatedJson<EventsUpdateRequestDto>,
 ) -> impl IntoResponse {
-	EventsService::update_event(&state, id, payload).await
+    require_permissions!(headers, state, [PermissionsEnum::Administrator], {
+        EventsService::update_event(&state, id, payload).await
+    })
 }
 
 #[utoipa::path(
@@ -107,13 +114,16 @@ pub async fn patch_update_event(
         ("id" = String, Path, description = "Event ID")
     ),
     responses(
-        (status = 200, description = "Soft delete event", body = MessageResponseDto)
+        (status = 200, description = "[ADMIN] Soft delete event", body = MessageResponseDto)
     ),
     tag = "Events"
 )]
 pub async fn delete_event(
-	Extension(state): Extension<AppState>,
-	Path(id): Path<String>,
+    headers: HeaderMap,
+    Extension(state): Extension<AppState>,
+    Path(id): Path<String>,
 ) -> impl IntoResponse {
-	EventsService::delete_event(&state, id).await
+    require_permissions!(headers, state, [PermissionsEnum::Administrator], {
+        EventsService::delete_event(&state, id).await
+    })
 }

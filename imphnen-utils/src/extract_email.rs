@@ -1,11 +1,16 @@
-use tracing::{info, error};
+//! Email extraction utilities from authentication tokens.
+//!
+//! This module provides functions to extract email addresses from JWT tokens
+//! and Google OAuth access tokens, supporting both synchronous and asynchronous
+//! validation methods.
+
+use tracing::{error, info};
 use crate::decode_access_token;
 use axum::http::{HeaderMap, header::AUTHORIZATION};
 
 /// Extracts the email from the Authorization header, if present and valid.
 /// Supports both our internal JWT tokens and Google access tokens.
 pub fn extract_email(headers: &HeaderMap) -> Option<String> {
-    info!(?headers, "extract_email called with headers");
     let auth_header = match headers.get(AUTHORIZATION) {
         Some(h) => h,
         None => {
@@ -27,16 +32,13 @@ pub fn extract_email(headers: &HeaderMap) -> Option<String> {
             return None;
         }
     };
-    info!(token, "Extracted bearer token in extract_email");
-    
+
     // First try to decode as our internal JWT token
     match decode_access_token(token) {
         Ok(data) => {
-            info!(email = %data.claims.sub, "Successfully decoded internal access token in extract_email");
             Some(data.claims.sub)
         }
         Err(_) => {
-            info!("Failed to decode as internal JWT, checking if it's a Google token");
             // If it fails, it might be a Google access token
             // For Google tokens, we need async validation, so we'll return None here
             // and handle Google tokens separately in the calling code
@@ -48,7 +50,6 @@ pub fn extract_email(headers: &HeaderMap) -> Option<String> {
 
 /// Async version that can handle Google access tokens
 pub async fn extract_email_async(headers: &HeaderMap) -> Option<String> {
-    info!(?headers, "extract_email_async called with headers");
     let auth_header = match headers.get(AUTHORIZATION) {
         Some(h) => h,
         None => {
@@ -70,16 +71,13 @@ pub async fn extract_email_async(headers: &HeaderMap) -> Option<String> {
             return None;
         }
     };
-    info!(token, "Extracted bearer token in extract_email_async");
-    
+
     // First try to decode as our internal JWT token
     match decode_access_token(token) {
         Ok(data) => {
-            info!(email = %data.claims.sub, "Successfully decoded internal access token in extract_email_async");
             Some(data.claims.sub)
         }
         Err(_) => {
-            info!("Failed to decode as internal JWT, trying Google token validation");
             // If it fails, try to validate as Google access token
             extract_email_from_google_token(token).await
         }
@@ -126,14 +124,11 @@ async fn extract_email_from_google_token(token: &str) -> Option<String> {
 /// Extracts the email from a JWT token string.
 /// Supports both our internal JWT tokens and Google access tokens.
 pub fn extract_email_token(token: String) -> Option<String> {
-    info!(token = %token, "extract_email_token called with token");
     match decode_access_token(&token) {
         Ok(data) => {
-            info!(email = %data.claims.sub, "Successfully decoded token in extract_email_token");
             Some(data.claims.sub)
         }
         Err(_) => {
-            info!("Failed to decode as internal JWT in extract_email_token, checking if it's a Google token");
             // If it fails, it might be a Google access token
             // For Google tokens, we need async validation, so we'll return None here
             // and handle Google tokens separately in the calling code
@@ -151,20 +146,10 @@ fn is_jwt(token: &str) -> bool {
 
 /// Async version of extract_email_token that can handle Google access tokens
 pub async fn extract_email_token_async(token: String) -> Option<String> {
-    info!(token = %token, "extract_email_token_async called with token");
-
-    if is_jwt(&token) {
-        match decode_access_token(&token) {
-            Ok(data) => {
-                info!(email = %data.claims.sub, "Successfully decoded internal token in extract_email_token_async");
-                return Some(data.claims.sub);
-            }
-            Err(_) => {
-                info!("Failed to decode as internal JWT in extract_email_token_async, trying Google token validation");
-            }
-        }
+    if is_jwt(&token) && let Ok(data) = decode_access_token(&token) {
+        return Some(data.claims.sub);
     }
-    
+
     // If it's not a valid internal JWT, try to validate as Google access token
     extract_email_from_google_token(&token).await
 }

@@ -52,8 +52,14 @@ impl<'a> TestimonialsRepository<'a> {
 	) -> Result<TestimonialsQueryDto> {
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
+		// Extract raw id if id is a thing string
+		let raw_id = if id.contains(':') {
+			id.split(':').last().unwrap().trim_matches(|c| c == '⟨' || c == '⟩').to_string()
+		} else {
+			id
+		};
 		let builder = DetailQueryBuilder::new(ResourceEnum::Testimonials.to_string())
-			.with_id(&id)
+			.with_id(&raw_id)
 			.with_condition("is_deleted = false")
 			.with_select_fields(vec!["*", "user.* as user"]);
 		let sql = builder.build();

@@ -5,7 +5,7 @@ use surrealdb::opt::auth::Root;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-	let env = &imphnen_libs::enviroment::ENV;
+	let env = &imphnen_libs::environment::ENV;
 	let db = any::connect(&env.surrealdb_url).await?;
 	db.signin(Root {
 		username: &env.surrealdb_username,
@@ -28,38 +28,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		(
 			"f6b03f25-e416-4893-ac88-caaa690afb07",
 			vec![
-				PermissionsEnum::ReadListUsers,
-				PermissionsEnum::ReadDetailUsers,
-				PermissionsEnum::CreateUsers,
-				PermissionsEnum::DeleteUsers,
-				PermissionsEnum::UpdateUsers,
-				PermissionsEnum::ActivateUsers,
-				PermissionsEnum::ReadListRoles,
-				PermissionsEnum::ReadDetailRoles,
-				PermissionsEnum::CreateRoles,
-				PermissionsEnum::DeleteRoles,
-				PermissionsEnum::UpdateRoles,
-				PermissionsEnum::ReadListPermissions,
-				PermissionsEnum::ReadDetailPermissions,
-				PermissionsEnum::CreatePermissions,
-				PermissionsEnum::DeletePermissions,
-				PermissionsEnum::UpdatePermissions,
-				PermissionsEnum::CreateGachaClaims,
-				PermissionsEnum::ReadDetailGachaClaims,
-				PermissionsEnum::ReadListGachaItems,
-				PermissionsEnum::ReadDetailGachaItems,
-				PermissionsEnum::CreateGachaItems,
-				PermissionsEnum::DeleteGachaItems,
-				PermissionsEnum::UpdateGachaItems,
-				PermissionsEnum::ReadDetailGachaRolls,
-				PermissionsEnum::CreateGachaRolls,
-				PermissionsEnum::ExecuteGachaRolls,
-				PermissionsEnum::ReadListMentors,
-				PermissionsEnum::ReadDetailMentors,
-				PermissionsEnum::RegisterMentors,
-				PermissionsEnum::UpdateMentors,
-				PermissionsEnum::VerifyMentors,
-				PermissionsEnum::DeleteMentors,
+				// Only Administrator permission - grants access to everything
+				PermissionsEnum::Administrator,
 			],
 		),
 		(
@@ -100,13 +70,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		(
 			"50133429-f4b1-4249-9f97-7b86e6ee9d86",
 			vec![
+				// Staff should be able to list roles and permissions in tests
+				PermissionsEnum::ReadListRoles,
+				PermissionsEnum::ReadListPermissions,
 				PermissionsEnum::ReadListUsers,
 				PermissionsEnum::ReadListMentors,
 				PermissionsEnum::ReadDetailUsers,
 				PermissionsEnum::ActivateUsers,
-				PermissionsEnum::ReadListRoles,
 				PermissionsEnum::ReadDetailRoles,
-				PermissionsEnum::ReadListPermissions,
 				PermissionsEnum::ReadDetailPermissions,
 				PermissionsEnum::ReadListGachaItems,
 				PermissionsEnum::ReadDetailGachaItems,
@@ -115,6 +86,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 				PermissionsEnum::ReadDetailGachaRolls,
 				PermissionsEnum::CreateGachaRolls,
 				PermissionsEnum::ExecuteGachaRolls,
+				PermissionsEnum::ManageAllTeams,
 			],
 		),
 		(
@@ -127,7 +99,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	for (role_id, permissions) in roles_permissions {
 		let permission_refs: Vec<_> = permissions
 			.iter()
-			.map(|perm| make_thing("app_permissions", perm.id()))
+			.map(|perm| make_thing("app_permissions", &perm.id()))
 			.collect();
 
 		db.query("UPDATE type::thing('app_roles', $role_id) SET permissions = $permissions, updated_at = $updated_at WHERE is_deleted = false")

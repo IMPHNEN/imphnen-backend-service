@@ -1,19 +1,25 @@
+//! Standardized response formatting utilities.
+//!
+//! This module provides consistent response formatting for API endpoints,
+//! including success responses, error responses, and list responses with
+//! configurable versioning from Cargo.toml.
+
 use axum::{
-	Json,
-	http::StatusCode,
-	response::{IntoResponse, Response},
+  Json,
+  http::StatusCode,
+  response::{IntoResponse, Response},
 };
 use serde::Serialize;
 use serde_json::json;
 
-use crate::{ResponseListSuccessDto, ResponseSuccessDto};
+use crate::{ResponseListSuccessDto, ResponseSuccessDto, AppError};
 
 pub fn success_response<T: Serialize>(params: ResponseSuccessDto<T>) -> Response {
 	(
 		StatusCode::OK,
 		Json(json!({
 			"data": params.data,
-			"version": "0.1.0",
+			"version": env!("CARGO_PKG_VERSION"),
 		})),
 	)
 		.into_response()
@@ -27,21 +33,32 @@ pub fn success_list_response<T: Serialize>(
 		Json(json!({
 			"data": params.data,
 			"meta": params.meta,
-			"version": "0.1.0",
+			"version": env!("CARGO_PKG_VERSION"),
 		})),
 	)
 		.into_response()
 }
 
 pub fn common_response(status: StatusCode, message: &str) -> Response {
-	(
-		status,
-		Json(json!({
-			"message": message,
-			"version": "0.1.0",
-		})),
-	)
-		.into_response()
+  (
+    status,
+    Json(json!({
+      "message": message,
+      "version": env!("CARGO_PKG_VERSION"),
+    })),
+  )
+    .into_response()
+}
+
+pub fn error_response(error: AppError) -> Response {
+  (
+    error.status_code(),
+    Json(json!({
+      "error": error.message(),
+      "version": env!("CARGO_PKG_VERSION"),
+    })),
+  )
+    .into_response()
 }
 
 pub fn success_created_response<T: Serialize>(params: ResponseSuccessDto<T>) -> Response {
@@ -49,7 +66,7 @@ pub fn success_created_response<T: Serialize>(params: ResponseSuccessDto<T>) -> 
         StatusCode::CREATED,
         Json(json!({
             "data": params.data,
-            "version": "0.1.0",
+            "version": env!("CARGO_PKG_VERSION"),
         })),
     )
         .into_response()

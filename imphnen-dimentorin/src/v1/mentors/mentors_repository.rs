@@ -2,7 +2,8 @@ use anyhow::{Result, bail};
 use imphnen_iam::{get_id, make_thing};
 use surrealdb::sql::Thing;
 
-use crate::v1::mentors::{MentorDetailWithUserDto, MentorInsertDto, MentorSchema};
+use crate::v1::mentors::mentors_dto::MentorDetailWithUserDto;
+use crate::v1::mentors::{MentorInsertDto, MentorSchema};
 use imphnen_libs::{AppState, MetaRequestDto, ResourceEnum, ResponseListSuccessDto};
 use imphnen_utils::{DetailQueryBuilder, QueryListBuilder, get_iso_date};
 use serde_json::{Map, Value};
@@ -122,8 +123,18 @@ impl<'a> MentorsRepository<'a> {
 	) -> Result<MentorDetailWithUserDto> {
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
-		let mut builder = DetailQueryBuilder::new(ResourceEnum::Mentors.to_string())
-			.with_id(get_id(id)?.1)
+
+		// Validate ID format first
+		let mentor_id = match get_id(id) {
+			Ok((_, id_str)) => id_str,
+			Err(_) => bail!("Invalid mentor ID format"),
+		};
+
+		let mentors_table = ResourceEnum::Mentors.to_string();
+		
+		// Build query with proper ID binding
+		let mut builder = DetailQueryBuilder::new(mentors_table.clone())
+			.with_id(mentor_id)  // Use the extracted ID string
 			.with_select_fields(vec![
 				"id",
 				"user_id",
@@ -151,20 +162,23 @@ impl<'a> MentorsRepository<'a> {
 
 		let sql = builder.build();
 		info!(query = %sql, "Executing SurrealDB query in query_mentor_by_id");
-		let mentor_opt: Option<MentorDetailWithUserDto> =
-			builder.apply_bindings(db.query(sql)).await?.take(0)?;
+
+		let mentor_opt: Option<MentorDetailWithUserDto> = builder
+			.apply_bindings(db.query(sql))
+			.await?
+			.take(0)?;
+
 		let elapsed = now.elapsed();
 		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
 			== "development"
 		{
 			println!("Query 'query_mentor_by_id' took: {elapsed:.2?}");
 		}
+
 		let Some(mentor) = mentor_opt else {
-			bail!("Mentor not found in database");
+			bail!("Mentor not found");
 		};
-		if mentor.is_deleted && !include_deleted {
-			bail!("Mentor has been deleted");
-		}
+
 		Ok(mentor)
 	}
 

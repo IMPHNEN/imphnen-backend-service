@@ -2038,7 +2038,9 @@ dependencies = [
  "imphnen-cms",
  "imphnen-dimentorin",
  "imphnen-entities",
+ "imphnen-gacha",
  "imphnen-gateway",
+ "imphnen-hackathon",
  "imphnen-iam",
  "imphnen-libs",
  "imphnen-utils",
@@ -2092,6 +2094,7 @@ name = "imphnen-dimentorin"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "axum",
  "axum-test",
  "chrono",
@@ -2100,6 +2103,7 @@ dependencies = [
  "imphnen-entities",
  "imphnen-iam",
  "imphnen-libs",
+ "imphnen-middleware",
  "imphnen-utils",
  "lazy_static",
  "rand 0.9.2",
@@ -2121,10 +2125,15 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "chrono",
  "serde",
+ "serde_json",
+ "strum 0.27.2",
+ "strum_macros 0.27.2",
  "surrealdb",
  "thiserror 2.0.14",
  "utoipa",
+ "uuid",
 ]
 
 [[package]]
@@ -2167,6 +2176,7 @@ dependencies = [
  "imphnen-dimentorin",
  "imphnen-entities",
  "imphnen-gacha",
+ "imphnen-hackathon",
  "imphnen-iam",
  "imphnen-libs",
  "imphnen-middleware",
@@ -2185,10 +2195,52 @@ dependencies = [
 ]
 
 [[package]]
+name = "imphnen-hackathon"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "axum-extra",
+ "axum-test",
+ "chrono",
+ "dotenvy",
+ "futures",
+ "http-body-util",
+ "imphnen-entities",
+ "imphnen-iam",
+ "imphnen-libs",
+ "imphnen-utils",
+ "lazy_static",
+ "log",
+ "mockall",
+ "oauth2",
+ "once_cell",
+ "rand 0.9.2",
+ "regex",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "strum 0.27.2",
+ "strum_macros 0.27.2",
+ "surrealdb",
+ "tokio",
+ "tokio-test",
+ "tower",
+ "tower-http",
+ "tracing",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "uuid",
+ "validator",
+]
+
+[[package]]
 name = "imphnen-iam"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "axum",
  "axum-extra",
  "axum-test",
@@ -2227,6 +2279,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "argon2",
+ "async-trait",
  "axum",
  "base64 0.22.1",
  "chrono",
@@ -2240,11 +2293,13 @@ dependencies = [
  "once_cell",
  "reqwest",
  "serde",
+ "serde_json",
  "sha2",
  "surrealdb",
  "tokio",
  "urlencoding",
  "uuid",
+ "validator",
 ]
 
 [[package]]
@@ -2255,13 +2310,14 @@ dependencies = [
  "axum",
  "axum-extra",
  "axum-test",
+ "base64 0.22.1",
  "chrono",
  "futures",
  "imphnen-entities",
- "imphnen-iam",
  "imphnen-libs",
  "imphnen-utils",
  "lazy_static",
+ "log",
  "rand 0.9.2",
  "regex",
  "serde",
@@ -2288,6 +2344,7 @@ dependencies = [
  "imphnen-entities",
  "imphnen-libs",
  "rand 0.9.2",
+ "regex",
  "reqwest",
  "serde",
  "serde_json",
@@ -4844,6 +4901,7 @@ dependencies = [
  "hyper-util",
  "imphnen-dimentorin",
  "imphnen-entities",
+ "imphnen-hackathon",
  "imphnen-iam",
  "imphnen-libs",
  "imphnen-utils",
@@ -4856,6 +4914,8 @@ dependencies = [
  "tower",
  "tracing",
  "uuid",
+ "yoke",
+ "yoke-derive",
 ]
 
 [[package]]

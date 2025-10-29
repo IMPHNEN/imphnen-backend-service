@@ -1,5 +1,7 @@
 use std::pin::Pin;
 use std::future::Future;
+use imphnen_utils as generate_otp;
+use imphnen_libs::environment;
 use super::{
 	AuthLoginRequestDto, AuthLoginResponsetDto, AuthNewPasswordRequestDto,
 	AuthRefreshTokenRequestDto, AuthRegisterRequestDto, AuthRepository,
@@ -9,11 +11,12 @@ use crate::{
 	AppState, ResourceEnum, ResponseSuccessDto, RolesEnum, RolesRepository,
 	UsersDetailItemDto, UsersRepository, UsersSchema, common_response,
 	decode_refresh_token, encode_access_token, encode_refresh_token,
-	encode_reset_password_token, extract_email_token_async, generate_otp, get_iso_date,
+	encode_reset_password_token, extract_email_token_async, get_iso_date,
 	hash_password, make_thing, send_email, success_response, validate_request,
 	verify_password,
 };
 use axum::{http::StatusCode, response::Response};
+use imphnen_utils::{AppError, error_response};
 use surrealdb::Uuid;
 use tracing::error;
 use tokio;
@@ -63,7 +66,7 @@ impl AuthServiceTrait for AuthService {
 		payload: AuthLoginRequestDto,
 		state: &AppState,
 	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
-        let payload = payload;
+        
         let state = state.to_owned();
         Box::pin(async move {
 		if let Err((status, message)) = validate_request(&payload) {
@@ -71,62 +74,60 @@ impl AuthServiceTrait for AuthService {
 		}
 
 		let user_repo = UsersRepository::new(&state);
-		let auth_repo = AuthRepository::new(&state);
+		let auth_repo = AuthRepository::new(state.surrealdb_mem.clone());
 
 		let email = &payload.email;
 		let password = &payload.password;
 
 		match user_repo.query_user_by_email(email.to_string()).await {
 			Ok(user) => {
-				let is_password_correct = tokio::task::spawn_blocking({
-					let password = password.to_owned();
-					let user_password = user.password.clone();
-					move || verify_password(&password, &user_password).unwrap_or(false)
-				}).await.unwrap_or(false);
+				let is_password_correct = match tokio::task::spawn_blocking({
+				    let password = password.to_owned();
+				    let user_password = user.password.clone();
+				    move || verify_password(&password, &user_password)
+				}).await {
+				    Ok(result) => match result {
+				        Ok(valid) => valid,
+				        Err(e) => {
+				            error!("Password verification failed: {}", e);
+				            false
+				        }
+				    },
+				    Err(e) => {
+				        error!("Task spawn blocking failed: {}", e);
+				        false
+				    }
+				};
 
 				if !is_password_correct {
-					return common_response(
-						StatusCode::BAD_REQUEST,
-						"Email or password not correct",
-					);
+									return error_response(AppError::AuthenticationError("Email or password not correct".into()));
 				}
 
 				if !user.is_active {
-					return common_response(
-						StatusCode::BAD_REQUEST,
-						"Account not active, please verify your email",
-					);
+									return error_response(AppError::AuthenticationError("Account not active, please verify your email".into()));
 				}
 
-				// Avoid unnecessary clone of user for caching if not needed
-				let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.as_str()).map(str::to_owned).collect();
 				let user_id = user.id.id.to_raw();
 
-				let access_token = match encode_access_token(email.to_string(), user_id.clone(), permissions.clone()) {
-					Ok(token) => token,
-					Err(_e) => {
-						error!(
-							"Failed to generate access token for {}: {}",
-							email, _e
-						);
-						return common_response(
-							StatusCode::INTERNAL_SERVER_ERROR,
-							"Failed to generate access token",
-						);
+				let access_token = match encode_access_token(email.to_string(), user_id.clone()) {
+									Ok(token) => token,
+									Err(_e) => {
+										error!(
+											"Failed to generate access token for {}: {}",
+											email, _e
+										);
+										return error_response(AppError::InternalServerError("Failed to generate access token".into()));
 					}
 				};
 
-				let refresh_token = match encode_refresh_token(email.to_string(), user_id, permissions) {
-					Ok(token) => token,
-					Err(_e) => {
-						error!(
-							"Failed to generate refresh token for {}: {}",
-							email, _e
-						);
-						return common_response(
-							StatusCode::INTERNAL_SERVER_ERROR,
-							"Failed to generate refresh token",
-						);
+				let refresh_token = match encode_refresh_token(email.to_string(), user_id) {
+									Ok(token) => token,
+									Err(_e) => {
+										error!(
+											"Failed to generate refresh token for {}: {}",
+											email, _e
+										);
+										return error_response(AppError::InternalServerError("Failed to generate refresh token".into()));
 					}
 				};
 
@@ -142,19 +143,16 @@ impl AuthServiceTrait for AuthService {
 
 				// Only clone user if caching is required
 				if let Err(err_store) = auth_repo.query_store_user(user.clone()).await {
-					error!(
-						"Failed to store user cache for {}: {}",
-						user.email, err_store
-					);
-					return common_response(
-						StatusCode::BAD_REQUEST,
-						"User already login or failed to cache",
-					);
+									error!(
+										"Failed to store user cache for {}: {}",
+										user.email, err_store
+									);
+									return error_response(AppError::BadRequestError("User already login or failed to cache".into()));
 				}
 				success_response(response)
 			}
 			Err(err_find) => {
-				common_response(StatusCode::UNAUTHORIZED, &err_find.to_string())
+							error_response(AppError::AuthenticationError(err_find.to_string()))
 			}
 		}
         })
@@ -164,7 +162,6 @@ impl AuthServiceTrait for AuthService {
 		payload: AuthLoginRequestDto,
 		state: &AppState,
 	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
-        let payload = payload;
         let state = state.to_owned();
         Box::pin(async move {
 		if let Err((status, message)) = validate_request(&payload) {
@@ -172,15 +169,27 @@ impl AuthServiceTrait for AuthService {
 		}
 
 		let user_repo = UsersRepository::new(&state);
-		let auth_repo = AuthRepository::new(&state);
+		let auth_repo = AuthRepository::new(state.surrealdb_mem.clone());
 
 		match user_repo.query_user_by_email(payload.email.clone()).await {
 			Ok(user) => {
-				let is_password_correct = tokio::task::spawn_blocking({
-					let password = payload.password.clone();
-					let user_password = user.password.clone();
-					move || verify_password(&password, &user_password).unwrap_or(false)
-				}).await.unwrap_or(false);
+				let is_password_correct = match tokio::task::spawn_blocking({
+				    let password = payload.password.clone();
+				    let user_password = user.password.clone();
+				    move || verify_password(&password, &user_password)
+				}).await {
+				    Ok(result) => match result {
+				        Ok(valid) => valid,
+				        Err(e) => {
+				            error!("Password verification failed: {}", e);
+				            false
+				        }
+				    },
+				    Err(e) => {
+				        error!("Task spawn blocking failed: {}", e);
+				        false
+				    }
+				};
 
 				if !is_password_correct {
 					return common_response(
@@ -205,8 +214,7 @@ impl AuthServiceTrait for AuthService {
 					);
 				}
 
-				let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
-                let access_token = match encode_access_token(payload.email.clone(), user.id.id.to_raw(), permissions.clone()) {
+				            let access_token = match encode_access_token(payload.email.clone(), user.id.id.to_raw()) {
 					Ok(token) => token,
 					Err(_e) => {
 						error!(
@@ -220,8 +228,7 @@ impl AuthServiceTrait for AuthService {
 					}
 				};
 
-				let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
-                let refresh_token = match encode_refresh_token(payload.email.clone(), user.id.id.to_raw(), permissions) {
+				            let refresh_token = match encode_refresh_token(payload.email.clone(), user.id.id.to_raw()) {
 					Ok(token) => token,
 					Err(_e) => {
 						error!(
@@ -268,14 +275,13 @@ impl AuthServiceTrait for AuthService {
 		payload: AuthRegisterRequestDto,
 		state: &AppState,
 	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
-        let payload = payload;
         let state = state.to_owned();
         Box::pin(async move {
 		if let Err((status, message)) = validate_request(&payload) {
 			return common_response(status, &message);
 		}
 		let user_repo = UsersRepository::new(&state);
-		let auth_repo = AuthRepository::new(&state);
+		let auth_repo = AuthRepository::new(state.surrealdb_mem.clone());
 		let role_repo = RolesRepository::new(&state);
 		let role = match role_repo
 			.query_role_by_name(RolesEnum::User.to_string())
@@ -314,9 +320,9 @@ impl AuthServiceTrait for AuthService {
 			phone_number: payload.phone_number,
 		};
 		let otp = generate_otp::OtpManager::generate_otp();
-		match auth_repo.query_store_otp(new_user.email.clone(), otp).await {
+		match auth_repo.query_store_otp(new_user.email.clone(), otp.clone()).await {
 			Ok(_) => {
-				let message = format!("your otp code is {otp}");
+				let message = format!("your otp code is {}", otp.code);
 				if let Err(err_send) =
 					send_email(&new_user.email, "OTP Verification", &message)
 				{
@@ -371,7 +377,6 @@ impl AuthServiceTrait for AuthService {
 		payload: AuthResendOtpRequestDto,
 		state: &AppState,
 	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
-        let payload = payload;
         let state = state.to_owned();
         Box::pin(async move {
 		if let Err((status, message)) = validate_request(&payload) {
@@ -385,10 +390,10 @@ impl AuthServiceTrait for AuthService {
 		{
 			return common_response(StatusCode::BAD_REQUEST, "User not found");
 		}
-		let auth_repo = AuthRepository::new(&state);
+		let auth_repo = AuthRepository::new(state.surrealdb_mem.clone());
 		let _ = auth_repo.query_get_stored_otp(payload.email.clone()).await;
 		let otp = generate_otp::OtpManager::generate_otp();
-		let message = format!("Your OTP code is {otp}");
+		let message = format!("Your OTP code is {}", otp.code);
 		match auth_repo.query_store_otp(payload.email.clone(), otp).await {
 			Ok(_) => match send_email(&payload.email, "OTP Verification", &message) {
 				Ok(_) => common_response(StatusCode::OK, "OTP resent successfully"),
@@ -412,7 +417,6 @@ impl AuthServiceTrait for AuthService {
 		payload: AuthRefreshTokenRequestDto,
 		state: &AppState,
 	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
-        let payload = payload;
         let state = state.to_owned();
         Box::pin(async move {
 		if let Err((status, message)) = validate_request(&payload) {
@@ -432,8 +436,7 @@ impl AuthServiceTrait for AuthService {
 			}
 		};
 
-		let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
-		let access_token = match encode_access_token(user.email.clone(), user.id.id.to_raw(), permissions.clone()) {
+		let access_token = match encode_access_token(user.email.clone(), user.id.id.to_raw()) {
 			Ok(token) => token,
 			Err(_e) => {
 				error!("Failed to generate access token for {}: {}", user.email, _e);
@@ -443,7 +446,7 @@ impl AuthServiceTrait for AuthService {
 				);
 			}
 		};
-		let refresh_token = match encode_refresh_token(user.email.clone(), user.id.id.to_raw(), permissions) {
+		let refresh_token = match encode_refresh_token(user.email.clone(), user.id.id.to_raw()) {
 			Ok(token) => token,
 			Err(_e) => {
 				error!("Failed to generate refresh token for {}: {}", user.email, _e);
@@ -467,7 +470,6 @@ impl AuthServiceTrait for AuthService {
 		payload: AuthResendOtpRequestDto,
 		state: &AppState,
 	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
-        let payload = payload;
         let state = state.to_owned();
         Box::pin(async move {
             if let Err((status, message)) = validate_request(&payload) {
@@ -477,8 +479,7 @@ impl AuthServiceTrait for AuthService {
             tokio::spawn(async move {
                 let user_repo = UsersRepository::new(&state);
                 if let Ok(user) = user_repo.query_user_by_email(payload.email.clone()).await {
-                    let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
-                    let token = match encode_reset_password_token(user.email.clone(), user.id.id.to_raw(), permissions) {
+                    let token = match encode_reset_password_token(user.email.clone(), user.id.id.to_raw()) {
                         Ok(token) => token,
                         Err(_e) => {
                             error!("Failed to generate reset password token for {}: {}", user.email, _e);
@@ -486,7 +487,7 @@ impl AuthServiceTrait for AuthService {
                         }
                     };
 
-                    let env = &crate::enviroment::ENV;
+                    let env = &environment::ENV;
                     let fe_url = env.fe_url.clone();
                     let message = format!(
                         "You have requested a password reset. Please click the link below to continue: {fe_url}/auth/reset-password?token={token}"
@@ -506,14 +507,13 @@ impl AuthServiceTrait for AuthService {
 		payload: AuthVerifyEmailRequestDto,
 		state: &AppState,
 	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
-        let payload = payload;
         let state = state.to_owned();
         Box::pin(async move {
 		if let Err((status, message)) = validate_request(&payload) {
 			return common_response(status, &message);
 		}
 		let user_repo = UsersRepository::new(&state);
-		let auth_repo = AuthRepository::new(&state);
+		let auth_repo = AuthRepository::new(state.surrealdb_mem.clone());
 		let email = payload.email.clone();
 		let user = match user_repo.query_user_by_email(email.clone()).await {
 			Ok(user) => user,
@@ -562,7 +562,6 @@ impl AuthServiceTrait for AuthService {
 		payload: AuthNewPasswordRequestDto,
 		state: &AppState,
 	) -> Pin<Box<dyn Future<Output = Response> + Send>> {
-        let payload = payload;
         let state = state.to_owned();
         Box::pin(async move {
 		if let Err((status, message)) = validate_request(&payload) {

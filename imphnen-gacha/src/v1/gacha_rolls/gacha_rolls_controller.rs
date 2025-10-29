@@ -1,7 +1,7 @@
-use crate::{
-	AppState, GachaRollItemDto, GachaRollRequestDto, GachaRollService,
-	MessageResponseDto, ResponseSuccessDto,
-};
+use crate::AppState;
+use imphnen_entities::{MessageResponseDto, ResponseSuccessDto};
+use crate::v1::gacha_rolls::gacha_rolls_dto::{GachaRollItemDto, GachaRollRequestDto};
+use crate::v1::gacha_rolls::gacha_rolls_service::GachaRollService;
 use axum::{
 	Extension, Json, extract::Path, http::HeaderMap, response::IntoResponse,
 };
@@ -15,7 +15,7 @@ use imphnen_iam::{PermissionsEnum, permissions_guard};
     ),
     params(("id" = String, Path, description = "Gacha Roll ID")),
     responses(
-        (status = 200, description = "Get Gacha Roll by ID", body = ResponseSuccessDto<GachaRollItemDto>)
+        (status = 200, description = "[ADMIN] Get Gacha Roll by ID", body = ResponseSuccessDto<GachaRollItemDto>)
     ),
     tag = "Gacha"
 )]
@@ -44,7 +44,7 @@ pub async fn get_detail_gacha_roll(
     ),
     request_body = GachaRollRequestDto,
     responses(
-        (status = 201, description = "Create new gacha roll", body = MessageResponseDto)
+        (status = 201, description = "[ADMIN] Create new gacha roll", body = MessageResponseDto)
     ),
     tag = "Gacha"
 )]
@@ -72,7 +72,7 @@ pub async fn post_create_gacha_roll(
         ("Bearer" = [])
     ),
     responses(
-        (status = 200, description = "Execute and get 1 gacha result", body = ResponseSuccessDto<GachaRollItemDto>)
+        (status = 200, description = "[ADMIN] Execute and get 1 gacha result", body = ResponseSuccessDto<GachaRollItemDto>)
     ),
     tag = "Gacha"
 )]
@@ -100,7 +100,7 @@ pub async fn post_execute_gacha_roll(
     ),
     params(("id" = String, Path, description = "Gacha Roll ID")),
     responses(
-        (status = 200, description = "Delete Gacha Roll (soft delete)", body = MessageResponseDto)
+        (status = 200, description = "[ADMIN] Delete Gacha Roll (soft delete)", body = MessageResponseDto)
     ),
     tag = "Gacha"
 )]

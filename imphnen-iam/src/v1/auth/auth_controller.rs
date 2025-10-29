@@ -2,7 +2,7 @@ use super::{
 	AuthLoginRequestDto, AuthRefreshTokenRequestDto, AuthRegisterRequestDto,
 	AuthResendOtpRequestDto, AuthVerifyEmailRequestDto,
 };
-use crate::{AppState, v1::AuthLoginResponsetDto};
+use crate::{AppState, v1::auth::AuthLoginResponsetDto};
 use crate::{AuthNewPasswordRequestDto, MessageResponseDto, ResponseSuccessDto};
 use axum::{Extension, Json, response::IntoResponse};
 use crate::v1::auth::auth_service::AuthServiceTrait;
@@ -13,8 +13,8 @@ use crate::v1::auth::auth_service::AuthService;
     path = "/v1/auth/login",
     request_body = AuthLoginRequestDto,
     responses(
-        (status = 200, description = "Login successful", body = ResponseSuccessDto<AuthLoginResponsetDto>),
-        (status = 401, description = "Login failed", body = MessageResponseDto)
+        (status = 200, description = "[PUBLIC] Login successful", body = ResponseSuccessDto<AuthLoginResponsetDto>),
+        (status = 401, description = "[PUBLIC] Login failed", body = MessageResponseDto)
     ),
     tag = "Authentication"
 )]
@@ -30,9 +30,9 @@ pub async fn post_login(
     path = "/v1/auth/login-mentor",
     request_body = AuthLoginRequestDto,
     responses(
-        (status = 200, description = "Mentor login successful", body = ResponseSuccessDto<AuthLoginResponsetDto>),
-        (status = 401, description = "Mentor login failed", body = MessageResponseDto),
-        (status = 403, description = "Forbidden - Not a mentor", body = MessageResponseDto)
+        (status = 200, description = "[PUBLIC] Mentor login successful", body = ResponseSuccessDto<AuthLoginResponsetDto>),
+        (status = 401, description = "[PUBLIC] Mentor login failed", body = MessageResponseDto),
+        (status = 403, description = "[PUBLIC] Forbidden - Not a mentor", body = MessageResponseDto)
     ),
     tag = "Authentication"
 )]
@@ -48,8 +48,8 @@ pub async fn post_login_mentor(
     path = "/v1/auth/register",
     request_body = AuthRegisterRequestDto,
     responses(
-        (status = 200, description = "Register successful", body = MessageResponseDto),
-        (status = 401, description = "Register failed", body = MessageResponseDto)
+        (status = 200, description = "[PUBLIC] Register successful", body = MessageResponseDto),
+        (status = 401, description = "[PUBLIC] Register failed", body = MessageResponseDto)
     ),
     tag = "Authentication"
 )]
@@ -65,8 +65,8 @@ pub async fn post_register(
     path = "/v1/auth/verify-email",
     request_body = AuthVerifyEmailRequestDto,
     responses(
-        (status = 200, description = "Verify email successful", body = MessageResponseDto),
-        (status = 401, description = "Verify email failed", body = MessageResponseDto)
+        (status = 200, description = "[PUBLIC] Verify email successful", body = MessageResponseDto),
+        (status = 401, description = "[PUBLIC] Verify email failed", body = MessageResponseDto)
     ),
     tag = "Authentication"
 )]
@@ -82,8 +82,8 @@ pub async fn post_verify_email(
     path = "/v1/auth/send-otp",
     request_body = AuthResendOtpRequestDto,
     responses(
-        (status = 200, description = "Resend otp successful", body = MessageResponseDto),
-        (status = 401, description = "Resend otp failed", body = MessageResponseDto)
+        (status = 200, description = "[PUBLIC] Resend otp successful", body = MessageResponseDto),
+        (status = 401, description = "[PUBLIC] Resend otp failed", body = MessageResponseDto)
     ),
     tag = "Authentication"
 )]
@@ -99,8 +99,8 @@ pub async fn post_resend_otp(
     path = "/v1/auth/forgot",
     request_body = AuthResendOtpRequestDto,
     responses(
-        (status = 200, description = "Forgot password request successful", body = MessageResponseDto),
-        (status = 401, description = "Forgot password request failed", body = MessageResponseDto)
+        (status = 200, description = "[PUBLIC] Forgot password request successful", body = MessageResponseDto),
+        (status = 401, description = "[PUBLIC] Forgot password request failed", body = MessageResponseDto)
     ),
     tag = "Authentication"
 )]
@@ -116,8 +116,8 @@ pub async fn post_forgot_password(
     path = "/v1/auth/new-password",
     request_body = AuthNewPasswordRequestDto,
     responses(
-        (status = 200, description = "New password request successful", body = MessageResponseDto),
-        (status = 401, description = "New password request failed", body = MessageResponseDto)
+        (status = 200, description = "[PUBLIC] New password request successful", body = MessageResponseDto),
+        (status = 401, description = "[PUBLIC] New password request failed", body = MessageResponseDto)
     ),
     tag = "Authentication"
 )]
@@ -133,8 +133,8 @@ pub async fn post_new_password(
     path = "/v1/auth/refresh",
     request_body = AuthRefreshTokenRequestDto,
     responses(
-        (status = 200, description = "Refresh token request successful", body = MessageResponseDto),
-        (status = 401, description = "Refresh token request failed", body = MessageResponseDto)
+        (status = 200, description = "[PUBLIC] Refresh token request successful", body = MessageResponseDto),
+        (status = 401, description = "[PUBLIC] Refresh token request failed", body = MessageResponseDto)
     ),
     tag = "Authentication"
 )]

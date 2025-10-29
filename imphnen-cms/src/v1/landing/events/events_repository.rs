@@ -84,7 +84,7 @@ impl<'a> EventsRepository<'a> {
 	pub async fn query_create_event(&self, data: EventsSchema) -> Result<String> {
 		let now = Instant::now();
 		let db = &self.state.surrealdb_ws;
-		let query_str = format!("CREATE {} CONTENT ...", ResourceEnum::Events.to_string());
+		let query_str = format!("CREATE {} CONTENT ...", ResourceEnum::Events);
 		info!(query = %query_str, "Executing SurrealDB query");
 		let record: Option<EventsSchema> = db
 			.create(ResourceEnum::Events.to_string())

@@ -1,0 +1,905 @@
+use super::hackathon_dto::{
+    HackathonCreateRequestDto, HackathonEventCreateRequestDto,
+    HackathonEventUpdateRequestDto, HackathonSubmissionCreateRequestDto,
+    HackathonSubmissionUpdateRequestDto, HackathonTimelineCreateRequestDto,
+    HackathonTimelineUpdateRequestDto, HackathonUpdateRequestDto,
+};
+use super::hackathon_schema::{
+    HackathonEventsSchema, HackathonPhase, HackathonSchema, HackathonSubmissionsSchema, HackathonTimelineSchema,
+    Prize,
+};
+use imphnen_libs::ResourceEnum;
+use anyhow::{Result, anyhow, bail};
+
+use imphnen_libs::AppState;
+use imphnen_utils::{QueryListBuilder, get_iso_date};
+
+use std::collections::HashMap;
+use surrealdb::sql::Thing;
+use tracing::{instrument, info};
+
+#[derive(Clone)]
+pub struct HackathonRepository<'a> {
+    pub state: &'a AppState,
+}
+
+impl<'a> HackathonRepository<'a> {
+    pub fn new(state: &'a AppState) -> Self {
+        Self { state }
+    }
+    
+    // Normalize an incoming id so callers can pass either the full thing string
+    // (e.g. "app_hackathons:1") or the raw id ("1"). If the id starts with
+    // the table prefix ("{table}:") the prefix is stripped.
+    fn normalize_id(&self, table: &str, id: &str) -> String {
+        if id.starts_with(&format!("{}:", table)) {
+            if let Some((_, rest)) = id.split_once(':') {
+                rest.to_string()
+            } else {
+                id.to_string()
+            }
+        } else {
+            id.to_string()
+        }
+    }
+}
+
+// Hackathon CRUD operations
+impl<'a> HackathonRepository<'a> {
+    #[instrument(skip(self, hackathon), err)]
+    pub async fn create_hackathon(&self, hackathon: HackathonCreateRequestDto) -> Result<HackathonSchema> {
+        let table = ResourceEnum::Hackathons.to_string();
+        let id = surrealdb::Uuid::new_v4().to_string();
+
+        let prizes: Option<Vec<Prize>> = hackathon.prizes.map(|p| {
+            p.into_iter()
+                .map(|prize| Prize {
+                    position: prize.position,
+                    title: prize.title,
+                    description: prize.description,
+                    value: prize.value,
+                })
+                .collect()
+        });
+        let previous_winners: Option<Vec<super::hackathon_schema::Winner>> = hackathon.previous_winners.map(|w| {
+            w.into_iter()
+                .map(|winner| super::hackathon_schema::Winner {
+                    position: winner.position,
+                    team_id: winner.team_id,
+                    project_name: winner.project_name,
+                    team_name: winner.team_name,
+                })
+                .collect()
+        });
+
+        let schema = HackathonSchema {
+            id: Thing::from((table.clone(), id.clone())),
+            name: hackathon.name,
+            description: hackathon.description,
+            start_date: hackathon.start_date,
+            end_date: hackathon.end_date,
+            registration_deadline: hackathon.registration_deadline,
+            max_participants: hackathon.max_participants,
+            status: super::hackathon_schema::HackathonStatus::Draft,
+            theme: hackathon.theme,
+            rules: hackathon.rules,
+            prizes,
+            previous_winners,
+            organizers: hackathon.organizers,
+            is_deleted: false,
+            created_at: Some(get_iso_date()),
+            updated_at: Some(get_iso_date()),
+        };
+
+        info!(query = %format!("CREATE {}:{}", table, id), "Executing SurrealDB query");
+        let record: Option<HackathonSchema> = self
+            .state.surrealdb_ws
+            .create((table, id))
+            .content(schema.clone())
+            .await?;
+
+        match record {
+            Some(h) => Ok(h),
+            None => bail!("Failed to create hackathon"),
+        }
+    }
+
+    #[instrument(skip(self, id), err)]
+    pub async fn get_hackathon_by_id(&self, id: String) -> Result<HackathonSchema> {
+        let table = ResourceEnum::Hackathons.to_string();
+        info!(query = %format!("SELECT * FROM {} WHERE id = '{}'", table, id), "Executing SurrealDB query");
+
+        let normalized_id = self.normalize_id(&table, &id);
+
+        let record: Option<HackathonSchema> = self
+            .state
+            .surrealdb_ws
+            .select((table, normalized_id.clone()))
+            .await?;
+
+        match record {
+            Some(h) => {
+                if h.is_deleted {
+                    bail!("Hackathon not found");
+                }
+                Ok(h)
+            }
+            None => bail!("Hackathon not found"),
+        }
+    }
+
+    #[instrument(skip(self, meta), err)]
+    pub async fn list_hackathons(&self, meta: imphnen_libs::MetaRequestDto) -> Result<imphnen_libs::ResponseListSuccessDto<Vec<HackathonSchema>>> {
+        let table = ResourceEnum::Hackathons.to_string();
+
+        let builder = QueryListBuilder::new(&self.state.surrealdb_ws, &table, &meta)
+            .with_condition("is_deleted = false")
+            .search_field("name")
+            .select_fields(vec!["*"]);
+
+    let mut result = builder.build().await?;
+
+    // Ensure deterministic ordering for listings by sorting on created_at (oldest first).
+    // Tests expect insertion order (first created appears first). created_at is an Option<String>
+    // with ISO 8601 format from `get_iso_date()`, so string comparison is chronologically correct.
+        result.data.sort_by_key(|s: &HackathonSchema| s.created_at.clone());
+
+    Ok(result)
+    }
+
+    #[instrument(skip(self, id, updates), err)]
+    pub async fn update_hackathon(&self, id: String, updates: HackathonUpdateRequestDto) -> Result<HackathonSchema> {
+        let table = ResourceEnum::Hackathons.to_string();
+
+        // First get the existing hackathon
+        let mut existing = self.get_hackathon_by_id(id.clone()).await?;
+
+        // Apply updates
+        if let Some(name) = updates.name {
+            existing.name = name;
+        }
+        if let Some(description) = updates.description {
+            existing.description = description;
+        }
+        if let Some(start_date) = updates.start_date {
+            existing.start_date = start_date;
+        }
+        if let Some(end_date) = updates.end_date {
+            existing.end_date = end_date;
+        }
+        if let Some(registration_deadline) = updates.registration_deadline {
+            existing.registration_deadline = registration_deadline;
+        }
+        if let Some(max_participants) = updates.max_participants {
+            existing.max_participants = Some(max_participants);
+        }
+        if let Some(theme) = updates.theme {
+            existing.theme = Some(theme);
+        }
+        if let Some(rules) = updates.rules {
+            existing.rules = Some(rules);
+        }
+        if let Some(prizes) = updates.prizes {
+            let prizes_schema: Vec<Prize> = prizes
+                .into_iter()
+                .map(|p| Prize {
+                    position: p.position,
+                    title: p.title,
+                    description: p.description,
+                    value: p.value,
+                })
+                .collect();
+            existing.prizes = Some(prizes_schema);
+        if let Some(previous_winners) = updates.previous_winners {
+            let winners_schema: Vec<super::hackathon_schema::Winner> = previous_winners
+                .into_iter()
+                .map(|w| super::hackathon_schema::Winner {
+                    position: w.position,
+                    team_id: w.team_id,
+                    project_name: w.project_name,
+                    team_name: w.team_name,
+                })
+                .collect();
+            existing.previous_winners = Some(winners_schema);
+        }
+        }
+        if let Some(organizers) = updates.organizers {
+            existing.organizers = organizers;
+        }
+
+        existing.updated_at = Some(get_iso_date());
+
+        info!(query = %format!("UPDATE {} SET ... WHERE id = '{}'", table, id), "Executing SurrealDB query");
+        let record: Option<HackathonSchema> = self
+            .state.surrealdb_ws
+            .update((table, id))
+            .content(existing.clone())
+            .await?;
+
+        match record {
+            Some(h) => Ok(h),
+            None => bail!("Failed to update hackathon"),
+        }
+    }
+
+    #[instrument(skip(self, id), err)]
+    pub async fn delete_hackathon(&self, id: String) -> Result<String> {
+        let table = ResourceEnum::Hackathons.to_string();
+
+        // Soft delete by setting is_deleted = true
+        let updates: HashMap<String, serde_json::Value> = HashMap::from([
+            ("is_deleted".to_string(), true.into()),
+            ("updated_at".to_string(), get_iso_date().into()),
+        ]);
+
+        info!(query = %format!("UPDATE {} SET is_deleted = true WHERE id = '{}'", table, id), "Executing SurrealDB query");
+        let normalized_id = self.normalize_id(&table, &id);
+        info!(query = %format!("UPDATE {} SET is_deleted = true WHERE id = '{}'", table, normalized_id), "Executing SurrealDB query");
+        let record: Option<HackathonSchema> = self
+            .state.surrealdb_ws
+            .update((table, normalized_id.clone()))
+            .merge(serde_json::to_value(updates)?)
+            .await?;
+
+        match record {
+            Some(_) => Ok("Hackathon deleted successfully".to_string()),
+            None => bail!("Failed to delete hackathon"),
+        }
+    }
+
+    #[instrument(skip(self, id, status), err)]
+    pub async fn update_hackathon_status(&self, id: String, status: super::hackathon_schema::HackathonStatus) -> Result<HackathonSchema> {
+        let table = ResourceEnum::Hackathons.to_string();
+
+        // Get existing hackathon
+        let mut existing = self.get_hackathon_by_id(id.clone()).await?;
+
+        // Update status
+        existing.status = status;
+        existing.updated_at = Some(get_iso_date());
+
+        info!(query = %format!("UPDATE {} SET status = {:?} WHERE id = '{}'", table, existing.status, id), "Executing SurrealDB query");
+        let normalized_id = self.normalize_id(&table, &id);
+        let record: Option<HackathonSchema> = self
+            .state.surrealdb_ws
+            .update((table, normalized_id))
+            .content(existing.clone())
+            .await?;
+
+        match record {
+            Some(h) => Ok(h),
+            None => bail!("Failed to update hackathon status"),
+        }
+    }
+}
+
+// Hackathon Events CRUD operations
+impl<'a> HackathonRepository<'a> {
+    #[instrument(skip(self, hackathon_id, event), err)]
+    pub async fn create_hackathon_event(&self, hackathon_id: String, event: HackathonEventCreateRequestDto) -> Result<HackathonEventsSchema> {
+        let table = ResourceEnum::HackathonEvents.to_string();
+        let id = surrealdb::Uuid::new_v4().to_string();
+
+        let normalized_hackathon_id = self.normalize_id("app_hackathons", &hackathon_id);
+
+        let schema = HackathonEventsSchema {
+            id: Thing::from((table.clone(), id.clone())),
+            hackathon_id: Thing::from(("app_hackathons".to_string(), normalized_hackathon_id)),
+            title: event.title,
+            description: event.description,
+            event_type: event.event_type,
+            start_time: event.start_time,
+            end_time: event.end_time,
+            location: event.location,
+            virtual_link: event.virtual_link,
+            max_attendees: event.max_attendees,
+            is_mandatory: event.is_mandatory,
+            is_deleted: false,
+            created_at: Some(get_iso_date()),
+            updated_at: Some(get_iso_date()),
+        };
+
+        info!(query = %format!("CREATE {}:{}", table, id), "Executing SurrealDB query");
+        let record: Option<HackathonEventsSchema> = self
+            .state.surrealdb_ws
+            .create((table, id))
+            .content(schema.clone())
+            .await?;
+
+        match record {
+            Some(e) => Ok(e),
+            None => bail!("Failed to create hackathon event"),
+        }
+    }
+
+    #[instrument(skip(self, meta, hackathon_id), err)]
+    pub async fn list_hackathon_events(&self, meta: imphnen_libs::MetaRequestDto, hackathon_id: String) -> Result<imphnen_libs::ResponseListSuccessDto<Vec<HackathonEventsSchema>>> {
+        let table = ResourceEnum::HackathonEvents.to_string();
+
+        let normalized_hackathon_id = self.normalize_id("app_hackathons", &hackathon_id);
+
+        let builder = QueryListBuilder::new(&self.state.surrealdb_ws, &table, &meta)
+            .with_condition("is_deleted = false")
+            .with_condition(&format!("hackathon_id = type::thing('app_hackathons', '{}')", normalized_hackathon_id))
+            .search_field("title")
+            .select_fields(vec!["*"]);
+
+    let mut result = builder.build().await?;
+
+    // Sort events by created_at (oldest first) to ensure deterministic ordering for tests
+    result.data.sort_by_key(|s: &HackathonEventsSchema| s.created_at.clone());
+
+    Ok(result)
+    }
+
+    #[instrument(skip(self, id), err)]
+    pub async fn get_hackathon_event_by_id(&self, id: String) -> Result<HackathonEventsSchema> {
+        let table = ResourceEnum::HackathonEvents.to_string();
+        
+        let existing: Option<HackathonEventsSchema> = self.state.surrealdb_ws
+            .select((table, id.clone()))
+            .await?;
+        
+        let event = existing.ok_or_else(|| anyhow!("Event not found"))?;
+        
+        if event.is_deleted {
+            bail!("Event not found");
+        }
+        
+        Ok(event)
+    }
+
+    #[instrument(skip(self, id, updates), err)]
+    pub async fn update_hackathon_event(&self, id: String, updates: HackathonEventUpdateRequestDto) -> Result<HackathonEventsSchema> {
+        let table = ResourceEnum::HackathonEvents.to_string();
+
+        // Get existing event
+        let existing: Option<HackathonEventsSchema> = self.state.surrealdb_ws.select((table.clone(), id.clone())).await?;
+        let mut existing = existing.ok_or_else(|| anyhow!("Event not found"))?;
+
+        if existing.is_deleted {
+            bail!("Event not found");
+        }
+
+        // Apply updates
+        if let Some(title) = updates.title {
+            existing.title = title;
+        }
+        if let Some(description) = updates.description {
+            existing.description = Some(description);
+        }
+        if let Some(event_type) = updates.event_type {
+            existing.event_type = event_type;
+        }
+        if let Some(start_time) = updates.start_time {
+            existing.start_time = start_time;
+        }
+        if let Some(end_time) = updates.end_time {
+            existing.end_time = end_time;
+        }
+        if let Some(location) = updates.location {
+            existing.location = Some(location);
+        }
+        if let Some(virtual_link) = updates.virtual_link {
+            existing.virtual_link = Some(virtual_link);
+        }
+        if let Some(max_attendees) = updates.max_attendees {
+            existing.max_attendees = Some(max_attendees);
+        }
+        if let Some(is_mandatory) = updates.is_mandatory {
+            existing.is_mandatory = is_mandatory;
+        }
+
+        existing.updated_at = Some(get_iso_date());
+
+        info!(query = %format!("UPDATE {} SET ... WHERE id = '{}'", table, id), "Executing SurrealDB query");
+        let record: Option<HackathonEventsSchema> = self
+            .state.surrealdb_ws
+            .update((table, id))
+            .content(existing.clone())
+            .await?;
+
+        match record {
+            Some(e) => Ok(e),
+            None => bail!("Failed to update hackathon event"),
+        }
+    }
+
+    #[instrument(skip(self, id), err)]
+    pub async fn delete_hackathon_event(&self, id: String) -> Result<String> {
+        let table = ResourceEnum::HackathonEvents.to_string();
+
+        let updates: HashMap<String, serde_json::Value> = HashMap::from([
+            ("is_deleted".to_string(), true.into()),
+            ("updated_at".to_string(), get_iso_date().into()),
+        ]);
+
+        info!(query = %format!("UPDATE {} SET is_deleted = true WHERE id = '{}'", table, id), "Executing SurrealDB query");
+        let record: Option<HackathonEventsSchema> = self
+            .state.surrealdb_ws
+            .update((table, id))
+            .merge(serde_json::to_value(updates)?)
+            .await?;
+
+        match record {
+            Some(_) => Ok("Event deleted successfully".to_string()),
+            None => bail!("Failed to delete event"),
+        }
+    }
+}
+
+// Hackathon Timeline CRUD operations
+impl<'a> HackathonRepository<'a> {
+    #[instrument(skip(self, hackathon_id, timeline), err)]
+    pub async fn create_hackathon_timeline(&self, hackathon_id: String, timeline: HackathonTimelineCreateRequestDto) -> Result<HackathonTimelineSchema> {
+        let table = ResourceEnum::HackathonTimeline.to_string();
+        let id = surrealdb::Uuid::new_v4().to_string();
+
+        let normalized_hackathon_id = self.normalize_id("app_hackathons", &hackathon_id);
+
+        let phase_clone = timeline.phase.clone();
+        let schema = HackathonTimelineSchema {
+            id: Thing::from((table.clone(), id.clone())),
+            hackathon_id: Thing::from(("app_hackathons".to_string(), normalized_hackathon_id)),
+            phase: phase_clone.clone(),
+            title: timeline.title.unwrap_or_else(|| phase_clone.to_string()),
+            description: timeline.description,
+            start_date: timeline.start_date,
+            end_date: timeline.end_date,
+            is_active: timeline.is_active.unwrap_or(false),
+            order: timeline.order.unwrap_or(0),
+            is_deleted: false,
+            created_at: Some(get_iso_date()),
+            updated_at: Some(get_iso_date()),
+        };
+
+        info!(query = %format!("CREATE {}:{}", table, id), "Executing SurrealDB query");
+        let record: Option<HackathonTimelineSchema> = self
+            .state.surrealdb_ws
+            .create((table, id))
+            .content(schema.clone())
+            .await?;
+
+        match record {
+            Some(t) => Ok(t),
+            None => bail!("Failed to create hackathon timeline"),
+        }
+    }
+
+    #[instrument(skip(self, meta, hackathon_id), err)]
+    pub async fn list_hackathon_timeline(&self, meta: imphnen_libs::MetaRequestDto, hackathon_id: String) -> Result<imphnen_libs::ResponseListSuccessDto<Vec<HackathonTimelineSchema>>> {
+        let table = ResourceEnum::HackathonTimeline.to_string();
+
+        let normalized_hackathon_id = self.normalize_id("app_hackathons", &hackathon_id);
+
+        let builder = QueryListBuilder::new(&self.state.surrealdb_ws, &table, &meta)
+            .with_condition("is_deleted = false")
+            .with_condition(&format!("hackathon_id = type::thing('app_hackathons', '{}')", normalized_hackathon_id))
+            .search_field("title")
+            .select_fields(vec!["*"]);
+
+    let result = builder.build().await?;
+    Ok(result)
+    }
+
+    #[instrument(skip(self, id), err)]
+    pub async fn get_hackathon_timeline_by_id(&self, id: String) -> Result<HackathonTimelineSchema> {
+        let table = ResourceEnum::HackathonTimeline.to_string();
+        
+        let existing: Option<HackathonTimelineSchema> = self.state.surrealdb_ws
+            .select((table, id.clone()))
+            .await?;
+        
+        let timeline = existing.ok_or_else(|| anyhow!("Timeline not found"))?;
+        
+        if timeline.is_deleted {
+            bail!("Timeline not found");
+        }
+        
+        Ok(timeline)
+    }
+
+    #[instrument(skip(self, id, updates), err)]
+    pub async fn update_hackathon_timeline(&self, id: String, updates: HackathonTimelineUpdateRequestDto) -> Result<HackathonTimelineSchema> {
+        let table = ResourceEnum::HackathonTimeline.to_string();
+
+        let existing: Option<HackathonTimelineSchema> = self.state.surrealdb_ws.select((table.clone(), id.clone())).await?;
+        let mut existing = existing.ok_or_else(|| anyhow!("Timeline not found"))?;
+
+        if existing.is_deleted {
+            bail!("Timeline not found");
+        }
+
+        // Apply updates
+        if let Some(phase) = updates.phase {
+            existing.phase = phase;
+        }
+        if let Some(title) = updates.title {
+            existing.title = title;
+        }
+        if let Some(description) = updates.description {
+            existing.description = Some(description);
+        }
+        if let Some(start_date) = updates.start_date {
+            existing.start_date = start_date;
+        }
+        if let Some(end_date) = updates.end_date {
+            existing.end_date = end_date;
+        }
+        if let Some(is_active) = updates.is_active {
+            existing.is_active = is_active;
+        }
+        if let Some(order) = updates.order {
+            existing.order = order;
+        }
+
+        existing.updated_at = Some(get_iso_date());
+
+        info!(query = %format!("UPDATE {} SET ... WHERE id = '{}'", table, id), "Executing SurrealDB query");
+        let record: Option<HackathonTimelineSchema> = self
+            .state.surrealdb_ws
+            .update((table, id))
+            .content(existing.clone())
+            .await?;
+
+        match record {
+            Some(t) => Ok(t),
+            None => bail!("Failed to update hackathon timeline"),
+        }
+    }
+
+    #[instrument(skip(self, id), err)]
+    pub async fn delete_hackathon_timeline(&self, id: String) -> Result<String> {
+        let table = ResourceEnum::HackathonTimeline.to_string();
+
+        let updates: HashMap<String, serde_json::Value> = HashMap::from([
+            ("is_deleted".to_string(), true.into()),
+            ("updated_at".to_string(), get_iso_date().into()),
+        ]);
+
+        info!(query = %format!("UPDATE {} SET is_deleted = true WHERE id = '{}'", table, id), "Executing SurrealDB query");
+        let record: Option<HackathonTimelineSchema> = self
+            .state.surrealdb_ws
+            .update((table, id))
+            .merge(serde_json::to_value(updates)?)
+            .await?;
+
+        match record {
+            Some(_) => Ok("Timeline deleted successfully".to_string()),
+            None => bail!("Failed to delete timeline"),
+        }
+    }
+}
+
+// Hackathon Submissions CRUD operations
+impl<'a> HackathonRepository<'a> {
+    #[instrument(skip(self, hackathon_id, team_id, submission), err)]
+    pub async fn create_hackathon_submission(&self, hackathon_id: String, team_id: String, submission: HackathonSubmissionCreateRequestDto) -> Result<HackathonSubmissionsSchema> {
+        let table = ResourceEnum::HackathonSubmissions.to_string();
+        let id = surrealdb::Uuid::new_v4().to_string();
+
+        let normalized_hackathon_id = self.normalize_id("app_hackathons", &hackathon_id);
+        let normalized_team_id = self.normalize_id("app_teams", &team_id);
+
+        let schema = HackathonSubmissionsSchema {
+            id: Thing::from((table.clone(), id.clone())),
+            hackathon_id: Thing::from(("app_hackathons".to_string(), normalized_hackathon_id)),
+            team_id: Some(Thing::from(("app_teams".to_string(), normalized_team_id))),
+            project_name: Some(submission.project_name),
+            description: Some(submission.description),
+            repository_url: submission.repository_url,
+            upload_file_url: submission.upload_file_url,
+            demo_url: submission.demo_url,
+            slides_url: submission.slides_url,
+            technologies: Some(submission.technologies),
+            contact_instagram: submission.contact_instagram,
+            contact_twitter: submission.contact_twitter,
+            contact_linkedin: submission.contact_linkedin,
+            contact_facebook: submission.contact_facebook,
+            contact_youtube: submission.contact_youtube,
+            contact_tiktok: submission.contact_tiktok,
+            contact_other: submission.contact_other,
+            submission_status: Some(super::hackathon_schema::SubmissionStatus::Draft),
+            judge_feedback: None,
+            submitted_at: Some(chrono::Utc::now()),
+            is_deleted: false,
+            created_at: Some(get_iso_date()),
+            updated_at: Some(get_iso_date()),
+        };
+
+        info!(query = %format!("CREATE {}:{}", table, id), "Executing SurrealDB query");
+        let record: Option<HackathonSubmissionsSchema> = self
+            .state.surrealdb_ws
+            .create((table, id))
+            .content(schema.clone())
+            .await?;
+
+        match record {
+            Some(s) => Ok(s),
+            None => bail!("Failed to create hackathon submission"),
+        }
+    }
+
+    #[instrument(skip(self, meta, hackathon_id), err)]
+    pub async fn list_hackathon_submissions(&self, meta: imphnen_libs::MetaRequestDto, hackathon_id: String) -> Result<imphnen_libs::ResponseListSuccessDto<Vec<HackathonSubmissionsSchema>>> {
+        let table = ResourceEnum::HackathonSubmissions.to_string();
+
+        let normalized_hackathon_id = self.normalize_id("app_hackathons", &hackathon_id);
+
+        let builder = QueryListBuilder::new(&self.state.surrealdb_ws, &table, &meta)
+            .with_condition("is_deleted = false")
+            // Some stray records (from earlier bugs) may lack team_id; ensure we only fetch proper submissions
+            .with_condition("team_id IS NOT NULL")
+            // Ensure required string fields exist to prevent deserialization errors
+            .with_condition("project_name IS NOT NULL")
+            .with_condition("description IS NOT NULL")
+            .with_condition("technologies IS NOT NULL")
+            .with_condition(&format!("hackathon_id = type::thing('app_hackathons', '{}')", normalized_hackathon_id))
+            .search_field("project_name")
+            .select_fields(vec!["*"]);
+
+    let mut result = builder.build().await?;
+    // Ensure deterministic ordering for listings by sorting on created_at (oldest first).
+    result.data.sort_by_key(|s: &HackathonSubmissionsSchema| s.created_at.clone());
+    Ok(result)
+    }
+
+    #[instrument(skip(self, meta, team_id), err)]
+    pub async fn list_submissions_by_team(&self, meta: imphnen_libs::MetaRequestDto, team_id: String) -> Result<imphnen_libs::ResponseListSuccessDto<Vec<HackathonSubmissionsSchema>>> {
+        let table = ResourceEnum::HackathonSubmissions.to_string();
+
+        let normalized_team_id = self.normalize_id("app_teams", &team_id);
+
+        let builder = QueryListBuilder::new(&self.state.surrealdb_ws, &table, &meta)
+            .with_condition("is_deleted = false")
+            // Ensure we don't deserialize records without a team_id
+            .with_condition("team_id IS NOT NULL")
+            // Ensure required string fields exist to prevent deserialization errors
+            .with_condition("project_name IS NOT NULL")
+            .with_condition("description IS NOT NULL")
+            .with_condition("technologies IS NOT NULL")
+            .with_condition(&format!("team_id = type::thing('app_teams', '{}')", normalized_team_id))
+            .search_field("project_name")
+            .select_fields(vec!["*"]);
+
+        let mut result = builder.build().await?;
+        result.data.sort_by_key(|s: &HackathonSubmissionsSchema| s.created_at.clone());
+        Ok(result)
+    }
+
+    #[instrument(skip(self, id, status, feedback), err)]
+    pub async fn update_submission_status(&self, id: String, status: super::hackathon_schema::SubmissionStatus, feedback: Option<String>) -> Result<HackathonSubmissionsSchema> {
+        let table = ResourceEnum::HackathonSubmissions.to_string();
+
+        let existing: Option<HackathonSubmissionsSchema> = self.state.surrealdb_ws.select((table.clone(), id.clone())).await?;
+        let mut existing = existing.ok_or_else(|| anyhow!("Submission not found"))?;
+
+        if existing.is_deleted {
+            bail!("Submission not found");
+        }
+
+    existing.submission_status = Some(status);
+        existing.judge_feedback = feedback;
+        existing.updated_at = Some(get_iso_date());
+
+        let record: Option<HackathonSubmissionsSchema> = self
+            .state.surrealdb_ws
+            .update((table, id))
+            .content(existing.clone())
+            .await?;
+
+        match record {
+            Some(s) => Ok(s),
+            None => bail!("Failed to update submission status"),
+        }
+    }
+
+    #[instrument(skip(self, id, updates), err)]
+    pub async fn update_hackathon_submission(&self, id: String, updates: HackathonSubmissionUpdateRequestDto) -> Result<HackathonSubmissionsSchema> {
+        let table = ResourceEnum::HackathonSubmissions.to_string();
+
+        let existing: Option<HackathonSubmissionsSchema> = self.state.surrealdb_ws.select((table.clone(), id.clone())).await?;
+        let mut existing = existing.ok_or_else(|| anyhow!("Submission not found"))?;
+
+        if existing.is_deleted {
+            bail!("Submission not found");
+        }
+
+        // Apply updates
+        if let Some(project_name) = updates.project_name {
+            existing.project_name = Some(project_name);
+        }
+        if let Some(description) = updates.description {
+            existing.description = Some(description);
+        }
+        if let Some(repository_url) = updates.repository_url {
+            existing.repository_url = Some(repository_url);
+        }
+        if let Some(upload_file_url) = updates.upload_file_url {
+            existing.upload_file_url = Some(upload_file_url);
+        }
+        if let Some(demo_url) = updates.demo_url {
+            existing.demo_url = Some(demo_url);
+        }
+        if let Some(slides_url) = updates.slides_url {
+            existing.slides_url = Some(slides_url);
+        }
+        if let Some(technologies) = updates.technologies {
+            existing.technologies = Some(technologies);
+        }
+        if let Some(contact_instagram) = updates.contact_instagram {
+            existing.contact_instagram = Some(contact_instagram);
+        }
+        if let Some(contact_twitter) = updates.contact_twitter {
+            existing.contact_twitter = Some(contact_twitter);
+        }
+        if let Some(contact_linkedin) = updates.contact_linkedin {
+            existing.contact_linkedin = Some(contact_linkedin);
+        }
+        if let Some(contact_facebook) = updates.contact_facebook {
+            existing.contact_facebook = Some(contact_facebook);
+        }
+        if let Some(contact_youtube) = updates.contact_youtube {
+            existing.contact_youtube = Some(contact_youtube);
+        }
+        if let Some(contact_tiktok) = updates.contact_tiktok {
+            existing.contact_tiktok = Some(contact_tiktok);
+        }
+        if let Some(contact_other) = updates.contact_other {
+            existing.contact_other = Some(contact_other);
+        }
+
+        existing.updated_at = Some(get_iso_date());
+
+        info!(query = %format!("UPDATE {} SET ... WHERE id = '{}'", table, id), "Executing SurrealDB query");
+        let record: Option<HackathonSubmissionsSchema> = self
+            .state.surrealdb_ws
+            .update((table, id))
+            .content(existing.clone())
+            .await?;
+
+        match record {
+            Some(s) => Ok(s),
+            None => bail!("Failed to update hackathon submission"),
+        }
+    }
+
+    #[instrument(skip(self, id), err)]
+    pub async fn get_hackathon_submission_by_id(&self, id: String) -> Result<HackathonSubmissionsSchema> {
+        let table = ResourceEnum::HackathonSubmissions.to_string();
+        info!(query = %format!("SELECT * FROM {} WHERE id = '{}'", table, id), "Executing SurrealDB query");
+
+        let record: Option<HackathonSubmissionsSchema> = self
+            .state
+            .surrealdb_ws
+            .select((table, id))
+            .await?;
+
+        match record {
+            Some(s) => {
+                if s.is_deleted {
+                    bail!("Submission not found");
+                }
+                Ok(s)
+            }
+            None => bail!("Submission not found"),
+        }
+    }
+
+    #[instrument(skip(self, id), err)]
+    pub async fn submit_hackathon_submission(&self, id: String) -> Result<HackathonSubmissionsSchema> {
+        let table = ResourceEnum::HackathonSubmissions.to_string();
+
+        let existing: Option<HackathonSubmissionsSchema> = self.state.surrealdb_ws.select((table.clone(), id.clone())).await?;
+        let mut existing = existing.ok_or_else(|| anyhow!("Submission not found"))?;
+
+        if existing.is_deleted {
+            bail!("Submission not found");
+        }
+
+    existing.submission_status = Some(super::hackathon_schema::SubmissionStatus::Submitted);
+    existing.submitted_at = Some(chrono::Utc::now());
+        existing.updated_at = Some(get_iso_date());
+
+        info!(query = %format!("UPDATE {} SET submission_status = 'Submitted' WHERE id = '{}'", table, id), "Executing SurrealDB query");
+        let record: Option<HackathonSubmissionsSchema> = self
+            .state.surrealdb_ws
+            .update((table, id))
+            .content(existing.clone())
+            .await?;
+
+        match record {
+            Some(s) => Ok(s),
+            None => bail!("Failed to submit hackathon submission"),
+        }
+    }
+
+    #[instrument(skip(self, id), err)]
+    pub async fn delete_hackathon_submission(&self, id: String) -> Result<String> {
+        let table = ResourceEnum::HackathonSubmissions.to_string();
+
+        let updates: HashMap<String, serde_json::Value> = HashMap::from([
+            ("is_deleted".to_string(), true.into()),
+            ("updated_at".to_string(), get_iso_date().into()),
+        ]);
+
+        info!(query = %format!("UPDATE {} SET is_deleted = true WHERE id = '{}'", table, id), "Executing SurrealDB query");
+        let record: Option<HackathonSubmissionsSchema> = self
+            .state.surrealdb_ws
+            .update((table, id))
+            .merge(serde_json::to_value(updates)?)
+            .await?;
+
+        match record {
+            Some(_) => Ok("Submission deleted successfully".to_string()),
+            None => bail!("Failed to delete submission"),
+        }
+    }
+    #[instrument(skip(self, hackathon_id), err)]
+    pub async fn get_submission_timeline_phase(&self, hackathon_id: String) -> Result<Option<HackathonTimelineSchema>> {
+        let table = ResourceEnum::HackathonTimeline.to_string();
+
+        info!(query = %format!("SELECT * FROM {} WHERE hackathon_id = 'app_hackathons:{}' AND phase = 'Submission' AND is_deleted = false LIMIT 1", table, hackathon_id), "Executing SurrealDB query");
+
+        let mut result = self.state.surrealdb_ws
+            .query("SELECT * FROM type::table($table) WHERE hackathon_id = type::thing('app_hackathons', $hackathon_id) AND phase = $phase AND is_deleted = false LIMIT 1")
+            .bind(("table", table))
+            .bind(("hackathon_id", hackathon_id))
+            .bind(("phase", HackathonPhase::Submission))
+            .await?;
+
+        let timeline: Option<HackathonTimelineSchema> = result.take(0)?;
+
+        Ok(timeline)
+    }
+}
+
+// Hackathon Participants CRUD operations
+impl<'a> HackathonRepository<'a> {
+    #[instrument(skip(self, hackathon_id, user_id), err)]
+    pub async fn create_hackathon_participant(&self, hackathon_id: String, user_id: String) -> Result<super::hackathon_schema::HackathonParticipantSchema> {
+        // Use the dedicated participants table to avoid polluting submissions
+        let table = "app_hackathon_participants".to_string();
+        let id = surrealdb::Uuid::new_v4().to_string();
+
+        let normalized_hackathon_id = self.normalize_id("app_hackathons", &hackathon_id);
+
+        let schema = super::hackathon_schema::HackathonParticipantSchema {
+            id: Thing::from((table.clone(), id.clone())),
+            hackathon_id: Thing::from(("app_hackathons".to_string(), normalized_hackathon_id)),
+            user_id,
+            is_deleted: false,
+            created_at: Some(get_iso_date()),
+            updated_at: Some(get_iso_date()),
+        };
+
+        info!(query = %format!("CREATE {}:{}", table, id), "Executing SurrealDB query");
+        let record: Option<super::hackathon_schema::HackathonParticipantSchema> = self
+            .state
+            .surrealdb_ws
+            .create((table, id))
+            .content(schema.clone())
+            .await?;
+
+        match record {
+            Some(p) => Ok(p),
+            None => bail!("Failed to create participant"),
+        }
+    }
+
+    #[instrument(skip(self, meta, hackathon_id), err)]
+    pub async fn list_hackathon_participants(&self, meta: imphnen_libs::MetaRequestDto, hackathon_id: String) -> Result<imphnen_libs::ResponseListSuccessDto<Vec<super::hackathon_schema::HackathonParticipantSchema>>> {
+        let table = "app_hackathon_participants".to_string();
+        let normalized_hackathon_id = self.normalize_id("app_hackathons", &hackathon_id);
+
+        let builder = QueryListBuilder::new(&self.state.surrealdb_ws, &table, &meta)
+            .with_condition("is_deleted = false")
+            .with_condition(&format!("hackathon_id = type::thing('app_hackathons', '{}')", normalized_hackathon_id))
+            .select_fields(vec!["*"]);
+
+        let mut result = builder.build().await?;
+        // sort by created_at for deterministic results
+        result.data.sort_by_key(|s: &super::hackathon_schema::HackathonParticipantSchema| s.created_at.clone());
+        Ok(result)
+    }
+}

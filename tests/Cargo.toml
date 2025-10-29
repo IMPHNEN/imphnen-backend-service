@@ -12,6 +12,7 @@ imphnen-dimentorin.workspace = true
 imphnen-entities.workspace = true
 imphnen-libs.workspace = true
 imphnen-utils.workspace = true
+imphnen-hackathon.workspace = true
 http-body-util.workspace = true 
 hyper.workspace = true 
 hyper-util.workspace = true 
@@ -27,3 +28,5 @@ rand.workspace = true
  
 chrono.workspace = true 
 axum.workspace = true
+yoke = { version = "0.8.0", features = ["derive", "alloc"] }
+yoke-derive = "0.8.0"

@@ -1,4 +1,4 @@
-use crate::{RolesDetailItemDto, RolesDetailQueryDto};
+use imphnen_entities::{ExperienceDto, EducationDto, UsersDetailQueryDto, RolesDetailQueryDto, RolesDetailItemDto};
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::Thing;
@@ -9,24 +9,6 @@ use crate::UsersSchema; // Import UsersSchema
 lazy_static! {
 	static ref PASSWORD_REGEX: regex::Regex =
 		regex::Regex::new(r"^[A-Za-z\d@$!%*?&]{8,}$").unwrap();
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
-pub struct ExperienceDto {
-	pub id: String,
-	pub company: String,
-	pub position: String,
-	pub duration: String,
-	pub period: String,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
-pub struct EducationDto {
-	pub id: String,
-	pub institution: String,
-	pub degree: String,
-	pub field: String,
-	pub period: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
@@ -181,15 +163,15 @@ pub struct UsersDetailItemDto {
 }
 
 impl UsersDetailItemDto {
-	pub fn from(dto: &UsersDetailQueryDto) -> Self { // Reverted to taking a reference
+	pub fn from(dto: &UsersDetailQueryDto) -> Self {
 		Self {
-			id: dto.id.id.to_raw().clone(),
+			id: dto.id.id.to_raw(),
 			role: RolesDetailItemDto::from(&dto.role),
 			fullname: dto.fullname.clone(),
 			legal_name: dto.legal_name.clone(),
 			email: dto.email.clone(),
 			avatar: dto.avatar.clone(),
-			phone_number: dto.phone_number.clone(), // Corrected from dto.phone.clone()
+			phone_number: dto.phone_number.clone(),
 			phone_for_verification: dto.phone_for_verification.clone(),
 			is_active: dto.is_active,
 			gender: dto.gender.clone(),
@@ -276,88 +258,18 @@ impl UsersListQueryDto {
 	pub fn from(self) -> UsersListItemDto {
 		UsersListItemDto {
 			id: self.id.id.to_raw(),
-			role: self.role.name.clone(),
-			fullname: self.fullname.clone(),
-			email: self.email.clone(),
-			avatar: self.avatar.clone(),
-			phone_number: self.phone_number.clone(),
+			role: self.role.name,
+			fullname: self.fullname,
+			email: self.email,
+			avatar: self.avatar,
+			phone_number: self.phone_number,
 			is_active: self.is_active,
-			created_at: self.created_at.clone(),
-			updated_at: self.updated_at.clone(),
+			created_at: self.created_at,
+			updated_at: self.updated_at,
 		}
 	}
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct UsersDetailQueryDto {
-	pub id: Thing,
-	pub fullname: String,
-	pub legal_name: Option<String>,
-	pub email: String,
-	pub avatar: Option<String>,
-	pub phone_number: String,
-	pub phone_for_verification: Option<String>,
-	pub is_active: bool,
-	pub is_deleted: bool,
-	pub gender: Option<String>,
-	pub birthdate: Option<String>,
-	pub domicile: Option<String>,
-	pub bio: Option<String>,
-	pub last_education: Option<String>,
-	pub linkedin_url: Option<String>,
-	pub github_url: Option<String>,
-	pub cv_url: Option<String>,
-	pub portfolio_url: Option<String>,
-	pub website_url: Option<String>,
-	pub twitter_url: Option<String>,
-	pub location: Option<String>,
-	pub skills: Option<Vec<String>>,
-	pub experience: Option<Vec<ExperienceDto>>,
-	pub education: Option<Vec<EducationDto>>,
-	pub career_status: Option<String>,
-	pub password: String,
-	pub role: RolesDetailQueryDto,
-	pub created_at: String,
-	pub updated_at: String,
-	pub mentor_id: Option<Thing>,
-}
-
-impl UsersDetailQueryDto {
-	pub fn from(&self) -> Self {
-		Self {
-			id: self.id.clone(),
-			role: self.role.clone(),
-			fullname: self.fullname.clone(),
-			legal_name: self.legal_name.clone(),
-			email: self.email.clone(),
-			avatar: self.avatar.clone(),
-			phone_number: self.phone_number.clone(),
-			phone_for_verification: self.phone_for_verification.clone(),
-			is_active: self.is_active,
-			mentor_id: self.mentor_id.clone(),
-			gender: self.gender.clone(),
-			domicile: self.domicile.clone(),
-			bio: self.bio.clone(),
-			last_education: self.last_education.clone(),
-			linkedin_url: self.linkedin_url.clone(),
-			github_url: self.github_url.clone(),
-			cv_url: self.cv_url.clone(),
-			portfolio_url: self.portfolio_url.clone(),
-			website_url: self.website_url.clone(),
-			twitter_url: self.twitter_url.clone(),
-			location: self.location.clone(),
-			skills: self.skills.clone(),
-			experience: self.experience.clone(),
-			education: self.education.clone(),
-			career_status: self.career_status.clone(),
-			is_deleted: self.is_deleted,
-			password: self.password.clone(),
-			birthdate: self.birthdate.clone(),
-			created_at: self.created_at.clone(),
-			updated_at: self.updated_at.clone(),
-		}
-	}
-}
 
 impl From<&UsersDetailItemDto> for UsersDetailQueryDto {
 	fn from(dto: &UsersDetailItemDto) -> Self {

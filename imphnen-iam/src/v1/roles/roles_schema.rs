@@ -2,8 +2,8 @@ use super::{
 	RolesDetailItemDto, RolesDetailQueryDto, RolesListItemDto, RolesRequestCreateDto,
 	RolesRequestUpdateDto,
 };
-use crate::{ResourceEnum, make_thing};
-use imphnen_utils::get_iso_date;
+use crate::ResourceEnum;
+use imphnen_utils::{get_iso_date, make_thing_from_enum};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use surrealdb::{Uuid, sql::Thing};
@@ -21,12 +21,12 @@ pub struct RolesSchema {
 impl Default for RolesSchema {
 	fn default() -> Self {
 		RolesSchema {
-			id: make_thing(
-				&ResourceEnum::Roles.to_string(),
+			id: make_thing_from_enum(
+				ResourceEnum::Roles,
 				&Uuid::new_v4().to_string(),
 			),
-			permissions: vec![make_thing(
-				&ResourceEnum::Permissions.to_string(),
+			permissions: vec![make_thing_from_enum(
+				ResourceEnum::Permissions,
 				&Uuid::new_v4().to_string(),
 			)],
 			name: String::new(),
@@ -44,9 +44,11 @@ impl RolesSchema {
 			name: dto.name,
 			permissions: dto
 				.permissions
-				.into_iter()
-				.map(|perm| {
-					make_thing(&ResourceEnum::Permissions.to_string(), &perm.id.id.to_raw())
+				.as_ref()
+				.unwrap_or(&vec![])
+				.iter()
+				.filter_map(|perm| {
+					perm.as_ref().and_then(|p| p.id.as_ref().map(|id| make_thing_from_enum(ResourceEnum::Permissions, &id.id.to_raw())))
 				})
 				.collect(),
 			is_deleted: dto.is_deleted,
@@ -59,11 +61,11 @@ impl RolesSchema {
 		let permissions: Vec<Thing> = dto
 			.permissions
 			.into_iter()
-			.map(|id| make_thing(&ResourceEnum::Permissions.to_string(), &id))
+			.map(|id| make_thing_from_enum(ResourceEnum::Permissions, &id))
 			.collect();
 		Self {
-			id: make_thing(
-				&ResourceEnum::Roles.to_string(),
+			id: make_thing_from_enum(
+				ResourceEnum::Roles,
 				&Uuid::new_v4().to_string(),
 			),
 			name: dto.name,
@@ -84,7 +86,7 @@ impl RolesSchema {
 			match (dto.permissions, dto.overwrite.unwrap_or(false)) {
 				(Some(new_ids), true) => new_ids
 					.iter()
-					.map(|id| make_thing(&ResourceEnum::Permissions.to_string(), id))
+					.map(|id| make_thing_from_enum(ResourceEnum::Permissions, id))
 					.collect(),
 				(Some(new_ids), false) => {
 					let mut all_ids: HashSet<String> =
@@ -94,17 +96,17 @@ impl RolesSchema {
 					}
 					all_ids
 						.into_iter()
-						.map(|id| make_thing(&ResourceEnum::Permissions.to_string(), &id))
+						.map(|id| make_thing_from_enum(ResourceEnum::Permissions, &id))
 						.collect()
-				}
+				},
 				(None, _) => existing
 					.permissions
 					.iter()
-					.map(|p| make_thing(&ResourceEnum::Permissions.to_string(), &p.id))
+					.map(|p| make_thing_from_enum(ResourceEnum::Permissions, &p.id))
 					.collect(),
 			};
 		Self {
-			id: make_thing(&ResourceEnum::Roles.to_string(), &id),
+			id: make_thing_from_enum(ResourceEnum::Roles, &id),
 			name,
 			permissions,
 			is_deleted: existing.is_deleted,

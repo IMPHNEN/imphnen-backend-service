@@ -3,9 +3,9 @@ use axum::http::HeaderMap;
 use axum::response::IntoResponse;
 use axum::{Json, extract::Path};
 use imphnen_iam::{PermissionsEnum, permissions_guard};
-use imphnen_libs::{AppState, MessageResponseDto, ResponseSuccessDto};
-
-use super::{GachaClaimItemDto, GachaClaimRequestDto, GachaClaimService};
+use crate::AppState;
+use imphnen_entities::{MessageResponseDto, ResponseSuccessDto};
+use crate::v1::gacha_claims::{GachaClaimItemDto, GachaClaimRequestDto, GachaClaimService};
 
 #[utoipa::path(
 	get,
@@ -15,7 +15,7 @@ use super::{GachaClaimItemDto, GachaClaimRequestDto, GachaClaimService};
     ),
 	params(("id" = String, Path, description = "Gacha Claim ID")),
 	responses(
-		(status = 200, description = "Get Gacha Claim by ID", body = ResponseSuccessDto<GachaClaimItemDto>)
+	    (status = 200, description = "[ADMIN] Get Gacha Claim by ID", body = ResponseSuccessDto<GachaClaimItemDto>)
 	),
 	tag = "Gacha"
 )]
@@ -44,7 +44,7 @@ pub async fn get_detail_gacha_claim(
 	path = "/v1/gacha/claims/create",
 	request_body = GachaClaimRequestDto,
 	responses(
-		(status = 201, description = "Create new gacha claim", body = MessageResponseDto)
+	    (status = 201, description = "[ADMIN] Create new gacha claim", body = MessageResponseDto)
 	),
 	tag = "Gacha"
 )]

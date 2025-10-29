@@ -7,7 +7,7 @@ use surrealdb::opt::auth::Root;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-	let env = &imphnen_libs::enviroment::ENV;
+	let env = &imphnen_libs::environment::ENV;
 	let db = any::connect(&env.surrealdb_url).await?;
 	db.signin(Root {
 		username: &env.surrealdb_username,
@@ -54,6 +54,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		PermissionsEnum::UpdateMentors,
 		PermissionsEnum::VerifyMentors,
 		PermissionsEnum::DeleteMentors,
+		PermissionsEnum::Administrator,
 	] {
 		db.query("CREATE type::thing('app_permissions', $id) CONTENT $data")
 			.bind(("id", permission.id()))

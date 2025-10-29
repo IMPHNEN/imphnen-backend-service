@@ -1,34 +1,70 @@
-use lazy_static::lazy_static;
-lazy_static! {
-	pub static ref VALID_URL_REGEX: regex::Regex =
-		regex::Regex::new(r"^https?://").unwrap();
-}
 use chrono::{DateTime, Utc};
+use lazy_static::lazy_static;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::Thing;
 use utoipa::ToSchema;
-use validator::Validate;
+use validator::{Validate, ValidationError};
+
+// Custom URL validator that ensures valid HTTP/HTTPS URLs
+pub fn validate_url(url: &str) -> Result<(), ValidationError> {
+	lazy_static! {
+		static ref VALID_URL_REGEX: Regex = Regex::new(r"^https?://[^\s$.?#].[^\s]*$").unwrap();
+	}
+	if VALID_URL_REGEX.is_match(url) {
+		Ok(())
+	} else {
+		Err(ValidationError::new("invalid_url"))
+	}
+}
+
+// Custom validator for future dates
+pub fn validate_future_date(end_date: &DateTime<Utc>) -> Result<(), ValidationError> {
+    let now = Utc::now();
+    if end_date > &now {
+        Ok(())
+    } else {
+        Err(ValidationError::new("future_date"))
+    }
+}
+
+// Custom validator for event date ranges (for combined validation)
+pub fn validate_date_range(start_date: &DateTime<Utc>, end_date: &DateTime<Utc>) -> Result<(), ValidationError> {
+    if start_date <= end_date {
+        Ok(())
+    } else {
+        Err(ValidationError::new("date_range"))
+    }
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Validate)]
 pub struct EventsCreateRequestDto {
-	#[validate(length(min = 1, message = "Name is required"))]
+	#[validate(length(min = 1, max = 100, message = "Name must be between 1 and 100 characters"))]
 	pub name: String,
-
-	#[validate(length(min = 1, message = "Description is required"))]
+	
+	#[validate(length(min = 1, max = 1000, message = "Description must be between 1 and 1000 characters"))]
 	pub description: String,
-
-	#[validate(url(message = "Detail link must be a valid URL"))]
+	
+	#[validate(custom(
+		function = "validate_url",
+		message = "Detail link must be a valid HTTP/HTTPS URL"
+	))]
 	pub detail_link: String,
-
-	#[validate(range(min = 0.0, message = "Price cannot be negative"))]
+	
+	#[validate(range(min = 0.0, max = 1_000_000.0, message = "Price must be between 0 and 1,000,000"))]
 	pub price: f64,
 
 	#[schema(example = "2025-09-20T13:00:00Z", value_type = String)]
+	#[validate(custom(
+	    function = "validate_future_date",
+	    message = "End date must be in the future"
+	))]
 	pub end_date: DateTime<Utc>,
 
 	#[schema(example = "2025-09-20T13:00:00Z", value_type = String)]
 	pub start_date: DateTime<Utc>,
 
+	#[validate(length(max = 200, message = "Location name cannot exceed 200 characters"))]
 	pub location: Option<String>,
 	pub is_online: bool,
 }

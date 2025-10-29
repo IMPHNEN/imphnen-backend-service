@@ -1,11 +1,12 @@
 // Restore only the necessary imports to fix unresolved function errors
 use crate::{get_iso_date, hash_password};
-use imphnen_entities::AppState;
-use imphnen_iam::{PermissionsEnum, UsersSchema};
+use imphnen_libs::AppState;
+use imphnen_iam::{PermissionsEnum, UsersSchema, v1::users::users_service::UsersService, v1::auth::auth_repository::AuthRepoImpl};
+use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 use surrealdb::engine::{any, local};
-use surrealdb::{opt::auth::Root, sql::Thing, Connection, Surreal};
+use surrealdb::{sql::Thing, Connection, Surreal};
 use tracing::debug;
 use uuid::Uuid; 
 
@@ -29,28 +30,44 @@ struct RoleSeedData {
 }
 
 pub async fn create_mock_app_state() -> AppState {
-	 
-	let db_ws = any::connect("ws://127.00.1:8000/rpc").await.unwrap();
-	 
-	let db_mem = Surreal::new::<local::Mem>(()).await.unwrap();
-	 
+
+	let db = any::connect("mem://").await.unwrap();
+
 	let unique_id = Uuid::new_v4().to_string();
 	let ns = format!("test_ns_{unique_id}");
-	let db = format!("test_db_{unique_id}");
-	 
-	db_ws
-		.signin(Root {
-			username: "root",
-			password: "root",
-		})
-		.await
-		.unwrap();
-	 
-	db_ws.use_ns(&ns).use_db(&db).await.unwrap();
-	 
+	let db_name = format!("test_db_{unique_id}");
+
+	db.use_ns(&ns).use_db(&db_name).await.unwrap();
+
+	// Define hackathon tables for tests
+	db.query("DEFINE TABLE app_hackathons;").await.unwrap();
+	db.query("DEFINE FIELD name ON app_hackathons TYPE string;").await.unwrap();
+	db.query("DEFINE FIELD description ON app_hackathons TYPE string;").await.unwrap();
+	db.query("DEFINE FIELD start_date ON app_hackathons TYPE string;").await.unwrap();
+	db.query("DEFINE FIELD end_date ON app_hackathons TYPE string;").await.unwrap();
+	db.query("DEFINE FIELD registration_deadline ON app_hackathons TYPE string;").await.unwrap();
+	db.query("DEFINE FIELD max_participants ON app_hackathons TYPE option<int>;").await.unwrap();
+	db.query("DEFINE FIELD status ON app_hackathons TYPE string;").await.unwrap();
+	db.query("DEFINE FIELD theme ON app_hackathons TYPE option<string>;").await.unwrap();
+	db.query("DEFINE FIELD rules ON app_hackathons TYPE option<string>;").await.unwrap();
+	db.query("DEFINE FIELD prizes ON app_hackathons TYPE option<array>;").await.unwrap();
+	db.query("DEFINE FIELD organizers ON app_hackathons TYPE array;").await.unwrap();
+	db.query("DEFINE FIELD is_deleted ON app_hackathons TYPE bool;").await.unwrap();
+	db.query("DEFINE FIELD created_at ON app_hackathons TYPE string;").await.unwrap();
+	db.query("DEFINE FIELD updated_at ON app_hackathons TYPE string;").await.unwrap();
+	db.query("DEFINE TABLE app_hackathon_events;").await.unwrap();
+	db.query("DEFINE TABLE app_hackathon_timeline;").await.unwrap();
+	db.query("DEFINE TABLE app_hackathon_submissions;").await.unwrap();
+	db.query("DEFINE TABLE app_teams;").await.unwrap();
+
+	let db_mem = Surreal::new::<local::Mem>(()).await.unwrap();
+	db_mem.use_ns(&ns).use_db(&db_name).await.unwrap();
+
 	AppState {
-		surrealdb_ws: db_ws,
-		surrealdb_mem: db_mem,
+		surrealdb_ws: db,
+		surrealdb_mem: db_mem.clone(),
+		user_lookup_service: Arc::new(UsersService),
+		auth_repository: Arc::new(AuthRepoImpl { db: db_mem }),
 	}
 }
 pub async fn cleanup_db() {

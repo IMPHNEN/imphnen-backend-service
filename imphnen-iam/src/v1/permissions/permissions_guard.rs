@@ -1,11 +1,11 @@
 use super::PermissionsEnum;
-use crate::{AppState, common_response, decode_access_token};
+use crate::{AppState, common_response, decode_access_token, UsersRepository};
 use axum::{
 	http::{HeaderMap, StatusCode},
 	response::Response, Extension,
 };
 use axum_extra::headers::{authorization::Bearer, Authorization, HeaderMapExt};
-// Removed imphnen_utils::make_thing as it's no longer needed here
+use surrealdb::sql::Thing;
 
 pub async fn permissions_guard(
 	headers: HeaderMap,
@@ -32,10 +32,58 @@ pub async fn permissions_guard(
 		})?
 		.claims;
 
-	// Use permissions from JWT for the check
+	// Fetch user from database to get permissions. Try email first, then try using the sub as a user id.
+	let user_repo = UsersRepository::new(&state);
+	let user = match user_repo.query_user_by_email(claims.sub.clone()).await {
+		Ok(u) => u,
+		Err(_) => {
+			// Try treat claims.sub as a Thing id (user id)
+			let thing = Thing::from(("app_users".to_string(), claims.sub.clone()));
+			match user_repo.query_user_by_id(&thing).await {
+				Ok(u2) => u2,
+				Err(_) => {
+					return Err(common_response(
+						StatusCode::UNAUTHORIZED,
+						"User not found",
+					));
+				}
+			}
+		}
+	};
+
+	// Check permissions from database: collect both names and raw ids so checks
+	// succeed whether permissions are stored by name or by Thing id.
+	let user_permissions: Vec<String> = user
+		.role
+		.permissions
+		.as_ref()
+		.unwrap_or(&vec![])
+		.iter()
+		.filter_map(|p| p.as_ref())
+		.flat_map(|pp| {
+			let mut res: Vec<String> = Vec::new();
+			if let Some(name) = pp.name.clone() {
+				res.push(name);
+			}
+			if let Some(id) = pp.id.as_ref().map(|id| id.id.to_raw()) {
+				res.push(id);
+			}
+			res
+		})
+		.collect();
+
+
+	// If user has Administrator permission, allow all.
+	// Accept either the permission name or the canonical permission id.
+	let admin_name = PermissionsEnum::Administrator.to_string();
+	let admin_id = PermissionsEnum::Administrator.id();
+	if user_permissions.contains(&admin_name) || user_permissions.contains(&admin_id) {
+		return Ok((claims, state));
+	}
+
 	for required in &required_permissions {
 		let required_str = required.to_string();
-		if !claims.permissions.contains(&required_str) {
+		if !user_permissions.contains(&required_str) {
 			eprintln!("  MISSING REQUIRED PERMISSION: {required_str}");
 			return Err(common_response(
 				StatusCode::FORBIDDEN,

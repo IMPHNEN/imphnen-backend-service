@@ -1,5 +1,5 @@
 use axum::http::{HeaderValue, Method, header};
-use imphnen_libs::enviroment::ENV;
+use imphnen_libs::environment::ENV;
 use tower_http::cors::CorsLayer;
 
 pub fn cors_middleware() -> CorsLayer {

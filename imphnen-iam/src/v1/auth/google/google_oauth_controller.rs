@@ -7,7 +7,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use std::sync::Arc;
-use imphnen_libs::enviroment::ENV; // Import ENV
+use imphnen_libs::environment::ENV; // Import ENV
 
 use crate::v1::auth::google::google_oauth_service::{AuthRequest, GoogleOauthService, GoogleOauthServiceImpl};
 use imphnen_entities::error_dto::error::Error;
@@ -92,5 +92,11 @@ where
 {
     fn clone(&self) -> Self {
         Self::with_service(self.google_oauth_service.clone())
+    }
+}
+
+impl Default for GoogleOauthController<GoogleOauthServiceImpl<crate::v1::auth::auth_service::AuthService, crate::v1::users::users_service::UsersService>> {
+    fn default() -> Self {
+        Self::new()
     }
 }

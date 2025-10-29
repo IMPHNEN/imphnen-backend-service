@@ -17,7 +17,7 @@ mod tests {
     use imphnen_iam::v1::users::users_dto::{UsersDetailItemDto, UsersCreateRequestDto}; // Corrected: removed UserDto alias, used UsersCreateRequestDto
     use imphnen_entities::error_dto::ErrorResponse;
     use imphnen_libs::jsonwebtoken::generate_jwt;
-    use imphnen_libs::enviroment::{ENV, Env}; // Import ENV and Env
+    use imphnen_libs::environment::{ENV, Env}; // Import ENV and Env
 
     mock! {
         pub GoogleOauthServiceMock {}
@@ -182,8 +182,8 @@ mod tests {
         let response = app.oneshot(request).await.unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
-        let body = response.into_body().collect().await.unwrap().to_bytes();
-        let json_body: AuthLoginResponsetDto = serde_json::from_slice(&body).unwrap();
+        let json_body: AuthLoginResponsetDto =
+            crate::common::response_helpers::parse_response(response, 8192).await;
         assert_eq!(json_body.token.access_token, expected_access_token);
         assert_eq!(json_body.token.refresh_token, expected_refresh_token);
         assert_eq!(json_body.user.email, user_email);
@@ -271,8 +271,8 @@ mod tests {
         let response = app.oneshot(request).await.unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
-        let body = response.into_body().collect().await.unwrap().to_bytes();
-        let json_body: AuthLoginResponsetDto = serde_json::from_slice(&body).unwrap();
+        let json_body: AuthLoginResponsetDto =
+            crate::common::response_helpers::parse_response(response, 8192).await;
         assert_eq!(json_body.token.access_token, expected_access_token);
         assert_eq!(json_body.token.refresh_token, expected_refresh_token);
         assert_eq!(json_body.user.email, user_email);

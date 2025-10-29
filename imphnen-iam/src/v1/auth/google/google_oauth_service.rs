@@ -1,6 +1,8 @@
 use std::pin::Pin;
 use std::future::Future;
 use anyhow::Result;
+// Type alias to reduce clippy type_complexity warnings for long Future signatures
+type GoogleOauthCallbackFut<'a> = Pin<Box<dyn Future<Output = Result<(UsersDetailItemDto, TokenDto), Error>> + Send + 'a>>;
 
 use oauth2::{
     AuthUrl, ClientId, ClientSecret, CsrfToken, PkceCodeChallenge, PkceCodeVerifier,
@@ -12,7 +14,7 @@ use oauth2::TokenResponse;
 use tracing::{info, error};
 
 use imphnen_entities::error_dto::error::Error;
-use imphnen_libs::{jsonwebtoken::{encode_access_token, encode_refresh_token}, enviroment::Env, AppState};
+use imphnen_libs::{jsonwebtoken::{encode_access_token, encode_refresh_token}, environment::Env, AppState};
 use imphnen_utils::{generate_oauth_csrf_token, validate_oauth_csrf_token, validate_csrf_token};
 use crate::v1::auth::TokenDto;
 use crate::v1::auth::auth_service::AuthServiceTrait;
@@ -103,7 +105,7 @@ pub trait GoogleOauthService<A: AuthServiceTrait + Send + Sync + 'static, U: Use
     // Removed new() from trait
     fn with_services(auth_service: A, users_service: U, env: &'static Env) -> Self;
     fn generate_auth_url(&self, custom_redirect_uri: Option<String>) -> (Url, CsrfToken);
-    fn google_oauth_callback(&self, auth_request: AuthRequest, app_state: &AppState) -> Pin<Box<dyn Future<Output = Result<(UsersDetailItemDto, TokenDto), Error>> + Send + '_>>; // Changed return type
+    fn google_oauth_callback(&self, auth_request: AuthRequest, app_state: &AppState) -> GoogleOauthCallbackFut<'_>; // Changed return type
 }
 
 #[derive(Clone)]
@@ -338,15 +340,13 @@ where
             }
         };
 
-        let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
-let access_token = encode_access_token(user.email.clone(), user.id.clone(), permissions.clone())
+let access_token = encode_access_token(user.email.clone(), user.id.clone())
             .map_err(|e| {
                 error!("Failed to generate access token for {}: {:?}", user.email, e);
                 Error::Auth("Failed to generate access token".to_string())
             })?;
             
-        let permissions: Vec<String> = user.role.permissions.iter().map(|p| p.name.clone()).collect();
-let refresh_token = encode_refresh_token(user.email.clone(), user.id.clone(), permissions)
+let refresh_token = encode_refresh_token(user.email.clone(), user.id.clone())
             .map_err(|e| {
                 error!("Failed to generate refresh token for {}: {:?}", user.email, e);
                 Error::Auth("Failed to generate refresh token".to_string())
@@ -358,8 +358,8 @@ let refresh_token = encode_refresh_token(user.email.clone(), user.id.clone(), pe
         };
 
         // Cache the user in auth repository for subsequent requests
-        let auth_repo = crate::v1::auth::AuthRepository::new(&app_state);
-        let user_query_dto: crate::v1::users::users_dto::UsersDetailQueryDto = (&user).into();
+        let auth_repo = crate::v1::auth::AuthRepository::new(app_state.surrealdb_mem.clone());
+        let user_query_dto: imphnen_entities::UsersDetailQueryDto = (&user).into();
         if let Err(err_store) = auth_repo.query_store_user(user_query_dto).await {
             error!(
                 "Failed to store user cache for {}: {}",

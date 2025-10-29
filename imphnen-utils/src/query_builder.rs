@@ -1,8 +1,16 @@
+//! Query builder utilities for SurrealDB.
+//!
+//! This module provides builders for constructing SurrealDB queries with
+//! support for pagination, filtering, sorting, and binding parameters.
+//! Includes both list queries and detail queries with unique binding keys.
+
+use anyhow::Result;
 use imphnen_libs::MetaRequestDto;
 use serde_json::{Map, Value};
 use surrealdb::engine::any;
 use surrealdb::method::Query;
 use surrealdb::sql::Thing;
+use surrealdb::Surreal;
 
 pub struct ListQueryBuilder {
 	resource: String,
@@ -36,6 +44,13 @@ impl ListQueryBuilder {
 		builder
 	}
 
+	pub fn with_additional_conditions(mut self, additional_conditions: &[String]) -> Self {
+		for condition in additional_conditions {
+			self.conditions.push(condition.clone());
+		}
+		self
+	}
+
 	pub fn new(resource: impl Into<String>) -> Self {
 		Self {
 			resource: resource.into(),
@@ -55,23 +70,21 @@ impl ListQueryBuilder {
 	}
 
 	pub fn with_search(mut self, search: Option<&str>, field: &str) -> Self {
-		if let Some(search) = search {
-			if !search.is_empty() {
-				self.conditions.push(format!(
-					"string::contains(string::lowercase({field} ?? ''), string::lowercase($search))"
-				));
-			}
+		if let Some(search) = search
+			&& !search.is_empty() {
+			self.conditions.push(format!(
+				"string::contains(string::lowercase({field} ?? ''), string::lowercase($search))"
+			));
 		}
 		self
 	}
 
 	pub fn with_filter(mut self, field: Option<&str>, value: Option<&str>) -> Self {
-		if let (Some(f), Some(v)) = (field, value) {
-			if !v.is_empty() {
-				self.conditions.push(format!(
-					"string::contains(string::join('', [{f}]), $filter)"
-				));
-			}
+		if let (Some(f), Some(v)) = (field, value)
+			&& !v.is_empty() {
+			self.conditions.push(format!(
+				"string::contains(string::join('', [{f}]), $filter)"
+			));
 		}
 		self
 	}
@@ -122,19 +135,19 @@ impl ListQueryBuilder {
 		};
 
 		let select_clause = if self.select_fields.is_empty() {
-			"*".to_string()
+			"*"
 		} else {
-			self.select_fields.join(", ")
+			&self.select_fields.join(", ")
 		};
 
 		format!(
 			r#"
-	      SELECT {} FROM {}
-	      {}
-	      {}
-	      LIMIT {} START {}
-	      {}
-	   "#,
+	  SELECT {} FROM {}
+	  {}
+	  {}
+	  LIMIT {} START {}
+	  {}
+   "#,
 			select_clause,
 			self.resource,
 			where_clause,
@@ -164,6 +177,7 @@ pub struct DetailQueryBuilder {
 	fetch_fields: Vec<String>,
 	conditions: Vec<String>,
 	bindings: Map<String, Value>,
+	binding_counter: usize,
 }
 
 impl DetailQueryBuilder {
@@ -176,6 +190,7 @@ impl DetailQueryBuilder {
 			fetch_fields: vec![],
 			conditions: vec![],
 			bindings: Map::new(),
+			binding_counter: 0,
 		}
 	}
 
@@ -196,11 +211,10 @@ impl DetailQueryBuilder {
 			);
 		}
 		self.thing = Some(thing.to_string());
-		self.resource = thing.tb.clone();
+		self.resource = thing.tb.to_string();
 		self
 	}
 
-	// Modified with_where method
 	pub fn with_where(
 		mut self,
 		field: impl Into<String>,
@@ -211,11 +225,11 @@ impl DetailQueryBuilder {
 		}
 		let field_str = field.into();
 		if let Some(val) = value {
-			// Using a distinct binding key to avoid conflicts
-			self.conditions.push(format!("{field_str} = $value_where"));
-			self
-				.bindings
-				.insert("value_where".to_string(), Value::String(val.into()));
+			// Using a unique binding key to avoid conflicts
+			let key = format!("value_where_{}", self.binding_counter);
+			self.binding_counter += 1;
+			self.conditions.push(format!("{field_str} = ${key}"));
+			self.bindings.insert(key, Value::String(val.into()));
 		} else {
 			// If no value, assume it's a direct condition string (e.g., "is_active = true")
 			self.conditions.push(field_str);
@@ -225,6 +239,18 @@ impl DetailQueryBuilder {
 
 	pub fn with_condition(mut self, condition: &str) -> Self {
 		self.conditions.push(condition.to_string());
+		self
+	}
+
+	pub fn with_thing_equals(mut self, field: &str, thing: &Thing) -> Self {
+		let condition = build_thing_condition(field, thing);
+		self.conditions.push(condition);
+		self
+	}
+
+	pub fn with_things_equals(mut self, conditions: &[(&str, &Thing)]) -> Self {
+		let condition = build_multi_thing_condition(conditions);
+		self.conditions.push(condition);
 		self
 	}
 
@@ -240,49 +266,110 @@ impl DetailQueryBuilder {
 
 	pub fn build(&self) -> String {
 		let select_clause = if self.select_fields.is_empty() {
-			"*".to_string()
+			"*"
 		} else {
-			self.select_fields.join(", ")
+			&self.select_fields.join(", ")
 		};
 
 		let fetch_clause = if self.fetch_fields.is_empty() {
-			String::new()
+			""
 		} else {
-			format!("FETCH {}", self.fetch_fields.join(", ")) // Fixed: Changed self.fetch to self.fetch_fields
+			&format!("FETCH {}", self.fetch_fields.join(", "))
 		};
 
 		// Determine the base FROM clause
-		let mut from_clause_base = if let Some(thing) = &self.thing {
-			thing.to_string()
+		let from_clause_base = if let Some(thing) = &self.thing {
+			thing.as_str()
 		} else if let Some(id_val) = &self.id {
-			format!("{}:⟨{}⟩", self.resource, id_val)
+			&format!("{}:⟨{}⟩", self.resource, id_val)
 		} else {
-			self.resource.clone() // Start with resource name for WHERE queries
+			&self.resource
 		};
 
 		// Add WHERE clause based on accumulated conditions
-		if !self.conditions.is_empty() {
-			// This logic needs to be careful: if `from_clause_base` already contains `WHERE` (e.g. from `id` lookup),
-			// then `conditions` should append with `AND`. But for `DetailQueryBuilder`, only one `WHERE` style is expected.
-			// The panic conditions in `with_id`, `with_thing`, `with_where` should prevent logical conflicts.
-			from_clause_base = format!(
-				"{} WHERE {}",
-				from_clause_base,
-				self.conditions.join(" AND ")
-			);
-		}
+		let final_from_clause = if !self.conditions.is_empty() {
+			format!("{} WHERE {}", from_clause_base, self.conditions.join(" AND "))
+		} else {
+			from_clause_base.to_string()
+		};
 
-		format!("SELECT {select_clause} FROM {from_clause_base} {fetch_clause}")
+		format!("SELECT {select_clause} FROM {final_from_clause} {fetch_clause}")
 	}
 
-	// Modified apply_bindings to clone both key and value
 	pub fn apply_bindings<'q>(
 		&self,
 		mut query: Query<'q, any::Any>,
 	) -> Query<'q, any::Any> {
 		for (key, val) in &self.bindings {
-			query = query.bind((key.clone(), val.clone())); // Clone both key and value
+			query = query.bind((key.clone(), val.clone()));
 		}
 		query
+	}
+}
+
+pub fn build_thing_condition(field: &str, thing: &Thing) -> String {
+	format!("{} = type::thing('{}', '{}')", field, thing.tb, thing.id.to_raw())
+}
+
+pub fn build_multi_thing_condition(conditions: &[(&str, &Thing)]) -> String {
+	conditions
+		.iter()
+		.map(|(field, thing)| build_thing_condition(field, thing))
+		.collect::<Vec<_>>()
+		.join(" AND ")
+}
+
+pub async fn execute_safe_update_query(
+	db: &Surreal<surrealdb::engine::any::Any>,
+	query: String,
+) -> Result<()> {
+	let mut result = db.query(query).await?;
+	let _: Result<Vec<serde_json::Value>, _> = result.take(0);
+	Ok(())
+}
+
+pub async fn execute_safe_count_query(
+	db: &Surreal<surrealdb::engine::any::Any>,
+	resource: String,
+	conditions: &str,
+) -> Result<u64> {
+	let query = format!("SELECT count() FROM {} WHERE {}", resource, conditions);
+	let mut result = db.query(query).await?;
+	
+	// Extract the count from the result
+	let response: Vec<surrealdb::Value> = result.take(0)?;
+	let count = response.first().and_then(|v| v.to_string().parse::<u64>().ok())
+		.ok_or_else(|| anyhow::anyhow!("No count found in response"))?;
+	
+	Ok(count)
+}
+
+#[cfg(test)]
+mod query_builder_tests {
+	use super::*;
+	use crate::make_thing_from_enum;
+	use imphnen_libs::ResourceEnum;
+
+	#[test]
+	fn test_build_thing_condition() {
+		let team_thing = make_thing_from_enum(ResourceEnum::Teams, "test-id");
+		let condition = build_thing_condition("team_id", &team_thing);
+		assert_eq!(condition, "team_id = type::thing('app_teams', 'test-id')");
+	}
+
+	#[test]
+	fn test_build_multi_thing_condition() {
+		let team_thing = make_thing_from_enum(ResourceEnum::Teams, "team-id");
+		let user_thing = make_thing_from_enum(ResourceEnum::Users, "user-id");
+		
+		let conditions = build_multi_thing_condition(&[
+			("team_id", &team_thing),
+			("user_id", &user_thing),
+		]);
+		
+		assert_eq!(
+			conditions,
+			"team_id = type::thing('app_teams', 'team-id') AND user_id = type::thing('app_users', 'user-id')"
+		);
 	}
 }

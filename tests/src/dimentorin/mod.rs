@@ -1,1 +1,1 @@
-pub mod mentor;
+pub mod mentors;

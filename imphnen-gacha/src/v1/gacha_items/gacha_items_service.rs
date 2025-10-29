@@ -1,9 +1,11 @@
-use crate::{
-	AppState, GachaItemDto, GachaItemRepository, GachaItemRequestDto, GachaItemUpdateRequestDto, GachaItemSchema,
-	MetaRequestDto, ResourceEnum, ResponseListSuccessDto, ResponseSuccessDto,
-	common_response, make_thing, success_list_response, success_response,
-	validate_request,
-};
+use crate::AppState;
+use imphnen_entities::{MetaRequestDto, ResponseListSuccessDto, ResponseSuccessDto};
+use imphnen_utils::{common_response, make_thing, success_list_response, success_response};
+use crate::v1::gacha_items::GachaItemDto;
+use crate::v1::gacha_items::gacha_items_dto::{GachaItemRequestDto, GachaItemUpdateRequestDto};
+use crate::v1::gacha_items::gacha_items_repository::GachaItemRepository;
+use crate::v1::gacha_items::gacha_items_schema::GachaItemSchema;
+use imphnen_libs::ResourceEnum;
 use axum::http::StatusCode;
 use axum::response::Response;
 use imphnen_utils::get_iso_date;
@@ -42,9 +44,7 @@ impl GachaItemService {
 		state: &AppState,
 		payload: GachaItemRequestDto,
 	) -> Response {
-		if let Err((status, message)) = validate_request(&payload) {
-			return common_response(status, &message);
-		}
+		// Validation is now automatic via ValidatedJson extractor
 		let repo = GachaItemRepository::new(state);
 		let schema = GachaItemSchema {
 			id: make_thing(&ResourceEnum::GachaItems.to_string(), &payload.name), // Fixed: Use payload.name or some other identifier
@@ -63,9 +63,7 @@ impl GachaItemService {
 		payload: GachaItemUpdateRequestDto,
 		id: String,
 	) -> Response {
-		if let Err((status, message)) = validate_request(&payload) {
-			return common_response(status, &message);
-		}
+		// Validation is now automatic via ValidatedJson extractor
 		let repo = GachaItemRepository::new(state);
 		
 		// Get current gacha item data first

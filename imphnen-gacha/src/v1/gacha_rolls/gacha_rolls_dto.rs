@@ -1,4 +1,5 @@
-use crate::{GachaItemDto, GachaItemSchema};
+use crate::v1::gacha_items::GachaItemDto;
+use crate::v1::gacha_items::gacha_items_schema::GachaItemSchema;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::Thing;
 use utoipa::ToSchema;
@@ -6,10 +7,13 @@ use validator::Validate;
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Validate)]
 pub struct GachaRollRequestDto {
-	#[validate(length(min = 1, message = "Item ID must not be empty"))]
+	#[validate(length(min = 1, max = 100, message = "Item ID must be between 1 and 100 characters"))]
 	pub item_id: String,
+
+	#[validate(range(min = 0.0, max = 1.0, message = "Weight must be between 0.0 and 1.0"))]
 	pub weight: f32,
-	#[validate(range(min = 1, message = "Quantity must be at least 1"))]
+
+	#[validate(range(min = 1, max = 100, message = "Quantity must be between 1 and 100"))]
 	pub quantity: i32,
 }
 
@@ -28,7 +32,17 @@ impl GachaRollItemDto {
 	pub fn from(dto: &GachaRollQueryDto) -> Self {
 		Self {
 			id: dto.id.id.to_raw(),
-			item: GachaItemDto::from(dto.item.clone()),
+			// Handle case where item might be missing
+			item: match &dto.item {
+				Some(item) => GachaItemDto::from(item.clone()),
+				None => GachaItemDto {
+					id: "".to_string(),
+					name: "Unknown".to_string(),
+					is_deleted: false,
+					created_at: None,
+					updated_at: None,
+				}
+			},
 			weight: dto.weight,
 			quantity: dto.quantity,
 			is_deleted: dto.is_deleted,
@@ -41,7 +55,8 @@ impl GachaRollItemDto {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GachaRollQueryDto {
 	pub id: Thing,
-	pub item: GachaItemSchema,
+	// item can be missing in the DB (during partial queries); make optional to allow graceful handling
+	pub item: Option<GachaItemSchema>,
 	pub weight: f32,
 	pub quantity: i32,
 	pub is_deleted: bool,

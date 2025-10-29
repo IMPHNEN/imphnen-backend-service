@@ -1,8 +1,9 @@
-use crate::{ResourceEnum, make_thing};
+use crate::ResourceEnum;
+use imphnen_utils::make_thing_from_enum;
 use serde::{Deserialize, Serialize};
 use surrealdb::{Uuid, sql::Thing};
 
-use super::{PermissionsItemDto, PermissionsQueryDto};
+use imphnen_entities::{PermissionsItemDto, PermissionsQueryDto};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PermissionsSchema {
@@ -15,9 +16,9 @@ pub struct PermissionsSchema {
 
 impl Default for PermissionsSchema {
 	fn default() -> Self {
-		PermissionsSchema {
-			id: make_thing(
-				&ResourceEnum::Permissions.to_string(),
+		Self {
+			id: make_thing_from_enum(
+				ResourceEnum::Permissions,
 				&Uuid::new_v4().to_string(),
 			),
 			name: String::new(),
@@ -40,8 +41,8 @@ impl PermissionsSchema {
 
 	pub fn from(dto: PermissionsQueryDto) -> Self {
 		Self {
-			id: dto.id,
-			name: dto.name,
+			id: dto.id.unwrap_or_else(|| make_thing_from_enum(ResourceEnum::Permissions, "unknown")),
+			name: dto.name.unwrap_or_default(),
 			is_deleted: false,
 			created_at: dto.created_at,
 			updated_at: dto.updated_at,

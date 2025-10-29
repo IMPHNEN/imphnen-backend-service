@@ -4,7 +4,7 @@ use chrono::Utc;
 use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
-use crate::enviroment::ENV;
+use crate::environment::ENV;
 
 
 
@@ -108,12 +108,6 @@ impl MinioService {
         
         let url = format!("https://{}/{}/{}", host, self.bucket_name, object_name);
 
-        // Debug logging
-        log::debug!("MinIO Endpoint config: {}", self.endpoint);
-        log::debug!("MinIO Region config: {}", self.region);
-        log::debug!("Upload URL: {}", url);
-        log::debug!("Object name: {}", object_name);
-        log::debug!("File hash: {}", short_hash);
 
         let now = Utc::now();
         let amz_date = now.format("%Y%m%dT%H%M%SZ").to_string();
@@ -135,7 +129,6 @@ impl MinioService {
             canonical_uri, canonical_headers, signed_headers, payload_hash
         );
 
-        log::debug!("Canonical request:\n{}", canonical_request);
 
         let scope = format!("{}/{}/s3/aws4_request", date_stamp, self.region);
         let string_to_sign = format!(
@@ -153,7 +146,6 @@ impl MinioService {
         mac.update(string_to_sign.as_bytes());
         let signature = hex::encode(mac.finalize().into_bytes());
 
-        log::debug!("Generated signature: {}", signature);
 
         let auth_header = format!(
             "AWS4-HMAC-SHA256 Credential={}/{}, SignedHeaders={}, Signature={}",
@@ -211,13 +203,6 @@ impl MinioService {
         
         let url = format!("https://{}/{}/{}", host, self.bucket_name, object_name);
 
-        // Debug logging
-        log::debug!("MinIO Endpoint config: {}", self.endpoint);
-        log::debug!("MinIO Region config: {}", self.region);
-        log::debug!("MinIO Access Key: {}", self.access_key);
-        log::debug!("MinIO Bucket: {}", self.bucket_name);
-        log::debug!("Extracted host: {}", host);
-        log::debug!("Final URL: {}", url);
 
         let now = Utc::now();
         let amz_date = now.format("%Y%m%dT%H%M%SZ").to_string();
@@ -242,14 +227,6 @@ impl MinioService {
             canonical_uri, canonical_headers, signed_headers, payload_hash
         );
 
-        // Debug logging
-        log::debug!("URL: {}", url);
-        log::debug!("Host: {}", host);
-        log::debug!("Bucket: {}", self.bucket_name);
-        log::debug!("Object: {}", object_name);
-        log::debug!("Canonical URI: {}", canonical_uri);
-        log::debug!("Payload hash: {}", payload_hash);
-        log::debug!("Canonical Request:\n{}", canonical_request);
 
         let scope = format!("{}/{}/s3/aws4_request", date_stamp, self.region);
         let string_to_sign = format!(
@@ -259,15 +236,12 @@ impl MinioService {
             hex::encode(Sha256::digest(canonical_request.as_bytes()))
         );
 
-        log::debug!("Scope: {}", scope);
-        log::debug!("String to sign:\n{}", string_to_sign);
 
         let signing_key = self.get_signature_key(&date_stamp)?;
         let mut mac = Hmac::<Sha256>::new_from_slice(&signing_key)?;
         mac.update(string_to_sign.as_bytes());
         let signature = hex::encode(mac.finalize().into_bytes());
 
-        log::debug!("Generated signature: {}", signature);
 
         let auth_header = format!(
             "AWS4-HMAC-SHA256 Credential={}/{}, SignedHeaders={}, Signature={}",
@@ -430,13 +404,11 @@ impl MinioService {
             // Extract the full file path from XML response
             // This is a simplified approach - in production you might want proper XML parsing
             for line in body.lines() {
-                if line.contains("<Key>") && line.contains(file_hash) {
-                    if let Some(start) = line.find("<Key>") {
-                        if let Some(end) = line.find("</Key>") {
-                            let file_path = &line[start + 5..end];
-                            return Ok(Some(file_path.to_string()));
-                        }
-                    }
+                if line.contains("<Key>") && line.contains(file_hash)
+                    && let Some(start) = line.find("<Key>")
+                    && let Some(end) = line.find("</Key>") {
+                    let file_path = &line[start + 5..end];
+                    return Ok(Some(file_path.to_string()));
                 }
             }
         }
@@ -475,15 +447,12 @@ impl MinioService {
 
         // Debug logging for signature calculation
         log::debug!("Region: {}", self.region);
-        log::debug!("Scope: {}", scope);
-        log::debug!("String to sign:\n{}", string_to_sign);
 
         let signing_key = self.get_signature_key(&date_stamp)?;
         let mut mac = Hmac::<Sha256>::new_from_slice(&signing_key)?;
         mac.update(string_to_sign.as_bytes());
         let signature = hex::encode(mac.finalize().into_bytes());
 
-        log::debug!("Final signature: {}", signature);
 
         let auth_header = format!(
             "AWS4-HMAC-SHA256 Credential={}/{}, SignedHeaders={}, Signature={}",
@@ -559,7 +528,7 @@ impl MinioService {
             }
             "image/webp" => {
                 if !file_data.starts_with(b"RIFF")
-                    || !file_data.get(8..12).map_or(false, |s| s == b"WEBP")
+                    || file_data.get(8..12).is_none_or(|s| s != b"WEBP")
                 {
                     bail!("File WEBP tidak valid");
                 }
@@ -721,10 +690,8 @@ pub fn decode_base64_file(base64_data: &str) -> Result<Vec<u8>> {
 
 /// Mengekstrak tipe konten dari URL data.
 pub fn extract_content_type_from_data_url(data_url: &str) -> Option<String> {
-    if data_url.starts_with("data:") {
-        if let Some(type_part) = data_url.split(';').next() {
-            return Some(type_part.replace("data:", ""));
-        }
+    if data_url.starts_with("data:") && let Some(type_part) = data_url.split(';').next() {
+        return Some(type_part.replace("data:", ""));
     }
     None
 }

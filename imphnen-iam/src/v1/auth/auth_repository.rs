@@ -1,22 +1,25 @@
 use super::AuthOtpSchema;
 use super::UserCacheSchema;
-use crate::{
-	AppState, PermissionsQueryDto, ResourceEnum, RolesDetailQueryDto,
-	UsersDetailQueryDto,
-};
+use imphnen_entities::{PermissionsQueryDto, RolesDetailQueryDto, UsersDetailQueryDto};
+use crate::ResourceEnum;
 use anyhow::{Result, anyhow, bail};
-use chrono::{Duration, Utc};
+use chrono::Utc;
 use surrealdb::sql::Thing;
 use tracing::instrument;
 use tracing::info;
+use async_trait::async_trait;
+use imphnen_libs::AuthRepositoryTrait;
+use imphnen_libs::SurrealMemClient;
+use imphnen_utils::generate_otp::OtpData;
 
-pub struct AuthRepository<'a> {
-	pub state: &'a AppState,
+
+pub struct AuthRepository {
+	pub db: SurrealMemClient,
 }
 
-impl<'a> AuthRepository<'a> {
-	pub fn new(state: &'a AppState) -> Self {
-		Self { state }
+impl AuthRepository {
+	pub fn new(db: SurrealMemClient) -> Self {
+		Self { db }
 	}
 
 	#[instrument(skip(self, user), err)]
@@ -27,7 +30,7 @@ impl<'a> AuthRepository<'a> {
 		let table = ResourceEnum::UsersCache.to_string();
 		let user_id = user.email.clone();
 		let permissions: Vec<String> =
-			user.role.permissions.into_iter().map(|p| p.name).collect();
+			user.role.permissions.as_ref().unwrap_or(&vec![]).iter().filter_map(|p| p.as_ref().and_then(|pp| pp.name.clone())).collect();
 		let user_cache = UserCacheSchema {
 			email: user_id.clone(),
 			permissions,
@@ -35,15 +38,13 @@ impl<'a> AuthRepository<'a> {
 
 		info!(query = %format!("DELETE FROM {} WHERE id = '{}'", table, user_id), "Executing SurrealDB query");
 		let _record: Option<UserCacheSchema> = self
-			.state
-			.surrealdb_mem
+			.db
 			.delete::<Option<UserCacheSchema>>((table.clone(), user_id.clone()))
 			.await?;
 
 		info!(query = %format!("CREATE {}:{}", table, user_id), "Executing SurrealDB query");
 		let record: Option<UserCacheSchema> = self
-			.state
-			.surrealdb_mem
+			.db
 			.create((table, user_id))
 			.content(user_cache)
 			.await?;
@@ -61,8 +62,7 @@ impl<'a> AuthRepository<'a> {
 	) -> Result<UsersDetailQueryDto> {
 		info!(query = %format!("SELECT FROM {} WHERE id = '{}'", ResourceEnum::UsersCache.to_string(), email), "Executing SurrealDB query");
 		let user_cache: Option<UserCacheSchema> = self
-			.state
-			.surrealdb_mem
+			.db
 			.select((ResourceEnum::UsersCache.to_string(), email.clone()))
 			.await?;
 
@@ -72,11 +72,11 @@ impl<'a> AuthRepository<'a> {
 					.permissions
 					.into_iter()
 					.map(|name| PermissionsQueryDto {
-						id: Thing::from((
+						id: Some(Thing::from((
 							"app_permissions".to_string(),
 							surrealdb::sql::Id::rand(),
-						)),
-						name,
+						))),
+						name: Some(name),
 						created_at: None,
 						updated_at: None,
 					})
@@ -85,7 +85,7 @@ impl<'a> AuthRepository<'a> {
 				let role_detail_query_dto = RolesDetailQueryDto {
 					id: Thing::from(("app_roles".to_string(), surrealdb::sql::Id::rand())),
 					name: "CachedRole".to_string(),
-					permissions: permissions_query_dto,
+					permissions: Some(permissions_query_dto.into_iter().map(Some).collect()),
 					is_deleted: false,
 					created_at: None,
 					updated_at: None,
@@ -132,8 +132,7 @@ impl<'a> AuthRepository<'a> {
 	pub async fn query_delete_stored_user(&self, email: String) -> Result<String> {
 		info!(query = %format!("DELETE FROM {} WHERE id = '{}'", ResourceEnum::UsersCache.to_string(), email), "Executing SurrealDB query");
 		let record: Option<UsersDetailQueryDto> = self
-			.state
-			.surrealdb_mem
+			.db
 			.delete((ResourceEnum::UsersCache.to_string(), email))
 			.await?;
 		match record {
@@ -147,14 +146,13 @@ impl<'a> AuthRepository<'a> {
 		let table = ResourceEnum::OtpCache.to_string();
 		let key = (table.as_str(), email.as_str());
 		info!(query = %format!("SELECT FROM {} WHERE id = '{}'", table, email), "Executing SurrealDB query");
-		let result: Option<AuthOtpSchema> = self.state.surrealdb_mem.select(key).await?;
+		let result: Option<AuthOtpSchema> = self.db.select(key).await?;
 		match result {
 			Some(data) => match Utc::now() > data.expires_at {
 				true => {
 					info!(query = %format!("DELETE FROM {} WHERE id = '{}'", table, email), "Executing SurrealDB query");
 					let _ = self
-						.state
-						.surrealdb_mem
+						.db
 						.delete::<Option<AuthOtpSchema>>(key)
 						.await?;
 					Err(anyhow!("OTP expired"))
@@ -165,16 +163,13 @@ impl<'a> AuthRepository<'a> {
 		}
 	}
 
-	#[instrument(skip(self, email, otp), err)]
-	pub async fn query_store_otp(&self, email: String, otp: u32) -> Result<String> {
-		let expires_at = Utc::now() + Duration::seconds(300);
+	pub async fn query_store_otp(&self, email: String, otp: OtpData) -> Result<String> {
 		let table: String = ResourceEnum::OtpCache.to_string();
 		info!(query = %format!("CREATE {}:{}", table, email), "Executing SurrealDB query");
 		let record: Option<AuthOtpSchema> = self
-			.state
-			.surrealdb_mem
+			.db
 			.create((table.as_str(), email.as_str()))
-			.content(AuthOtpSchema { otp, expires_at })
+			.content(AuthOtpSchema { otp: otp.code, hash: otp.hash, expires_at: otp.expires_at })
 			.await?;
 		match record {
 			Some(_) => Ok("Success store otp".to_string()),
@@ -186,8 +181,7 @@ impl<'a> AuthRepository<'a> {
 	pub async fn query_delete_stored_otp(&self, email: String) -> Result<String> {
 		info!(query = %format!("DELETE FROM {} WHERE id = '{}'", ResourceEnum::OtpCache.to_string(), email), "Executing SurrealDB query");
 		let record: Option<AuthOtpSchema> = self
-			.state
-			.surrealdb_mem
+			.db
 			.delete((ResourceEnum::OtpCache.to_string(), email))
 			.await?;
 		match record {
@@ -196,3 +190,19 @@ impl<'a> AuthRepository<'a> {
 		}
 	}
 }
+
+pub struct AuthRepoImpl {
+    pub db: SurrealMemClient,
+}
+
+#[async_trait]
+impl AuthRepositoryTrait for AuthRepoImpl {
+    async fn query_get_stored_user(
+        &self,
+        email: String,
+    ) -> Result<UsersDetailQueryDto, anyhow::Error> {
+        let repo = AuthRepository { db: self.db.clone() };
+        repo.query_get_stored_user(email).await.map_err(|e| anyhow::anyhow!(e))
+    }
+}
+
