@@ -1,20 +1,15 @@
-use imphnen_utils::{get_iso_date};
-use serde_json::json;
 use std::error::Error;
-use surrealdb::engine::any;
-use surrealdb::opt::auth::Root;
+use imphnen_libs::postgres::{PostgresConfig, PostgresConnection};
+use imphnen_entities::seaorm::auth::roles::{RoleBuilder, Entity as RoleEntity};
+use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait};
+use uuid::Uuid;
+use chrono::Utc; // Added chrono
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-	let env = &imphnen_libs::environment::ENV;
-	let db = any::connect(&env.surrealdb_url).await?;
-	db.signin(Root {
-		username: &env.surrealdb_username,
-		password: &env.surrealdb_password,
-	})
-	.await?;
-	db.use_ns(env.surrealdb_namespace.clone())
-		.use_db(env.surrealdb_dbname.clone())
-		.await?;
+	let config = PostgresConfig::from_env()?;
+	let pg_conn = PostgresConnection::new(config).await?;
+	let db = &pg_conn.conn;
 
 	let roles = vec![
 		(
@@ -55,23 +50,32 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		),
 	];
 
-	for (id, name, _created_at, _updated_at) in roles {
-		db.query("DELETE type::thing('app_roles', $id)")
-			.bind(("id", id))
-			.await?;
-		db.query("CREATE type::thing('app_roles', $id) CONTENT $data")
-			.bind(("id", id))
-			.bind((
-				"data",
-				json!({
-						"name": name,
-						"permissions": [],
-						"is_deleted": false,
-						"created_at": get_iso_date(),
-						"updated_at": get_iso_date(),
-				}),
-			))
-			.await?;
+	for (id, name, _created_at_str, _updated_at_str) in roles { // Renamed to avoid conflict
+		let uuid = Uuid::parse_str(id).unwrap_or_else(|_| Uuid::new_v4());
+		
+		// Check if role already exists
+		let existing = RoleEntity::find_by_id(uuid).one(db).await?;
+		if existing.is_some() {
+			println!("ℹ️  Skipping (already exists): {name}");
+			continue;
+		}
+
+		// Delete existing by id to avoid duplicates (original logic, replaced by existence check)
+		// let _ = pg_conn.execute(sea_orm::Statement::from_string(db.get_database_backend(), format!("DELETE FROM app_roles WHERE id = '{}'", uuid))).await.ok();
+		
+		let role_model = RoleBuilder::new()
+			.name(name.to_string())
+			.description("System generated role".to_string())
+			.permissions(vec![])
+			.is_default(false)
+			.build()?;
+		let mut role_model = role_model;
+		role_model.id = Set(uuid);
+		role_model.is_system_role = Set(true); // Set the missing field
+		role_model.created_at = Set(Utc::now()); // Set created_at
+		role_model.updated_at = Set(Utc::now()); // Set updated_at
+
+		role_model.insert(db).await?;
 		println!("✅ Inserted role: {name}");
 	}
 	println!("✅ All Roles seeded");

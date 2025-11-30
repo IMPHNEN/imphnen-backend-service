@@ -17,7 +17,9 @@ use validator::Validate;
 ///
 /// # Example
 /// ```rust
-/// use validated_json::ValidatedJson;
+/// use imphnen_libs::axum::ValidatedJson;
+/// use axum::response::Response;
+/// use axum::body::Body;
 /// use serde::Deserialize;
 /// use validator::Validate;
 ///
@@ -34,6 +36,7 @@ use validator::Validate;
 /// ) -> Response {
 ///     // payload is already validated
 ///     // ... your logic here
+///     Response::new(Body::from("ok"))
 /// }
 /// ```
 pub struct ValidatedJson<T>(pub T);
@@ -51,7 +54,7 @@ where
         let Json(value) = match Json::<T>::from_request(req, state).await {
             Ok(value) => value,
             Err(rejection) => {
-                let error_message = format!("Invalid JSON payload: {}", rejection);
+                let error_message = format!("Invalid JSON payload: {rejection}");
                 return Err((
                     StatusCode::BAD_REQUEST,
                     Json(serde_json::json!({

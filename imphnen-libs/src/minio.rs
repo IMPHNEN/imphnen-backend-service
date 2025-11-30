@@ -40,7 +40,7 @@ impl MinioConfig {
         } else {
             // Only add protocol if not present
             let protocol = if self.secure { "https" } else { "http" };
-            format!("{}://{}", protocol, self.endpoint)
+            format!("{protocol}://{}", self.endpoint)
         }
     }
 }
@@ -98,7 +98,7 @@ impl MinioService {
         }
 
         let file_extension = Self::get_file_extension(original_filename);
-        let unique_filename = format!("{}/{}-{}.{}", folder, short_hash, Uuid::new_v4(), file_extension);
+        let unique_filename = format!("{folder}/{short_hash}-{}.{file_extension}", Uuid::new_v4());
         let object_name = &unique_filename;
 
         // Extract host from endpoint (remove protocol)
@@ -106,7 +106,7 @@ impl MinioService {
             .trim_start_matches("https://")
             .trim_start_matches("http://");
         
-        let url = format!("https://{}/{}/{}", host, self.bucket_name, object_name);
+        let url = format!("https://{host}/{}/{object_name}", self.bucket_name);
 
 
         let now = Utc::now();
@@ -123,7 +123,7 @@ impl MinioService {
         let signed_headers = "host;x-amz-content-sha256;x-amz-date";
         
         // For path-style, canonical URI should be /bucket/object
-        let canonical_uri = format!("/{}/{}", self.bucket_name, object_name);
+        let canonical_uri = format!("/{}/{object_name}", self.bucket_name);
         let canonical_request = format!(
             "PUT\n{}\n\n{}\n{}\n{}",
             canonical_uri, canonical_headers, signed_headers, payload_hash
@@ -193,7 +193,7 @@ impl MinioService {
         Self::validate_file_type(content_type, file_data)?;
 
         let file_extension = Self::get_file_extension(original_filename);
-        let unique_filename = format!("{}/{}.{}", folder, Uuid::new_v4(), file_extension);
+        let unique_filename = format!("{folder}/{}.{file_extension}", Uuid::new_v4());
         let object_name = &unique_filename;
 
         // Extract host from endpoint (remove protocol)
@@ -201,7 +201,7 @@ impl MinioService {
             .trim_start_matches("https://")
             .trim_start_matches("http://");
         
-        let url = format!("https://{}/{}/{}", host, self.bucket_name, object_name);
+        let url = format!("https://{host}/{}/{object_name}", self.bucket_name);
 
 
         let now = Utc::now();
@@ -212,7 +212,7 @@ impl MinioService {
         let payload_hash = "UNSIGNED-PAYLOAD".to_string();
 
         // 2) Path-style canonical URI: /{bucket}/{object}
-        let canonical_uri = format!("/{}/{}", self.bucket_name, object_name);
+        let canonical_uri = format!("/{}/{object_name}", self.bucket_name);
 
         // 3) ONLY sign essential headers (no content-type to avoid proxy issues)
         let canonical_headers = format!(
@@ -228,7 +228,7 @@ impl MinioService {
         );
 
 
-        let scope = format!("{}/{}/s3/aws4_request", date_stamp, self.region);
+        let scope = format!("{date_stamp}/{}/s3/aws4_request", self.region);
         let string_to_sign = format!(
             "AWS4-HMAC-SHA256\n{}\n{}\n{}",
             amz_date,
@@ -301,7 +301,7 @@ impl MinioService {
         let now = Utc::now();
         let amz_date = now.format("%Y%m%dT%H%M%SZ").to_string();
         let date_stamp = now.format("%Y%m%d").to_string();
-        let scope = format!("{}/{}/s3/aws4_request", date_stamp, self.region);
+        let scope = format!("{date_stamp}/{}/s3/aws4_request", self.region);
         let credential = format!("{}/{}", self.access_key, scope);
 
         let expires_str = expiry_seconds.to_string();
@@ -350,7 +350,7 @@ impl MinioService {
             .trim_start_matches("https://")
             .trim_start_matches("http://");
             
-        let url = format!("https://{}/{}?list-type=2&prefix={}", host, self.bucket_name, folder);
+        let url = format!("https://{host}/{bucket}?list-type=2&prefix={folder}", bucket = self.bucket_name);
 
         let now = Utc::now();
         let amz_date = now.format("%Y%m%dT%H%M%SZ").to_string();
@@ -358,14 +358,14 @@ impl MinioService {
         let payload_hash = hex::encode(Sha256::digest(b""));
 
         let canonical_query_string = format!("list-type=2&prefix={}", urlencoding::encode(folder));
-        let canonical_headers = format!("host:{}\nx-amz-content-sha256:{}\nx-amz-date:{}\n", host, payload_hash, amz_date);
+        let canonical_headers = format!("host:{host}\nx-amz-content-sha256:{payload_hash}\nx-amz-date:{amz_date}\n");
         let signed_headers = "host;x-amz-content-sha256;x-amz-date";
         let canonical_request = format!(
             "GET\n/{}\n{}\n{}\n{}\n{}",
             self.bucket_name, canonical_query_string, canonical_headers, signed_headers, payload_hash
         );
 
-        let scope = format!("{}/{}/s3/aws4_request", date_stamp, self.region);
+        let scope = format!("{date_stamp}/{}/s3/aws4_request", self.region);
         let string_to_sign = format!(
             "AWS4-HMAC-SHA256\n{}\n{}\n{}",
             amz_date,
@@ -423,21 +423,21 @@ impl MinioService {
             .trim_start_matches("https://")
             .trim_start_matches("http://");
             
-        let url = format!("https://{}/{}/{}", host, self.bucket_name, object_name);
+        let url = format!("https://{host}/{}/{object_name}", self.bucket_name);
 
         let now = Utc::now();
         let amz_date = now.format("%Y%m%dT%H%M%SZ").to_string();
         let date_stamp = now.format("%Y%m%d").to_string();
         let payload_hash = hex::encode(Sha256::digest(b""));
 
-        let canonical_headers = format!("host:{}\nx-amz-content-sha256:{}\nx-amz-date:{}\n", host, payload_hash, amz_date);
+        let canonical_headers = format!("host:{host}\nx-amz-content-sha256:{payload_hash}\nx-amz-date:{amz_date}\n");
         let signed_headers = "host;x-amz-content-sha256;x-amz-date";
         let canonical_request = format!(
             "DELETE\n/{}/{}\n\n{}\n{}\n{}",
             self.bucket_name, object_name, canonical_headers, signed_headers, payload_hash
         );
 
-        let scope = format!("{}/{}/s3/aws4_request", date_stamp, self.region);
+        let scope = format!("{date_stamp}/{}/s3/aws4_request", self.region);
         let string_to_sign = format!(
             "AWS4-HMAC-SHA256\n{}\n{}\n{}",
             amz_date,

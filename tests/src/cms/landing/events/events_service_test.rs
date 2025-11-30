@@ -328,9 +328,9 @@ mod tests {
 		for i in 1..=5 {
 			let event = imphnen_cms::v1::landing::events::events_schema::EventsSchema {
 				id: imphnen_utils::make_thing_from_enum("events", &uuid::Uuid::new_v4().to_string()),
-				name: format!("Test Event {}", i),
-				description: format!("Description {}", i),
-				detail_link: format!("https://example.com/event{}", i),
+				name: format!("Test Event {i}"),
+				description: format!("Description {i}"),
+				detail_link: format!("https://example.com/event{i}"),
 				price: i as f64 * 10.0,
 				is_online: i % 2 == 0,
 				is_deleted: false,
@@ -338,7 +338,7 @@ mod tests {
 				end_date: "2024-01-02T00:00:00Z".to_string(),
 				created_at: chrono::Utc::now().to_rfc3339(),
 				updated_at: chrono::Utc::now().to_rfc3339(),
-				location: Some(format!("Location {}", i)),
+				location: Some(format!("Location {i}")),
 			};
 			let _ = repo.query_create_event(event).await;
 		}

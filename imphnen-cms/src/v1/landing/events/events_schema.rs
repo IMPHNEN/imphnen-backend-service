@@ -1,8 +1,6 @@
-use imphnen_libs::ResourceEnum;
-use imphnen_utils::{get_iso_date, make_thing};
+use imphnen_utils::get_iso_date;
 use serde::{Deserialize, Serialize};
-use surrealdb::Uuid;
-use surrealdb::sql::Thing;
+use uuid::Uuid;
 
 use super::events_dto::{
 	EventsCreateRequestDto, EventsQueryDto, EventsUpdateRequestDto,
@@ -10,7 +8,7 @@ use super::events_dto::{
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EventsSchema {
-	pub id: Thing,
+	pub id: String,
 	pub price: f64,
 	pub is_online: bool,
 	pub is_deleted: bool,
@@ -27,10 +25,7 @@ pub struct EventsSchema {
 impl Default for EventsSchema {
 	fn default() -> Self {
 		Self {
-			id: make_thing(
-				&ResourceEnum::Events.to_string(),
-				&Uuid::new_v4().to_string(),
-			),
+			id: Uuid::new_v4().to_string(),
 			name: String::new(),
 			description: String::new(),
 			detail_link: String::new(),
@@ -66,10 +61,7 @@ impl EventsSchema {
 
 	pub fn create(payload: EventsCreateRequestDto) -> Self {
 		Self {
-			id: make_thing(
-				&ResourceEnum::Events.to_string(),
-				&Uuid::new_v4().to_string(),
-			),
+			id: Uuid::new_v4().to_string(),
 			name: payload.name,
 			description: payload.description,
 			detail_link: payload.detail_link,
@@ -86,7 +78,7 @@ impl EventsSchema {
 
 	pub fn update(payload: EventsUpdateRequestDto, id: String) -> Self {
 		Self {
-			id: make_thing(&ResourceEnum::Events.to_string(), &id),
+			id,
 			name: payload.name,
 			price: payload.price,
 			location: payload.location,

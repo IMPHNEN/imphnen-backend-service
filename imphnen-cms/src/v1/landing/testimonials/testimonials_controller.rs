@@ -13,6 +13,8 @@ use imphnen_libs::{
     AppState, MessageResponseDto, MetaRequestDto, ResponseListSuccessDto,
     ResponseSuccessDto, ValidatedJson,
 };
+use uuid::Uuid;
+use imphnen_utils::common_response;
 
 #[utoipa::path(
     get,
@@ -53,7 +55,11 @@ pub async fn get_testimonial_by_id(
 	Extension(state): Extension<AppState>,
 	Path(id): Path<String>,
 ) -> impl IntoResponse {
-	TestimonialsService::get_testimonial_by_id(&state, id).await
+    let parsed_id = match Uuid::parse_str(&id) {
+        Ok(uuid) => uuid,
+        Err(e) => return common_response(axum::http::StatusCode::BAD_REQUEST, &format!("Invalid UUID format: {}", e)),
+    };
+	TestimonialsService::get_testimonial_by_id(&state, parsed_id).await
 }
 
 #[utoipa::path(
@@ -127,6 +133,10 @@ pub async fn delete_testimonial(
     Path(id): Path<String>,
 ) -> impl IntoResponse {
     require_auth!(headers, state, {
-        TestimonialsService::delete_testimonial(&state, id, &authenticated_user).await
+        let parsed_id = match Uuid::parse_str(&id) {
+            Ok(uuid) => uuid,
+            Err(e) => return common_response(axum::http::StatusCode::BAD_REQUEST, &format!("Invalid UUID format: {}", e)),
+        };
+        TestimonialsService::delete_testimonial(&state, parsed_id, &authenticated_user).await
     })
 }

@@ -8,10 +8,11 @@ axum.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 utoipa.workspace = true
-surrealdb.workspace = true
 anyhow.workspace = true
 thiserror.workspace = true
 uuid.workspace = true
-strum.workspace = true
-strum_macros.workspace = true
 chrono.workspace = true
+sea-orm.workspace = true
+strum.workspace = true
+imphnen-macros.workspace = true
+sqlx = { version = "0.8", features = ["postgres", "runtime-tokio-native-tls", "uuid", "chrono", "json"] }

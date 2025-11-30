@@ -56,8 +56,9 @@ pub struct AuthRegisterRequestDto {
 	pub password: String,
 	#[validate(length(min = 2, message = "Fullname at least have 2 character"))]
 	pub fullname: String,
-	#[validate(length(min = 1, message = "Student type is required"))]
-	pub phone_number: String,
+	// Phone number is optional now
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub phone_number: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Validate)]

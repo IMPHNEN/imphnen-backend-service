@@ -2,6 +2,7 @@
 mod tests {
 	use crate::{generate_unique_email, get_role_id, UsersRepository};
 	use imphnen_iam::UsersSchema;
+	use imphnen_entities::users::UserProfileExtensionDto;
 	use imphnen_utils::{make_thing_from_enum, ResourceEnum as UtilsResourceEnum};
 	use uuid::Uuid;
 
@@ -15,12 +16,12 @@ mod tests {
 		let email = generate_unique_email("test_create_user");
 		let user_schema = UsersSchema {
 			id: make_thing_from_enum(UtilsResourceEnum::Users, &Uuid::new_v4().to_string()),
-			email: email.clone(),
-			fullname: "Test User Create".to_string(),
-			password: "password123".to_string(),
-			phone_number: "+1234567890".to_string(),
+			email: Some(email.clone()),
+			fullname: Some("Test User Create".to_string()),
+			password: Some("password123".to_string()),
+			profile_extension: Some(UserProfileExtensionDto { phone_number: Some("+1234567890".to_string()), ..Default::default() }),
 			is_active: true,
-			role: role_id,
+			role_id: Uuid::parse_str(&role_id).ok(),
 			..Default::default()
 		};
 
@@ -36,7 +37,7 @@ mod tests {
 
 		// Clean up
 		let user = created_user_result.unwrap();
-		let _ = repo.query_delete_user(user.id.id.to_raw()).await;
+		let _ = repo.query_delete_user(user.id.clone()).await;
 	}
 
 	#[tokio::test]
@@ -49,12 +50,12 @@ mod tests {
 		let email = generate_unique_email("test_get_by_email");
 		let user_schema = UsersSchema {
 			id: make_thing_from_enum(UtilsResourceEnum::Users, &Uuid::new_v4().to_string()),
-			email: email.clone(),
-			fullname: "Test User Email".to_string(),
-			password: "password123".to_string(),
-			phone_number: "+1234567890".to_string(),
+			email: Some(email.clone()),
+			fullname: Some("Test User Email".to_string()),
+			password: Some("password123".to_string()),
+			profile_extension: Some(UserProfileExtensionDto { phone_number: Some("+1234567890".to_string()), ..Default::default() }),
 			is_active: true,
-			role: role_id,
+			role_id: Uuid::parse_str(&role_id).ok(),
 			..Default::default()
 		};
 
@@ -70,7 +71,7 @@ mod tests {
 
 		// Clean up
 		let user = result.unwrap();
-		let _ = repo.query_delete_user(user.id.id.to_raw()).await;
+		let _ = repo.query_delete_user(user.id.clone()).await;
 	}
 
 	#[tokio::test]
@@ -93,12 +94,12 @@ mod tests {
 		let email = generate_unique_email("test_update_user");
 		let user_schema = UsersSchema {
 			id: make_thing_from_enum(UtilsResourceEnum::Users, &Uuid::new_v4().to_string()),
-			email: email.clone(),
-			fullname: "Original Name".to_string(),
-			password: "password123".to_string(),
-			phone_number: "+1234567890".to_string(),
+			email: Some(email.clone()),
+			fullname: Some("Original Name".to_string()),
+			password: Some("password123".to_string()),
+			profile_extension: Some(UserProfileExtensionDto { phone_number: Some("+1234567890".to_string()), ..Default::default() }),
 			is_active: true,
-			role: role_id,
+			role_id: Uuid::parse_str(&role_id).ok(),
 			..Default::default()
 		};
 
@@ -112,10 +113,10 @@ mod tests {
 		// Update user
 		let updated_schema = UsersSchema {
 			id: user.id.clone(),
-			email: user.email.clone(),
-			fullname: "Updated Name".to_string(),
-			phone_number: "+9876543210".to_string(),
-			role: user.role.id.clone(),
+			email: Some(user.email.clone()),
+			fullname: Some("Updated Name".to_string()),
+			profile_extension: Some(UserProfileExtensionDto { phone_number: Some("+9876543210".to_string()), ..Default::default() }),
+			role_id: Uuid::parse_str(&user.role.id.to_raw()).ok(),
 			..Default::default()
 		};
 
@@ -125,10 +126,10 @@ mod tests {
 		// Verify user was updated
 		let retrieved_user = repo.query_user_by_email(email.clone()).await.unwrap();
 		assert_eq!(retrieved_user.fullname, "Updated Name");
-		assert_eq!(retrieved_user.phone_number, "+9876543210");
+		assert_eq!(retrieved_user.profile_extension.as_ref().unwrap().phone_number.as_ref().unwrap(), "+9876543210");
 
 		// Clean up
-		let _ = repo.query_delete_user(retrieved_user.id.id.to_raw()).await;
+		let _ = repo.query_delete_user(retrieved_user.id.clone()).await;
 	}
 
 	#[tokio::test]
@@ -141,12 +142,12 @@ mod tests {
 		let email = generate_unique_email("test_delete_user");
 		let user_schema = UsersSchema {
 			id: make_thing_from_enum(UtilsResourceEnum::Users, &Uuid::new_v4().to_string()),
-			email: email.clone(),
-			fullname: "Test User Delete".to_string(),
-			password: "password123".to_string(),
-			phone_number: "+1234567890".to_string(),
+			email: Some(email.clone()),
+			fullname: Some("Test User Delete".to_string()),
+			password: Some("password123".to_string()),
+			profile_extension: Some(UserProfileExtensionDto { phone_number: Some("+1234567890".to_string()), ..Default::default() }),
 			is_active: true,
-			role: role_id,
+			role_id: Uuid::parse_str(&role_id).ok(),
 			..Default::default()
 		};
 
@@ -158,7 +159,7 @@ mod tests {
 		let user = repo.query_user_by_email(email.clone()).await.unwrap();
 
 		// Delete user
-		let result = repo.query_delete_user(user.id.id.to_raw()).await;
+		let result = repo.query_delete_user(user.id.clone()).await;
 		assert!(result.is_ok());
 
 		// Verify user was deleted
@@ -182,12 +183,12 @@ mod tests {
 		for email in &user_emails {
 			let user_schema = UsersSchema {
 				id: make_thing_from_enum(UtilsResourceEnum::Users, &Uuid::new_v4().to_string()),
-				email: email.clone(),
-				fullname: format!("Test User {}", email),
-				password: "password123".to_string(),
-				phone_number: "+1234567890".to_string(),
+				email: Some(email.clone()),
+				fullname: Some(format!("Test User {email}")),
+				password: Some("password123".to_string()),
+				profile_extension: Some(UserProfileExtensionDto { phone_number: Some("+1234567890".to_string()), ..Default::default() }),
 				is_active: true,
-				role: role_id.clone(),
+				role_id: Uuid::parse_str(&role_id).ok(),
 				..Default::default()
 			};
 			let _ = repo.query_create_user(user_schema).await;
@@ -202,7 +203,7 @@ mod tests {
 		// Clean up
 		for email in user_emails {
 			let user = repo.query_user_by_email(email).await.unwrap();
-			let _ = repo.query_delete_user(user.id.id.to_raw()).await;
+			let _ = repo.query_delete_user(user.id.clone()).await;
 		}
 	}
 }

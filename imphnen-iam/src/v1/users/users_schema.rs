@@ -1,61 +1,28 @@
-use imphnen_entities::{UsersDetailQueryDto, ExperienceDto, EducationDto};
+use imphnen_entities::{UsersDetailQueryDto, users::UserProfileExtensionDto};
 use super::{UsersCreateRequestDto, UsersUpdateRequestDto};
-use imphnen_libs::{ResourceEnum, hash_password};
-use imphnen_utils::extract_id;
-use imphnen_utils::{get_iso_date, make_thing_from_enum};
+use imphnen_libs::hash_password; // Keep hash_password
+use imphnen_utils::generate_date::get_iso_date; // Keep get_iso_date
 use serde::{Deserialize, Serialize};
-use surrealdb::{Uuid, sql::Thing};
+use uuid::Uuid; // Keep Uuid
+use anyhow::Result;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UsersSchema {
-	pub id: Thing,
-	pub fullname: String,
+	pub id: String,
+	pub fullname: Option<String>,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub legal_name: Option<String>,
-	pub email: String,
-	pub password: String,
+	pub email: Option<String>,
+	pub password: Option<String>,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub avatar: Option<String>,
-	pub phone_number: String,
-	#[serde(skip_serializing_if = "Option::is_none")]
-	pub phone_for_verification: Option<String>,
 	pub is_active: bool,
 	pub is_deleted: bool,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	pub mentor_id: Option<Thing>,
-	#[serde(skip_serializing_if = "Option::is_none")]
-	pub gender: Option<String>,
-	#[serde(skip_serializing_if = "Option::is_none")]
-	pub birthdate: Option<String>,
-	#[serde(skip_serializing_if = "Option::is_none")]
-	pub domicile: Option<String>,
-	#[serde(skip_serializing_if = "Option::is_none")]
-	pub bio: Option<String>,
-	#[serde(skip_serializing_if = "Option::is_none")]
-	pub last_education: Option<String>,
-	#[serde(skip_serializing_if = "Option::is_none")]
-	pub linkedin_url: Option<String>,
-	#[serde(skip_serializing_if = "Option::is_none")]
-	pub github_url: Option<String>,
-	#[serde(skip_serializing_if = "Option::is_none")]
-	pub cv_url: Option<String>,
-	#[serde(skip_serializing_if = "Option::is_none")]
-	pub portfolio_url: Option<String>,
-	#[serde(skip_serializing_if = "Option::is_none")]
-	pub website_url: Option<String>,
-	#[serde(skip_serializing_if = "Option::is_none")]
-	pub twitter_url: Option<String>,
-	#[serde(skip_serializing_if = "Option::is_none")]
-	pub location: Option<String>,
-	#[serde(skip_serializing_if = "Option::is_none")]
-	pub skills: Option<Vec<String>>,
-	#[serde(skip_serializing_if = "Option::is_none")]
-	pub experience: Option<Vec<ExperienceDto>>,
-	#[serde(skip_serializing_if = "Option::is_none")]
-	pub education: Option<Vec<EducationDto>>,
-	#[serde(skip_serializing_if = "Option::is_none")]
-	pub career_status: Option<String>,
-	pub role: Thing,
+	pub mentor_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub profile_extension: Option<UserProfileExtensionDto>,
+	pub role_id: Option<Uuid>,
 	pub created_at: String,
 	pub updated_at: String,
 }
@@ -63,40 +30,17 @@ pub struct UsersSchema {
 impl Default for UsersSchema {
 	fn default() -> Self {
 		Self {
-			id: make_thing_from_enum(
-				ResourceEnum::Users,
-				&Uuid::new_v4().to_string(),
-			),
-			fullname: String::new(),
+			id: Uuid::new_v4().to_string(),
+			fullname: None,
 			legal_name: None,
-			email: String::new(),
-			password: hash_password("").unwrap(),
+			email: None,
+			password: None,
 			avatar: None,
-			phone_number: String::new(),
-			phone_for_verification: None,
 			is_active: false,
 			is_deleted: false,
-			mentor_id: None, // Regular users should not have a mentor_id by default
-			gender: None,
-			birthdate: None,
-			domicile: None,
-			bio: None,
-			last_education: None,
-			linkedin_url: None,
-			github_url: None,
-			cv_url: None,
-			portfolio_url: None,
-			website_url: None,
-			twitter_url: None,
-			location: None,
-			skills: None,
-			experience: None,
-			education: None,
-			career_status: None,
-			role: make_thing_from_enum(
-				ResourceEnum::Roles,
-				"5713cb37-dc02-4e87-8048-d7a41d352059",
-			),
+			mentor_id: None,
+			profile_extension: None,
+			role_id: None,
 			created_at: get_iso_date(),
 			updated_at: get_iso_date(),
 		}
@@ -107,44 +51,49 @@ impl UsersSchema {
 	pub fn from(dto: UsersDetailQueryDto) -> Self {
 		Self {
 			id: dto.id,
-			fullname: dto.fullname,
+			fullname: Some(dto.fullname),
 			legal_name: dto.legal_name,
-			email: dto.email,
+			email: Some(dto.email),
 			avatar: dto.avatar,
-			phone_number: dto.phone_number,
-			phone_for_verification: dto.phone_for_verification,
 			is_active: dto.is_active,
 			is_deleted: dto.is_deleted,
-			mentor_id: dto.mentor_id, // Use the actual mentor_id from the DTO, could be None
-			gender: dto.gender,
-			birthdate: dto.birthdate,
-			domicile: dto.domicile,
-			bio: dto.bio,
-			last_education: dto.last_education,
-			linkedin_url: dto.linkedin_url,
-			github_url: dto.github_url,
-			cv_url: dto.cv_url,
-			portfolio_url: dto.portfolio_url,
-			website_url: dto.website_url,
-			twitter_url: dto.twitter_url,
-			location: dto.location,
-			skills: dto.skills,
-			experience: dto.experience,
-			education: dto.education,
-			career_status: dto.career_status,
-			password: dto.password,
+			mentor_id: dto.mentor_id,
+            profile_extension: dto.profile_extension,
+			password: Some(dto.password),
 			created_at: dto.created_at,
 			updated_at: dto.updated_at,
-			role: make_thing_from_enum(ResourceEnum::Roles, &extract_id(&dto.role.id)),
+			role_id: Uuid::parse_str(&dto.role.id).ok(),
 		}
+	}
+
+	pub fn create(dto: UsersCreateRequestDto) -> Result<Self> {
+	    let password_hash = hash_password(&dto.password).map_err(|e| anyhow::anyhow!("Hash password failed: {}", e))?;
+	    Ok(Self {
+	        id: Uuid::new_v4().to_string(),
+	        email: Some(dto.email),
+	        password: Some(password_hash),
+	        fullname: Some(dto.fullname),
+	        is_active: dto.is_active,
+            role_id: Some(Uuid::parse_str(&dto.role_id)?),
+	        ..Default::default()
+	    })
 	}
 
 	pub fn update(_user: UsersUpdateRequestDto, id: String) -> Self {
 		Self {
-			id: make_thing_from_enum(ResourceEnum::Users, &id),
+			id,
 			updated_at: get_iso_date(),
-			// Set defaults for required fields - these should be overridden by actual data from DB
-			..Default::default()
+			created_at: String::new(),
+            fullname: None,
+            legal_name: None,
+            email: None,
+            password: None,
+            avatar: None,
+            is_active: false,
+            is_deleted: false,
+            mentor_id: None,
+            profile_extension: None,
+            role_id: None,
 		}
 	}
 
@@ -154,136 +103,54 @@ impl UsersSchema {
 
 		// Only update fields that are provided (Some)
 		if let Some(fullname) = user.fullname {
-			schema.fullname = fullname;
+			schema.fullname = Some(fullname);
 		}
 		if let Some(email) = user.email {
-			schema.email = email;
+			schema.email = Some(email);
 		}
 		if let Some(password) = user.password {
-			schema.password = hash_password(&password).unwrap_or(password);
-		}
-		if let Some(phone_number) = user.phone_number {
-			schema.phone_number = phone_number;
+			schema.password = Some(hash_password(&password).unwrap_or(password));
 		}
 		if let Some(is_active) = user.is_active {
 			schema.is_active = is_active;
 		}
 		if let Some(role_id) = user.role_id {
-			schema.role = make_thing_from_enum(ResourceEnum::Roles, &role_id);
+			schema.role_id = Uuid::parse_str(&role_id).ok();
 		}
 		
-		// Optional fields - only update if provided
-		if let Some(legal_name) = user.legal_name {
-			schema.legal_name = Some(legal_name);
-		}
-		if let Some(phone_for_verification) = user.phone_for_verification {
-			schema.phone_for_verification = Some(phone_for_verification);
-		}
-		if let Some(gender) = user.gender {
-			schema.gender = Some(gender);
-		}
-		if let Some(birthdate) = user.birthdate {
-			schema.birthdate = Some(birthdate);
-		}
-		if let Some(domicile) = user.domicile {
-			schema.domicile = Some(domicile);
-		}
-		if let Some(bio) = user.bio {
-			schema.bio = Some(bio);
-		}
-		if let Some(last_education) = user.last_education {
-			schema.last_education = Some(last_education);
-		}
-		if let Some(linkedin_url) = user.linkedin_url {
-			schema.linkedin_url = Some(linkedin_url);
-		}
-		if let Some(github_url) = user.github_url {
-			schema.github_url = Some(github_url);
-		}
-		if let Some(cv_url) = user.cv_url {
-			schema.cv_url = Some(cv_url);
-		}
-		if let Some(portfolio_url) = user.portfolio_url {
-			schema.portfolio_url = Some(portfolio_url);
-		}
-		if let Some(website_url) = user.website_url {
-			schema.website_url = Some(website_url);
-		}
-		if let Some(twitter_url) = user.twitter_url {
-			schema.twitter_url = Some(twitter_url);
-		}
-		if let Some(location) = user.location {
-			schema.location = Some(location);
-		}
-		if let Some(skills) = user.skills {
-			schema.skills = Some(skills);
-		}
-		if let Some(experience) = user.experience {
-			schema.experience = Some(experience);
-		}
-		if let Some(education) = user.education {
-			schema.education = Some(education);
-		}
-		if let Some(career_status) = user.career_status {
-			schema.career_status = Some(career_status);
-		}
-		if let Some(avatar) = user.avatar {
-			schema.avatar = Some(avatar);
-		}
+		schema.legal_name = user.legal_name;
+		schema.avatar = user.avatar;
+        schema.profile_extension = user.profile_extension;
 
 		schema
 	}
 
-	pub fn create(user: UsersCreateRequestDto) -> Self {
-		let password = hash_password(&user.password).unwrap();
-		Self {
-			id: make_thing_from_enum(
-				ResourceEnum::Users,
-				&Uuid::new_v4().to_string(),
-			),
-			fullname: user.fullname,
-			legal_name: Some("".to_string()),
-			email: user.email,
-			password,
-			phone_number: user.phone_number.clone(),
-			phone_for_verification: Some(user.phone_number.clone()),
-			is_active: user.is_active,
-			mentor_id: None, // Regular users should not have a mentor_id by default
-			gender: Some("".to_string()),
-			birthdate: Some("".to_string()),
-			domicile: Some("".to_string()),
-			bio: Some("".to_string()),
-			last_education: Some("".to_string()),
-			linkedin_url: Some("".to_string()),
-			github_url: Some("".to_string()),
-			cv_url: Some("".to_string()),
-			portfolio_url: Some("".to_string()),
-			website_url: Some("".to_string()),
-			twitter_url: Some("".to_string()),
-			location: Some("".to_string()),
-			skills: Some(vec![]),
-			experience: Some(vec![]),
-			education: Some(vec![]),
-			career_status: Some("".to_string()),
-			avatar: user.avatar.or(Some("https://via.placeholder.com/150".to_string())),
-			is_deleted: false,
-			role: make_thing_from_enum(ResourceEnum::Roles, &user.role_id),
-			created_at: get_iso_date(),
-			updated_at: get_iso_date(),
-		}
-	}
-
 	pub fn patch_password(dto: UsersDetailQueryDto, password: String) -> Self {
 		Self {
-			password,
+			password: Some(password),
 			id: dto.id.clone(),
-			..Self::from(dto)
+			fullname: Some(dto.fullname),
+			legal_name: dto.legal_name,
+			email: Some(dto.email),
+			avatar: dto.avatar,
+			is_active: dto.is_active,
+			is_deleted: dto.is_deleted,
+			mentor_id: dto.mentor_id,
+            profile_extension: dto.profile_extension,
+			created_at: dto.created_at,
+			updated_at: dto.updated_at,
+			role_id: Uuid::parse_str(&dto.role.id).ok(),
 		}
 	}
 
 	pub fn update_mentor_id(mut self, mentor_id: Option<String>) -> Self {
-		self.mentor_id = mentor_id.map(|id| make_thing_from_enum(ResourceEnum::Users, &id));
+		self.mentor_id = mentor_id; // Removed make_thing_from_enum
 		self.updated_at = get_iso_date();
 		self
+	}
+	
+	/// Convert role string to Uuid for database operations
+	pub fn get_role_id(&self) -> Result<Option<Uuid>> {
+		Ok(self.role_id) // Removed parsing from `role` field
 	}
 }

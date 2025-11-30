@@ -57,8 +57,8 @@ where
             let headers = req.headers();
             
             // Validate payment token if present
-            if let Some(payment_token) = headers.get("X-Payment-Token") {
-                if let Ok(token_str) = payment_token.to_str() {
+            if let Some(payment_token) = headers.get("X-Payment-Token")
+                && let Ok(token_str) = payment_token.to_str() {
                     // Basic validation: check token format
                     if !is_valid_payment_token(token_str) {
                         let error_response = Response::builder()
@@ -68,19 +68,17 @@ where
                         return Err(error_response);
                     }
                 }
-            }
             
             // Check if endpoint requires payment verification
             let uri_path = req.uri().path();
-            if requires_payment_verification(uri_path) {
-                if !headers.contains_key("X-Payment-Token") {
+            if requires_payment_verification(uri_path)
+                && !headers.contains_key("X-Payment-Token") {
                     let error_response = Response::builder()
                         .status(StatusCode::PAYMENT_REQUIRED)
                         .body(Body::from("Payment required for this endpoint"))
                         .unwrap();
                     return Err(error_response);
                 }
-            }
             
             // Pass through if payment validation succeeds or not required
             inner.call(req).await

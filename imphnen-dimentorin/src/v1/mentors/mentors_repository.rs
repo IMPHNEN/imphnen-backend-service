@@ -1,296 +1,323 @@
+use crate::v1::mentors::mentors_schema::MentorSchema;
+use imphnen_libs::AppState;
+use imphnen_libs::AppStatePostgresExt;
+use imphnen_entities::seaorm::auth::mentors::{Entity as Mentors, ActiveModel as MentorActiveModel, Column as MentorColumn};
+use imphnen_entities::seaorm::auth::users::Entity as Users;
 use anyhow::{Result, bail};
-use imphnen_iam::{get_id, make_thing};
-use surrealdb::sql::Thing;
-
-use crate::v1::mentors::mentors_dto::MentorDetailWithUserDto;
-use crate::v1::mentors::{MentorInsertDto, MentorSchema};
-use imphnen_libs::{AppState, MetaRequestDto, ResourceEnum, ResponseListSuccessDto};
-use imphnen_utils::{DetailQueryBuilder, QueryListBuilder, get_iso_date};
-use serde_json::{Map, Value};
+use sea_orm::*;
+use sea_orm::EntityTrait;
+use uuid::Uuid;
+use sea_orm::ActiveModelTrait as ActiveModelTraitSpecific;
+use anyhow::anyhow;
+use imphnen_entities::{MetaRequestDto, ResponseListSuccessDto};
+use imphnen_utils::Result as UtilsResult;
+use crate::v1::mentors::mentors_dto::MentorDetailQueryDto;
 use std::time::Instant;
-use tracing::instrument;
-use tracing::info;
+use tracing::{instrument, info};
+use serde_json;
+use chrono::Utc;
 
 pub struct MentorsRepository<'a> {
-	pub state: &'a AppState,
+    state: &'a AppState,
 }
 
 impl<'a> MentorsRepository<'a> {
-	pub fn new(state: &'a AppState) -> Self {
-		Self { state }
-	}
+    pub fn new(state: &'a AppState) -> Self {
+        Self { state }
+    }
 
-	#[instrument(skip(self, meta), err)]
-	pub async fn query_mentor_list(
-		&self,
-		meta: MetaRequestDto,
-	) -> Result<ResponseListSuccessDto<Vec<MentorDetailWithUserDto>>> {
-		let now = Instant::now();
-		let db = &self.state.surrealdb_ws;
-		let mentors_table = ResourceEnum::Mentors.to_string();
-		let builder = QueryListBuilder::new(db, &mentors_table, &meta)
-			.search_field("user_id.legal_name") // Search in user data instead
-			.select_fields(vec![
-				"id",
-				"user_id",
-				// Personal data comes from user relation, not mentor table
-				"industries",
-				"expertise",
-				"languages",
-				"current_company",
-				"current_role",
-				"years_of_experience",
-				"topics_of_interest",
-				"preferred_mentee_level",
-				"preferred_mentoring_formats",
-				"availability_commitment",
-				"mentoring_rate",
-				"status",
-				"is_deleted",
-				"created_at",
-				"updated_at",
-			]);
-		let result = builder.build().await?;
-		let elapsed = now.elapsed();
-		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
-			== "development"
-		{
-			println!("Query 'query_mentor_list' took: {elapsed:.2?}");
-		}
-		let data = result.data.into_iter().collect();
-		Ok(ResponseListSuccessDto {
-			data,
-			meta: result.meta,
-		})
-	}
+    fn get_db(&self) -> &DatabaseConnection {
+        self.state.postgres_db()
+    }
 
-	#[instrument(skip(self, email, include_deleted), err)]
-	pub async fn query_mentor_by_email(
-		&self,
-		email: String,
-		include_deleted: bool,
-	) -> Result<MentorDetailWithUserDto> {
-		let now = Instant::now();
-		let db = &self.state.surrealdb_ws;
-		let mut builder = DetailQueryBuilder::new(ResourceEnum::Mentors.to_string())
-			.with_where("user_id.email", Some(email.clone())) // Search in user table
-			.with_select_fields(vec![
-				"id",
-				"user_id",
-				// Personal data comes from user relation, not mentor table
-				"industries",
-				"expertise",
-				"languages",
-				"current_company",
-				"current_role",
-				"years_of_experience",
-				"topics_of_interest",
-				"preferred_mentee_level",
-				"preferred_mentoring_formats",
-				"availability_commitment",
-				"mentoring_rate",
-				"status",
-				"is_deleted",
-				"created_at",
-				"updated_at",
-			]);
+    #[instrument(skip(self, data), err)]
+    pub async fn query_create_mentor(&self, data: MentorSchema) -> Result<String> {
+        let now = Instant::now();
+        
+        let mentor_active_model = MentorActiveModel {
+            user_id: ActiveValue::Set(Uuid::parse_str(&data.user_id.unwrap_or_default())?),
+            industries: ActiveValue::Set(Some(data.industries.into())),
+            expertise: ActiveValue::Set(Some(data.expertise.into())),
+            languages: ActiveValue::Set(Some(data.languages.into())),
+            current_company: ActiveValue::Set(Some(data.current_company)),
+            current_role: ActiveValue::Set(Some(data.current_role)),
+            years_of_experience: ActiveValue::Set(Some(data.years_of_experience)),
+            topics_of_interest: ActiveValue::Set(Some(data.topics_of_interest.into())),
+            preferred_mentee_level: ActiveValue::Set(Some(serde_json::to_string(&data.preferred_mentee_level).unwrap())),
+            preferred_mentoring_formats: ActiveValue::Set(Some(data.preferred_mentoring_formats.into())),
+            availability_commitment: ActiveValue::Set(Some(data.availability_commitment)),
+            mentoring_rate: ActiveValue::Set(Some(data.mentoring_rate)),
+            status: ActiveValue::Set(Some(data.status)),
+            created_at: ActiveValue::Set(Utc::now()),
+            updated_at: ActiveValue::Set(Utc::now()),
+            ..Default::default()
+        };
 
-		if !include_deleted {
-			builder = builder.with_condition("is_deleted = false");
-		}
+        info!("Executing PostgreSQL create in query_create_mentor");
+        let result = <MentorActiveModel as sea_orm::ActiveModelTrait>::insert(mentor_active_model, self.get_db()).await?;
+        
+        let elapsed = now.elapsed();
+        if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string()) == "development" {
+            println!("Query 'query_create_mentor' took: {elapsed:.2?}");
+        }
 
-		let sql = builder.build();
-		info!(query = %sql, "Executing SurrealDB query in query_mentor_by_email");
-		let mentor_opt: Option<MentorDetailWithUserDto> =
-			builder.apply_bindings(db.query(sql)).await?.take(0)?;
-		let elapsed = now.elapsed();
-		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
-			== "development"
-		{
-			println!("Query 'query_mentor_by_email' took: {elapsed:.2?}");
-		}
-		let Some(mentor) = mentor_opt else {
-			bail!("Mentor not found");
-		};
-		Ok(mentor)
-	}
+        Ok(result.id.to_string())
+    }
 
-	#[instrument(skip(self, id, include_deleted), err)]
-	pub async fn query_mentor_by_id(
-		&self,
-		id: &Thing,
-		include_deleted: bool,
-	) -> Result<MentorDetailWithUserDto> {
-		let now = Instant::now();
-		let db = &self.state.surrealdb_ws;
+    #[instrument(skip(self, data), err)]
+    pub async fn query_update_mentor(&self, data: MentorSchema) -> Result<String> {
+        let now = Instant::now();
 
-		// Validate ID format first
-		let mentor_id = match get_id(id) {
-			Ok((_, id_str)) => id_str,
-			Err(_) => bail!("Invalid mentor ID format"),
-		};
+        let mentor_id = Uuid::parse_str(&data.id)?;
+        let existing_mentor = Mentors::find_by_id(mentor_id)
+            .one(self.get_db())
+            .await?
+            .ok_or_else(|| anyhow!("Mentor not found"))?;
 
-		let mentors_table = ResourceEnum::Mentors.to_string();
-		
-		// Build query with proper ID binding
-		let mut builder = DetailQueryBuilder::new(mentors_table.clone())
-			.with_id(mentor_id)  // Use the extracted ID string
-			.with_select_fields(vec![
-				"id",
-				"user_id",
-				// Personal data comes from user relation, not mentor table
-				"industries",
-				"expertise",
-				"languages",
-				"current_company",
-				"current_role",
-				"years_of_experience",
-				"topics_of_interest",
-				"preferred_mentee_level",
-				"preferred_mentoring_formats",
-				"availability_commitment",
-				"mentoring_rate",
-				"status",
-				"is_deleted",
-				"created_at",
-				"updated_at",
-			]);
+        let mut mentor_active_model: MentorActiveModel = existing_mentor.into();
 
-		if !include_deleted {
-			builder = builder.with_condition("is_deleted = false");
-		}
+        if !data.industries.is_empty() { mentor_active_model.industries = ActiveValue::Set(Some(serde_json::to_value(data.industries).unwrap())); }
+        if !data.expertise.is_empty() { mentor_active_model.expertise = ActiveValue::Set(Some(serde_json::to_value(data.expertise).unwrap())); }
+        if !data.languages.is_empty() { mentor_active_model.languages = ActiveValue::Set(Some(serde_json::to_value(data.languages).unwrap())); }
+        if !data.current_company.is_empty() { mentor_active_model.current_company = ActiveValue::Set(Some(data.current_company)); }
+        if !data.current_role.is_empty() { mentor_active_model.current_role = ActiveValue::Set(Some(data.current_role)); }
+        mentor_active_model.years_of_experience = ActiveValue::Set(Some(data.years_of_experience));
+        if !data.topics_of_interest.is_empty() { mentor_active_model.topics_of_interest = ActiveValue::Set(Some(serde_json::to_value(data.topics_of_interest).unwrap())); }
+        if !data.preferred_mentee_level.is_empty() { mentor_active_model.preferred_mentee_level = ActiveValue::Set(Some(serde_json::to_string(&data.preferred_mentee_level).unwrap())); }
+        if !data.preferred_mentoring_formats.is_empty() { mentor_active_model.preferred_mentoring_formats = ActiveValue::Set(Some(serde_json::to_value(data.preferred_mentoring_formats).unwrap())); }
+        if !data.availability_commitment.is_empty() { mentor_active_model.availability_commitment = ActiveValue::Set(Some(data.availability_commitment)); }
+        mentor_active_model.mentoring_rate = ActiveValue::Set(Some(data.mentoring_rate));
+        if !data.status.is_empty() { mentor_active_model.status = ActiveValue::Set(Some(data.status)); }
+        mentor_active_model.updated_at = ActiveValue::Set(Utc::now());
 
-		let sql = builder.build();
-		info!(query = %sql, "Executing SurrealDB query in query_mentor_by_id");
+        info!("Executing PostgreSQL update in query_update_mentor");
+        let result = mentor_active_model.update(self.get_db()).await?;
+        
+        let elapsed = now.elapsed();
+        if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string()) == "development" {
+            println!("Query 'query_update_mentor' took: {elapsed:.2?}");
+        }
 
-		let mentor_opt: Option<MentorDetailWithUserDto> = builder
-			.apply_bindings(db.query(sql))
-			.await?
-			.take(0)?;
+        Ok(format!("Success update mentor: {}", result.id))
+    }
 
-		let elapsed = now.elapsed();
-		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
-			== "development"
-		{
-			println!("Query 'query_mentor_by_id' took: {elapsed:.2?}");
-		}
+    #[instrument(skip(self, id), err)]
+    pub async fn query_delete_mentor(&self, id: &str) -> Result<String> {
+        let now = Instant::now();
 
-		let Some(mentor) = mentor_opt else {
-			bail!("Mentor not found");
-		};
+        let mentor = Mentors::find_by_id(Uuid::parse_str(id)?)
+            .one(self.get_db())
+            .await?
+            .ok_or_else(|| anyhow!("Mentor not found"))?;
 
-		Ok(mentor)
-	}
+        if mentor.is_deleted {
+            bail!("Mentor is already soft deleted");
+        }
 
-	#[instrument(skip(self, data), err)]
-	pub async fn query_create_mentor(&self, data: MentorSchema) -> Result<String> {
-		let now = Instant::now();
-		let db = &self.state.surrealdb_ws;
-		let dto: MentorInsertDto = data.into();
-		let resource = ResourceEnum::Mentors.to_string();
-		info!(query = %resource, "Executing SurrealDB create in query_create_mentor");
-		let record: Option<MentorSchema> = db
-			.create(resource)
-			.content(dto.clone())
-			.await?;
-		let elapsed = now.elapsed();
-		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
-			== "development"
-		{
-			println!("Query 'query_create_mentor' took: {elapsed:.2?}");
-		}
-		match record {
-			Some(mentor) => {
-				let id_str = mentor.id.id.to_raw();
-				let _user = format!("{:?}", mentor.user_id);
-				Ok(id_str)
-			}
-			None => {
-				bail!("Failed to create mentor")
-			}
-		}
-	}
+        let mut mentor_active_model: MentorActiveModel = mentor.into();
+        mentor_active_model.is_deleted = ActiveValue::Set(true);
+        mentor_active_model.updated_at = ActiveValue::Set(Utc::now());
 
-	#[instrument(skip(self, data), err)]
-	pub async fn query_update_mentor(&self, data: MentorSchema) -> Result<String> {
-		let now = Instant::now();
-		let db = &self.state.surrealdb_ws;
-		let id_ref = &data.id;
-		let record_key = get_id(id_ref)?;
-		let _existing = self.query_mentor_by_id(id_ref, false).await?;
+        info!("Executing PostgreSQL soft delete in query_delete_mentor");
+        let result = mentor_active_model.update(self.get_db()).await?;
+        
+        let elapsed = now.elapsed();
+        if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string()) == "development" {
+            println!("Query 'query_delete_mentor' took: {elapsed:.2?}");
+        }
 
-		let mut merged_data_json: Map<String, Value> =
-			serde_json::to_value(data.clone())
-				.map_err(|e| anyhow::anyhow!("Failed to serialize MentorSchema: {}", e))?
-				.as_object()
-				.cloned()
-				.unwrap_or_default();
+        Ok(format!("Success soft delete mentor: {}", result.id))
+    }
 
-		merged_data_json.remove("id");
-		merged_data_json.remove("user_id");
-		merged_data_json.remove("created_at");
+    #[instrument(skip(self, email, include_deleted), err)]
+    pub async fn query_mentor_by_email(
+        &self,
+        email: String,
+        include_deleted: bool,
+    ) -> UtilsResult<MentorDetailQueryDto> {
+        let now = Instant::now();
+        let db = self.get_db();
 
-		merged_data_json.insert("updated_at".to_string(), Value::String(get_iso_date()));
+        let mut query = Mentors::find()
+            .find_also_related(Users);
 
-		info!(query = ?record_key, "Executing SurrealDB update in query_update_mentor");
-		let record: Option<MentorSchema> =
-			db.update(record_key).merge(merged_data_json).await?;
-		let elapsed = now.elapsed();
-		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
-			== "development"
-		{
-			println!("Query 'query_update_mentor' took: {elapsed:.2?}");
-		}
-		match record {
-			Some(_) => Ok("Success update mentor".into()),
-			None => {
-				bail!("Failed to update mentor")
-			}
-		}
-	}
+        if !include_deleted {
+            query = query.filter(MentorColumn::IsDeleted.eq(false));
+        }
 
-	#[instrument(skip(self, id), err)]
-	pub async fn query_delete_mentor(&self, id: String) -> Result<String> {
-		let now = Instant::now();
-		let db = &self.state.surrealdb_ws;
-		let thing = make_thing(ResourceEnum::Mentors.to_string().as_str(), &id);
-		let record_key = get_id(&thing)?;
+        let (mentor, user) = query
+            .filter(imphnen_entities::seaorm::auth::users::Column::Email.eq(email))
+            .one(db)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Mentor not found"))?;
 
-		let mentor_to_delete_res = self.query_mentor_by_id(&thing, true).await;
+        let _user = user.ok_or_else(|| anyhow::anyhow!("User not found for mentor"))?;
 
-		let _mentor_to_delete = match mentor_to_delete_res {
-			Ok(mentor) => {
-				if mentor.is_deleted {
-					bail!("Mentor is already soft deleted");
-				}
-				mentor
-			}
-			Err(e) => {
-				if e.to_string().contains("Mentor has been deleted") {
-					bail!("Mentor is already soft deleted");
-				} else {
-					return Err(e);
-				}
-			}
-		};
+        let result = MentorDetailQueryDto {
+            id: mentor.id.to_string(),
+            user_id: mentor.user_id.to_string(),
+            industries: serde_json::from_value(mentor.industries.clone().unwrap_or(serde_json::Value::Null)).unwrap_or_default(),
+            expertise: serde_json::from_value(mentor.expertise.clone().unwrap_or(serde_json::Value::Null)).unwrap_or_default(),
+            languages: serde_json::from_value(mentor.languages.clone().unwrap_or(serde_json::Value::Null)).unwrap_or_default(),
+            current_company: mentor.current_company.unwrap_or_default(),
+            current_role: mentor.current_role.unwrap_or_default(),
+            years_of_experience: mentor.years_of_experience.unwrap_or(0),
+            topics_of_interest: serde_json::from_value(mentor.topics_of_interest.clone().unwrap_or(serde_json::Value::Null)).unwrap_or_default(),
+            preferred_mentee_level: serde_json::from_str(&mentor.preferred_mentee_level.unwrap_or_default()).unwrap_or_default(),
+            preferred_mentoring_formats: serde_json::from_value(mentor.preferred_mentoring_formats.clone().unwrap_or(serde_json::Value::Null)).unwrap_or_default(),
+            availability_commitment: mentor.availability_commitment.unwrap_or_default(),
+            mentoring_rate: mentor.mentoring_rate.unwrap_or(0.0),
+            status: mentor.status.unwrap_or_default(),
+            is_deleted: mentor.is_deleted,
+            created_at: mentor.created_at.to_rfc3339(),
+            updated_at: mentor.updated_at.to_rfc3339(),
+        };
 
-		let mut patch = Map::new();
-		patch.insert("is_deleted".to_string(), Value::Bool(true));
-		patch.insert("updated_at".to_string(), Value::String(get_iso_date()));
+        let elapsed = now.elapsed();
+        if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string()) == "development" {
+            println!("Query 'query_mentor_by_email' took: {elapsed:.2?}");
+        }
 
-		info!(query = ?record_key, "Executing SurrealDB soft delete in query_delete_mentor");
-		let record: Option<MentorSchema> = db.update(record_key).merge(patch).await?;
-		let elapsed = now.elapsed();
-		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
-			== "development"
-		{
-			println!("Query 'query_delete_mentor' took: {elapsed:.2?}");
-		}
-		match record {
-			Some(_) => Ok("Success soft delete mentor".into()),
-			None => {
-				bail!("Failed to soft delete mentor")
-			}
-		}
-	}
+        Ok(result)
+    }
+
+    #[instrument(skip(self, meta), err)]
+    pub async fn query_mentor_list(
+        &self,
+        meta: MetaRequestDto,
+    ) -> UtilsResult<ResponseListSuccessDto<Vec<MentorDetailQueryDto>>> {
+        let now = Instant::now();
+        let db = self.get_db();
+
+        let page = meta.page.unwrap_or(1);
+        let per_page = meta.per_page.unwrap_or(10);
+
+        let mut query = Mentors::find()
+            .filter(MentorColumn::IsDeleted.eq(false))
+            .find_also_related(Users);
+
+        // Apply sorting
+        if let Some(sort_by) = &meta.sort_by {
+            let order = meta.order.as_deref().unwrap_or("asc");
+            match sort_by.as_str() {
+                "created_at" => {
+                    if order == "desc" {
+                        query = query.order_by_desc(MentorColumn::CreatedAt);
+                    } else {
+                        query = query.order_by_asc(MentorColumn::CreatedAt);
+                    }
+                }
+                "updated_at" => {
+                    if order == "desc" {
+                        query = query.order_by_desc(MentorColumn::UpdatedAt);
+                    } else {
+                        query = query.order_by_asc(MentorColumn::UpdatedAt);
+                    }
+                }
+                _ => {
+                    query = query.order_by_desc(MentorColumn::CreatedAt);
+                }
+            }
+        } else {
+            query = query.order_by_desc(MentorColumn::CreatedAt);
+        }
+
+        let paginator = query.paginate(db, per_page);
+        let total_pages = paginator.num_pages().await?;
+        let mentors = paginator.fetch_page(page - 1).await?;
+
+        let data: Vec<MentorDetailQueryDto> = mentors
+            .into_iter()
+            .filter_map(|(mentor, user)| {
+                user.map(|_u| MentorDetailQueryDto {
+                    id: mentor.id.to_string(),
+                    user_id: mentor.user_id.to_string(),
+                    industries: serde_json::from_value(mentor.industries.clone().unwrap_or(serde_json::Value::Null)).unwrap_or_default(),
+                    expertise: serde_json::from_value(mentor.expertise.clone().unwrap_or(serde_json::Value::Null)).unwrap_or_default(),
+                    languages: serde_json::from_value(mentor.languages.clone().unwrap_or(serde_json::Value::Null)).unwrap_or_default(),
+                    current_company: mentor.current_company.unwrap_or_default(),
+                    current_role: mentor.current_role.unwrap_or_default(),
+                    years_of_experience: mentor.years_of_experience.unwrap_or(0),
+                    topics_of_interest: serde_json::from_value(mentor.topics_of_interest.clone().unwrap_or(serde_json::Value::Null)).unwrap_or_default(),
+                    preferred_mentee_level: serde_json::from_str(&mentor.preferred_mentee_level.unwrap_or_default()).unwrap_or_default(),
+                    preferred_mentoring_formats: serde_json::from_value(mentor.preferred_mentoring_formats.clone().unwrap_or(serde_json::Value::Null)).unwrap_or_default(),
+                    availability_commitment: mentor.availability_commitment.unwrap_or_default(),
+                    mentoring_rate: mentor.mentoring_rate.unwrap_or(0.0),
+                    status: mentor.status.unwrap_or_default(),
+                    is_deleted: mentor.is_deleted,
+                    created_at: mentor.created_at.to_rfc3339(),
+                    updated_at: mentor.updated_at.to_rfc3339(),
+                })
+            })
+            .collect();
+
+        let elapsed = now.elapsed();
+        if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string()) == "development" {
+            println!("Query 'query_mentor_list' took: {elapsed:.2?}");
+        }
+
+        let response = ResponseListSuccessDto {
+            data,
+            meta: Some(imphnen_entities::MetaResponseDto {
+                page: Some(page),
+                per_page: Some(per_page),
+                total: Some(total_pages),
+            }),
+        };
+
+        Ok(response)
+    }
+
+    #[instrument(skip(self, id, include_deleted), err)]
+    pub async fn query_mentor_by_id(
+        &self,
+        id: &str,
+        include_deleted: bool,
+    ) -> UtilsResult<MentorDetailQueryDto> {
+        let now = Instant::now();
+        let db = self.get_db();
+
+        let mentor_id = Uuid::parse_str(id).map_err(|e| anyhow!("Invalid mentor ID: {}", e))?;
+
+        let mut query = Mentors::find_by_id(mentor_id)
+            .find_also_related(Users);
+
+        if !include_deleted {
+            query = query.filter(MentorColumn::IsDeleted.eq(false));
+        }
+
+        let (mentor, user) = query
+            .one(db)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Mentor not found"))?;
+
+        let _user = user.ok_or_else(|| anyhow::anyhow!("User not found for mentor"))?;
+
+        let result = MentorDetailQueryDto {
+            id: mentor.id.to_string(),
+            user_id: mentor.user_id.to_string(),
+            industries: serde_json::from_value(mentor.industries.clone().unwrap_or(serde_json::Value::Null)).unwrap_or_default(),
+            expertise: serde_json::from_value(mentor.expertise.clone().unwrap_or(serde_json::Value::Null)).unwrap_or_default(),
+            languages: serde_json::from_value(mentor.languages.clone().unwrap_or(serde_json::Value::Null)).unwrap_or_default(),
+            current_company: mentor.current_company.unwrap_or_default(),
+            current_role: mentor.current_role.unwrap_or_default(),
+            years_of_experience: mentor.years_of_experience.unwrap_or(0),
+            topics_of_interest: serde_json::from_value(mentor.topics_of_interest.clone().unwrap_or(serde_json::Value::Null)).unwrap_or_default(),
+            preferred_mentee_level: serde_json::from_str(&mentor.preferred_mentee_level.unwrap_or_default()).unwrap_or_default(),
+            preferred_mentoring_formats: serde_json::from_value(mentor.preferred_mentoring_formats.clone().unwrap_or(serde_json::Value::Null)).unwrap_or_default(),
+            availability_commitment: mentor.availability_commitment.unwrap_or_default(),
+            mentoring_rate: mentor.mentoring_rate.unwrap_or(0.0),
+            status: mentor.status.unwrap_or_default(),
+            is_deleted: mentor.is_deleted,
+            created_at: mentor.created_at.to_rfc3339(),
+            updated_at: mentor.updated_at.to_rfc3339(),
+        };
+
+        let elapsed = now.elapsed();
+        if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string()) == "development" {
+            println!("Query 'query_mentor_by_id' took: {elapsed:.2?}");
+        }
+
+        Ok(result)
+    }
 }

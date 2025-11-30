@@ -1,7 +1,6 @@
 use crate::v1::mentors::MentorSchema;
-use imphnen_utils::extract_id;
+use crate::v1::sessions::sessions_schema::Thing;
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::Thing;
 use utoipa::ToSchema;
 use validator::Validate;
 
@@ -16,8 +15,8 @@ pub struct MentorListResponseDto {
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MentorDetailWithUserDto {
-	pub id: Thing,
-	pub user_id: Thing,
+	pub id: String,
+	pub user_id: String,
 	// Personal data is now in UsersSchema, access via user_id
 	// Removed: fullname, email, legal_name, identity_document_url, 
 	// phone_for_verification, bio, linkedin_url, github_url, cv_url
@@ -31,7 +30,7 @@ pub struct MentorDetailWithUserDto {
 	pub preferred_mentee_level: Vec<String>,
 	pub preferred_mentoring_formats: Vec<String>,
 	pub availability_commitment: String,
-	pub mentoring_rate: MentoringRate,
+	pub mentoring_rate: f64,
 	pub status: String,
 	pub is_deleted: bool,
 	pub created_at: String,
@@ -65,7 +64,7 @@ pub struct MentorDetailResponseDto {
 	pub preferred_mentee_level: Vec<String>,
 	pub preferred_mentoring_formats: Vec<String>,
 	pub availability_commitment: String,
-	pub mentoring_rate: MentoringRate,
+	pub mentoring_rate: f64,
 	pub status: String,
 	pub created_at: String,
 	pub updated_at: String,
@@ -173,8 +172,8 @@ pub struct MentorUserRegisterRequestDto {
 	pub password: String,
 	#[validate(length(min = 2, message = "Fullname at least have 2 character"))]
 	pub fullname: String,
-	#[validate(length(min = 1, message = "Phone number is required"))]
-	pub phone_number: String,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub phone_number: Option<String>,
 	#[validate(nested)]
 	pub identity_and_verification: IdentityAndVerification,
 	#[validate(nested)]
@@ -211,7 +210,8 @@ pub struct IdentityAndVerification {
 		max = 15,
 		message = "Phone must be 10-15 characters"
 	))]
-	pub phone_for_verification: String,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub phone_for_verification: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Validate)]
@@ -287,7 +287,7 @@ pub struct MentorInsertDto {
 	pub preferred_mentee_level: Vec<String>,
 	pub preferred_mentoring_formats: Vec<String>,
 	pub availability_commitment: String,
-	pub mentoring_rate: MentoringRate,
+	pub mentoring_rate: f64,
 	pub status: String,
 	pub is_deleted: bool,
 	pub created_at: String,
@@ -343,7 +343,7 @@ pub struct MentorDetailQueryDto {
 	pub preferred_mentee_level: Vec<String>,
 	pub preferred_mentoring_formats: Vec<String>,
 	pub availability_commitment: String,
-	pub mentoring_rate: MentoringRate,
+	pub mentoring_rate: f64,
 	pub status: String,
 	pub is_deleted: bool,
 	pub created_at: String,
@@ -353,7 +353,7 @@ pub struct MentorDetailQueryDto {
 impl From<MentorDetailQueryDto> for MentorListResponseDto {
 	fn from(dto: MentorDetailQueryDto) -> Self {
 		Self {
-			id: extract_id(&dto.id),
+			id: dto.id.clone(),
 			fullname: None, // now in user table, must be populated from service layer
 			email: None, // now in user table, must be populated from service layer
 			status: dto.status,
@@ -366,8 +366,8 @@ impl From<MentorDetailQueryDto> for MentorListResponseDto {
 impl From<MentorDetailQueryDto> for MentorDetailResponseDto {
 	fn from(dto: MentorDetailQueryDto) -> Self {
 		Self {
-			id: extract_id(&dto.id),
-			user_id: extract_id(&dto.user_id),
+			id: dto.id.clone(),
+			user_id: dto.user_id.clone(),
 			// Personal data fields are populated in service layer from UsersSchema
 			fullname: None, // populated from user table in service layer
 			email: None, // populated from user table in service layer
@@ -403,7 +403,7 @@ impl From<MentorSchema> for MentorRegisterResponseDto {
 	fn from(schema: MentorSchema) -> Self {
 		Self {
 			id: schema.id.to_string(),
-			user_id: schema.user_id.map(|id| extract_id(&id)).unwrap_or_default(),
+			user_id: schema.user_id.unwrap_or_default(),
 			email: None, // schema.email - now in user table
 			status: schema.status,
 			created_at: schema.created_at,

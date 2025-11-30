@@ -30,7 +30,7 @@ pub mod error {
                     StatusCode::INTERNAL_SERVER_ERROR,
                     format!("Internal server error: {detail}"),
                 ),
-                Error::StatusCode(s) => (s, format!("HTTP error: {}", s)),
+                Error::StatusCode(s) => (s, format!("HTTP error: {s}")),
                 Error::Auth(detail) => (
                     StatusCode::UNAUTHORIZED,
                     format!("Authentication error: {detail}"),
@@ -41,12 +41,6 @@ pub mod error {
                 ),
 			};
 			(status, Json(error_message)).into_response()
-		}
-	}
-
-	impl From<surrealdb::Error> for Error {
-		fn from(error: surrealdb::Error) -> Self {
-			Self::Db(error.to_string())
 		}
 	}
 

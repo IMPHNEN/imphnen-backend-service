@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-	use crate::{generate_unique_email, get_role_id, UsersRepository, setup_all_test_environment};
+	use crate::{generate_unique_email, get_role_id, UsersRepository, setup_postgres_test_environment};
 	use axum::{http::StatusCode, response::Response};
 	use imphnen_dimentorin::{
 		mentors_service::MentorsService,
@@ -13,12 +13,12 @@ mod tests {
 	};
 	use imphnen_entities::{AppState, MetaRequestDto};
 	use imphnen_iam::{RolesEnum};
-	use imphnen_utils::{generate_otp, hash_password, make_thing_from_enum, get_iso_date};
-	use surrealdb::Uuid;
+	use imphnen_utils::{generate_otp, hash_password, get_iso_date};
+	use uuid::Uuid;
 
 	#[tokio::test]
 	async fn test_register_mentor_service() {
-		let app_state = setup_all_test_environment().await;
+		let app_state = setup_postgres_test_environment().await;
 		let user_repo = UsersRepository::new(&app_state);
 		let mentor_repo = MentorsRepository::new(&app_state);
 		let role_repo = imphnen_iam::RolesRepository::new(&app_state);
@@ -96,7 +96,7 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_get_mentor_list_service() {
-		let app_state = setup_all_test_environment().await;
+		let app_state = setup_postgres_test_environment().await;
 		let mentor_repo = MentorsRepository::new(&app_state);
 		let user_repo = UsersRepository::new(&app_state);
 
@@ -176,7 +176,7 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_get_mentor_by_id_service() {
-		let app_state = setup_all_test_environment().await;
+		let app_state = setup_postgres_test_environment().await;
 		let mentor_repo = MentorsRepository::new(&app_state);
 		let user_repo = UsersRepository::new(&app_state);
 
@@ -300,7 +300,7 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_update_mentor_service() {
-		let app_state = setup_all_test_environment().await;
+		let app_state = setup_postgres_test_environment().await;
 		let mentor_repo = MentorsRepository::new(&app_state);
 		let user_repo = UsersRepository::new(&app_state);
 
@@ -458,7 +458,7 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_delete_mentor_service() {
-		let app_state = setup_all_test_environment().await;
+		let app_state = setup_postgres_test_environment().await;
 		let mentor_repo = MentorsRepository::new(&app_state);
 		let user_repo = UsersRepository::new(&app_state);
 
@@ -519,7 +519,7 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_verify_mentor_service() {
-		let app_state = setup_all_test_environment().await;
+		let app_state = setup_postgres_test_environment().await;
 		let mentor_repo = MentorsRepository::new(&app_state);
 		let user_repo = UsersRepository::new(&app_state);
 
@@ -650,7 +650,7 @@ mod tests {
 	}
 	#[tokio::test]
 	async fn test_get_mentor_me_not_found() {
-		let app_state = setup_all_test_environment().await;
+		let app_state = setup_postgres_test_environment().await;
 
 		// Try to get mentor me for non-existent email
 		let response = MentorsService::get_mentor_me(&app_state, "nonexistent@example.com").await;
@@ -665,7 +665,7 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_update_mentor_me_not_found() {
-		let app_state = setup_all_test_environment().await;
+		let app_state = setup_postgres_test_environment().await;
 
 		// Try to update mentor me for non-existent email
 		let update_dto = MentorUpdateRequestDto {
@@ -685,7 +685,7 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_get_mentor_status_not_found() {
-		let app_state = setup_all_test_environment().await;
+		let app_state = setup_postgres_test_environment().await;
 
 		// Try to get mentor status for non-existent email
 		let response = MentorsService::get_mentor_status(&app_state, "nonexistent@example.com").await;
@@ -746,7 +746,7 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_delete_mentor_not_found() {
-		let app_state = setup_all_test_environment().await;
+		let app_state = setup_postgres_test_environment().await;
 
 		// Try to delete non-existent mentor
 		let response = MentorsService::delete_mentor(&app_state, "nonexistent_id").await;
@@ -757,7 +757,7 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_register_mentor_validation_error() {
-		let app_state = setup_all_test_environment().await;
+		let app_state = setup_postgres_test_environment().await;
 
 		// Create invalid mentor DTO
 		let invalid_dto = MentorUserRegisterRequestDto {
@@ -803,7 +803,7 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_update_mentor_validation_error() {
-		let app_state = setup_all_test_environment().await;
+		let app_state = setup_postgres_test_environment().await;
 		let user_repo = UsersRepository::new(&app_state);
 		let mentor_repo = MentorsRepository::new(&app_state);
 
@@ -874,7 +874,7 @@ mod tests {
 }
 	#[tokio::test]
 	async fn test_register_mentor_duplicate_email() {
-		let app_state = setup_all_test_environment().await;
+		let app_state = setup_postgres_test_environment().await;
 		let user_repo = UsersRepository::new(&app_state);
 
 		let email = generate_unique_email("test_duplicate_email");
@@ -930,7 +930,7 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_register_mentor_boundary_values() {
-		let app_state = setup_all_test_environment().await;
+		let app_state = setup_postgres_test_environment().await;
 		let user_repo = UsersRepository::new(&app_state);
 
 		let email = generate_unique_email("test_boundary_values");
@@ -986,7 +986,7 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_register_mentor_extreme_values() {
-		let app_state = setup_all_test_environment().await;
+		let app_state = setup_postgres_test_environment().await;
 		let user_repo = UsersRepository::new(&app_state);
 
 		let email = generate_unique_email("test_extreme_values");
@@ -1044,7 +1044,7 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_update_mentor_partial_success() {
-		let app_state = setup_all_test_environment().await;
+		let app_state = setup_postgres_test_environment().await;
 		let mentor_repo = MentorsRepository::new(&app_state);
 		let user_repo = UsersRepository::new(&app_state);
 
@@ -1116,7 +1116,7 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_verify_mentor_invalid_status() {
-		let app_state = setup_all_test_environment().await;
+		let app_state = setup_postgres_test_environment().await;
 		let mentor_repo = MentorsRepository::new(&app_state);
 		let user_repo = UsersRepository::new(&app_state);
 

@@ -1,8 +1,6 @@
-use imphnen_iam::v1::users::UsersSchema;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::Thing;
 use utoipa::ToSchema;
 use validator::{Validate, ValidationError};
 
@@ -76,8 +74,9 @@ pub struct TestimonialsDetailItemDto {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TestimonialsQueryDto {
-	pub id: Thing,
-	pub user: UsersSchema,
+	pub id: String,
+	pub user_id: String,
+	pub user_fullname: String,
 	pub role: String,
 	pub content: String,
 	pub is_deleted: bool,
@@ -88,9 +87,9 @@ pub struct TestimonialsQueryDto {
 impl TestimonialsQueryDto {
 	pub fn from(self) -> TestimonialsListItemDto {
 		TestimonialsListItemDto {
-			id: self.id.id.to_raw(),
-			user_id: self.user.id.id.to_raw(),
-			user_fullname: self.user.fullname,
+			id: self.id,
+			user_id: self.user_id,
+			user_fullname: self.user_fullname,
 			role: self.role,
 			content: self.content,
 			created_at: self.created_at,

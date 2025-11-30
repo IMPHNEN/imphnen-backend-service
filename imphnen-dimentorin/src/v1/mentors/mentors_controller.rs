@@ -9,6 +9,9 @@ use ::axum::{
 	response::Response,
 };
 use imphnen_entities::MetaRequestDto;
+use uuid::Uuid;
+use axum::http::StatusCode;
+use imphnen_utils::common_response;
 use imphnen_libs::{AppState, ValidatedJson};
 use imphnen_iam::{PermissionsEnum, require_permissions};
 use imphnen_utils::extract_email;
@@ -81,9 +84,20 @@ pub async fn get_mentor_by_id(
 	headers: HeaderMap,
 	Extension(app_state): Extension<AppState>,
 	Path(id): Path<String>,
-) -> Response {
-	require_permissions!(headers, app_state, [PermissionsEnum::ReadDetailMentors], {
-		MentorsService::get_mentor_by_id(&app_state, &id).await
+	) -> Response {
+		// Validate UUID format
+		let _mentor_uuid = match Uuid::parse_str(&id) {
+			Ok(uuid) => uuid,
+			Err(_) => {
+				return common_response(
+					StatusCode::BAD_REQUEST,
+					"Invalid mentor ID format. Must be a valid UUID."
+				);
+			}
+		};
+		
+		require_permissions!(headers, app_state, [PermissionsEnum::ReadDetailMentors], {
+			MentorsService::get_mentor_by_id(&app_state, &id).await
 	})
 }
 
@@ -109,10 +123,21 @@ pub async fn put_update_mentor(
 	headers: HeaderMap,
 	Extension(app_state): Extension<AppState>,
 	Path(id): Path<String>,
-	ValidatedJson(dto): ValidatedJson<MentorUpdateRequestDto>,
-) -> Response {
-	require_permissions!(headers, app_state, [PermissionsEnum::UpdateMentors], {
-		MentorsService::update_mentor(&app_state, &id, dto).await
+		ValidatedJson(dto): ValidatedJson<MentorUpdateRequestDto>,
+	) -> Response {
+		// Validate UUID format
+		let _mentor_uuid = match Uuid::parse_str(&id) {
+			Ok(uuid) => uuid,
+			Err(_) => {
+				return common_response(
+					StatusCode::BAD_REQUEST,
+					"Invalid mentor ID format. Must be a valid UUID."
+				);
+			}
+		};
+		
+		require_permissions!(headers, app_state, [PermissionsEnum::UpdateMentors], {
+			MentorsService::update_mentor(&app_state, &id, dto).await
 	})
 }
 
@@ -136,9 +161,20 @@ pub async fn delete_mentor(
 	headers: HeaderMap,
 	Extension(app_state): Extension<AppState>,
 	Path(id): Path<String>,
-) -> Response {
-	require_permissions!(headers, app_state, [PermissionsEnum::DeleteMentors], {
-		MentorsService::delete_mentor(&app_state, &id).await
+	) -> Response {
+		// Validate UUID format
+		let _mentor_uuid = match Uuid::parse_str(&id) {
+			Ok(uuid) => uuid,
+			Err(_) => {
+				return common_response(
+					StatusCode::BAD_REQUEST,
+					"Invalid mentor ID format. Must be a valid UUID."
+				);
+			}
+		};
+		
+		require_permissions!(headers, app_state, [PermissionsEnum::DeleteMentors], {
+			MentorsService::delete_mentor(&app_state, &id).await
 	})
 }
 
@@ -164,10 +200,21 @@ pub async fn put_verify_mentor(
 	headers: HeaderMap,
 	Extension(app_state): Extension<AppState>,
 	Path(id): Path<String>,
-	ValidatedJson(dto): ValidatedJson<MentorVerifyRequestDto>,
-) -> Response {
-	require_permissions!(headers, app_state, [PermissionsEnum::VerifyMentors], {
-		MentorsService::verify_mentor(&app_state, &id, dto).await
+		ValidatedJson(dto): ValidatedJson<MentorVerifyRequestDto>,
+	) -> Response {
+		// Validate UUID format
+		let _mentor_uuid = match Uuid::parse_str(&id) {
+			Ok(uuid) => uuid,
+			Err(_) => {
+				return common_response(
+					StatusCode::BAD_REQUEST,
+					"Invalid mentor ID format. Must be a valid UUID."
+				);
+			}
+		};
+		
+		require_permissions!(headers, app_state, [PermissionsEnum::VerifyMentors], {
+			MentorsService::verify_mentor(&app_state, &id, dto).await
 	})
 }
 

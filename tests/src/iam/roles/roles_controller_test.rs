@@ -110,7 +110,7 @@ mod tests {
 		for name in &role_names {
 			let role = RolesSchema {
 				name: name.clone(),
-				description: Some(format!("Description for {}", name)),
+				description: Some(format!("Description for {name}")),
 				..Default::default()
 			};
 			let _ = repo.query_create_role(role).await;

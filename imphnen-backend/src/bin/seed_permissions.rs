@@ -1,22 +1,20 @@
+#![allow(clippy::all)]
+
 use imphnen_iam::PermissionsEnum;
-use imphnen_utils::{get_iso_date};
-use serde_json::json;
 use std::error::Error;
-use surrealdb::engine::any;
-use surrealdb::opt::auth::Root;
+use imphnen_libs::postgres::{PostgresConfig, PostgresConnection};
+use imphnen_entities::seaorm::auth::permissions::ActiveModel as PermissionActiveModel;
+use imphnen_entities::seaorm::auth::permissions::Entity as PermissionEntity;
+use sea_orm::ActiveValue::Set;
+use sea_orm::{ActiveModelTrait};
+use uuid::Uuid;
+use chrono::Utc;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-	let env = &imphnen_libs::environment::ENV;
-	let db = any::connect(&env.surrealdb_url).await?;
-	db.signin(Root {
-		username: &env.surrealdb_username,
-		password: &env.surrealdb_password,
-	})
-	.await?;
-	db.use_ns(env.surrealdb_namespace.clone())
-		.use_db(env.surrealdb_dbname.clone())
-		.await?;
+	let config = PostgresConfig::from_env()?;
+	let pg_conn = PostgresConnection::new(config).await?;
+	let db = &pg_conn.conn;
 
 	for permission in [
 		PermissionsEnum::ReadListUsers,
@@ -56,18 +54,24 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		PermissionsEnum::DeleteMentors,
 		PermissionsEnum::Administrator,
 	] {
-		db.query("CREATE type::thing('app_permissions', $id) CONTENT $data")
-			.bind(("id", permission.id()))
-			.bind((
-				"data",
-				json!({
-					"name": permission.to_string(),
-					"is_deleted": false,
-					"created_at": get_iso_date(),
-					"updated_at": get_iso_date()
-				}),
-			))
-			.await?;
+		// permission.id() returns a string, try parse to uuid
+		let parsed_id = Uuid::parse_str(&permission.id()).unwrap_or_else(|_| Uuid::new_v4());
+
+		// Check if permission already exists
+		let existing = PermissionEntity::find_by_id(parsed_id).one(db).await?;
+		if existing.is_some() {
+			println!("ℹ️  Skipping (already exists): {permission}");
+			continue;
+		}
+
+		// Insert permission using active model
+		let mut perm_model: PermissionActiveModel = Default::default();
+		perm_model.id = Set(parsed_id);
+		perm_model.name = Set(permission.to_string());
+		perm_model.is_deleted = Set(false);
+		perm_model.created_at = Set(Utc::now());
+		perm_model.updated_at = Set(Utc::now());
+		perm_model.insert(db).await?;
 		println!("✅ Inserted: {permission}");
 	}
 

@@ -7,13 +7,26 @@ services:
       - "${PORT}:${PORT}"
     env_file: ".env"
     depends_on:
-      - surrealdb
+      - postgres
 
-  surrealdb:
-    image: surrealdb/surrealdb:latest
-    command: start --log trace --user root --pass root
+  postgres:
+    image: postgres:15-alpine
+    container_name: imphnen_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-imphnen}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
-      - "8000:8000"
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-imphnen}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   minio:
     image: minio/minio:latest
@@ -29,4 +42,5 @@ services:
       - minio_data:/data
 
 volumes:
+  postgres_data:
   minio_data:

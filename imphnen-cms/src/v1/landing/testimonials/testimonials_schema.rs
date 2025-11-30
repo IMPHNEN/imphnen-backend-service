@@ -1,8 +1,6 @@
-use imphnen_libs::ResourceEnum;
-use imphnen_utils::{get_iso_date, make_thing};
+use imphnen_utils::get_iso_date;
 use serde::{Deserialize, Serialize};
-use surrealdb::Uuid;
-use surrealdb::sql::Thing;
+use uuid::Uuid;
 
 use super::testimonials_dto::{
         TestimonialsCreateRequestDto, TestimonialsQueryDto, TestimonialsUpdateRequestDto,
@@ -10,8 +8,8 @@ use super::testimonials_dto::{
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TestimonialsSchema {
-        pub id: Thing,
-        pub user: Thing,
+        pub id: String,
+        pub user_id: String,
         pub role: String,
         pub content: String,
         pub is_deleted: bool,
@@ -22,14 +20,8 @@ pub struct TestimonialsSchema {
 impl Default for TestimonialsSchema {
         fn default() -> Self {
                 Self {
-                        id: make_thing(
-                                &ResourceEnum::Testimonials.to_string(),
-                                &Uuid::new_v4().to_string(),
-                        ),
-                        user: make_thing(
-                                &ResourceEnum::Users.to_string(),
-                                &Uuid::new_v4().to_string(),
-                        ),
+                        id: Uuid::new_v4().to_string(),
+                        user_id: Uuid::new_v4().to_string(),
                         role: String::new(),
                         content: String::new(),
                         is_deleted: false,
@@ -43,7 +35,7 @@ impl TestimonialsSchema {
         pub fn from(dto: TestimonialsQueryDto) -> Self {
                 Self {
                         id: dto.id,
-                        user: dto.user.id,
+                        user_id: dto.user_id,
                         role: dto.role,
                         content: dto.content,
                         is_deleted: dto.is_deleted,
@@ -52,13 +44,10 @@ impl TestimonialsSchema {
                 }
         }
 
-        pub fn create(payload: TestimonialsCreateRequestDto, user_id: &Thing) -> Self {
+        pub fn create(payload: TestimonialsCreateRequestDto, user_id: &str) -> Self {
                 Self {
-                        id: make_thing(
-                                &ResourceEnum::Testimonials.to_string(),
-                                &Uuid::new_v4().to_string(),
-                        ),
-                        user: user_id.clone(),
+                        id: Uuid::new_v4().to_string(),
+                        user_id: user_id.to_string(),
                         role: payload.role,
                         content: payload.content,
                         is_deleted: false,
@@ -70,21 +59,14 @@ impl TestimonialsSchema {
         pub fn update(
                 payload: TestimonialsUpdateRequestDto,
                 id: String,
-                user_id: &Thing,
+                user_id: &str,
         ) -> Self {
-                // Normalize id: accept either raw id (uuid) or Thing-formatted id like "table:⟨id⟩"
-                let raw_id = if id.contains(':') {
-                        id.split(':').last().unwrap().trim_matches(|c| c == '⟨' || c == '⟩').to_string()
-                } else {
-                        id
-                };
-
                 Self {
-                        id: make_thing(&ResourceEnum::Testimonials.to_string(), &raw_id),
+                        id,
                         role: payload.role,
                         content: payload.content,
                         updated_at: get_iso_date(),
-                        user: user_id.clone(),
+                        user_id: user_id.to_string(),
                         ..Default::default()
                 }
         }

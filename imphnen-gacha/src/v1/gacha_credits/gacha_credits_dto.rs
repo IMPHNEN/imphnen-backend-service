@@ -27,8 +27,8 @@ pub struct GachaCreditResponseDto {
 impl From<&crate::v1::gacha_credits::gacha_credits_schema::GachaCreditSchema> for GachaCreditResponseDto {
 	fn from(credit: &crate::v1::gacha_credits::gacha_credits_schema::GachaCreditSchema) -> Self {
 		Self {
-			id: credit.id.id.to_raw(),
-			user_id: credit.user.id.to_raw(),
+			id: credit.id.clone(),
+			user_id: credit.user.clone(),
 			available_rolls: credit.available_rolls,
 			is_deleted: credit.is_deleted,
 			created_at: credit.created_at.clone(),

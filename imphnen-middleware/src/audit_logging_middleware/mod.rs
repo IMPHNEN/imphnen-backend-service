@@ -4,11 +4,12 @@ use axum::{
     middleware::Next,
     Extension,
 };
-use chrono::Utc;
-use imphnen_entities::AuditLogSchema;
-use imphnen_libs::{AppState, ResourceEnum};
+use chrono::{DateTime, FixedOffset, Utc};
+use imphnen_entities::seaorm::common::audit_log::Model as AuditLogSchema;
+use imphnen_libs::AppState;
+use sea_orm::{ActiveModelTrait, Set};
+use sea_orm::prelude::Uuid;
 use imphnen_utils::{extract_email, extract_email_async, extract_real_ip};
-use serde_json;
 use std::convert::Infallible;
 
 /// Middleware untuk mencatat semua aksi admin ke dalam audit log
@@ -26,6 +27,7 @@ pub async fn audit_logging_middleware(
         let user_email = extract_user_email(headers).await;
         let user_id = extract_user_id(&state, &user_email).await;
         let ip_address = extract_real_ip(headers).unwrap_or_else(|| "unknown".to_string());
+        let user_id_uuid = Uuid::parse_str(&user_id.clone().unwrap_or_else(|| "unknown".to_string())).unwrap_or(Uuid::nil());
         let user_agent = extract_user_agent(headers);
         
         // Ekstrak informasi aksi dari request
@@ -35,8 +37,8 @@ pub async fn audit_logging_middleware(
         
         // Simpan audit log sebelum memproses request
         let audit_log = AuditLogSchema {
-            id: None,
-            user_id: user_id.clone().unwrap_or_else(|| "unknown".to_string()),
+            id: Uuid::new_v4(),
+            user_id: user_id_uuid,
             user_email: user_email.clone().unwrap_or_else(|| "unknown".to_string()),
             action,
             resource,
@@ -45,12 +47,12 @@ pub async fn audit_logging_middleware(
             new_data: None, // Untuk CREATE/UPDATE, perlu diisi setelah request
             ip_address,
             user_agent,
-            timestamp: Utc::now(),
+            timestamp: DateTime::<FixedOffset>::from(Utc::now()),
         };
         
         // Simpan audit log ke database
         let action = audit_log.action.clone();
-        match save_audit_log(&state.surrealdb_mem, audit_log.clone()).await {
+        match save_audit_log(&state.postgres_connection.conn, audit_log.clone()).await {
             Ok(_) => log::debug!("Audit log saved for action: {}", action),
             Err(e) => log::error!("Failed to save audit log: {}", e),
         }
@@ -66,12 +68,10 @@ fn is_admin_action(uri: &str) -> bool {
     // Daftar endpoint admin yang perlu diaudit
     let admin_endpoints = [
         "/v1/admin/",
-        "/v1/teams/admin/",
         "/v1/users/admin/",
         "/v1/permissions/",
         "/v1/roles/",
         "/v1/gacha/admin/",
-        "/v1/hackathon/admin/",
         "/v1/cms/admin/",
     ];
     
@@ -93,8 +93,8 @@ async fn extract_user_email(headers: &axum::http::HeaderMap) -> Option<String> {
 /// Extract user ID dari email menggunakan auth repository
 async fn extract_user_id(state: &AppState, email: &Option<String>) -> Option<String> {
     if let Some(email) = email {
-        match state.auth_repository.query_get_stored_user(email.clone()).await {
-            Ok(user) => Some(user.id.id.to_string()),
+        match state.auth_repository.get_user_for_auth(&email.clone(), state).await {
+            Ok(user) => Some(user.id.to_string()),
             Err(_) => None,
         }
     } else {
@@ -129,11 +129,10 @@ fn extract_action(uri: &str, method: &str) -> String {
 /// Extract resource dari URI
 fn extract_resource(uri: &str) -> String {
     // Ambil bagian setelah /v1/ sebagai resource
-    if let Some(resource_part) = uri.split("/v1/").nth(1) {
-        if let Some(resource) = resource_part.split('/').next() {
+    if let Some(resource_part) = uri.split("/v1/").nth(1)
+        && let Some(resource) = resource_part.split('/').next() {
             return resource.to_string();
         }
-    }
     "unknown".to_string()
 }
 
@@ -155,18 +154,28 @@ fn extract_resource_id(uri: &str) -> Option<String> {
     None
 }
 
-/// Simpan audit log ke database
+/// Simpan audit log ke database menggunakan SeaORM
 async fn save_audit_log(
-    db: &imphnen_libs::SurrealMemClient,
+    db: &sea_orm::DatabaseConnection,
     audit_log: AuditLogSchema,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let table = ResourceEnum::AuditLog.to_string();
-    let key = (table.as_str(), surrealdb::sql::Id::rand().to_string());
+    use imphnen_entities::seaorm::common::audit_log::ActiveModel as AuditLogActiveModel;
+    
+    let audit_log_model = AuditLogActiveModel {
+        id: Set(audit_log.id),
+        user_id: Set(audit_log.user_id),
+        user_email: Set(audit_log.user_email),
+        action: Set(audit_log.action.clone()),
+        resource: Set(audit_log.resource),
+        resource_id: Set(audit_log.resource_id),
+        old_data: Set(audit_log.old_data),
+        new_data: Set(audit_log.new_data),
+        ip_address: Set(audit_log.ip_address),
+        user_agent: Set(audit_log.user_agent),
+        timestamp: Set(audit_log.timestamp),
+    };
 
-    let content = serde_json::to_value(&audit_log)?;
-    db.create::<Option<AuditLogSchema>>(key)
-        .content(content)
-        .await?;
+    audit_log_model.insert(db).await?;
 
     log::debug!("Audit log saved for action: {}", audit_log.action);
     Ok(())

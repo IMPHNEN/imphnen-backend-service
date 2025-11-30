@@ -1,86 +1,68 @@
 use imphnen_gacha::v1::gacha_rolls::gacha_rolls_repository::{self, GachaRollsRepository};
 use imphnen_gacha::v1::gacha_rolls::gacha_rolls_dto::{CreateGachaRollDto, GachaRollResponse};
-use surrealdb::engine::local::Mem;
-use surrealdb::Surreal;
-use surrealdb::opt::auth::Root;
+use imphnen_entities::seaorm::gacha::gacha_rolls::{Entity as GachaRollsEntity, ActiveModel as GachaRollActiveModel, Column as GachaRollColumn};
+use sea_orm::{DatabaseConnection, EntityTrait, MockDatabase, ActiveValue, Set};
 use std::sync::Arc;
+use uuid::Uuid;
+use chrono::Utc;
 
 #[tokio::test]
 async fn test_rolls_repository_crud_operations() {
-    // Setup in-memory SurrealDB for testing
-    let db = Surreal::new::<Mem>(()).await.unwrap();
-    db.signin(Root { username: "root", password: "root" }).await.unwrap();
-    db.use_ns("test").use_db("test").await.unwrap();
-    
+    // Setup in-memory SeaORM database for testing
+    let db = MockDatabase::new().await;
     let repo = gacha_rolls_repository::GachaRollsRepository::new(Arc::new(db));
-    let create_dto = CreateGachaRollDto { user_id: "user123".to_string(), credits_used: 10 };
-
-    // Test create
-    let created = repo.create(&create_dto).await.unwrap();
-    assert!(!created.id.is_empty());
-    assert_eq!(created.user_id, "user123");
-    assert_eq!(created.credits_used, 10);
-    assert_eq!(created.items_won.len(), 0); // Default empty array
+    
+    // Create a test gacha roll directly in the mock database
+    let test_roll = GachaRollActiveModel {
+        id: Set(Uuid::new_v4().to_string()),
+        user_id: Set("user123".to_string()),
+        gacha_id: Set("gacha123".to_string()),
+        item_id: Set("item123".to_string()),
+        quantity: Set(1),
+        weight: Set(1.0),
+        is_deleted: Set(false),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+    };
+    
+    let created_roll = GachaRollsEntity::insert(test_roll).exec(&db).await.unwrap();
+    let roll_id = created_roll.last_insert_id.to_string();
 
     // Test find by id
-    let found = repo.find_by_id(&created.id).await.unwrap().unwrap();
-    assert_eq!(found.id, created.id);
+    let found = repo.query_gacha_roll_by_id(roll_id.clone()).await.unwrap();
     assert_eq!(found.user_id, "user123");
 
-    // Test find by user
-    let user_rolls = repo.find_by_user("user123").await.unwrap();
-    assert_eq!(user_rolls.len(), 1);
-    assert_eq!(user_rolls[0].id, created.id);
-
-    // Test find all
-    let all_rolls = repo.find_all().await.unwrap();
+    // Test find all active rolls
+    let all_rolls = repo.query_all_active_rolls().await.unwrap();
     assert_eq!(all_rolls.len(), 1);
-    assert_eq!(all_rolls[0].id, created.id);
+    assert_eq!(all_rolls[0].user_id, "user123");
 
-    // Test update status
-    let updated = repo.update(&created.id, "completed").await.unwrap();
-    assert_eq!(updated.status, "completed");
-    assert_eq!(updated.id, created.id);
-
-    // Test delete
-    let delete_result = repo.delete(&created.id).await;
+    // Test soft delete
+    let delete_result = repo.query_soft_delete_gacha_roll(roll_id.clone()).await;
     assert!(delete_result.is_ok());
     
     // Verify deletion
-    let deleted = repo.find_by_id(&created.id).await.unwrap();
-    assert!(deleted.is_none());
+    let result = repo.query_gacha_roll_by_id(roll_id).await;
+    assert!(result.is_err());
 }
 
 #[tokio::test]
 async fn test_rolls_repository_error_cases() {
-    let db = Surreal::new::<Mem>(()).await.unwrap();
-    db.signin(Root { username: "root", password: "root" }).await.unwrap();
-    db.use_ns("test").use_db("test").await.unwrap();
-    
+    let db = MockDatabase::new().await;
     let repo = gacha_rolls_repository::GachaRollsRepository::new(Arc::new(db));
 
     // Test find by non-existent id
-    let result = repo.find_by_id("non_existent_id").await;
-    assert!(result.is_ok());
-    assert!(result.unwrap().is_none());
-
-    // Test update non-existent roll
-    let result = repo.update("non_existent_id", "completed").await;
+    let result = repo.query_gacha_roll_by_id("non_existent_id").await;
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), "Roll not found");
 
-    // Test delete non-existent roll
-    let result = repo.delete("non_existent_id").await;
+    // Test soft delete non-existent roll
+    let result = repo.query_soft_delete_gacha_roll("non_existent_id").await;
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), "Roll not found");
 }
 
 #[tokio::test]
 async fn test_rolls_repository_create_with_items() {
-    let db = Surreal::new::<Mem>(()).await.unwrap();
-    db.signin(Root { username: "root", password: "root" }).await.unwrap();
-    db.use_ns("test").use_db("test").await.unwrap();
-    
+    let db = MockDatabase::new().await;
     let repo = gacha_rolls_repository::GachaRollsRepository::new(Arc::new(db));
     
     // Create a roll with pre-defined items_won

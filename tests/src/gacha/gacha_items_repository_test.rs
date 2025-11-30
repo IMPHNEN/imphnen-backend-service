@@ -1,17 +1,13 @@
 use imphnen_gacha::v1::gacha_items::gacha_items_repository::{self, GachaItemsRepository};
 use imphnen_gacha::v1::gacha_items::gacha_items_dto::{CreateGachaItemDto, GachaItemResponse};
-use surrealdb::engine::local::Mem;
-use surrealdb::Surreal;
-use surrealdb::opt::auth::Root;
+use sea_orm::{DatabaseConnection, EntityTrait, MockDatabase};
 use std::sync::Arc;
+use uuid::Uuid;
 
 #[tokio::test]
 async fn test_items_repository_crud_operations() {
-    // Setup in-memory SurrealDB for testing
-    let db = Surreal::new::<Mem>(()).await.unwrap();
-    db.signin(Root { username: "root", password: "root" }).await.unwrap();
-    db.use_ns("test").use_db("test").await.unwrap();
-    
+    // Setup in-memory SeaORM database for testing
+    let db = MockDatabase::new().await;
     let repo = gacha_items_repository::GachaItemsRepository::new(Arc::new(db));
     let create_dto = CreateGachaItemDto { name: "Sword".to_string(), rarity: "rare".to_string(), image_url: "https://example.com/sword.png".to_string(), value: 100 };
 
@@ -48,10 +44,7 @@ async fn test_items_repository_crud_operations() {
 
 #[tokio::test]
 async fn test_items_repository_error_cases() {
-    let db = Surreal::new::<Mem>(()).await.unwrap();
-    db.signin(Root { username: "root", password: "root" }).await.unwrap();
-    db.use_ns("test").use_db("test").await.unwrap();
-    
+    let db = MockDatabase::new().await;
     let repo = gacha_items_repository::GachaItemsRepository::new(Arc::new(db));
 
     // Test find by non-existent id
@@ -73,10 +66,7 @@ async fn test_items_repository_error_cases() {
 
 #[tokio::test]
 async fn test_items_repository_duplicate_name_error() {
-    let db = Surreal::new::<Mem>(()).await.unwrap();
-    db.signin(Root { username: "root", password: "root" }).await.unwrap();
-    db.use_ns("test").use_db("test").await.unwrap();
-    
+    let db = MockDatabase::new().await;
     let repo = gacha_items_repository::GachaItemsRepository::new(Arc::new(db));
     
     // Create first item

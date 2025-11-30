@@ -52,6 +52,20 @@ test_events_endpoints() {
   local created_event_id=$(echo "$create_event_response" | jq -r '.data.id // empty')
   
   if [ -n "$created_event_id" ]; then
+    echo "   ✅ Event created with ID: $created_event_id"
+
+    # Verify content
+    local get_event_response=$(curl -s -H "Authorization: Bearer $AUTH_TOKEN" "$BASE_URL/v1/cms/landing/events/detail/$created_event_id")
+    local fetched_name=$(echo "$get_event_response" | jq -r '.data.name')
+    local expected_name=$(echo "$create_event_data" | jq -r '.name')
+    
+    if [ "$fetched_name" == "$expected_name" ]; then
+        echo "   ✅ Verified created event content matches"
+    else
+        echo "   ❌ Created event content mismatch: Expected '$expected_name', got '$fetched_name'"
+        FAIL_COUNT=$((FAIL_COUNT+1))
+    fi
+
     # Security: Test XSS in event name
     local xss_event_data=$(jq -n --arg id "$created_event_id" '{
       name: "<script>alert(\"XSS\")</script>",
@@ -68,6 +82,16 @@ test_events_endpoints() {
     }')
     test_api_endpoint "PATCH Update Event" "PATCH" "/v1/cms/landing/events/update/$created_event_id" 200 "$update_event_data" true
     
+    # Verify Update
+    local get_updated_response=$(curl -s -H "Authorization: Bearer $AUTH_TOKEN" "$BASE_URL/v1/cms/landing/events/detail/$created_event_id")
+    local updated_name=$(echo "$get_updated_response" | jq -r '.data.name')
+    if [ "$updated_name" == "Updated Test Event" ]; then
+        echo "   ✅ Verified event update persisted"
+    else
+        echo "   ❌ Event update failed: Expected 'Updated Test Event', got '$updated_name'"
+        FAIL_COUNT=$((FAIL_COUNT+1))
+    fi
+
     # Security: Test unauthorized update
     local saved_token="$AUTH_TOKEN"
     AUTH_TOKEN=""
@@ -77,6 +101,15 @@ test_events_endpoints() {
     # Delete event - use correct endpoint /delete/{id}
     test_api_endpoint "DELETE Event" "DELETE" "/v1/cms/landing/events/delete/$created_event_id" 200 "" true
     
+    # Verify Deletion
+    local verify_delete_response=$(curl -s -w "%{http_code}" -o /dev/null -H "Authorization: Bearer $AUTH_TOKEN" "$BASE_URL/v1/cms/landing/events/detail/$created_event_id")
+    if [ "$verify_delete_response" == "404" ] || [ "$verify_delete_response" == "400" ]; then
+         echo "   ✅ Verified event deletion (API returned $verify_delete_response)"
+    else
+         echo "   ❌ Event deletion verification failed: Expected 404/400, got $verify_delete_response"
+         FAIL_COUNT=$((FAIL_COUNT+1))
+    fi
+
     # Security: Test unauthorized delete
     AUTH_TOKEN=""
     test_api_endpoint "DELETE Event without Auth (Should Fail)" "DELETE" "/v1/cms/landing/events/delete/$created_event_id" 401 "" false

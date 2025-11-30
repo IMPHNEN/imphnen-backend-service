@@ -26,7 +26,7 @@ mod tests {
 			let event = EventsSchema {
 				id: make_thing_from_enum("events", &uuid::Uuid::new_v4().to_string()),
 				name: name.clone(),
-				description: format!("Description for {}", name),
+				description: format!("Description for {name}"),
 				detail_link: format!("https://example.com/event{}", i + 1),
 				price: (i + 1) as f64 * 10.0,
 				is_online: i % 2 == 0,

@@ -8,8 +8,8 @@ name = "api"
 path = "src/main.rs"
 
 [[bin]]
-name = "clear_db_test"
-path = "src/bin/clear_db_test.rs"
+name = "create_schema"
+path = "src/bin/create_schema.rs"
 
 [[bin]]
 name = "seeder"
@@ -40,18 +40,15 @@ name = "seed_roles_permissions"
 path = "src/bin/seed_roles_permissions.rs"
 
 [[bin]]
-name = "seed_teams"
-path = "src/bin/seed_teams.rs"
-
-[[bin]]
-name = "seed_hackathons"
-path = "src/bin/seed_hackathons.rs"
-
-[[bin]]
 name = "seed_test_data"
 path = "src/bin/seed_test_data.rs"
 
+[[bin]]
+name = "test_postgres"
+path = "src/bin/test_postgres.rs"
+
 [dependencies]
+sea-orm.workspace = true
 imphnen-libs.workspace = true
 imphnen-utils.workspace = true
 imphnen-gateway.workspace = true
@@ -60,7 +57,6 @@ imphnen-iam.workspace = true
 imphnen-cms.workspace = true
 imphnen-gacha.workspace = true
 imphnen-dimentorin.workspace = true
-imphnen-hackathon.workspace = true
 axum.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -69,7 +65,6 @@ lazy_static.workspace = true
 regex.workspace = true
 validator.workspace = true
 axum-test.workspace = true
-surrealdb.workspace = true
 rand.workspace = true
 tokio.workspace = true
 chrono.workspace = true
@@ -80,6 +75,3 @@ env_logger.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 uuid.workspace=true
-tokio-tungstenite.workspace = true
-url.workspace = true
-futures-util.workspace = true

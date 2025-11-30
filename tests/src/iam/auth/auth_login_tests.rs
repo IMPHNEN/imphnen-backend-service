@@ -39,21 +39,19 @@ mod auth_login_tests {
 				role_repo
 					.query_role_by_name(role_name.to_string())
 					.await
-					.unwrap_or_else(|_| {
-						panic!("Failed to create {role_name} role");
-					})
+					.expect(&format!("Failed to create {role_name} role"))
 			}
 		};
 
 		let user = UsersSchema {
-			id: crate::make_thing("app_users", &uuid::Uuid::new_v4().to_string()),
-			email: email.to_string(),
-			fullname: "Test User".to_string(),
+			id: uuid::Uuid::new_v4().to_string(),
+			email: Some(email.to_string()),
+			fullname: Some("Test User".to_string()),
 			legal_name: None,
-			password: hash_password(password).unwrap(),
+			password: Some(hash_password(password).unwrap()),
 			is_deleted: false,
 			avatar: None,
-			phone_number: "081234567890".to_string(),
+			phone_number: Some("081234567890".to_string()),
 			phone_for_verification: None,
 			is_active,
 			gender: None,
@@ -72,7 +70,7 @@ mod auth_login_tests {
 			experience: None,
 			education: None,
 			career_status: None,
-			role: crate::make_thing("app_roles", &role.id),
+			role_id: Some(role.id),
 			mentor_id: None,
 			created_at: imphnen_utils::get_iso_date(),
 			updated_at: imphnen_utils::get_iso_date(),
@@ -326,7 +324,7 @@ mod auth_login_tests {
 		assert_eq!(parts.status, StatusCode::OK);
 
 		// Verify user was cached
-		let auth_repo = imphnen_iam::AuthRepository::new(state.surrealdb_mem.clone());
+		let auth_repo = imphnen_iam::AuthRepository::new(state.postgres_pool.clone());
 		let cached_user = auth_repo.query_get_stored_user(email.clone()).await;
 		assert!(cached_user.is_ok());
 		assert_eq!(cached_user.unwrap().email, email);

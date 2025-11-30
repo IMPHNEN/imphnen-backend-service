@@ -1,18 +1,15 @@
 use crate::v1::gacha_rolls::gacha_rolls_dto::GachaRollQueryDto;
 use crate::v1::gacha_rolls::gacha_rolls_schema::GachaRollSchema;
 use crate::AppState;
-use imphnen_libs::ResourceEnum;
-use imphnen_utils::DetailQueryBuilder;
-use crate::{get_id, make_thing};
+use imphnen_entities::seaorm::gacha::gacha_rolls::{Entity as GachaRollsEntity, ActiveModel as GachaRollActiveModel, Column as GachaRollColumn};
 use anyhow::{Result, bail};
-
+use chrono::Utc;
 use rand::prelude::*;
-
-use imphnen_utils::get_iso_date;
-use serde_json::{Map, Value};
+use sea_orm::{EntityTrait, QueryFilter, Set, ColumnTrait, ActiveModelTrait};
+use imphnen_libs::postgres::AppStatePostgresExt;
 use std::time::Instant;
 use tracing::instrument;
-use tracing::info;
+use uuid::Uuid;
 
 pub struct GachaRollRepository<'a> {
 	state: &'a AppState,
@@ -26,28 +23,35 @@ impl<'a> GachaRollRepository<'a> {
 	#[instrument(skip(self, id), err)]
 	pub async fn query_gacha_roll_by_id(
 		&self,
-		id: String,
+		id: Uuid,
 	) -> Result<GachaRollQueryDto> {
 		let now = Instant::now();
-		let db = &self.state.surrealdb_ws;
-		let builder = DetailQueryBuilder::new(ResourceEnum::GachaRolls.to_string())
-			.with_id(id.clone())
-			.with_condition("is_deleted = false")
-			.with_select_fields(vec!["*"])
-			.with_fetch("item");
-		let sql = builder.build();
-		info!(query = %sql, "Executing SurrealDB query");
-		let result: Option<GachaRollQueryDto> =
-			builder.apply_bindings(db.query(sql)).await?.take(0)?;
+		let db = self.state.postgres_db();
+		
+		let result = GachaRollsEntity::find()
+			.filter(GachaRollColumn::Id.eq(id))
+			.filter(GachaRollColumn::IsDeleted.eq(false))
+			.one(db)
+			.await?;
+			
 		let elapsed = now.elapsed();
 		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
 			== "development"
 		{
 			println!("Query 'query_gacha_roll_by_id' took: {elapsed:.2?}");
 		}
+		
 		match result {
-			Some(roll) if !roll.is_deleted => Ok(roll),
-			_ => bail!("Gacha Roll not found"),
+			Some(r) => Ok(GachaRollQueryDto {
+				id: r.id.to_string(),
+				item: None,
+				weight: r.weight,
+				quantity: r.quantity,
+				is_deleted: r.is_deleted,
+				created_at: r.created_at.map(|d| d.to_string()),
+				updated_at: r.updated_at.map(|d| d.to_string()),
+			}),
+			None => bail!("Gacha Roll not found"),
 		}
 	}
 
@@ -57,51 +61,60 @@ impl<'a> GachaRollRepository<'a> {
 		data: GachaRollSchema,
 	) -> Result<String> {
 		let now = Instant::now();
-		let db = &self.state.surrealdb_ws;
-		info!(query = "CREATE", "Executing SurrealDB create operation for GachaRolls");
-		let record: Option<GachaRollSchema> = db
-			.create(ResourceEnum::GachaRolls.to_string())
-			.content(data)
+		let db = self.state.postgres_db();
+		
+		let active_model = GachaRollActiveModel {
+			id: Set(Uuid::parse_str(&data.id)?),
+			user_id: Set(Uuid::parse_str(&data.user_id)?),
+			gacha_id: Set(data.gacha_id), // gacha_id is String
+			item_id: Set(Uuid::parse_str(&data.item_id)?),
+			quantity: Set(data.quantity),
+			weight: Set(data.weight),
+			is_deleted: Set(false),
+			created_at: Set(Some(Utc::now().naive_utc())),
+			updated_at: Set(Some(Utc::now().naive_utc())),
+		};
+		
+		let _ = GachaRollsEntity::insert(active_model)
+			.exec(db)
 			.await?;
+			
 		let elapsed = now.elapsed();
 		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
 			== "development"
 		{
 			println!("Query 'query_create_gacha_roll' took: {elapsed:.2?}");
 		}
-		match record {
-			Some(_) => Ok("Success create Gacha Roll".into()),
-			None => bail!("Failed to create Gacha Roll"),
-		}
+		
+		Ok("Success create Gacha Roll".into())
 	}
 
 	#[instrument(skip(self), err)]
 	pub async fn query_all_active_rolls(&self) -> Result<Vec<GachaRollQueryDto>> {
 		let now = Instant::now();
-		let db = &self.state.surrealdb_ws;
-		let table_name = ResourceEnum::GachaRolls.to_string();
-		
-		// Use DetailQueryBuilder to properly fetch related item data
-		let builder = DetailQueryBuilder::new(table_name)
-			.with_condition("is_deleted = false AND quantity > 0")
-			.with_select_fields(vec!["*"])
-			.with_fetch("item");
-		let sql = builder.build();
-		info!(query = %sql, "Executing SurrealDB query for active rolls");
-		
-		let mut result = builder.apply_bindings(db.query(sql)).await?;
-		let results = match result.take(0) {
-			Ok(v) => v,
-			Err(_) => return Ok(Vec::new()),
-		};
-
+		let db = self.state.postgres_db();		
+		let results = GachaRollsEntity::find()
+			.filter(GachaRollColumn::IsDeleted.eq(false))
+			.filter(GachaRollColumn::Quantity.gt(0))
+			.all(db)
+			.await?;
+			
 		let elapsed = now.elapsed();
 		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
 			== "development"
 		{
 			println!("Query 'query_all_active_rolls' took: {elapsed:.2?}");
 		}
-		Ok(results)
+		
+		Ok(results.into_iter().map(|r| GachaRollQueryDto {
+			id: r.id.to_string(),
+			item: None,
+			weight: r.weight,
+			quantity: r.quantity,
+			is_deleted: r.is_deleted,
+			created_at: r.created_at.map(|d| d.to_string()),
+			updated_at: r.updated_at.map(|d| d.to_string()),
+		}).collect())
 	}
 
 	#[instrument]
@@ -117,8 +130,8 @@ impl<'a> GachaRollRepository<'a> {
 		}
 
 		// Simple random selection based on quantity weights
-		let total_weight: f32 = filtered.iter()
-			.map(|r| r.weight * r.quantity as f32)
+		let total_weight: f64 = filtered.iter()
+			.map(|r| f64::from(r.weight) * f64::from(r.quantity))
 			.sum();
 
 		if total_weight <= 0.0 {
@@ -134,7 +147,7 @@ impl<'a> GachaRollRepository<'a> {
 		
 		let mut cumulative_weight = 0.0;
 		for roll in &filtered {
-			cumulative_weight += roll.weight * roll.quantity as f32;
+			cumulative_weight += f64::from(roll.weight) * f64::from(roll.quantity);
 			if random_value <= cumulative_weight {
 				return Some(roll.clone());
 			}
@@ -145,31 +158,33 @@ impl<'a> GachaRollRepository<'a> {
 	}
 
 	#[instrument(skip(self, id), err)]
-	pub async fn query_soft_delete_gacha_roll(&self, id: String) -> Result<String> {
+	pub async fn query_soft_delete_gacha_roll(&self, id: Uuid) -> Result<String> {
 		let now = Instant::now();
-		let db = &self.state.surrealdb_ws;
-		let roll_id_thing = make_thing(&ResourceEnum::GachaRolls.to_string(), &id);
-		let roll = self.query_gacha_roll_by_id(id.clone()).await?;
+		let db = self.state.postgres_db();
+		
+		let roll = self.query_gacha_roll_by_id(id).await?;
 		if roll.is_deleted {
 			bail!("Gacha Roll already deleted");
 		}
-		let record_key = get_id(&roll_id_thing)?;
-
-		let mut patch = Map::new();
-		patch.insert("is_deleted".to_string(), Value::Bool(true));
-		patch.insert("updated_at".to_string(), Value::String(get_iso_date()));
-
-		info!(query = "UPDATE", record_key = ?record_key, "Executing SurrealDB update operation for GachaRolls");
-		let record: Option<GachaRollSchema> = db.update(record_key).merge(patch).await?;
+		
+		let mut active_model: GachaRollActiveModel = GachaRollsEntity::find_by_id(id)
+			.one(db)
+			.await?
+			.ok_or_else(|| anyhow::anyhow!("Gacha Roll not found"))?
+			.into();
+			
+		active_model.is_deleted = Set(true);
+		active_model.updated_at = Set(Some(Utc::now().naive_utc()));
+		
+		let _result = GachaRollActiveModel::update(active_model, db).await?;
+			
 		let elapsed = now.elapsed();
 		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
 			== "development"
 		{
 			println!("Query 'query_soft_delete_gacha_roll' took: {elapsed:.2?}");
 		}
-		match record {
-			Some(_) => Ok("Success soft delete Gacha Roll".into()),
-			None => bail!("Failed to soft delete Gacha Roll"),
-		}
+		
+		Ok("Success soft delete Gacha Roll".into())
 	}
 }

@@ -1,10 +1,10 @@
 #[cfg(test)]
 mod tests {
 	use imphnen_iam::{
-		PermissionsSchema, ResourceEnum,
+		PermissionsSchema,
 	};
-	use imphnen_utils::{make_thing_from_enum};
-	use surrealdb::Uuid;
+	use imphnen_utils::{};
+	use uuid::Uuid;
 	use imphnen_entities::MetaRequestDto;
 
 	#[tokio::test]
@@ -15,7 +15,7 @@ mod tests {
 		// Test data
 		let permission_name = "test_permission_repo_create".to_string();
 		let permission = PermissionsSchema {
-			id: make_thing_from_enum(ResourceEnum::Permissions, &Uuid::new_v4().to_string()),
+			id: Uuid::new_v4().to_string(),
 			name: permission_name.clone(),
 			is_deleted: false,
 			created_at: None,
@@ -34,7 +34,7 @@ mod tests {
 		assert_eq!(created_permission.name, permission_name);
 
 		// Clean up
-		let _ = repo.query_delete_permission(created_permission.id.id.to_raw()).await;
+		let _ = repo.query_delete_permission(created_permission.id.to_string()).await;
 	}
 
 	#[tokio::test]
@@ -45,7 +45,7 @@ mod tests {
 		// Test data
 		let permission_name = "test_permission_repo_by_name".to_string();
 		let permission = PermissionsSchema {
-			id: make_thing_from_enum(ResourceEnum::Permissions, &Uuid::new_v4().to_string()),
+			id: Uuid::new_v4().to_string(),
 			name: permission_name.clone(),
 			is_deleted: false,
 			created_at: None,
@@ -68,7 +68,7 @@ mod tests {
 		assert!(non_existent_result.err().unwrap().to_string().contains("not found"));
 
 		// Clean up
-		let _ = repo.query_delete_permission(found_permission.id.id.to_raw()).await;
+		let _ = repo.query_delete_permission(found_permission.id.to_string()).await;
 	}
 
 	#[tokio::test]
@@ -85,7 +85,7 @@ mod tests {
 
 		for name in &permission_names {
 			let permission = PermissionsSchema {
-				id: make_thing_from_enum(ResourceEnum::Permissions, &Uuid::new_v4().to_string()),
+				id: Uuid::new_v4().to_string(),
 				name: name.clone(),
 				is_deleted: false,
 				created_at: None,
@@ -112,7 +112,7 @@ mod tests {
 		// Clean up
 		for name in permission_names {
 			let permission = repo.query_permission_by_name(name).await.unwrap();
-			let _ = repo.query_delete_permission(permission.id.id.to_raw()).await;
+			let _ = repo.query_delete_permission(permission.id.to_string()).await;
 		}
 	}
 
@@ -126,7 +126,7 @@ mod tests {
 		let new_name = "test_permission_update_updated".to_string();
 		
 		let permission = PermissionsSchema {
-			id: make_thing_from_enum(ResourceEnum::Permissions, &Uuid::new_v4().to_string()),
+			id: Uuid::new_v4().to_string(),
 			name: original_name.clone(),
 			is_deleted: false,
 			created_at: None,
@@ -159,7 +159,7 @@ mod tests {
 		assert_eq!(found_permission.name, new_name);
 
 		// Clean up
-		let _ = repo.query_delete_permission(found_permission.id.id.to_raw()).await;
+		let _ = repo.query_delete_permission(found_permission.id.to_string()).await;
 	}
 
 	#[tokio::test]
@@ -170,7 +170,7 @@ mod tests {
 		// Test data
 		let permission_name = "test_permission_delete".to_string();
 		let permission = PermissionsSchema {
-			id: make_thing_from_enum(ResourceEnum::Permissions, &Uuid::new_v4().to_string()),
+			id: Uuid::new_v4().to_string(),
 			name: permission_name.clone(),
 			is_deleted: false,
 			created_at: None,
@@ -185,15 +185,15 @@ mod tests {
 		let created_permission = repo.query_permission_by_name(permission_name).await.unwrap();
 		
 		// Verify permission exists before deletion
-		let exists_before = repo.query_permission_by_id(created_permission.id.id.to_raw()).await.is_ok();
+		let exists_before = repo.query_permission_by_id(created_permission.id.to_string()).await.is_ok();
 		assert!(exists_before);
 
 		// Delete permission
-		let delete_result = repo.query_delete_permission(created_permission.id.id.to_raw()).await;
+		let delete_result = repo.query_delete_permission(created_permission.id.to_string()).await;
 		assert!(delete_result.is_ok());
 
 		// Verify permission was deleted
-		let exists_after = repo.query_permission_by_id(created_permission.id.id.to_raw()).await.is_ok();
+		let exists_after = repo.query_permission_by_id(created_permission.id.to_string()).await.is_ok();
 		assert!(!exists_after);
 	}
 }

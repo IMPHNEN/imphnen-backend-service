@@ -1,11 +1,13 @@
 use crate::{
 	AppState, MetaRequestDto, PermissionsRepository, PermissionsSchema, ResourceEnum,
-	ResponseListSuccessDto, ResponseSuccessDto, common_response, make_thing,
+	ResponseListSuccessDto, ResponseSuccessDto, common_response,
 	success_list_response, success_response, validate_request,
 };
 use axum::http::StatusCode;
 use axum::response::Response;
-use imphnen_utils::get_iso_date;
+use crate::get_iso_date;
+use imphnen_utils::make_thing;
+use uuid::Uuid;
 
 use super::{PermissionsRequestDto, PermissionsUpdateRequestDto};
 
@@ -80,14 +82,14 @@ impl PermissionsService {
 		let repo = PermissionsRepository::new(state);
 		
 		// Get current permission data first
-		let thing_id = make_thing(&ResourceEnum::Permissions.to_string(), &id);
+		let _thing_id = make_thing(&ResourceEnum::Permissions.to_string(), &id);
 		let current_permission = match repo.query_permission_by_id(id.clone()).await {
 			Ok(permission) => permission,
 			Err(_) => return common_response(StatusCode::NOT_FOUND, "Permission not found"),
 		};
 		
 		let mut updated_permission = current_permission;
-		updated_permission.id = thing_id;
+		updated_permission.id = Uuid::parse_str(&id).unwrap_or_else(|_| Uuid::new_v4());
 		updated_permission.updated_at = Some(get_iso_date());
 		
 		// Only update fields that are provided

@@ -12,7 +12,22 @@ use axum::{
 use serde::Serialize;
 use serde_json::json;
 
-use crate::{ResponseListSuccessDto, ResponseSuccessDto, AppError};
+use imphnen_entities::{ResponseListSuccessDto, ResponseSuccessDto};
+use imphnen_entities::error_dto::error::Error;
+use crate::errors::AppError;
+
+// Convert from imphnen_entities::Error to AppError
+impl From<Error> for AppError {
+    fn from(error: Error) -> Self {
+        match error {
+            Error::Db(detail) => AppError::InternalServerError(format!("Database error: {detail}")),
+            Error::Anyhow(detail) => AppError::InternalServerError(format!("Internal server error: {detail}")),
+            Error::StatusCode(status) => AppError::InternalServerError(format!("HTTP error: {status}")),
+            Error::Auth(detail) => AppError::AuthenticationError(format!("Authentication error: {detail}")),
+            Error::Validation(detail) => AppError::ValidationError(format!("Validation error: {detail}")),
+        }
+    }
+}
 
 pub fn success_response<T: Serialize>(params: ResponseSuccessDto<T>) -> Response {
 	(

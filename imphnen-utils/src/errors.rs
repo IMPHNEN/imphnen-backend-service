@@ -68,4 +68,28 @@ impl AppError {
     }
 }
 
+impl From<sea_orm::DbErr> for AppError {
+    fn from(err: sea_orm::DbErr) -> Self {
+        AppError::InternalServerError(format!("Database error: {err}"))
+    }
+}
+
+impl From<anyhow::Error> for AppError {
+    fn from(err: anyhow::Error) -> Self {
+        AppError::InternalServerError(format!("Error: {err}"))
+    }
+}
+
+impl From<chrono::ParseError> for AppError {
+    fn from(err: chrono::ParseError) -> Self {
+        AppError::BadRequestError(format!("Date parsing error: {err}"))
+    }
+}
+
+impl From<uuid::Error> for AppError {
+    fn from(err: uuid::Error) -> Self {
+        AppError::BadRequestError(format!("UUID parsing error: {err}"))
+    }
+}
+
 pub type Result<T, E = AppError> = std::result::Result<T, E>;

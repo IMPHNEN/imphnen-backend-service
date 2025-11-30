@@ -1,7 +1,8 @@
 //! Input sanitization utilities for security
 //!
 //! This module provides utilities to sanitize user input and prevent
-//! common security vulnerabilities like XSS, HTML injection, etc.
+//! common security vulnerabilities like XSS, HTML injection, SQL injection, etc.
+//! Specifically optimized for PostgreSQL backend (SurrealDB migration complete).
 
 use regex::Regex;
 use std::sync::LazyLock;
@@ -9,9 +10,12 @@ use std::sync::LazyLock;
 // Note: HTML escaping is done via char-by-char mapping for better performance
 // No regex needed for basic HTML entity escaping
 
-/// SQL-like injection patterns (even though we use SurrealDB, be safe)
+/// PostgreSQL-specific SQL injection patterns
+///
+/// Comprehensive pattern set targeting PostgreSQL vulnerabilities while maintaining
+/// compatibility with standard SQL injection prevention
 static SQL_INJECTION_PATTERNS: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(union|select|insert|update|delete|drop|create|alter|exec|script|javascript|onerror|onload)").unwrap()
+    Regex::new(r"(?i)(union|select|insert|update|delete|drop|create|alter|truncate|vacuum|analyze|reindex|cluster|copy|exec|script|javascript|onerror|onload|with|from|where|join|group by|order by|limit|offset|having|distinct|into|values|union all|union distinct|::|%|:=|current_user|session_user|user|version|current_date|current_time|now|pg_sleep|pg_user|pg_database|pg_tables|pg_columns|chr|ascii|substring|position|strpos|concat|concat_ws|string_agg|array_agg|array_to_string|string_to_array)").unwrap()
 });
 
 /// Path traversal patterns
@@ -43,11 +47,18 @@ pub fn sanitize_html(input: &str) -> String {
         .collect()
 }
 
-/// Sanitize string to prevent potential injection attacks
+/// Sanitize string to prevent SQL injection and other dangerous patterns
 ///
-/// This is a conservative sanitization that removes potentially dangerous patterns
+/// PostgreSQL-optimized sanitization that removes potentially dangerous patterns
+/// while preserving legitimate user input where possible
 pub fn sanitize_dangerous_patterns(input: &str) -> String {
-    SQL_INJECTION_PATTERNS.replace_all(input, "[FILTERED]").into_owned()
+    // First pass: Remove SQL injection patterns
+    let without_sql_injection = SQL_INJECTION_PATTERNS.replace_all(input, "[FILTERED]");
+    
+    // Second pass: Additional PostgreSQL-specific protection
+    let without_postgres_specific = without_sql_injection.replace(";--", ";[FILTERED]");
+    
+    without_postgres_specific.to_owned()
 }
 
 /// Check if string contains path traversal attempts
@@ -135,11 +146,27 @@ mod tests {
 
     #[test]
     fn test_sanitize_dangerous_patterns() {
+        // Test basic SQL injection
         assert!(sanitize_dangerous_patterns("SELECT * FROM users").contains("[FILTERED]"));
+        
+        // Test PostgreSQL-specific patterns
+        assert!(sanitize_dangerous_patterns("SELECT current_user;").contains("[FILTERED]"));
+        assert!(sanitize_dangerous_patterns("SELECT version();").contains("[FILTERED]"));
+        assert!(sanitize_dangerous_patterns("SELECT 'a'::text;").contains("[FILTERED]"));
+        assert!(sanitize_dangerous_patterns("SELECT 'a'%'b';").contains("[FILTERED]"));
+        
+        // Test comment injection
+        assert!(sanitize_dangerous_patterns("'; DROP TABLE users; --").contains("[FILTERED]"));
+        
+        // Test legitimate input remains unchanged
         assert_eq!(
-            sanitize_dangerous_patterns("Normal search query"),
-            "Normal search query"
+            sanitize_dangerous_patterns("Normal search query using 'quotes' and ; semicolons"),
+            "Normal search query using 'quotes' and ; semicolons"
         );
+        
+        // Test PostgreSQL function filtering
+        assert!(sanitize_dangerous_patterns("SELECT pg_sleep(10);").contains("[FILTERED]"));
+        assert!(sanitize_dangerous_patterns("SELECT concat('a', 'b');").contains("[FILTERED]"));
     }
 
     #[test]

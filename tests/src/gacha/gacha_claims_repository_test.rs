@@ -1,19 +1,17 @@
 use imphnen_gacha::v1::gacha_claims::gacha_claims_repository::{self, GachaClaimsRepository};
 use imphnen_gacha::v1::gacha_claims::gacha_claims_dto::{CreateGachaClaimDto, GachaClaimResponse};
-use surrealdb::engine::local::Mem;
-use surrealdb::Surreal;
-use surrealdb::opt::auth::Root;
+use sea_orm::{DatabaseConnection, EntityTrait, MockDatabase};
 use std::sync::Arc;
+use uuid::Uuid;
 
 #[tokio::test]
 async fn test_claims_repository_crud_operations() {
-    // Setup in-memory SurrealDB for testing
-    let db = Surreal::new::<Mem>(()).await.unwrap();
-    db.signin(Root { username: "root", password: "root" }).await.unwrap();
-    db.use_ns("test").use_db("test").await.unwrap();
-    
+    // Setup in-memory SeaORM database for testing
+    let db = MockDatabase::new().await;
     let repo = gacha_claims_repository::GachaClaimsRepository::new(Arc::new(db));
-    let create_dto = CreateGachaClaimDto { user_id: "user123".to_string(), item_id: "item456".to_string() };
+    let user_id = Uuid::new_v4().to_string();
+    let item_id = Uuid::new_v4().to_string();
+    let create_dto = CreateGachaClaimDto { user_id: user_id.clone(), item_id: item_id.clone() };
 
     // Test create
     let created = repo.create(&create_dto).await.unwrap();
@@ -26,7 +24,7 @@ async fn test_claims_repository_crud_operations() {
     assert_eq!(found.id, created.id);
 
     // Test find by user
-    let user_claims = repo.find_by_user("user123").await.unwrap();
+    let user_claims = repo.find_by_user(&user_id).await.unwrap();
     assert_eq!(user_claims.len(), 1);
     assert_eq!(user_claims[0].id, created.id);
 
@@ -45,10 +43,7 @@ async fn test_claims_repository_crud_operations() {
 
 #[tokio::test]
 async fn test_claims_repository_error_cases() {
-    let db = Surreal::new::<Mem>(()).await.unwrap();
-    db.signin(Root { username: "root", password: "root" }).await.unwrap();
-    db.use_ns("test").use_db("test").await.unwrap();
-    
+    let db = MockDatabase::new().await;
     let repo = gacha_claims_repository::GachaClaimsRepository::new(Arc::new(db));
 
     // Test find by non-existent id

@@ -27,7 +27,7 @@ mod tests {
 		for content in &testimonial_contents {
 			let user = UsersSchema {
 				id: make_thing_from_enum("users", &uuid::Uuid::new_v4().to_string()),
-				fullname: format!("Test User for {}", content),
+				fullname: format!("Test User for {content}"),
 				email: format!("testuser{}@example.com", content.chars().take(5).collect::<String>()),
 				..Default::default()
 			};

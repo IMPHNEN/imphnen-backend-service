@@ -16,7 +16,6 @@ lazy_static.workspace = true
 regex.workspace = true
 validator.workspace = true
 axum-test.workspace = true
-surrealdb.workspace = true
 rand.workspace = true
 tokio.workspace = true
 chrono.workspace = true
@@ -25,6 +24,8 @@ tower-http.workspace = true
 utoipa-swagger-ui.workspace = true
 log.workspace = true
 tracing.workspace = true
+sea-orm.workspace = true
+uuid.workspace = true
 
 [package.metadata.validator.regex]
 VALID_URL_REGEX = "^https?://"

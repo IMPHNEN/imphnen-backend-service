@@ -27,8 +27,8 @@ mod tests {
 		for name in &testimonial_names {
 			let user = UsersSchema {
 				id: make_thing_from_enum("users", &uuid::Uuid::new_v4().to_string()),
-				fullname: format!("Test User {}", name),
-				email: format!("test{}@example.com", name),
+				fullname: format!("Test User {name}"),
+				email: format!("test{name}@example.com"),
 				..Default::default()
 			};
 			let _ = UsersRepository::new(&app_state).query_create_user(user).await;
@@ -37,7 +37,7 @@ mod tests {
 				id: make_thing_from_enum("testimonials", &uuid::Uuid::new_v4().to_string()),
 				user: make_thing_from_enum("users", &uuid::Uuid::new_v4().to_string()),
 				role: "Mentor".to_string(),
-				content: format!("Great testimonial content for {}", name),
+				content: format!("Great testimonial content for {name}"),
 				created_at: chrono::Utc::now().to_rfc3339(),
 				updated_at: chrono::Utc::now().to_rfc3339(),
 				is_deleted: false,
@@ -58,7 +58,7 @@ mod tests {
 		// Clean up
 		for name in testimonial_names {
 			let user = UsersRepository::new(&app_state)
-				.query_user_by_email(format!("test{}@example.com", name))
+				.query_user_by_email(format!("test{name}@example.com"))
 				.await
 				.unwrap();
 			let _ = UsersRepository::new(&app_state).query_delete_user(user.id.id.to_raw()).await;

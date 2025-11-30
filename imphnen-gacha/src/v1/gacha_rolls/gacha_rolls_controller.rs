@@ -3,9 +3,11 @@ use imphnen_entities::{MessageResponseDto, ResponseSuccessDto};
 use crate::v1::gacha_rolls::gacha_rolls_dto::{GachaRollItemDto, GachaRollRequestDto};
 use crate::v1::gacha_rolls::gacha_rolls_service::GachaRollService;
 use axum::{
-	Extension, Json, extract::Path, http::HeaderMap, response::IntoResponse,
+	Extension, Json, extract::Path, http::{HeaderMap, StatusCode}, response::IntoResponse,
 };
 use imphnen_iam::{PermissionsEnum, permissions_guard};
+use imphnen_utils::common_response;
+use uuid::Uuid;
 
 #[utoipa::path(
     get,
@@ -31,7 +33,13 @@ pub async fn get_detail_gacha_roll(
 	)
 	.await
 	{
-		Ok((_user, state)) => GachaRollService::get_gacha_roll_by_id(&state, id).await,
+		Ok((_user, state)) => {
+            let parsed_id = match Uuid::parse_str(&id) {
+                Ok(uuid) => uuid,
+                Err(e) => return common_response(StatusCode::BAD_REQUEST, &format!("Invalid UUID format: {}", e)),
+            };
+            GachaRollService::get_gacha_roll_by_id(&state, parsed_id).await
+        },
 		Err(response) => response,
 	}
 }
@@ -54,13 +62,13 @@ pub async fn post_create_gacha_roll(
 	Json(payload): Json<GachaRollRequestDto>,
 ) -> impl IntoResponse {
 	match permissions_guard(
-		headers,
-		Extension(state),
+		headers.clone(),
+		Extension(state.clone()),
 		vec![PermissionsEnum::CreateGachaRolls],
 	)
 	.await
 	{
-		Ok((_user, state)) => GachaRollService::create_gacha_roll(&state, payload).await,
+		Ok((_user, _)) => GachaRollService::create_gacha_roll(headers, &state, payload, "default".to_string()).await,
 		Err(response) => response,
 	}
 }
@@ -116,7 +124,13 @@ pub async fn delete_gacha_roll(
 	)
 	.await
 	{
-		Ok((_user, state)) => GachaRollService::soft_delete_gacha_roll(&state, id).await,
+		Ok((_user, state)) => {
+            let parsed_id = match Uuid::parse_str(&id) {
+                Ok(uuid) => uuid,
+                Err(e) => return common_response(StatusCode::BAD_REQUEST, &format!("Invalid UUID format: {}", e)),
+            };
+            GachaRollService::soft_delete_gacha_roll(&state, parsed_id).await
+        },
 		Err(response) => response,
 	}
 }

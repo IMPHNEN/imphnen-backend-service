@@ -6,7 +6,7 @@ pkgs.mkShell {
     rustfmt
     crate2nix
     clippy
-    surrealdb
+    postgresql
 
     (writeScriptBin "helpme" ''
       __usage="

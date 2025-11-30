@@ -13,6 +13,7 @@ use imphnen_libs::{
 use imphnen_utils::{
 	common_response, success_list_response, success_response, validate_request,
 };
+use uuid::Uuid;
 
 pub struct EventsService;
 
@@ -37,12 +38,12 @@ impl EventsService {
 		}
 	}
 
-	pub async fn get_event_by_id(state: &AppState, id: String) -> Response {
+	pub async fn get_event_by_id(state: &AppState, id: Uuid) -> Response {
 		let repo = EventsRepository::new(state);
 		match repo.query_event_by_id(id).await {
 			Ok(event) if !event.is_deleted => success_response(ResponseSuccessDto {
 				data: EventsDetailItemDto {
-					id: event.id.id.to_raw(),
+					id: event.id,
 					name: event.name,
 					description: event.description,
 					detail_link: event.detail_link,
@@ -70,7 +71,7 @@ impl EventsService {
 		let repo = EventsRepository::new(state);
 		let schema = EventsSchema::create(payload);
 		match repo.query_create_event(schema).await {
-			Ok(msg) => common_response(StatusCode::CREATED, &msg),
+			Ok(msg) => common_response(StatusCode::CREATED, msg.as_str()),
 			Err(e) => common_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
 		}
 	}
@@ -86,15 +87,15 @@ impl EventsService {
 		let repo = EventsRepository::new(state);
 		let schema = EventsSchema::update(payload, id);
 		match repo.query_update_event(schema).await {
-			Ok(msg) => common_response(StatusCode::OK, &msg),
+			Ok(msg) => common_response(StatusCode::OK, msg.as_str()),
 			Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
 		}
 	}
 
-	pub async fn delete_event(state: &AppState, id: String) -> Response {
+	pub async fn delete_event(state: &AppState, id: Uuid) -> Response {
 		let repo = EventsRepository::new(state);
 		match repo.query_delete_event(id).await {
-			Ok(msg) => common_response(StatusCode::OK, &msg),
+			Ok(msg) => common_response(StatusCode::OK, msg.as_str()),
 			Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
 		}
 	}

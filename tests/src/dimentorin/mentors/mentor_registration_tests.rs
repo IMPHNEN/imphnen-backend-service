@@ -10,30 +10,28 @@ use imphnen_dimentorin::{
     mentors_controller,
     mentors_dto::{MentorUserRegisterRequestDto, MentorRegisterResponseDto},
 };
-use imphnen_entities::{AppState, SurrealMemClient, SurrealWsClient};
+use imphnen_entities::{SeaORMAppState};
 use imphnen_iam::{RolesRepository, UsersRepository};
 use imphnen_iam::{RolesEnum, UsersSchema, RolesSchema};
-use imphnen_utils::{hash_password, make_thing, get_iso_date};
-use surrealdb::{Uuid, sql::Thing};
-use imphnen_libs::{ResourceEnum, surrealdb_init_ws, surrealdb_init_mem, Env};
+use imphnen_utils::{hash_password, get_iso_date};
+use sea_orm::{DatabaseConnection, EntityTrait, MockDatabase, ActiveModelTrait, Set};
+use uuid::Uuid;
+use imphnen_libs::{ResourceEnum, seaorm_init_mem, Env};
 use dotenvy::dotenv;
 use tower::ServiceExt; // Added ServiceExt for .oneshot()
-use crate::mock_test::setup_all_test_environment; // Import the new setup function
+use crate::mock_test::setup_postgres_test_environment; // Updated setup function
 
-// Helper function to create a test AppState
-async fn setup_app_state() -> AppState {
+// Helper function to create a test AppState with SeaORM
+async fn setup_app_state() -> SeaORMAppState {
     dotenv().ok();
-    // Use the surrealdb initialization functions from imphnen_libs
-    let surrealdb_ws = surrealdb_init_ws().await.expect("Failed to initialize SurrealDB WS client");
-    let surrealdb_mem = surrealdb_init_mem().await.expect("Failed to initialize SurrealDB MEM client");
+    // Use SeaORM MockDatabase for testing
+    let db = seaorm_init_mem().await.expect("Failed to initialize SeaORM in-memory database");
     
-    let app_state = AppState {
-        surrealdb_ws,
-        surrealdb_mem,
+    let app_state = SeaORMAppState {
+        db: db.clone(),
     };
 
-    // Manually seed roles since seed_roles is not directly callable as a repository method
-    let db = &app_state.surrealdb_ws;
+    // Manually seed roles using SeaORM ActiveModel
     let roles_to_seed = vec![
         (RolesEnum::Admin.to_string(), Vec::new()),
         (RolesEnum::User.to_string(), Vec::new()),
@@ -43,18 +41,23 @@ async fn setup_app_state() -> AppState {
 
     for (name, permissions) in roles_to_seed {
         // Check if role already exists to avoid errors on rerun
-        let existing_role: Option<RolesSchema> = db.query(format!("SELECT * FROM ONLY role WHERE name = '{}'", name)).await.unwrap().take(0).unwrap_or(None);
-        if existing_role.is_none() {
-            let role_id = Uuid::new_v4().to_string();
-            let role = RolesSchema {
-                id: make_thing(&ResourceEnum::Roles.to_string(), &role_id),
-                name: name.clone(),
-                is_deleted: false,
-                permissions,
-                created_at: Some(get_iso_date()),
-                updated_at: Some(get_iso_date()),
+        let existing_roles: Vec<RolesSchema> = RolesSchema::find()
+            .filter(roles_schema::Column::Name.eq(name.clone()))
+            .all(&app_state.db)
+            .await
+            .unwrap();
+        
+        if existing_roles.is_empty() {
+            let role_id = Uuid::new_v4();
+            let role = roles_schema::ActiveModel {
+                id: Set(role_id),
+                name: Set(name.clone()),
+                is_deleted: Set(false),
+                permissions: Set(permissions),
+                created_at: Set(Some(get_iso_date())),
+                updated_at: Set(Some(get_iso_date())),
             };
-            db.create::<RolesSchema>((ResourceEnum::Roles.to_string().as_str(), role_id)).content(role).await.unwrap(); // Corrected syntax
+            role.insert(&app_state.db).await.unwrap();
         }
     }
 
@@ -70,7 +73,7 @@ fn app(app_state: AppState) -> Router {
 
 #[tokio::test]
 async fn test_register_new_user_as_mentor_success() {
-    let app_state = setup_all_test_environment().await; // Use the new setup function
+    let app_state = setup_postgres_test_environment().await; // Updated setup function
     let app = app(app_state.clone());
 
     let test_email = "newmentor@example.com";
@@ -153,7 +156,7 @@ async fn test_register_new_user_as_mentor_success() {
 
 #[tokio::test]
 async fn test_register_existing_user_as_mentor_success() {
-    let app_state = setup_all_test_environment().await; // Use the new setup function
+    let app_state = setup_postgres_test_environment().await; // Updated setup function
     let app = app(app_state.clone());
 
     let test_email = "existinguser_mentor@example.com";
@@ -167,11 +170,11 @@ async fn test_register_existing_user_as_mentor_success() {
 
     // Manually create a user with 'User' role first
     let role_repo = RolesRepository::new(&app_state); // Use RolesRepository to get role
-    let user_role_id_item = role_repo.query_role_by_name(RolesEnum::User.to_string()).await.unwrap(); // Get RolesDetailItemDto
-    let user_role_id_thing = make_thing(&ResourceEnum::Roles.to_string(), &user_role_id_item.id); // Convert to Thing
+    let user_role = role_repo.query_role_by_name(RolesEnum::User.to_string()).await.unwrap();
+    let user_role_id_thing = user_role.id; // Direct UUID usage with SeaORM
     let hashed_password = hash_password(test_password).unwrap();
     user_repo.query_create_user(imphnen_iam::UsersSchema {
-        id: make_thing(&ResourceEnum::Users.to_string(), &Uuid::new_v4().to_string()),
+        id: Uuid::new_v4(),
         email: test_email.to_string(),
         password: hashed_password,
         fullname: "Original User Name".to_string(),
@@ -256,7 +259,7 @@ async fn test_register_existing_user_as_mentor_success() {
 
 #[tokio::test]
 async fn test_register_mentor_already_has_profile() {
-    let app_state = setup_all_test_environment().await; // Use the new setup function
+    let app_state = setup_postgres_test_environment().await; // Updated setup function
     let app = app(app_state.clone());
 
     let test_email = "existing_mentor_profile@example.com";
@@ -271,11 +274,11 @@ async fn test_register_mentor_already_has_profile() {
 
     // Manually create a user with 'Mentor' role
     let role_repo = RolesRepository::new(&app_state); // Use RolesRepository to get role
-    let mentor_role_thing = role_repo.query_role_by_name(RolesEnum::Mentor.to_string()).await.unwrap().id;
+    let mentor_role = role_repo.query_role_by_name(RolesEnum::Mentor.to_string()).await.unwrap();
     let hashed_password = imphnen_utils::hash_password(test_password).unwrap();
-    let user_id = imphnen_utils::make_thing(&ResourceEnum::Users.to_string(), &Uuid::new_v4().to_string());
+    let user_id = Uuid::new_v4();
     user_repo.query_create_user(imphnen_iam::UsersSchema {
-        id: user_id.clone(),
+        id: Some(user_id.clone()),
         email: test_email.to_string(),
         password: hashed_password,
         fullname: test_fullname.to_string(),
@@ -322,9 +325,9 @@ async fn test_register_mentor_already_has_profile() {
     }).await.unwrap();
 
     // Update user to link mentor profile
-    let user_after_mentor_creation_dto = user_repo.query_user_by_email(test_email.to_string()).await.unwrap();
-    let mut user_after_mentor_creation_schema = UsersSchema::from(user_after_mentor_creation_dto);
-    user_after_mentor_creation_schema = user_after_mentor_creation_schema.update_mentor_id(Some(existing_mentor_profile_id.clone().to_raw()));
+    let user_after_mentor_creation = user_repo.query_user_by_email(test_email.to_string()).await.unwrap();
+    let mut user_after_mentor_creation_model = imphnen_iam::users_schema::ActiveModel::from(user_after_mentor_creation);
+    user_after_mentor_creation_model.mentor_id = Set(Some(existing_mentor_profile_id.clone()));
     user_repo.query_update_user(user_after_mentor_creation_schema).await.unwrap();
 
     let dto = MentorUserRegisterRequestDto {

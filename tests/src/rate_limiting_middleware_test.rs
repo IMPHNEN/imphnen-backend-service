@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod rate_limiting_middleware_tests {
     use axum::{http::Request, middleware::Next, response::Response};
-    use imphnen_libs::{AppState, environment::Environment};
+    use imphnen_libs::{AppState, environment::Environment, postgres::PostgresConnection};
     use imphnen_middleware::rate_limiting_middleware::{
         RateLimitConfig, RateLimitStore, TokenBucket, create_rate_limiting_middleware,
         auth_rate_limiting_middleware,
@@ -141,13 +141,12 @@ mod rate_limiting_middleware_tests {
     #[tokio::test]
     async fn test_auth_rate_limiting_middleware_success() {
         // Create a mock AppState with test environment
-        let state = AppState {
-            surrealdb_ws: Default::default(),
-            surrealdb_mem: Default::default(),
-            user_lookup_service: Default::default(),
-            auth_repository: Default::default(),
-            env: Environment::Test,
-        };
+                let state = AppState {
+                    postgres_connection: Arc::new(PostgresConnection::default()),
+                    user_lookup_service: Default::default(),
+                    auth_repository: Default::default(),
+                    env: Environment::Test,
+                };
 
         // Create a mock request to /auth/login
         let mut request = Request::builder()
@@ -189,13 +188,12 @@ mod rate_limiting_middleware_tests {
         };
 
         // Create a mock AppState with test environment
-        let state = AppState {
-            surrealdb_ws: Default::default(),
-            surrealdb_mem: Default::default(),
-            user_lookup_service: Default::default(),
-            auth_repository: Default::default(),
-            env: Environment::Test,
-        };
+                let state = AppState {
+                    postgres_connection: Arc::new(PostgresConnection::default()),
+                    user_lookup_service: Default::default(),
+                    auth_repository: Default::default(),
+                    env: Environment::Test,
+                };
 
         // Create a mock request to /auth/login
         let mut request = Request::builder()
@@ -236,13 +234,12 @@ mod rate_limiting_middleware_tests {
     #[tokio::test]
     async fn test_non_auth_endpoints_not_rate_limited() {
         // Create a mock AppState with test environment
-        let state = AppState {
-            surrealdb_ws: Default::default(),
-            surrealdb_mem: Default::default(),
-            user_lookup_service: Default::default(),
-            auth_repository: Default::default(),
-            env: Environment::Test,
-        };
+                let state = AppState {
+                    postgres_connection: Arc::new(PostgresConnection::default()),
+                    user_lookup_service: Default::default(),
+                    auth_repository: Default::default(),
+                    env: Environment::Test,
+                };
 
         // Create a mock request to a non-auth endpoint
         let mut request = Request::builder()
