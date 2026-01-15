@@ -1,14 +1,13 @@
 use crate::v1::gacha_items::gacha_items_schema::GachaItemSchema;
-use crate::{AppState, MetaRequestDto, ResponseListSuccessDto, get_id, make_thing};
 use crate::v1::gacha_items::GachaItemDto;
-use imphnen_libs::ResourceEnum;
+use crate::{AppState, MetaRequestDto, ResponseListSuccessDto};
 use anyhow::{Result, bail};
-use imphnen_iam::QueryListBuilder;
-use imphnen_utils::get_iso_date;
-use serde_json::{Map, Value};
+// QueryListBuilder is not available in imphnen-iam, need to implement locally or use alternative
 use std::time::Instant;
 use tracing::instrument;
-use tracing::info;
+use sea_orm::{EntityTrait, ColumnTrait, QueryFilter, QueryOrder, PaginatorTrait, ActiveModelTrait, ActiveValue, QuerySelect};
+use imphnen_entities::seaorm::gacha::gacha_items::{Entity as GachaItemEntity, Column as GachaItemColumn, ActiveModel as GachaItemActiveModel};
+use uuid::Uuid;
 
 pub struct GachaItemRepository<'a> {
 	state: &'a AppState,
@@ -25,57 +24,124 @@ impl<'a> GachaItemRepository<'a> {
 		meta: MetaRequestDto,
 	) -> Result<ResponseListSuccessDto<Vec<GachaItemDto>>> {
 		let now = Instant::now();
-		let surreal_query = format!(
-			"SELECT * FROM {} WHERE is_deleted = false AND name LIKE ?",
-			ResourceEnum::GachaItems
-		);
-		info!(query = %surreal_query, "Executing SurrealDB query");
-		let raw_result: ResponseListSuccessDto<Vec<GachaItemSchema>> =
-			QueryListBuilder::new(
-				&self.state.surrealdb_ws,
-				&ResourceEnum::GachaItems.to_string(),
-				&meta,
-			)
-			.with_condition("is_deleted = false")
-			.search_field("name")
-			.select_fields(vec!["*"])
-			.build()
+		let db = &self.state.postgres_connection.conn;
+		
+		let query = GachaItemEntity::find()
+			.filter(GachaItemColumn::DeletedAt.is_null());
+		
+		// Apply search if provided
+		let query = if let Some(search) = &meta.search {
+			query.filter(GachaItemColumn::Name.contains(search))
+		} else {
+			query
+		};
+		
+		// Apply sorting
+		let query = if let Some(sort_by) = &meta.sort_by {
+			match sort_by.as_str() {
+				"name" => {
+					if meta.order.as_deref() == Some("desc") {
+						query.order_by_desc(GachaItemColumn::Name)
+					} else {
+						query.order_by_asc(GachaItemColumn::Name)
+					}
+				}
+				"created_at" => {
+					if meta.order.as_deref() == Some("desc") {
+						query.order_by_desc(GachaItemColumn::CreatedAt)
+					} else {
+						query.order_by_asc(GachaItemColumn::CreatedAt)
+					}
+				}
+				_ => query.order_by_desc(GachaItemColumn::CreatedAt),
+			}
+		} else {
+			query.order_by_desc(GachaItemColumn::CreatedAt)
+		};
+		
+		// Get total count
+		let total_count = query.clone().count(db).await?;
+		
+		// Apply pagination
+		let page = meta.page.unwrap_or(1);
+		let limit = meta.per_page.unwrap_or(10);
+		let offset = (page - 1) * limit;
+		
+		let items = query
+			.offset(offset)
+			.limit(limit)
+			.all(db)
 			.await?;
+		
+		let data: Vec<GachaItemDto> = items
+			.into_iter()
+			.map(|item| GachaItemDto {
+				id: item.id.to_string(),
+				name: item.name,
+				is_deleted: item.deleted_at.is_some(),
+				created_at: Some(item.created_at.to_string()),
+				updated_at: Some(item.updated_at.to_string()),
+			})
+			.collect();
+		
+		let _total_pages = (total_count as f64 / limit as f64).ceil() as u32;
+		
 		let elapsed = now.elapsed();
 		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
 			== "development"
 		{
 			println!("Query 'query_gacha_item_list' took: {elapsed:.2?}");
 		}
-		let data = raw_result
-			.data
-			.into_iter()
-			.map(GachaItemDto::from)
-			.collect();
+		
 		Ok(ResponseListSuccessDto {
 			data,
-			meta: raw_result.meta,
+			meta: Some(imphnen_libs::MetaResponseDto {
+				page: Some(page),
+				per_page: Some(limit),
+				total: Some(total_count),
+			}),
 		})
 	}
 
 	#[instrument(skip(self, id), err)]
 	pub async fn query_gacha_item_by_id(&self, id: String) -> Result<GachaItemSchema> {
 		let now = Instant::now();
-		let db = &self.state.surrealdb_ws;
-		let surreal_query = format!("SELECT * FROM {} WHERE id = '{}'", ResourceEnum::GachaItems, id);
-		info!(query = %surreal_query, "Executing SurrealDB query");
-		let result: Option<GachaItemSchema> = db
-			.select((ResourceEnum::GachaItems.to_string(), id.clone()))
+		let db = &self.state.postgres_connection.conn;
+		
+		let uuid_id = Uuid::parse_str(&id)?;
+		
+		let item = GachaItemEntity::find_by_id(uuid_id)
+			.filter(GachaItemColumn::DeletedAt.is_null())
+			.one(db)
 			.await?;
+		
 		let elapsed = now.elapsed();
 		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
 			== "development"
 		{
 			println!("Query 'query_gacha_item_by_id' took: {elapsed:.2?}");
 		}
-		match result {
-			Some(item) if !item.is_deleted => Ok(item),
-			_ => bail!("Gacha Item not found"),
+		
+		match item {
+			Some(item) => Ok(GachaItemSchema {
+				id: item.id.to_string(),
+				item_code: item.item_code,
+				name: item.name,
+				description: item.description,
+				rarity: item.rarity,
+				type_: item.type_,
+				category: item.category,
+				value: item.value,
+				weight: item.weight,
+				stock: item.stock,
+				is_limited: item.is_limited,
+				metadata: item.metadata,
+				image_url: "".to_string(), // Not present in DB model
+				is_deleted: item.deleted_at.is_some(),
+				created_at: Some(item.created_at.to_string()),
+				updated_at: Some(item.updated_at.to_string()),
+			}),
+			None => bail!("Gacha Item not found"),
 		}
 	}
 
@@ -85,23 +151,36 @@ impl<'a> GachaItemRepository<'a> {
 		data: GachaItemSchema,
 	) -> Result<String> {
 		let now = Instant::now();
-		let db = &self.state.surrealdb_ws;
-		let surreal_query = format!("CREATE {} CONTENT ...", ResourceEnum::GachaItems);
-		info!(query = %surreal_query, "Executing SurrealDB query");
-		let record: Option<GachaItemSchema> = db
-			.create(ResourceEnum::GachaItems.to_string())
-			.content(data)
-			.await?;
+		let db = &self.state.postgres_connection.conn;
+		
+		let active_model = GachaItemActiveModel {
+			id: ActiveValue::Set(Uuid::new_v4()),
+			item_code: ActiveValue::Set(data.item_code),
+			name: ActiveValue::Set(data.name),
+			description: ActiveValue::Set(data.description),
+			rarity: ActiveValue::Set(data.rarity),
+			type_: ActiveValue::Set(data.type_),
+			category: ActiveValue::Set(data.category),
+			value: ActiveValue::Set(data.value),
+			weight: ActiveValue::Set(data.weight),
+			stock: ActiveValue::Set(data.stock),
+			is_limited: ActiveValue::Set(data.is_limited),
+			metadata: ActiveValue::Set(data.metadata),
+			created_at: ActiveValue::Set(chrono::Utc::now()),
+			updated_at: ActiveValue::Set(chrono::Utc::now()),
+			deleted_at: ActiveValue::NotSet,
+		};
+		
+		let result = active_model.insert(db).await?;
+		
 		let elapsed = now.elapsed();
 		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
 			== "development"
 		{
 			println!("Query 'query_create_gacha_item' took: {elapsed:.2?}");
 		}
-		match record {
-			Some(_) => Ok("Success create Gacha Item".into()),
-			None => bail!("Failed to create Gacha Item"),
-		}
+		
+		Ok(result.id.to_string())
 	}
 
 	#[instrument(skip(self, data), err)]
@@ -110,58 +189,70 @@ impl<'a> GachaItemRepository<'a> {
 		data: GachaItemSchema,
 	) -> Result<String> {
 		let now = Instant::now();
-		let db = &self.state.surrealdb_ws;
-		let record_key = get_id(&data.id)?;
-		let existing = self.query_gacha_item_by_id(data.id.id.to_raw()).await?;
-		if existing.is_deleted {
-			bail!("Gacha Item already deleted");
-		}
-		let merged = GachaItemSchema {
-			created_at: existing.created_at,
-			..data.clone()
-		};
-		let surreal_query = format!("UPDATE {:?} MERGE ...", record_key);
-		info!(query = %surreal_query, "Executing SurrealDB query");
-		let record: Option<GachaItemSchema> =
-			db.update(record_key).merge(merged).await?;
+		let db = &self.state.postgres_connection.conn;
+		
+		let uuid_id = Uuid::parse_str(&data.id)?;
+		
+		let mut active_model: GachaItemActiveModel = GachaItemEntity::find_by_id(uuid_id)
+			.one(db)
+			.await?
+			.ok_or_else(|| anyhow::anyhow!("Gacha Item not found"))?
+			.into();
+		
+		active_model.item_code = ActiveValue::Set(data.item_code);
+		active_model.name = ActiveValue::Set(data.name);
+		active_model.description = ActiveValue::Set(data.description);
+		active_model.rarity = ActiveValue::Set(data.rarity);
+		active_model.type_ = ActiveValue::Set(data.type_);
+		active_model.category = ActiveValue::Set(data.category);
+		active_model.value = ActiveValue::Set(data.value);
+		active_model.weight = ActiveValue::Set(data.weight);
+		active_model.stock = ActiveValue::Set(data.stock);
+		active_model.is_limited = ActiveValue::Set(data.is_limited);
+		active_model.metadata = ActiveValue::Set(data.metadata);
+		active_model.updated_at = ActiveValue::Set(chrono::Utc::now());
+		
+		let _result = active_model.update(db).await?;
+		
 		let elapsed = now.elapsed();
 		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
 			== "development"
 		{
 			println!("Query 'query_update_gacha_item' took: {elapsed:.2?}");
 		}
-		match record {
-			Some(_) => Ok("Success update Gacha Item".into()),
-			None => bail!("Failed to update Gacha Item"),
-		}
+		
+		Ok("Success update Gacha Item".into())
 	}
 
 	#[instrument(skip(self, id), err)]
 	pub async fn query_delete_gacha_item(&self, id: String) -> Result<String> {
 		let now = Instant::now();
-		let db = &self.state.surrealdb_ws;
-		let item_id = make_thing(&ResourceEnum::GachaItems.to_string(), &id);
-		let item = self.query_gacha_item_by_id(item_id.id.to_raw()).await?;
-		if item.is_deleted {
+		let db = &self.state.postgres_connection.conn;
+		
+		let uuid_id = Uuid::parse_str(&id)?;
+		
+		let mut active_model: GachaItemActiveModel = GachaItemEntity::find_by_id(uuid_id)
+			.one(db)
+			.await?
+			.ok_or_else(|| anyhow::anyhow!("Gacha Item not found"))?
+			.into();
+		
+		if active_model.deleted_at.is_set() {
 			bail!("Gacha Item already deleted");
 		}
-		let record_key = get_id(&item.id)?;
-		let mut patch = Map::new();
-		patch.insert("is_deleted".to_string(), Value::Bool(true));
-		patch.insert("updated_at".to_string(), Value::String(get_iso_date()));
-
-		let surreal_query = format!("UPDATE {:?} MERGE ...", record_key);
-		info!(query = %surreal_query, "Executing SurrealDB query");
-		let record: Option<GachaItemSchema> = db.update(record_key).merge(patch).await?;
+		
+		active_model.deleted_at = ActiveValue::Set(Some(chrono::Utc::now()));
+		active_model.updated_at = ActiveValue::Set(chrono::Utc::now());
+		
+		active_model.update(db).await?;
+		
 		let elapsed = now.elapsed();
 		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
 			== "development"
 		{
 			println!("Query 'query_delete_gacha_item' took: {elapsed:.2?}");
 		}
-		match record {
-			Some(_) => Ok("Success soft delete Gacha Item".into()),
-			None => bail!("Failed to soft delete Gacha Item"),
-		}
+		
+		Ok("Success soft delete Gacha Item".into())
 	}
 }

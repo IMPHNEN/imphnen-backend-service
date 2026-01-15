@@ -5,7 +5,7 @@ use crate::v1::gacha_items::GachaItemDto;
 use crate::v1::gacha_items::gacha_items_dto::{GachaItemRequestDto, GachaItemUpdateRequestDto};
 use crate::v1::gacha_items::gacha_items_repository::GachaItemRepository;
 use crate::v1::gacha_items::gacha_items_schema::GachaItemSchema;
-use imphnen_libs::ResourceEnum;
+use imphnen_entities::ResourceEnum;
 use axum::http::StatusCode;
 use axum::response::Response;
 use imphnen_utils::get_iso_date;

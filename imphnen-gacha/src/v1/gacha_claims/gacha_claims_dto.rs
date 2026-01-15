@@ -4,7 +4,6 @@ use imphnen_iam::{UsersDetailItemDto, UsersDetailQueryDto};
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::Thing;
 use utoipa::ToSchema;
 use validator::{Validate, ValidationError};
 
@@ -45,7 +44,7 @@ pub struct GachaClaimItemDto {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GachaClaimQueryDto {
-	pub id: Thing,
+	pub id: String,
 	pub user: UsersDetailQueryDto,
 	pub item: GachaItemSchema,
 	pub is_deleted: bool,
@@ -56,7 +55,7 @@ pub struct GachaClaimQueryDto {
 impl GachaClaimItemDto {
 	pub fn from(dto: &GachaClaimQueryDto) -> Self {
 		Self {
-			id: dto.id.id.to_raw(),
+			id: dto.id.clone(),
 			user: UsersDetailItemDto::from(&dto.user),
 			item: GachaItemDto::from(dto.item.clone()),
 			is_deleted: dto.is_deleted,

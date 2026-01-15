@@ -4,8 +4,9 @@ use axum::{
 };
 use futures::future::BoxFuture;
 use imphnen_entities::PermissionsEnum;
-use imphnen_libs::AppState;
-use imphnen_utils::{common_response, extract_email, extract_email_async};
+use imphnen_libs::{AppState, services::ExtendedUserInfo};
+use imphnen_utils::response_format::common_response;
+use imphnen_utils::{extract_email, extract_email_async};
 use std::task::{Context, Poll};
 use tower::{Layer, Service};
 
@@ -82,8 +83,8 @@ where
 					)
 				})?;
 			
-			// Get user data with permissions from auth repository
-			let user = app_state.auth_repository.query_get_stored_user(email).await
+			// Get user data with permissions from user lookup service
+			let user = app_state.user_lookup_service.get_user_by_email(&email, &app_state).await
 				.map_err(|_| {
 					common_response(
 						StatusCode::UNAUTHORIZED,
@@ -93,6 +94,9 @@ where
 			
 			// Extract user permissions from role
 			let user_permissions = extract_user_permissions(&user);
+            
+            println!("DEBUG: User Permissions: {:?}", user_permissions);
+            println!("DEBUG: Required Permissions: {:?}", permissions);
 			
 			// Check if user has required permissions
 			if !has_required_permissions(&user_permissions, &permissions) {
@@ -120,8 +124,8 @@ async fn extract_user_email(headers: &axum::http::HeaderMap) -> Option<String> {
 }
 
 /// Extract user permissions from user data
-fn extract_user_permissions(user: &imphnen_entities::UsersDetailQueryDto) -> Vec<String> {
-	user.role
+fn extract_user_permissions(user: &ExtendedUserInfo) -> Vec<String> {
+	user.basic_info.role
 		.permissions
 		.as_ref()
 		.unwrap_or(&vec![])
@@ -134,7 +138,7 @@ fn extract_user_permissions(user: &imphnen_entities::UsersDetailQueryDto) -> Vec
 				permissions.push(name);
 			}
 			// Add permission ID if available
-			if let Some(id) = pp.id.as_ref().map(|id| id.id.to_raw()) {
+			if let Some(id) = pp.id.as_ref().map(|id| id.to_string()) {
 				permissions.push(id);
 			}
 			permissions
@@ -176,7 +180,7 @@ pub async fn check_permissions(
 			)
 		})?;
 	
-	let user = app_state.auth_repository.query_get_stored_user(email).await
+	let user = app_state.user_lookup_service.get_user_by_email(&email, app_state).await
 		.map_err(|_| {
 			common_response(
 				StatusCode::UNAUTHORIZED,

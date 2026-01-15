@@ -1,17 +1,17 @@
 use crate::v1::gacha_rolls::gacha_rolls_dto::GachaRollQueryDto;
 use crate::{make_thing};
 use imphnen_iam::get_iso_date;
-use imphnen_libs::ResourceEnum;
+use imphnen_entities::ResourceEnum;
 use serde::{Deserialize, Serialize};
-use surrealdb::{Uuid, sql::Thing};
+use uuid::Uuid;
 
 use crate::v1::gacha_claims::gacha_claims_dto::GachaClaimRequestDto;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GachaClaimSchema {
-	pub id: Thing,
-	pub user: Thing,
-	pub item: Thing,
+	pub id: String,
+	pub user: String,
+	pub item: String,
 	pub is_deleted: bool,
 	pub created_at: Option<String>,
 	pub updated_at: Option<String>,
@@ -52,7 +52,7 @@ impl GachaClaimSchema {
 		}
 	}
 
-	pub fn roll(roll: GachaRollQueryDto, user_id: Thing) -> Self {
+	pub fn roll(roll: GachaRollQueryDto, user_id: String) -> Self {
 		Self {
 			id: make_thing(
 				&ResourceEnum::GachaClaims.to_string(),

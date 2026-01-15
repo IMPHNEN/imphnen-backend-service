@@ -5,10 +5,11 @@ use super::{
     UpdateSessionStatusResponseDto,
 };
 use axum::{http::StatusCode, response::Response};
-use chrono::{Duration, Utc};
+use chrono::{DateTime, Duration, Utc};
 use imphnen_entities::ResponseSuccessDto;
 use imphnen_libs::AppState;
-use imphnen_utils::{common_response, extract_id, get_iso_date, make_thing, success_response, validate_request};
+use imphnen_utils::{common_response, success_response, validator::validate_request};
+use uuid;
 
 pub struct SessionsService;
 
@@ -26,29 +27,53 @@ impl SessionsService {
             return common_response(status, &message);
         }
 
-        let mentor_thing = make_thing("mentors", &mentor_id);
-        let mentee_thing = make_thing("users", &user_id);
+        let scheduled_at = match DateTime::parse_from_rfc3339(&dto.scheduled_at) {
+            Ok(dt) => dt.with_timezone(&Utc),
+            Err(e) => return common_response(StatusCode::BAD_REQUEST, &format!("Invalid scheduled_at format: {}", e)),
+        };
 
-        let schema = SessionSchema::from_book_request(mentor_thing.clone(), mentee_thing.clone(), dto);
+        let schema = SessionSchema {
+            id: uuid::Uuid::new_v4(),
+            mentor_id: match uuid::Uuid::parse_str(&mentor_id) {
+                Ok(id) => id,
+                Err(e) => return common_response(StatusCode::BAD_REQUEST, &format!("Invalid mentor ID: {}", e)),
+            },
+            mentee_id: match uuid::Uuid::parse_str(&user_id) {
+                Ok(id) => id,
+                Err(e) => return common_response(StatusCode::BAD_REQUEST, &format!("Invalid user ID: {}", e)),
+            },
+            topic: dto.topic,
+            description: dto.description,
+            scheduled_at,
+            duration_minutes: dto.duration_minutes.unwrap_or(60),
+            meeting_link: None,
+            session_type: dto.session_type.unwrap_or_else(|| "video_call".to_string()),
+            status: "pending".to_string(),
+            feedback: None,
+            rating: None,
+            feedback_submitted_at: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
         
         let repo = SessionsRepository::new(state);
         match repo.create_session(schema).await {
             Ok(created) => {
                 let response = BookSessionResponseDto {
-                    id: extract_id(&created.id),
-                    mentor_id: extract_id(&created.mentor_id),
-                    mentee_id: extract_id(&created.mentee_id),
-                    topic: created.topic,
-                    description: created.description,
-                    scheduled_at: created.scheduled_at,
-                    duration_minutes: created.duration_minutes,
-                    session_type: created.session_type,
-                    status: created.status,
-                    created_at: created.created_at,
-                };
+                   id: created.id.to_string(),
+                   mentor_id: created.mentor_id.to_string(),
+                   mentee_id: created.mentee_id.to_string(),
+                   topic: created.topic,
+                   description: created.description,
+                   scheduled_at: created.scheduled_at.to_rfc3339(),
+                   duration_minutes: created.duration_minutes,
+                   session_type: created.session_type,
+                   status: created.status,
+                   created_at: created.created_at.to_rfc3339(),
+               };
                 success_response(ResponseSuccessDto { data: response })
             }
-            Err(e) => common_response(StatusCode::BAD_REQUEST, &e),
+            Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
         }
     }
 
@@ -61,17 +86,15 @@ impl SessionsService {
         _user_email: String,
         status_filter: Option<String>,
     ) -> Response {
-        let mentor_thing = make_thing("mentors", &mentor_id);
-        
         let repo = SessionsRepository::new(state);
         
         // Get count and sessions
-        let count = match repo.count_mentor_sessions(&mentor_thing, status_filter.clone()).await {
+        let count = match repo.count_mentor_sessions(&mentor_id, status_filter.clone()).await {
             Ok(c) => c,
             Err(e) => return common_response(StatusCode::INTERNAL_SERVER_ERROR, &format!("Failed to count sessions: {}", e)),
         };
         
-        match repo.query_mentor_sessions(&mentor_thing, status_filter).await {
+        match repo.query_mentor_sessions(&mentor_id, status_filter).await {
             Ok(sessions) => {
                 let session_items: Vec<SessionListItemDto> = sessions
                     .into_iter()
@@ -97,7 +120,7 @@ impl SessionsService {
                 };
                 success_response(ResponseSuccessDto { data: response })
             }
-            Err(e) => common_response(StatusCode::BAD_REQUEST, &e),
+            Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
         }
     }
 
@@ -109,17 +132,15 @@ impl SessionsService {
         user_id: String,
         status_filter: Option<String>,
     ) -> Response {
-        let user_thing = make_thing("users", &user_id);
-        
         let repo = SessionsRepository::new(state);
         
         // Get count and sessions
-        let count = match repo.count_user_sessions(&user_thing, status_filter.clone()).await {
+        let count = match repo.count_user_sessions(&user_id, status_filter.clone()).await {
             Ok(c) => c,
             Err(e) => return common_response(StatusCode::INTERNAL_SERVER_ERROR, &format!("Failed to count sessions: {}", e)),
         };
         
-        match repo.query_user_sessions(&user_thing, status_filter).await {
+        match repo.query_user_sessions(&user_id, status_filter).await {
             Ok(sessions) => {
                 let session_items: Vec<SessionListItemDto> = sessions
                     .into_iter()
@@ -145,7 +166,7 @@ impl SessionsService {
                 };
                 success_response(ResponseSuccessDto { data: response })
             }
-            Err(e) => common_response(StatusCode::BAD_REQUEST, &e),
+            Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
         }
     }
 
@@ -153,10 +174,8 @@ impl SessionsService {
     // Get Mentor Availability
     // ============================================
     pub async fn get_mentor_availability(state: &AppState, mentor_id: String) -> Response {
-        let mentor_thing = make_thing("mentors", &mentor_id);
-
         let repo = SessionsRepository::new(state);
-        match repo.query_booked_dates(&mentor_thing).await {
+        match repo.query_booked_dates(&mentor_id).await {
             Ok(booked_dates) => {
                 // Generate sample availability slots (next 7 days)
                 let mut slots = Vec::new();
@@ -191,7 +210,7 @@ impl SessionsService {
                 };
                 success_response(ResponseSuccessDto { data: response })
             }
-            Err(e) => common_response(StatusCode::NOT_FOUND, &e),
+            Err(e) => common_response(StatusCode::NOT_FOUND, &e.to_string()),
         }
     }
 
@@ -208,27 +227,30 @@ impl SessionsService {
             return common_response(status, &message);
         }
 
-        let session_thing = make_thing("sessions", &session_id);
-        
         let repo = SessionsRepository::new(state);
-        match repo.query_session_by_id(&session_thing).await {
+        match repo.query_session_by_id(&session_id).await {
             Ok(Some(mut session)) => {
-                session.update_status(dto.clone());
-                match repo.update_session(&session_thing, session).await {
+                session.status = dto.status.clone();
+                if let Some(link) = &dto.meeting_link {
+                    session.meeting_link = Some(link.clone());
+                }
+                session.updated_at = Utc::now();
+                
+                match repo.update_session(&session_id, session).await {
                     Ok(updated) => {
                         let response = UpdateSessionStatusResponseDto {
-                            id: extract_id(&updated.id),
+                            id: updated.id.to_string(),
                             status: updated.status,
                             meeting_link: updated.meeting_link,
-                            updated_at: updated.updated_at,
+                            updated_at: updated.updated_at.to_rfc3339(),
                         };
                         success_response(ResponseSuccessDto { data: response })
                     }
-                    Err(e) => common_response(StatusCode::BAD_REQUEST, &e),
+                    Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
                 }
             }
             Ok(None) => common_response(StatusCode::NOT_FOUND, "Session not found"),
-            Err(e) => common_response(StatusCode::BAD_REQUEST, &e),
+            Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
         }
     }
 
@@ -245,13 +267,11 @@ impl SessionsService {
             return common_response(status, &message);
         }
 
-        let session_thing = make_thing("sessions", &session_id);
-        
         let repo = SessionsRepository::new(state);
-        match repo.query_session_by_id(&session_thing).await {
+        match repo.query_session_by_id(&session_id).await {
             Ok(Some(mut session)) => {
                 // Authorization: Only mentee can submit feedback
-                let mentee_id = extract_id(&session.mentee_id);
+                let mentee_id = session.mentee_id.to_string();
                 if mentee_id != user_id {
                     return common_response(
                         StatusCode::FORBIDDEN,
@@ -267,22 +287,26 @@ impl SessionsService {
                     );
                 }
 
-                session.add_feedback(dto.clone());
-                match repo.update_session(&session_thing, session).await {
+                session.feedback = Some(dto.feedback.clone());
+                session.rating = Some(dto.rating);
+                session.feedback_submitted_at = Some(Utc::now());
+                session.updated_at = Utc::now();
+                
+                match repo.update_session(&session_id, session).await {
                     Ok(updated) => {
                         let response = SessionFeedbackResponseDto {
-                            id: extract_id(&updated.id),
+                            id: updated.id.to_string(),
                             feedback: dto.feedback,
                             rating: dto.rating,
-                            submitted_at: updated.feedback_submitted_at.unwrap_or_else(get_iso_date),
+                            submitted_at: updated.feedback_submitted_at.unwrap_or(Utc::now()).to_rfc3339(),
                         };
                         success_response(ResponseSuccessDto { data: response })
                     }
-                    Err(e) => common_response(StatusCode::BAD_REQUEST, &e),
+                    Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
                 }
             }
             Ok(None) => common_response(StatusCode::NOT_FOUND, "Session not found"),
-            Err(e) => common_response(StatusCode::BAD_REQUEST, &e),
+            Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
         }
     }
 }

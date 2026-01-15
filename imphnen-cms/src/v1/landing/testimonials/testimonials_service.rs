@@ -13,6 +13,7 @@ use imphnen_libs::{
 use imphnen_utils::{
 	common_response, success_list_response, success_response, success_created_response, validate_request,
 };
+use uuid::Uuid;
 
 pub struct TestimonialsService;
 
@@ -40,15 +41,15 @@ impl TestimonialsService {
 		}
 	}
 
-	pub async fn get_testimonial_by_id(state: &AppState, id: String) -> Response {
+	pub async fn get_testimonial_by_id(state: &AppState, id: Uuid) -> Response {
 		let repo = TestimonialsRepository::new(state);
 		match repo.query_testimonial_by_id(id).await {
 			Ok(testimonial) if !testimonial.is_deleted => {
 				success_response(ResponseSuccessDto {
 					data: TestimonialsDetailItemDto {
-						id: testimonial.id.to_raw(),
-						user_id: testimonial.user.id.to_raw(),
-						user_fullname: testimonial.user.fullname,
+						id: testimonial.id,
+						user_id: testimonial.user_id,
+						user_fullname: testimonial.user_fullname,
 						role: testimonial.role,
 						content: testimonial.content,
 						created_at: testimonial.created_at,
@@ -75,8 +76,8 @@ impl TestimonialsService {
 			Ok(created_testimonial) => {
 				success_created_response(ResponseSuccessDto {
 					data: TestimonialsDetailItemDto {
-						id: created_testimonial.id.to_raw(),
-						user_id: created_testimonial.user.id.to_raw(),
+						id: created_testimonial.id,
+						user_id: created_testimonial.user_id,
 						user_fullname: authenticated_user.fullname.clone(),
 						role: created_testimonial.role,
 						content: created_testimonial.content,
@@ -101,19 +102,19 @@ impl TestimonialsService {
 		let repo = TestimonialsRepository::new(state);
 		let schema = TestimonialsSchema::update(payload, id, &authenticated_user.id);
 		match repo.query_update_testimonial(schema).await {
-			Ok(msg) => common_response(StatusCode::OK, &msg),
+			Ok(msg) => common_response(StatusCode::OK, msg.as_str()),
 			Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
 		}
 	}
 
 	pub async fn delete_testimonial(
 		state: &AppState,
-		id: String,
+		id: Uuid,
 		_authenticated_user: &imphnen_iam::UsersDetailQueryDto,
 	) -> Response {
 		let repo = TestimonialsRepository::new(state);
 		match repo.query_delete_testimonial(id).await {
-			Ok(msg) => common_response(StatusCode::OK, &msg),
+			Ok(msg) => common_response(StatusCode::OK, msg.as_str()),
 			Err(e) => common_response(StatusCode::BAD_REQUEST, &e.to_string()),
 		}
 	}

@@ -1,26 +1,20 @@
-use imphnen_iam::{get_iso_date, make_thing, PermissionsEnum};
+use imphnen_iam::PermissionsEnum;
 use std::error::Error;
-use surrealdb::engine::any;
-use surrealdb::opt::auth::Root;
+use imphnen_libs::postgres::{PostgresConfig, PostgresConnection};
+use imphnen_entities::seaorm::auth::roles::Entity as RolesEntity;
+use imphnen_entities::seaorm::auth::roles::ActiveModel as RoleActiveModel;
+use sea_orm::ActiveValue::Set;
+use sea_orm::EntityTrait;
+use sea_orm::ActiveModelTrait;
+use uuid::Uuid;
+use serde_json::Value as JsonValue;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-	let env = &imphnen_libs::environment::ENV;
-	let db = any::connect(&env.surrealdb_url).await?;
-	db.signin(Root {
-		username: &env.surrealdb_username,
-		password: &env.surrealdb_password,
-	})
-	.await?;
-	db.use_ns(env.surrealdb_namespace.clone())
-		.use_db(env.surrealdb_dbname.clone())
-		.await?;
-    db.query("DEFINE INDEX user_email_index ON TABLE users COLUMNS email UNIQUE;")
-	
-        .await?;
-    db.query("DEFINE INDEX role_name_idx ON TABLE roles COLUMNS name UNIQUE;")
-	
-        .await?;
+	let config = PostgresConfig::from_env()?;
+	let pg_conn = PostgresConnection::new(config).await?;
+	let db = &pg_conn.conn;
+	// Ensure indexes are present if needed (placeholders) - we don't modify schema here
 	
     println!("✅ Index 'user_email_index' defined on table 'users' for column 'email'.");
 
@@ -86,7 +80,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 				PermissionsEnum::ReadDetailGachaRolls,
 				PermissionsEnum::CreateGachaRolls,
 				PermissionsEnum::ExecuteGachaRolls,
-				PermissionsEnum::ManageAllTeams,
 			],
 		),
 		(
@@ -97,17 +90,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	];
 
 	for (role_id, permissions) in roles_permissions {
-		let permission_refs: Vec<_> = permissions
-			.iter()
-			.map(|perm| make_thing("app_permissions", &perm.id()))
-			.collect();
+		let role_uuid = Uuid::parse_str(role_id).unwrap_or_else(|_| Uuid::new_v4());
+		// Map permissions enum to JSON array of permission ids
+		let json_permissions = JsonValue::Array(
+			permissions.iter().map(|p| JsonValue::String(p.id())).collect()
+		);
 
-		db.query("UPDATE type::thing('app_roles', $role_id) SET permissions = $permissions, updated_at = $updated_at WHERE is_deleted = false")
-            .bind(("role_id", role_id))
-            .bind(("permissions", permission_refs))
-            .bind(("updated_at", get_iso_date()))
-            .await?;
-		println!("✅ Permissions updated for role: {role_id}");
+		// Find role and update permissions
+		if let Some(role_model) = RolesEntity::find_by_id(role_uuid).one(db).await? {
+			let mut am: RoleActiveModel = role_model.into();
+			am.permissions = Set(Some(json_permissions));
+			am.update(db).await?;
+			println!("✅ Permissions updated for role: {role_id}");
+		} else {
+			println!("⚠️ Role with id {role_id} not found, skipping permissions update");
+		}
 	}
 
 	println!("✅ All roles permissions updated!");

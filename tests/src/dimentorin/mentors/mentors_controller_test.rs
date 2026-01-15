@@ -15,13 +15,13 @@ use imphnen_dimentorin::{
 };
 use imphnen_entities::{AppState, ResponseSuccessDto};
 use imphnen_iam::{PermissionsEnum, RolesEnum, UsersRepository};
-use imphnen_libs::{ResourceEnum, surrealdb_init_ws, surrealdb_init_mem, Env};
-use imphnen_utils::{generate_otp, hash_password, make_thing, get_iso_date};
+use imphnen_libs::{ResourceEnum, Env};
+use imphnen_utils::{generate_otp, hash_password, get_iso_date};
 use serde_json::json;
-use surrealdb::{Uuid, sql::Thing};
 use dotenvy::dotenv;
+use uuid::Uuid;
 use tower::ServiceExt;
-use crate::{generate_unique_email, get_role_id, setup_all_test_environment};
+use crate::{generate_unique_email, get_role_id, setup_postgres_test_environment};
 
 // Helper function to create a test application (router) with all mentor endpoints
 fn app(app_state: AppState) -> Router {
@@ -107,13 +107,13 @@ fn create_valid_mentor_update_dto() -> MentorUpdateRequestDto {
 // Helper function to create authentication headers with mock JWT
 fn create_auth_headers(user_email: &str, permissions: Vec<PermissionsEnum>) -> HeaderMap {
     let mut headers = HeaderMap::new();
-    headers.insert("Authorization", format!("Bearer mock_jwt_{}", user_email).parse().unwrap());
+    headers.insert("Authorization", format!("Bearer mock_jwt_{user_email}").parse().unwrap());
     headers
 }
 
 #[tokio::test]
 async fn test_post_register_mentor_success() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     let test_email = "register_mentor_success@example.com";
@@ -152,7 +152,7 @@ async fn test_post_register_mentor_success() {
 
 #[tokio::test]
 async fn test_post_register_mentor_invalid_email() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     let test_email = "invalid-email";
@@ -178,7 +178,7 @@ async fn test_post_register_mentor_invalid_email() {
 
 #[tokio::test]
 async fn test_post_register_mentor_weak_password() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     let test_email = "weak_password@example.com";
@@ -204,7 +204,7 @@ async fn test_post_register_mentor_weak_password() {
 
 #[tokio::test]
 async fn test_get_mentor_list_success() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     // Create a test mentor first
@@ -253,7 +253,7 @@ async fn test_get_mentor_list_success() {
 
 #[tokio::test]
 async fn test_get_mentor_list_unauthorized() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     // Try to get mentor list without authentication
@@ -273,7 +273,7 @@ async fn test_get_mentor_list_unauthorized() {
 
 #[tokio::test]
 async fn test_get_mentor_by_id_success() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     // Create a test mentor first
@@ -302,7 +302,7 @@ async fn test_get_mentor_by_id_success() {
         .oneshot(
             Request::builder()
                 .method(Method::GET)
-                .uri(&format!("/v1/mentors/detail/{}", mentor_id))
+                .uri(&format!("/v1/mentors/detail/{mentor_id}"))
                 .headers(headers)
                 .body(Body::empty())
                 .unwrap(),
@@ -325,7 +325,7 @@ async fn test_get_mentor_by_id_success() {
 
 #[tokio::test]
 async fn test_get_mentor_by_id_not_found() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     // Try to get non-existent mentor with authentication
@@ -336,7 +336,7 @@ async fn test_get_mentor_by_id_not_found() {
         .oneshot(
             Request::builder()
                 .method(Method::GET)
-                .uri(&format!("/v1/mentors/detail/{}", non_existent_id))
+                .uri(&format!("/v1/mentors/detail/{non_existent_id}"))
                 .headers(headers)
                 .body(Body::empty())
                 .unwrap(),
@@ -349,7 +349,7 @@ async fn test_get_mentor_by_id_not_found() {
 
 #[tokio::test]
 async fn test_put_update_mentor_success() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     // Create a test mentor first
@@ -381,7 +381,7 @@ async fn test_put_update_mentor_success() {
         .oneshot(
             Request::builder()
                 .method(Method::PUT)
-                .uri(&format!("/v1/mentors/update/{}", mentor_id))
+                .uri(&format!("/v1/mentors/update/{mentor_id}"))
                 .headers(headers)
                 .header("Content-Type", "application/json")
                 .body(Body::from(serde_json::to_string(&update_dto).unwrap()))
@@ -405,7 +405,7 @@ async fn test_put_update_mentor_success() {
 
 #[tokio::test]
 async fn test_put_update_mentor_not_found() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     // Try to update non-existent mentor with authentication
@@ -417,7 +417,7 @@ async fn test_put_update_mentor_not_found() {
         .oneshot(
             Request::builder()
                 .method(Method::PUT)
-                .uri(&format!("/v1/mentors/update/{}", non_existent_id))
+                .uri(&format!("/v1/mentors/update/{non_existent_id}"))
                 .headers(headers)
                 .header("Content-Type", "application/json")
                 .body(Body::from(serde_json::to_string(&update_dto).unwrap()))
@@ -431,7 +431,7 @@ async fn test_put_update_mentor_not_found() {
 
 #[tokio::test]
 async fn test_delete_mentor_success() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     // Create a test mentor first
@@ -460,7 +460,7 @@ async fn test_delete_mentor_success() {
         .oneshot(
             Request::builder()
                 .method(Method::DELETE)
-                .uri(&format!("/v1/mentors/delete/{}", mentor_id))
+                .uri(&format!("/v1/mentors/delete/{mentor_id}"))
                 .headers(headers)
                 .body(Body::empty())
                 .unwrap(),
@@ -477,7 +477,7 @@ async fn test_delete_mentor_success() {
 
 #[tokio::test]
 async fn test_delete_mentor_not_found() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     // Try to delete non-existent mentor with authentication
@@ -488,7 +488,7 @@ async fn test_delete_mentor_not_found() {
         .oneshot(
             Request::builder()
                 .method(Method::DELETE)
-                .uri(&format!("/v1/mentors/delete/{}", non_existent_id))
+                .uri(&format!("/v1/mentors/delete/{non_existent_id}"))
                 .headers(headers)
                 .body(Body::empty())
                 .unwrap(),
@@ -501,7 +501,7 @@ async fn test_delete_mentor_not_found() {
 
 #[tokio::test]
 async fn test_put_verify_mentor_success() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     // Create a test mentor first
@@ -535,7 +535,7 @@ async fn test_put_verify_mentor_success() {
         .oneshot(
             Request::builder()
                 .method(Method::PUT)
-                .uri(&format!("/v1/mentors/verify/{}", mentor_id))
+                .uri(&format!("/v1/mentors/verify/{mentor_id}"))
                 .headers(headers)
                 .header("Content-Type", "application/json")
                 .body(Body::from(serde_json::to_string(&verify_dto).unwrap()))
@@ -558,7 +558,7 @@ async fn test_put_verify_mentor_success() {
 
 #[tokio::test]
 async fn test_get_mentor_me_success() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     // Create a test mentor first
@@ -607,7 +607,7 @@ async fn test_get_mentor_me_success() {
 
 #[tokio::test]
 async fn test_put_update_mentor_me_success() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     // Create a test mentor first
@@ -660,7 +660,7 @@ async fn test_put_update_mentor_me_success() {
 
 #[tokio::test]
 async fn test_put_update_mentor_no_id() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     // Try to update mentor without ID (should return 400)
@@ -684,7 +684,7 @@ async fn test_put_update_mentor_no_id() {
 
 #[tokio::test]
 async fn test_get_mentor_status_success() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     // Create a test mentor first
@@ -730,7 +730,7 @@ async fn test_get_mentor_status_success() {
 
 #[tokio::test]
 async fn test_controller_endpoints_validation() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     // Test update mentor with invalid data (empty legal name)
@@ -763,7 +763,7 @@ async fn test_controller_endpoints_validation() {
         .oneshot(
             Request::builder()
                 .method(Method::PUT)
-                .uri(&format!("/v1/mentors/update/{}", mentor_id))
+                .uri(&format!("/v1/mentors/update/{mentor_id}"))
                 .headers(headers)
                 .header("Content-Type", "application/json")
                 .body(Body::from(serde_json::to_string(&invalid_update_dto).unwrap()))
@@ -783,7 +783,7 @@ async fn test_controller_endpoints_validation() {
 
 #[tokio::test]
 async fn test_controller_permission_denied() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     // Try to access protected endpoint without proper permissions
@@ -804,7 +804,7 @@ async fn test_controller_permission_denied() {
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
 #[tokio::test]
 async fn test_register_mentor_boundary_values() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     let test_email = "boundary_test@example.com";
@@ -840,7 +840,7 @@ async fn test_register_mentor_boundary_values() {
 
 #[tokio::test]
 async fn test_register_mentor_invalid_urls() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     let test_email = "invalid_urls@example.com";
@@ -872,7 +872,7 @@ async fn test_register_mentor_invalid_urls() {
 
 #[tokio::test]
 async fn test_register_mentor_empty_arrays() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     let test_email = "empty_arrays@example.com";
@@ -905,7 +905,7 @@ async fn test_register_mentor_empty_arrays() {
 
 #[tokio::test]
 async fn test_register_mentor_too_short_values() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     let test_email = "too_short@example.com";
@@ -937,7 +937,7 @@ async fn test_register_mentor_too_short_values() {
 
 #[tokio::test]
 async fn test_register_mentor_too_long_phone() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     let test_email = "too_long_phone@example.com";
@@ -962,7 +962,7 @@ async fn test_register_mentor_too_long_phone() {
 
 #[tokio::test]
 async fn test_update_mentor_partial_data() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     // Create a test mentor first
@@ -997,7 +997,7 @@ async fn test_update_mentor_partial_data() {
         .oneshot(
             Request::builder()
                 .method(Method::PUT)
-                .uri(&format!("/v1/mentors/update/{}", mentor_id))
+                .uri(&format!("/v1/mentors/update/{mentor_id}"))
                 .headers(headers)
                 .header("Content-Type", "application/json")
                 .body(Body::from(serde_json::to_string(&partial_update_dto).unwrap()))
@@ -1020,7 +1020,7 @@ async fn test_update_mentor_partial_data() {
 
 #[tokio::test]
 async fn test_access_deleted_mentor() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     // Create and delete a mentor
@@ -1049,7 +1049,7 @@ async fn test_access_deleted_mentor() {
         .oneshot(
             Request::builder()
                 .method(Method::DELETE)
-                .uri(&format!("/v1/mentors/delete/{}", mentor_id))
+                .uri(&format!("/v1/mentors/delete/{mentor_id}"))
                 .headers(headers.clone())
                 .body(Body::empty())
                 .unwrap(),
@@ -1063,7 +1063,7 @@ async fn test_access_deleted_mentor() {
         .oneshot(
             Request::builder()
                 .method(Method::GET)
-                .uri(&format!("/v1/mentors/detail/{}", mentor_id))
+                .uri(&format!("/v1/mentors/detail/{mentor_id}"))
                 .headers(headers)
                 .body(Body::empty())
                 .unwrap(),
@@ -1080,7 +1080,7 @@ async fn test_access_deleted_mentor() {
 
 #[tokio::test]
 async fn test_register_mentor_invalid_json() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     let response = app
@@ -1125,7 +1125,7 @@ async fn test_register_mentor_wrong_content_type() {
 
 #[tokio::test]
 async fn test_register_mentor_special_characters() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     let test_email = "special_chars@example.com";
@@ -1159,7 +1159,7 @@ async fn test_register_mentor_special_characters() {
 
 #[tokio::test]
 async fn test_verify_mentor_invalid_status() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     // Create a test mentor first
@@ -1192,7 +1192,7 @@ async fn test_verify_mentor_invalid_status() {
         .oneshot(
             Request::builder()
                 .method(Method::PUT)
-                .uri(&format!("/v1/mentors/verify/{}", mentor_id))
+                .uri(&format!("/v1/mentors/verify/{mentor_id}"))
                 .headers(headers)
                 .header("Content-Type", "application/json")
                 .body(Body::from(serde_json::to_string(&verify_dto).unwrap()))
@@ -1210,7 +1210,7 @@ async fn test_verify_mentor_invalid_status() {
 
 #[tokio::test]
 async fn test_get_mentor_list_pagination_edge_cases() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     // Create a test mentor first
@@ -1272,7 +1272,7 @@ async fn test_get_mentor_list_pagination_edge_cases() {
 
 #[tokio::test]
 async fn test_get_mentor_list_search_special_chars() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     // Create a test mentor first
@@ -1315,7 +1315,7 @@ async fn test_get_mentor_list_search_special_chars() {
 }
 #[tokio::test]
 async fn test_register_mentor_concurrent_requests() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     let test_email1 = "concurrent1@example.com";
@@ -1360,7 +1360,7 @@ async fn test_register_mentor_concurrent_requests() {
 
 #[tokio::test]
 async fn test_register_mentor_sql_injection_attempt() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     let test_email = "sql_injection@example.com";
@@ -1397,7 +1397,7 @@ async fn test_register_mentor_sql_injection_attempt() {
 
 #[tokio::test]
 async fn test_update_mentor_empty_request_body() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     // Create a test mentor first
@@ -1426,7 +1426,7 @@ async fn test_update_mentor_empty_request_body() {
         .oneshot(
             Request::builder()
                 .method(Method::PUT)
-                .uri(&format!("/v1/mentors/update/{}", mentor_id))
+                .uri(&format!("/v1/mentors/update/{mentor_id}"))
                 .headers(headers)
                 .header("Content-Type", "application/json")
                 .body(Body::from("{}"))
@@ -1445,7 +1445,7 @@ async fn test_update_mentor_empty_request_body() {
 
 #[tokio::test]
 async fn test_get_mentor_by_id_invalid_uuid() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     // Try to get mentor with invalid UUID
@@ -1494,7 +1494,7 @@ async fn test_verify_mentor_invalid_uuid() {
 
 #[tokio::test]
 async fn test_delete_mentor_invalid_uuid() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     // Try to delete mentor with invalid UUID
@@ -1549,7 +1549,7 @@ async fn test_register_mentor_extremely_large_payload() {
 
 #[tokio::test]
 async fn test_register_mentor_duplicate_email() {
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let app = app(app_state.clone());
 
     let test_email = "duplicate_email@example.com";

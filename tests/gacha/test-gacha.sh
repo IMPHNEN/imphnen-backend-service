@@ -23,11 +23,17 @@ test_gacha_endpoints() {
 
   # Create gacha item - use correct endpoint /create
   local create_item_data=$(jq -n '{
-    name: "Test Item '$EPOCHSECONDS'",
+    name: "Test Item '$timestamp'",
     description: "Test gacha item",
     image_url: "https://example.com/gacha-item.png",
     rarity: "COMMON",
-    weight: 100
+    weight: 100,
+    item_code: "ITEM-'$timestamp'",
+    type_: "character",
+    category: "general",
+    value: 1000,
+    stock: 999,
+    is_limited: false
   }')
   test_api_endpoint "POST Create Gacha Item" "POST" "/v1/gacha/items/create" 201 "$create_item_data" true
   

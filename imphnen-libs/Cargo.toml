@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 imphnen-entities.workspace = true
+sea-orm.workspace = true
 once_cell = { workspace = true }
 log.workspace = true
 axum.workspace = true
@@ -15,7 +16,6 @@ validator.workspace = true
 argon2.workspace = true
 lettre.workspace = true
 chrono.workspace = true
-surrealdb.workspace = true
 jsonwebtoken.workspace = true
 dotenvy.workspace = true
 anyhow.workspace = true
@@ -27,3 +27,8 @@ hmac.workspace = true
 hex.workspace = true
 urlencoding.workspace = true
 async-trait.workspace = true
+thiserror.workspace = true
+env_logger.workspace = true
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+num_cpus = { workspace = true }

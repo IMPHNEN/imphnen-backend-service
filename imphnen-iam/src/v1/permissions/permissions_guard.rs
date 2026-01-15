@@ -5,7 +5,7 @@ use axum::{
 	response::Response, Extension,
 };
 use axum_extra::headers::{authorization::Bearer, Authorization, HeaderMapExt};
-use surrealdb::sql::Thing;
+use uuid::Uuid;
 
 pub async fn permissions_guard(
 	headers: HeaderMap,
@@ -37,9 +37,11 @@ pub async fn permissions_guard(
 	let user = match user_repo.query_user_by_email(claims.sub.clone()).await {
 		Ok(u) => u,
 		Err(_) => {
-			// Try treat claims.sub as a Thing id (user id)
-			let thing = Thing::from(("app_users".to_string(), claims.sub.clone()));
-			match user_repo.query_user_by_id(&thing).await {
+			// Try treat claims.sub as a UUID (user id)
+			let user_id = Uuid::parse_str(&claims.sub).map_err(|_| {
+				common_response(StatusCode::UNAUTHORIZED, "Invalid user ID format")
+			})?;
+			match user_repo.query_user_by_id(&user_id.to_string()).await {
 				Ok(u2) => u2,
 				Err(_) => {
 					return Err(common_response(
@@ -52,7 +54,7 @@ pub async fn permissions_guard(
 	};
 
 	// Check permissions from database: collect both names and raw ids so checks
-	// succeed whether permissions are stored by name or by Thing id.
+	// succeed whether permissions are stored by name or by UUID.
 	let user_permissions: Vec<String> = user
 		.role
 		.permissions
@@ -65,7 +67,7 @@ pub async fn permissions_guard(
 			if let Some(name) = pp.name.clone() {
 				res.push(name);
 			}
-			if let Some(id) = pp.id.as_ref().map(|id| id.id.to_raw()) {
+			if let Some(id) = pp.id.as_ref().map(|id| id.to_string()) {
 				res.push(id);
 			}
 			res
@@ -76,15 +78,19 @@ pub async fn permissions_guard(
 	// If user has Administrator permission, allow all.
 	// Accept either the permission name or the canonical permission id.
 	let admin_name = PermissionsEnum::Administrator.to_string();
-	let admin_id = PermissionsEnum::Administrator.id();
+    let admin_id = PermissionsEnum::Administrator.id();
+    
 	if user_permissions.contains(&admin_name) || user_permissions.contains(&admin_id) {
 		return Ok((claims, state));
 	}
 
 	for required in &required_permissions {
 		let required_str = required.to_string();
-		if !user_permissions.contains(&required_str) {
-			eprintln!("  MISSING REQUIRED PERMISSION: {required_str}");
+        let required_id = required.id();
+        
+		if !user_permissions.contains(&required_str) && !user_permissions.contains(&required_id) {
+			eprintln!("  MISSING REQUIRED PERMISSION: {required_str} (ID: {required_id})");
+            eprintln!("  USER PERMISSIONS: {:?}", user_permissions);
 			return Err(common_response(
 				StatusCode::FORBIDDEN,
 				"You don't have the required permissions",

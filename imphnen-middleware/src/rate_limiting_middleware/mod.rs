@@ -4,11 +4,19 @@ use axum::{
     middleware::Next,
     Extension,
 };
-use imphnen_entities::audit_log::RateLimitSchema;
-use imphnen_libs::{AppState, ResourceEnum};
+use chrono::{DateTime, FixedOffset, Utc, Duration};
+use imphnen_libs::{AppState};
+use sea_orm::{EntityTrait, ColumnTrait, QueryFilter, Set, ActiveModelTrait};
+use uuid::Uuid;
 use imphnen_utils::extract_real_ip;
+use imphnen_entities::seaorm::common::rate_limit::Entity as RateLimitEntity;
+use imphnen_entities::seaorm::common::rate_limit::ActiveModel as RateLimitActiveModel;
+use imphnen_entities::seaorm::common::rate_limit::Column as RateLimitColumn;
 
-/// Rate limiting middleware yang menggunakan SurrealDB memori untuk semua public endpoints
+/// Rate limiting middleware yang menggunakan PostgreSQL (SeaORM) untuk semua public endpoints
+///
+/// Migration dari SurrealDB ke PostgreSQL selesai - kini menggunakan sistem rate limiting
+/// yang lebih scalable dan terintegrasi dengan backend utama
 pub async fn rate_limiting_middleware(
     Extension(state): Extension<AppState>,
     req: Request<axum::body::Body>,
@@ -28,8 +36,8 @@ pub async fn rate_limiting_middleware(
         let max_requests = 100; // 100 requests per minute
         let window_duration_secs = 60; // 1 minute window
         
-        // Periksa rate limit menggunakan SurrealDB
-        match check_rate_limit(&state.surrealdb_mem, &client_ip, max_requests, window_duration_secs).await {
+        // Periksa rate limit menggunakan PostgreSQL (SeaORM)
+                match check_rate_limit(&state.postgres_connection.conn, &client_ip, max_requests, window_duration_secs).await {
             Ok(is_limited) => {
                 if is_limited {
                     return Ok(Response::builder()
@@ -49,7 +57,10 @@ pub async fn rate_limiting_middleware(
     Ok(next.run(req).await)
 }
 
-/// Middleware rate limiting khusus untuk endpoint autentikasi (legacy compatibility)
+/// Middleware rate limiting khusus untuk endpoint autentikasi
+///
+/// Menggunakan PostgreSQL (SeaORM) sebagai backend - kompatibilitas legacy dengan SurrealDB
+/// telah dihapus selain fungsionalitas yang sama
 pub async fn auth_rate_limiting_middleware(
     Extension(state): Extension<AppState>,
     req: Request<axum::body::Body>,
@@ -69,8 +80,8 @@ pub async fn auth_rate_limiting_middleware(
         let max_requests = 10; // 10 requests per minute
         let window_duration_secs = 60; // 1 minute window
         
-        // Periksa rate limit menggunakan SurrealDB
-        match check_rate_limit(&state.surrealdb_mem, &client_ip, max_requests, window_duration_secs).await {
+        // Periksa rate limit menggunakan PostgreSQL (SeaORM)
+                match check_rate_limit(&state.postgres_connection.conn, &client_ip, max_requests, window_duration_secs).await {
             Ok(is_limited) => {
                 if is_limited {
                     return Ok(Response::builder()
@@ -100,57 +111,71 @@ fn is_public_endpoint(uri: &str) -> bool {
         "/v1/auth/logout",
         "/v1/gacha/roll",
         "/v1/gacha/credits",
-        "/v1/hackathon/participate",
         "/v1/cms/landing",
     ];
     
     public_endpoints.iter().any(|endpoint| uri.starts_with(endpoint))
 }
 
-/// Periksa rate limit untuk IP tertentu menggunakan SurrealDB
+/// Periksa rate limit untuk IP tertentu menggunakan PostgreSQL (SeaORM)
+///
+/// Implementasi rate limiting yang didesain untuk skala besar dengan PostgreSQL,
+/// menggantikan implementasi SurrealDB yang sebelumnya
 async fn check_rate_limit(
-    db: &imphnen_libs::SurrealMemClient,
+    db: &sea_orm::DatabaseConnection,
     ip_address: &str,
     max_requests: u32,
     window_duration_secs: u64,
 ) -> Result<bool, Box<dyn std::error::Error>> {
-    let table = ResourceEnum::RateLimit.to_string();
-    let key = (table.as_str(), ip_address);
-    
-    // Coba ambil record rate limit yang ada
-    let existing_record: Option<RateLimitSchema> = db.select(key).await?;
-    
+    let now = Utc::now();
+    let window_start = now - Duration::seconds(window_duration_secs as i64);
+
+    // Cari record rate limit untuk IP ini
+    let existing_record = RateLimitEntity::find()
+        .filter(RateLimitColumn::IpAddress.eq(ip_address))
+        .one(db)
+        .await?;
+
     match existing_record {
-        Some(mut record) => {
-            // Reset counter jika window sudah expired
-            let was_reset = record.reset_if_expired();
+        Some(record) => {
+            // Konversi ke ActiveModel untuk modifikasi
+            let mut active_model: RateLimitActiveModel = record.into();
             
+            // Reset counter jika window sudah expired
+            let was_reset = if active_model.last_request_time.clone().unwrap() <= window_start {
+                active_model.request_count = Set(0);
+                active_model.last_request_time = Set(DateTime::<FixedOffset>::from(now));
+                true
+            } else {
+                false
+            };
+
             if !was_reset {
                 // Increment counter jika masih dalam window
-                record.increment();
+                let current_count = active_model.request_count.clone().unwrap();
+                active_model.request_count = Set(current_count + 1);
             }
-            
-            // Periksa apakah rate limit terlampaui sebelum update
-            let is_limited = record.is_rate_limited(max_requests);
-            
-            // Update record di database
-            if let Err(e) = db.update::<Option<RateLimitSchema>>(key).content(record.clone()).await {
-                log::error!("Failed to update rate limit record for {}: {}", ip_address, e);
-                // Gagal update, tapi tetap enforce rate limit berdasarkan data yang ada
-            }
-            
-            Ok(is_limited)
+
+            // Simpan perubahan ke database
+            let updated_model = active_model.update(db).await?;
+
+            // Periksa apakah rate limit terlampaui
+            Ok(updated_model.request_count > max_requests)
         }
         None => {
-            // Buat record baru jika belum ada
-            let new_record = RateLimitSchema::new(ip_address.to_string(), window_duration_secs);
-            
+            // Buat record baru dengan nilai awal
+            let new_record = RateLimitActiveModel {
+                id: Set(Uuid::new_v4().to_string()),
+                ip_address: Set(ip_address.to_string()),
+                request_count: Set(1),
+                first_request_time: Set(DateTime::<FixedOffset>::from(now)),
+                last_request_time: Set(DateTime::<FixedOffset>::from(now)),
+                window_duration_secs: Set(window_duration_secs as i64),
+            };
+
             // Simpan record baru ke database
-            if let Err(e) = db.create::<Option<RateLimitSchema>>(key).content(new_record).await {
-                log::error!("Failed to create rate limit record for {}: {}", ip_address, e);
-                // Jika gagal create, izinkan request (fail open untuk availability)
-            }
-            
+            new_record.insert(db).await?;
+
             Ok(false) // Request pertama selalu diizinkan
         }
     }

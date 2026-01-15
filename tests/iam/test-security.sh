@@ -14,7 +14,6 @@ test_unauthorized_access() {
   test_api_endpoint "GET User Me without Auth" "GET" "/v1/users/me" 401 "" false
   test_api_endpoint "GET Roles without Auth" "GET" "/v1/roles" 401 "" false
   test_api_endpoint "GET Permissions without Auth" "GET" "/v1/permissions" 401 "" false
-  test_api_endpoint "GET Teams Admin without Auth" "GET" "/v1/teams/admin" 401 "" false
   test_api_endpoint "GET Mentors without Auth" "GET" "/v1/mentors" 401 "" false
   
   # Test CMS endpoints - some may return 404 if not implemented
@@ -103,7 +102,6 @@ test_role_based_access_control() {
       AUTH_TOKEN="$user_token"
       
       # Try to access admin endpoints with regular user token
-      test_api_endpoint "Regular User Access Admin Teams" "GET" "/v1/teams/admin" 403 "" true
       
       # Try to create role - endpoint might be POST /v1/roles/create with 403 or POST /v1/roles with 405
       local create_role_response=$(curl -s -w "\n%{http_code}" -X POST \

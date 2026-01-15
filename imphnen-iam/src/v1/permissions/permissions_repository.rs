@@ -1,14 +1,14 @@
-use imphnen_entities::PermissionsItemDto;
+use imphnen_entities::{PermissionsItemDto, MetaRequestDto, ResponseListSuccessDto};
 use super::PermissionsSchema;
-use crate::{
-	AppState, MetaRequestDto, ResourceEnum, ResponseListSuccessDto, get_id, make_thing,
-};
+use crate::{AppState};
+use imphnen_libs::AppStatePostgresExt;
+use imphnen_entities::seaorm::auth::permissions::Entity as PermissionsEntity;
+use sea_orm::{EntityTrait, QueryFilter, ColumnTrait, QueryOrder, PaginatorTrait, QuerySelect, ActiveModelTrait, ActiveValue};
 use anyhow::{Result, bail};
-use imphnen_utils::{DetailQueryBuilder, QueryListBuilder, extract_id};
-use serde_json;
 use std::time::Instant;
 use tracing::instrument;
 use tracing::info;
+use uuid::Uuid;
 
 pub struct PermissionsRepository<'a> {
 	state: &'a AppState,
@@ -25,35 +25,67 @@ impl<'a> PermissionsRepository<'a> {
 		meta: MetaRequestDto,
 	) -> Result<ResponseListSuccessDto<Vec<PermissionsItemDto>>> {
 		let now = Instant::now();
-		info!("Executing SurrealDB query: QueryListBuilder for Permissions with meta: {:?}", meta);
-		let raw_result: ResponseListSuccessDto<Vec<PermissionsSchema>> =
-			QueryListBuilder::new(
-				&self.state.surrealdb_ws,
-				&ResourceEnum::Permissions.to_string(),
-				&meta,
-			)
-			.with_condition("is_deleted = false")
-			.search_field("name")
-			.select_fields(vec!["*"])
-			.build()
+		info!("Executing SeaORM query for Permissions list with meta: {:?}", meta);
+
+		let db = self.state.postgres_db();
+
+		// Build base query
+		let mut query = PermissionsEntity::find()
+			.filter(imphnen_entities::seaorm::auth::permissions::Column::IsDeleted.eq(false));
+
+		// Apply search if provided
+		if let Some(search) = &meta.search {
+			query = query.filter(imphnen_entities::seaorm::auth::permissions::Column::Name.contains(search));
+		}
+
+		// Apply ordering
+		let order_column = match meta.sort_by.as_deref() {
+		    Some("name") => imphnen_entities::seaorm::auth::permissions::Column::Name,
+		    Some("created_at") => imphnen_entities::seaorm::auth::permissions::Column::CreatedAt,
+		    _ => imphnen_entities::seaorm::auth::permissions::Column::CreatedAt,
+		};
+
+		query = match meta.order.as_deref() {
+		    Some("desc") => query.order_by_desc(order_column),
+		    _ => query.order_by_asc(order_column),
+		};
+
+		// Get total count for pagination
+		let total_count = query.clone().count(db).await?;
+
+		// Apply pagination
+		let page = meta.page.unwrap_or(1);
+		let per_page = meta.per_page.unwrap_or(10);
+		let offset = (page - 1) * per_page;
+
+		let permissions = query
+			.offset(offset)
+			.limit(per_page)
+			.all(db)
 			.await?;
 
 		let elapsed = now.elapsed();
-		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
-			== "development"
-		{
+		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string()) == "development" {
 			println!("Query 'query_permission_list' took: {elapsed:.2?}");
 		}
 
-		let transformed_data = raw_result
-			.data
+		let transformed_data = permissions
 			.into_iter()
-			.map(|permission| PermissionsSchema::list(&permission))
+			.map(|permission| PermissionsItemDto {
+				id: permission.id.to_string(),
+				name: permission.name,
+				created_at: Some(permission.created_at.to_rfc3339()),
+				updated_at: Some(permission.updated_at.to_rfc3339()),
+			})
 			.collect();
 
 		Ok(ResponseListSuccessDto {
 			data: transformed_data,
-			meta: raw_result.meta,
+			meta: Some(imphnen_entities::MetaResponseDto {
+				page: Some(page),
+				per_page: Some(per_page),
+				total: Some(total_count),
+			}),
 		})
 	}
 
@@ -63,20 +95,30 @@ impl<'a> PermissionsRepository<'a> {
 		id: String,
 	) -> Result<PermissionsSchema> {
 		let now = Instant::now();
-		let db = &self.state.surrealdb_ws;
-		info!(id = %id, "Executing SurrealDB select for Permissions");
-		let result: Option<PermissionsSchema> = db
-			.select((ResourceEnum::Permissions.to_string(), id.clone()))
+		let db = self.state.postgres_db();
+		info!(id = %id, "Executing SeaORM select for Permissions");
+
+		let permission_id = Uuid::parse_str(&id)?;
+
+		let permission = PermissionsEntity::find_by_id(permission_id)
+			.filter(imphnen_entities::seaorm::auth::permissions::Column::IsDeleted.eq(false))
+			.one(db)
 			.await?;
+
 		let elapsed = now.elapsed();
-		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
-			== "development"
-		{
+		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string()) == "development" {
 			println!("Query 'query_permission_by_id' took: {elapsed:.2?}");
 		}
-		match result {
-			Some(permission) if !permission.is_deleted => Ok(permission),
-			_ => bail!("Permission not found"),
+
+		match permission {
+			Some(permission) => Ok(PermissionsSchema {
+				id: permission.id,
+				name: permission.name,
+				is_deleted: permission.is_deleted,
+				created_at: Some(permission.created_at.to_rfc3339()),
+				updated_at: Some(permission.updated_at.to_rfc3339()),
+			}),
+			None => bail!("Permission not found"),
 		}
 	}
 
@@ -89,13 +131,11 @@ impl<'a> PermissionsRepository<'a> {
 		info!(id = %id, "Executing transformed_query_permission_by_id (delegates to query_permission_by_id)");
 		let raw_result = self.query_permission_by_id(id.clone()).await?;
 		let elapsed = now.elapsed();
-		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
-			== "development"
-		{
+		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string()) == "development" {
 			println!("Query 'transformed_query_permission_by_id' took: {elapsed:.2?}");
 		}
 		let transformed_data = PermissionsItemDto {
-			id: extract_id(&raw_result.id),
+			id: raw_result.id.to_string(),
 			name: raw_result.name,
 			created_at: raw_result.created_at,
 			updated_at: raw_result.updated_at,
@@ -109,22 +149,27 @@ impl<'a> PermissionsRepository<'a> {
 		name: String,
 	) -> Result<PermissionsSchema> {
 		let now = Instant::now();
-		let db = &self.state.surrealdb_ws;
-		let builder = DetailQueryBuilder::new(ResourceEnum::Permissions.to_string())
-			.with_where("name", Some(name.clone()))
-			.with_select_fields(vec!["*"]);
-		let sql = builder.build();
-		info!(query = %sql, "Executing SurrealDB query");
-		let result: Option<PermissionsSchema> =
-			builder.apply_bindings(db.query(sql)).await?.take(0)?;
+		let db = self.state.postgres_db();
+		info!(name = %name, "Executing SeaORM query for permission by name");
+
+		let permission = PermissionsEntity::find_by_name(&name)
+			.filter(imphnen_entities::seaorm::auth::permissions::Column::IsDeleted.eq(false))
+			.one(db)
+			.await?;
+
 		let elapsed = now.elapsed();
-		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
-			== "development"
-		{
+		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string()) == "development" {
 			println!("Query 'query_permission_by_name' took: {elapsed:.2?}");
 		}
-		match result {
-			Some(permission) => Ok(permission),
+
+		match permission {
+			Some(permission) => Ok(PermissionsSchema {
+				id: permission.id,
+				name: permission.name,
+				is_deleted: permission.is_deleted,
+				created_at: Some(permission.created_at.to_rfc3339()),
+				updated_at: Some(permission.updated_at.to_rfc3339()),
+			}),
 			None => bail!("Permission not found"),
 		}
 	}
@@ -135,22 +180,26 @@ impl<'a> PermissionsRepository<'a> {
 		data: PermissionsSchema,
 	) -> Result<String> {
 		let now = Instant::now();
-		let db = &self.state.surrealdb_ws;
-		info!("Executing SurrealDB create for Permissions with data: {:?}", data);
-		let record: Option<PermissionsSchema> = db
-			.create(ResourceEnum::Permissions.to_string())
-			.content(data)
-			.await?;
+		let db = self.state.postgres_db();
+		info!("Executing SeaORM create for Permissions with data: {:?}", data);
+
+		let active_model = imphnen_entities::seaorm::auth::permissions::ActiveModel {
+			id: ActiveValue::Set(data.id),
+			name: ActiveValue::Set(data.name),
+			is_deleted: ActiveValue::Set(data.is_deleted),
+			created_at: ActiveValue::Set(chrono::Utc::now()),
+			updated_at: ActiveValue::Set(chrono::Utc::now()),
+			deleted_at: ActiveValue::NotSet,
+		};
+
+		let result = PermissionsEntity::insert(active_model).exec(db).await?;
+
 		let elapsed = now.elapsed();
-		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
-			== "development"
-		{
+		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string()) == "development" {
 			println!("Query 'query_create_permission' took: {elapsed:.2?}");
 		}
-		match record {
-			Some(_) => Ok("Success create permission".into()),
-			None => bail!("Failed to create permission"),
-		}
+
+		Ok(format!("Success create permission with id: {}", result.last_insert_id))
 	}
 
 	#[instrument(skip(self, data), err)]
@@ -159,57 +208,75 @@ impl<'a> PermissionsRepository<'a> {
 		data: PermissionsSchema,
 	) -> Result<String> {
 		let now = Instant::now();
-		let db = &self.state.surrealdb_ws;
-		let record_key = get_id(&data.id)?;
-		let existing = self.query_permission_by_id(data.id.id.to_raw()).await?;
+		let db = self.state.postgres_db();
+
+		// Check if permission exists and is not deleted
+		let existing = self.query_permission_by_id(data.id.to_string()).await?;
 		if existing.is_deleted {
 			bail!("Permission already deleted");
 		}
-		let merged = PermissionsSchema {
-			created_at: existing.created_at,
-			..data.clone()
+
+		info!(id = %data.id, "Executing SeaORM update for Permissions");
+
+		let active_model = imphnen_entities::seaorm::auth::permissions::ActiveModel {
+			id: ActiveValue::Set(data.id),
+			name: ActiveValue::Set(data.name),
+			is_deleted: ActiveValue::Set(data.is_deleted),
+			created_at: ActiveValue::Unchanged(existing.created_at.map(|s| {
+			    chrono::DateTime::parse_from_rfc3339(&s)
+			        .map_err(|e| anyhow::anyhow!("Failed to parse created_at: {}", e))
+			        .unwrap()
+			        .with_timezone(&chrono::Utc)
+			})
+			.unwrap_or(chrono::Utc::now())),
+			updated_at: ActiveValue::Set(chrono::Utc::now()),
+			deleted_at: ActiveValue::NotSet,
 		};
-		info!(record_key = ?record_key, "Executing SurrealDB update for Permissions");
-		let record: Option<PermissionsSchema> =
-			db.update(record_key).merge(merged).await?;
+
+		let result = active_model.update(db).await?;
+
 		let elapsed = now.elapsed();
-		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
-			== "development"
-		{
+		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string()) == "development" {
 			println!("Query 'query_update_permission' took: {elapsed:.2?}");
 		}
-		match record {
-			Some(_) => Ok("Success update permission".into()),
-			None => bail!("Failed to update permission"),
-		}
+
+		Ok(format!("Success update permission with id: {}", result.id))
 	}
 
 	#[instrument(skip(self, id), err)]
 	pub async fn query_delete_permission(&self, id: String) -> Result<String> {
 		let now = Instant::now();
-		let db = &self.state.surrealdb_ws;
-		let permission_id = make_thing(&ResourceEnum::Permissions.to_string(), &id);
-		let permission = self
-			.query_permission_by_id(permission_id.id.to_raw())
+		let db = self.state.postgres_db();
+
+		let permission_id = Uuid::parse_str(&id)?;
+
+		// Check if permission exists and is not deleted
+		let permission = PermissionsEntity::find_by_id(permission_id)
+			.filter(imphnen_entities::seaorm::auth::permissions::Column::IsDeleted.eq(false))
+			.one(db)
 			.await?;
-		if permission.is_deleted {
-			bail!("Permission already deleted");
-		}
-		let record_key = get_id(&permission.id)?;
-		info!(record_key = ?record_key, "Executing SurrealDB soft delete for Permissions");
-		let record: Option<PermissionsSchema> = db
-			.update(record_key)
-			.merge(serde_json::json!({ "is_deleted": true }))
-			.await?;
+
+		let _permission = match permission {
+		    Some(p) => p,
+		    None => bail!("Permission not found"),
+		};
+
+		info!(id = %id, "Executing SeaORM soft delete for Permissions");
+
+		let active_model = imphnen_entities::seaorm::auth::permissions::ActiveModel {
+			id: ActiveValue::Set(permission_id),
+			is_deleted: ActiveValue::Set(true),
+			deleted_at: ActiveValue::Set(Some(chrono::Utc::now())),
+			..Default::default()
+		};
+
+		let result = active_model.update(db).await?;
+
 		let elapsed = now.elapsed();
-		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string())
-			== "development"
-		{
+		if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string()) == "development" {
 			println!("Query 'query_delete_permission' took: {elapsed:.2?}");
 		}
-		match record {
-			Some(_) => Ok("Success delete permission".into()),
-			None => bail!("Failed to delete permission"),
-		}
+
+		Ok(format!("Success delete permission with id: {}", result.id))
 	}
 }

@@ -31,7 +31,7 @@ while getopts "s:" opt; do
     \?)
       echo "Usage: $0 [-s suite_name]"
       echo "  -s suite_name: Run only a specific test suite"
-      echo "  Available suites: auth, users, roles, teams, security, mentors, cms, gacha, hackathon, registrations, notifications"
+      echo "  Available suites: auth, users, roles, security, mentors, cms, gacha"
       exit 1
       ;;
   esac
@@ -39,6 +39,16 @@ done
 
 # Export variables for child scripts
 export BASE_URL TEST_EMAIL TEST_PASSWORD
+
+# Ensure cargo is in PATH for all child processes
+export PATH="$HOME/.cargo/bin:/c/Users/$USER/.cargo/bin:/c/msys64/home/$USER/.cargo/bin:$PATH"
+
+# Extract port from BASE_URL to ensure server listens on the correct port
+PORT=$(echo "$BASE_URL" | grep -oE ':[0-9]+$' | tr -d ':')
+if [ -z "$PORT" ]; then
+  PORT=4099
+fi
+export PORT
 
 echo -e "${CYAN}"
 cat << 'EOF'
@@ -84,18 +94,15 @@ else
   API_BINARY="./target/release/api"
 fi
 
-if [ ! -f "$API_BINARY" ]; then
-  echo -e "${CYAN}Building server in release mode...${NC}"
-  # Ensure cargo is in PATH
-  export PATH="$HOME/.cargo/bin:/c/Users/$USER/.cargo/bin:$PATH"
-  cargo build --bin api --release
+echo -e "${CYAN}Building all binaries in release mode...${NC}"
+# Ensure cargo is in PATH
+export PATH="$HOME/.cargo/bin:/c/Users/$USER/.cargo/bin:/c/msys64/home/$USER/.cargo/bin:$PATH"
+rustup default stable
+cargo build --release
 
-  if [ $? -ne 0 ]; then
-    echo -e "${RED}Failed to compile server${NC}"
-    exit 1
-  fi
-else
-  echo -e "${CYAN}Using existing binary: $API_BINARY${NC}"
+if [ $? -ne 0 ]; then
+  echo -e "${RED}Failed to compile binaries${NC}"
+  exit 1
 fi
   
 echo -e "${CYAN}Starting server in background...${NC}"
@@ -144,14 +151,6 @@ done
 echo ""
 echo -e "${GREEN}✓ Server is ready!${NC}"
 
-# Run seeder to populate test data
-echo -e "${CYAN}Running database seeder...${NC}"
-cargo run --bin seeder --release > /dev/null 2>&1 || {
-  echo -e "${YELLOW}⚠ Seeder failed or already populated${NC}"
-}
-echo -e "${GREEN}✓ Database seeded${NC}"
-echo ""
-
 # Cleanup function
 cleanup() {
   if [ -n "$SERVER_PID" ]; then
@@ -174,6 +173,50 @@ cleanup() {
 
 # Set trap to cleanup on exit
 trap cleanup EXIT INT TERM
+
+# Run seeder to populate test data
+echo -e "${CYAN}Running database schema creation...${NC}"
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" || "$OSTYPE" == "cygwin" ]]; then
+  # Windows - use existing binary directly
+  if ./target/release/create_schema.exe; then
+    echo -e "${GREEN}✓ Database schema created${NC}"
+  else
+    echo -e "${RED}✗ Database schema creation failed${NC}"
+    cleanup
+    exit 1
+  fi
+else
+  # Linux/Mac - use cargo
+  if cargo run --bin create_schema --release; then
+    echo -e "${GREEN}✓ Database schema created${NC}"
+  else
+    echo -e "${RED}✗ Database schema creation failed${NC}"
+    cleanup
+    exit 1
+  fi
+fi
+
+# Run seeder to populate test data
+echo -e "${CYAN}Running database seeding...${NC}"
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" || "$OSTYPE" == "cygwin" ]]; then
+  # Windows - use existing binary directly
+  if ./target/release/seeder.exe; then
+    echo -e "${GREEN}✓ Database seeded${NC}"
+  else
+    echo -e "${RED}✗ Database seeding failed${NC}"
+    cleanup
+    exit 1
+  fi
+else
+  # Linux/Mac - use cargo
+  if cargo run --bin seeder --release; then
+    echo -e "${GREEN}✓ Database seeded${NC}"
+  else
+    echo -e "${RED}✗ Database seeding failed${NC}"
+    cleanup
+    exit 1
+  fi
+fi
 
 # Test suite tracking
 declare -A SUITE_RESULTS
@@ -209,21 +252,18 @@ run_test_suite() {
   # Capture test output to extract test counts
   local output_file=$(mktemp)
   
-  # Run test suite
   if bash "$test_script" 2>&1 | tee "$output_file"; then
-    SUITE_RESULTS["$suite_name"]="PASSED"
-    ((PASSED_SUITES++))
-    printf "${GREEN}✓ Suite '%s' completed successfully${NC}\n" "$suite_name"
-    local suite_exit=0
+    local script_exit_status=0
   else
-    SUITE_RESULTS["$suite_name"]="FAILED"
-    ((FAILED_SUITES++))
-    printf "${RED}✗ Suite '%s' failed${NC}\n" "$suite_name"
-    local suite_exit=1
+    local script_exit_status=1
   fi
   
   # Extract test counts from output (prioritize Total Tests from summary)
   # Look for the test summary block specifically
+  declare -i suite_total
+  declare -i suite_passed
+  declare -i suite_failed
+  
   suite_total=$(grep -A 3 "=== Test Summary ===" "$output_file" | grep -oP "Total Tests: \K\d+" | tail -1 || echo "0")
   suite_passed=$(grep -A 3 "=== Test Summary ===" "$output_file" | grep -oP "Passed: \K\d+" | tail -1 || echo "0")
   suite_failed=$(grep -A 3 "=== Test Summary ===" "$output_file" | grep -oP "Failed: \K\d+" | tail -1 || echo "0")
@@ -235,7 +275,18 @@ run_test_suite() {
     suite_passed=$(echo "$api_line" | grep -oP "Passed: \K\d+" || echo "0")
     suite_failed=$(echo "$api_line" | grep -oP "Failed: \K\d+" || echo "0")
   fi
-  
+
+  local suite_exit=0
+  if [ "$suite_failed" -gt 0 ] || [ "$script_exit_status" -ne 0 ]; then
+    SUITE_RESULTS["$suite_name"]="FAILED"
+    ((FAILED_SUITES++))
+    printf "${RED}✗ Suite '%s' failed${NC}\n" "$suite_name"
+    suite_exit=1
+  else
+    SUITE_RESULTS["$suite_name"]="PASSED"
+    ((PASSED_SUITES++))
+    printf "${GREEN}✓ Suite '%s' completed successfully${NC}\n" "$suite_name"
+  fi
   # Store suite test counts
   SUITE_TEST_COUNTS["$suite_name"]="$suite_total:$suite_passed:$suite_failed"
   
@@ -268,9 +319,6 @@ if [ -n "$SPECIFIC_SUITE" ]; then
     roles)
       run_test_suite "IAM - Roles & Permissions" "$SCRIPT_DIR/tests/iam/test-roles-permissions.sh"
       ;;
-    teams)
-      run_test_suite "IAM - Teams" "$SCRIPT_DIR/tests/iam/test-teams.sh"
-      ;;
     security)
       run_test_suite "IAM - Security & Authorization" "$SCRIPT_DIR/tests/iam/test-security.sh"
       ;;
@@ -283,18 +331,9 @@ if [ -n "$SPECIFIC_SUITE" ]; then
     gacha)
       run_test_suite "Gacha - Items & Rolls" "$SCRIPT_DIR/tests/gacha/test-gacha.sh"
       ;;
-    hackathon)
-      run_test_suite "Hackathon - Full Suite" "$SCRIPT_DIR/tests/hackathon/test-hackathon.sh"
-      ;;
-    registrations)
-      run_test_suite "Hackathon - Registrations" "$SCRIPT_DIR/tests/hackathon/test-registrations.sh"
-      ;;
-    notifications)
-      run_test_suite "Hackathon - Notifications" "$SCRIPT_DIR/tests/hackathon/test-notifications.sh"
-      ;;
     *)
       echo -e "${RED}Unknown suite: $SPECIFIC_SUITE${NC}"
-      echo -e "${YELLOW}Available suites: auth, users, roles, teams, security, mentors, cms, gacha, hackathon, registrations, notifications${NC}"
+      echo -e "${YELLOW}Available suites: auth, users, roles, security, mentors, cms, gacha${NC}"
       cleanup
       exit 1
       ;;
@@ -304,14 +343,10 @@ else
   run_test_suite "IAM - Authentication" "$SCRIPT_DIR/tests/iam/test-auth.sh"
   run_test_suite "IAM - Users" "$SCRIPT_DIR/tests/iam/test-users.sh"
   run_test_suite "IAM - Roles & Permissions" "$SCRIPT_DIR/tests/iam/test-roles-permissions.sh"
-  run_test_suite "IAM - Teams" "$SCRIPT_DIR/tests/iam/test-teams.sh"
   run_test_suite "IAM - Security & Authorization" "$SCRIPT_DIR/tests/iam/test-security.sh"
   run_test_suite "Dimentorin - Mentors" "$SCRIPT_DIR/tests/dimentorin/test-mentors.sh"
   run_test_suite "CMS - Events & Testimonials" "$SCRIPT_DIR/tests/cms/test-cms.sh"
   run_test_suite "Gacha - Items & Rolls" "$SCRIPT_DIR/tests/gacha/test-gacha.sh"
-  run_test_suite "Hackathon - Full Suite" "$SCRIPT_DIR/tests/hackathon/test-hackathon.sh"
-  run_test_suite "Hackathon - Registrations" "$SCRIPT_DIR/tests/hackathon/test-registrations.sh"
-  run_test_suite "Hackathon - Notifications" "$SCRIPT_DIR/tests/hackathon/test-notifications.sh"
 fi
 
 END_TIME=$(date +%s)

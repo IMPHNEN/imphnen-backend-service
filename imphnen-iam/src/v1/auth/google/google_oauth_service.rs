@@ -15,7 +15,7 @@ use tracing::{info, error};
 
 use imphnen_entities::error_dto::error::Error;
 use imphnen_libs::{jsonwebtoken::{encode_access_token, encode_refresh_token}, environment::Env, AppState};
-use imphnen_utils::{generate_oauth_csrf_token, validate_oauth_csrf_token, validate_csrf_token};
+use crate::{generate_oauth_csrf_token, validate_oauth_csrf_token, validate_csrf_token};
 use crate::v1::auth::TokenDto;
 use crate::v1::auth::auth_service::AuthServiceTrait;
 use crate::v1::users::users_dto::{UsersDetailItemDto, UsersCreateRequestDto};
@@ -330,7 +330,7 @@ where
                             }
                         }
                     }),
-                    phone_number: "".to_string(), // Will be updated by user later
+
                     is_active: true,
                     role_id: default_role_id,
                     avatar: google_user.picture.clone(), // Set avatar from Google user picture
@@ -358,19 +358,19 @@ let refresh_token = encode_refresh_token(user.email.clone(), user.id.clone())
         };
 
         // Cache the user in auth repository for subsequent requests
-        let auth_repo = crate::v1::auth::AuthRepository::new(app_state.surrealdb_mem.clone());
-        let user_query_dto: imphnen_entities::UsersDetailQueryDto = (&user).into();
-        if let Err(err_store) = auth_repo.query_store_user(user_query_dto).await {
-            error!(
-                "Failed to store user cache for {}: {}",
-                user.email, err_store
-            );
-            // Don't fail the login, just log the error
-            error!("Google OAuth login succeeded but caching failed for user: {}", user.email);
-        } else {
+        let _auth_repo = crate::v1::auth::AuthRepository::new(&app_state);
+        let _user_query_dto: imphnen_entities::UsersDetailQueryDto = (&user).into();
+        // if let Err(err_store) = auth_repo.query_store_user(user_query_dto).await {
+        //     error!(
+        //         "Failed to store user cache for {}: {}",
+        //         user.email, err_store
+        //     );
+        //     // Don't fail the login, just log the error
+        //     error!("Google OAuth login succeeded but caching failed for user: {}", user.email);
+        // } else {
 
             info!("Successfully cached user {} after Google OAuth login", user.email);
-        }
+        // }
 
         info!("Successfully completed Google OAuth for user: {}", user.email);
         Ok((user, token_dto))

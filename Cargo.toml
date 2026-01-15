@@ -3,6 +3,7 @@ resolver = "2"
 members = [
   "tests",
   "imphnen-entities",  # Most basic - core data structures
+  "imphnen-macros",   # Macros
   "imphnen-libs",      # Depends on entities
   "imphnen-utils",     # Depends on libs and entities
   "imphnen-middleware",# Utility for permissions
@@ -10,7 +11,6 @@ members = [
   "imphnen-cms",       # Content management, depends on core services
   "imphnen-gacha",     # Game mechanics, depends on core services
   "imphnen-dimentorin",# Learning platform, depends on core services
-  "imphnen-hackathon", # Hackathon service, depends on core services
   "imphnen-gateway",   # API gateway, depends on all services
   "imphnen-backend",   # Main application, depends on all services
 ]
@@ -21,7 +21,7 @@ async-trait = "0.1.83"
 oauth2 = "5.0.0"
 reqwest = { version = "0.12.23", features = ["json"] }
 serde_json = "1.0.142"
-axum = { version = "0.8.4", features = ["multipart"] }
+axum = { version = "0.8.4", features = ["multipart", "macros"] }
 log = "0.4.27"
 serde = { version = "1.0.219", features = ["derive"] }
 tokio = { version = "1.47.1", features = ["full"] }
@@ -31,7 +31,6 @@ chrono = "0.4.41"
 utoipa = { version = "5.4.0", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
 lettre = { version = "0.11.18", features = ["tokio1-native-tls"] }
-surrealdb = { version = "2.3.7", features = ["kv-mem", "kv-fdb"] }
 thiserror = "2.0.14"
 anyhow = "1.0.99"
 rand = { version = "0.9.2", features = ["std", "alloc"] }
@@ -59,6 +58,8 @@ urlencoding = "2.1"
 hyper = "1.6.0"
 hyper-util = "0.1.16"
 minio = "0.3.0"
+sea-orm = { version = "1.1", features = ["sqlx-postgres", "runtime-tokio-native-tls", "macros", "with-chrono", "uuid"] }
+num_cpus = "1.16.0"
 
 
 tokio-test = "0.4.4"
@@ -80,11 +81,12 @@ imphnen-gateway = { path = "./imphnen-gateway" }
 imphnen-backend = { path = "./imphnen-backend" }
 imphnen-entities = { path = "./imphnen-entities" }
 imphnen-dimentorin = { path = "./imphnen-dimentorin" }
-imphnen-hackathon = { path = "./imphnen-hackathon" }
 imphnen-middleware = { path = "./imphnen-middleware" }
+imphnen-macros = { path = "./imphnen-macros" }
 
 [profile.release]
 lto = "fat"
 codegen-units = 1
 panic = "abort"
 opt-level = "z"
+

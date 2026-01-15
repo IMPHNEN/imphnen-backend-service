@@ -1,7 +1,8 @@
-use ::surrealdb::Uuid;
-use ::surrealdb::sql;
+#![allow(clippy::field_reassign_with_default, clippy::needless_update)]
+
+use uuid::Uuid;
 pub use imphnen_entities::MetaRequestDto;
-pub use imphnen_iam::{ResourceEnum, RolesRepository, UsersRepository, AuthOtpSchema, AuthRepository, RolesDetailQueryDto, UsersDetailQueryDto, RolesRequestCreateDto, RolesRequestUpdateDto, RolesDetailItemDto, TeamsRepository, TeamsSchema, TeamMembersSchema, TeamInvitationsSchema, UsersSchema};
+pub use imphnen_iam::{ResourceEnum, RolesRepository, UsersRepository, AuthOtpSchema, RolesDetailQueryDto, UsersDetailQueryDto, RolesRequestCreateDto, RolesRequestUpdateDto, RolesDetailItemDto, UsersSchema};
 use imphnen_libs::AppState;
 use std::pin::Pin;
 use std::future::Future;
@@ -16,10 +17,10 @@ pub fn create_test_mentor(
 	email: &str,
 	fullname: &str,
 	is_active: bool,
-	role_id: &sql::Thing,
-) -> UsersSchema {
+	role_id: &str,
+)-> imphnen_iam::UsersSchema {
 	let mut user = create_test_user(email, fullname, is_active, role_id);
-	user.mentor_id = Some(user.id.clone());
+	user.mentor_id = Some(role_id.to_string());
 	user
 }
 
@@ -27,36 +28,21 @@ pub fn create_test_user(
 	email: &str,
 	fullname: &str,
 	is_active: bool,
-	role_id: &sql::Thing,
-) -> UsersSchema {
-	UsersSchema {
-		id: make_thing("app_users", &Uuid::new_v4().to_string()),
-		email: email.to_string(),
-		fullname: format!("{} {}", fullname, rand::random::<u32>()),
+	role_id: &str,
+)-> imphnen_iam::UsersSchema {
+	let mut profile_ext = imphnen_entities::users::UserProfileExtensionDto::default();
+	profile_ext.phone_number = Some("081234567890".to_string());
+	imphnen_iam::UsersSchema {
+		id: Uuid::new_v4().to_string(),
+		email: Some(email.to_string()),
+		fullname: Some(format!("{fullname} {}", rand::random::<u32>())),
 		legal_name: None,
-		password: hash_password("password123").unwrap(),
+		password: Some(hash_password("password123").unwrap()),
 		is_deleted: false,
 		avatar: None,
-		phone_number: "081234567890".to_string(),
-		phone_for_verification: None,
 		is_active,
-		gender: None,
-		birthdate: None,
-		domicile: None,
-		bio: None,
-		last_education: None,
-		linkedin_url: None,
-		github_url: None,
-		cv_url: None,
-		portfolio_url: None,
-		website_url: None,
-		twitter_url: None,
-		location: None,
-		skills: None,
-		experience: None,
-		education: None,
-		career_status: None,
-		role: role_id.clone(),
+		profile_extension: Some(profile_ext),
+		role_id: Uuid::parse_str(role_id).ok(),
 		created_at: get_iso_date(),
 		updated_at: get_iso_date(),
 		mentor_id: None,
@@ -67,7 +53,6 @@ pub fn create_test_user(
 // Re-enable other modules once tests are updated to match current public APIs.
 //#[cfg(test)]
 //pub mod iam;
-pub mod hackathon;
 pub mod mock_test;
 pub mod common;
 
@@ -76,16 +61,17 @@ pub use mock_test::{
 	seed_users_for_test, setup_all_test_environment,
 };
 
-pub use imphnen_utils::{get_iso_date, hash_password, make_thing, Env};
+pub use imphnen_utils::{get_iso_date, make_thing};
+pub use imphnen_libs::{hash_password, Env};
 
 pub fn generate_unique_email(prefix: &str) -> String {
-	format!("{}_{}@example.com", prefix, Uuid::new_v4())
+	format!("{prefix}_{}@example.com", Uuid::new_v4())
 }
 
-pub async fn get_role_id(role_name: &str, state: &AppState) -> sql::Thing {
+pub async fn get_role_id(role_name: &str, state: &AppState) -> String {
 	let repo = RolesRepository::new(state);
 	if let Ok(existing) = repo.query_role_by_name(role_name.into()).await {
-		return make_thing(&ResourceEnum::Roles.to_string(), &existing.id);
+		return existing.id.to_string();
 	}
 	let _ = repo
 		.query_create_role(RolesRequestCreateDto {
@@ -97,7 +83,7 @@ pub async fn get_role_id(role_name: &str, state: &AppState) -> sql::Thing {
 		.query_role_by_name(role_name.into())
 		.await
 		.expect("Role not found after creation");
-	make_thing(&ResourceEnum::Roles.to_string(), &role.id)
+	role.id.to_string()
 }
 
 pub async fn get_app_state() -> AppState {
@@ -107,10 +93,10 @@ pub async fn get_app_state() -> AppState {
 pub async fn setup() {
 	cleanup_db().await;
 	let app_state = create_mock_app_state().await;
-	seed_permissions_and_roles_for_test(&app_state.surrealdb_ws)
+	seed_permissions_and_roles_for_test(&app_state.postgres_connection)
 		.await
 		.unwrap();
-	seed_users_for_test(&app_state.surrealdb_ws).await.unwrap();
+	seed_users_for_test(&app_state.postgres_connection).await.unwrap();
 }
 
 // Minimal test app builder used by controller tests
@@ -260,16 +246,7 @@ pub struct TestApp {
 impl TestApp {
 	pub async fn new() -> Self {
 		let state = create_mock_app_state().await;
-	// Build router from available module routers. Add hackathon routes for controller tests.
-	let mut service_router = axum::Router::new().route("/", axum::routing::get(|| async { "ok" }));
-	// Mount hackathon routes exported by crate under the /api/v1/hackathons prefix so
-	// controller tests that call paths like "/api/v1/hackathons" will match.
-	// We need both public (GET/list) and protected (create/update/delete) routes.
-	let public = imphnen_hackathon::v1::hackathon_public_routes();
-	let protected = imphnen_hackathon::v1::hackathon_protected_routes();
-	// Merge public and protected routers (they both nest "/hackathons") and mount under /api/v1
-	let hackathon_router = public.merge(protected);
-	service_router = service_router.merge(axum::Router::new().nest("/api/v1", hackathon_router));
+	let service_router = axum::Router::new().route("/", axum::routing::get(|| async { "ok" }));
 	let client = ServiceClient::new(service_router);
 		// Attach AppState as an axum Extension so handlers using Extension<AppState> can access it.
 		let service_router = client.router.layer(axum::Extension(state.clone()));

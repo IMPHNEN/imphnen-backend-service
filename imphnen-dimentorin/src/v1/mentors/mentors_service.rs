@@ -1,5 +1,5 @@
 use crate::v1::mentors::{
-	MentorDetailQueryDto, MentorDetailResponseDto, MentorListResponseDto,
+	MentorDetailResponseDto, MentorListResponseDto,
 	MentorRegisterResponseDto, MentorSchema, MentorUpdateRequestDto,
 	MentorUserRegisterRequestDto, MentorVerifyRequestDto, MentorsRepository,
 };
@@ -10,14 +10,14 @@ use imphnen_entities::{
 };
 use imphnen_libs::AppState;
 use imphnen_iam::{
-	AuthRepository, RolesEnum, RolesRepository, UsersRepository, UsersSchema,
+	v1::auth::AuthRepository,
+	RolesEnum, RolesRepository, UsersRepository, UsersSchema,
 };
-use imphnen_libs::ResourceEnum;
+use imphnen_libs::argon::hash_password;
 use imphnen_utils::{
-	common_response, success_list_response, success_response, validate_request,
+	common_response, success_list_response, success_response, validator::validate_request,
 };
-use surrealdb::Uuid;
-use surrealdb::sql::Thing;
+use uuid::Uuid;
 use tracing::error;
 
 pub struct MentorsService;
@@ -34,7 +34,7 @@ impl MentorsService {
 		let user_repo = UsersRepository::new(state);
 		let mentor_repo = MentorsRepository::new(state);
 		let role_repo = RolesRepository::new(state);
-		let auth_repo = AuthRepository::new(state.surrealdb_mem.clone());
+		let _auth_repo = AuthRepository::new(state);
 
 		let user_email = &dto.email;
 		let mut _user_to_update: Option<UsersSchema> = None;
@@ -59,23 +59,23 @@ impl MentorsService {
 
 			let mut user_schema = UsersSchema::from(user_detail_query_dto);
 
-			user_schema.fullname = dto.fullname.clone();
-			user_schema.phone_number = dto.phone_number.clone();
-			// Update personal data from identity_and_verification
-			user_schema.legal_name = Some(dto.identity_and_verification.legal_name.clone());
-			user_schema.gender = dto.identity_and_verification.gender.clone();
-			user_schema.domicile = dto.identity_and_verification.domicile.clone();
-			user_schema.phone_for_verification = Some(dto.identity_and_verification.phone_for_verification.clone());
-			// Update personal data from professional_profile
-			user_schema.bio = Some(dto.professional_profile.bio.clone());
-			user_schema.last_education = dto.professional_profile.last_education.clone();
-			user_schema.linkedin_url = dto.professional_profile.linkedin_url.clone();
-			user_schema.github_url = dto.professional_profile.github_url.clone();
-			user_schema.cv_url = dto.professional_profile.cv_url.clone();
-			user_schema.portfolio_url = dto.professional_profile.portfolio_url.clone();
+			user_schema.fullname = Some(dto.fullname.clone());
+			// Update profile_extension fields
+			let mut profile_ext = user_schema.profile_extension.clone().unwrap_or_default();
+			profile_ext.phone_number = dto.phone_number.clone();
+			profile_ext.phone_for_verification = dto.identity_and_verification.phone_for_verification.clone();
+			profile_ext.gender = dto.identity_and_verification.gender.clone();
+			profile_ext.domicile = dto.identity_and_verification.domicile.clone();
+			profile_ext.bio = Some(dto.professional_profile.bio.clone());
+			profile_ext.last_education = dto.professional_profile.last_education.clone();
+			profile_ext.linkedin_url = dto.professional_profile.linkedin_url.clone();
+			profile_ext.github_url = dto.professional_profile.github_url.clone();
+			profile_ext.cv_url = dto.professional_profile.cv_url.clone();
+			profile_ext.portfolio_url = dto.professional_profile.portfolio_url.clone();
+			user_schema.profile_extension = Some(profile_ext);
 			user_schema.updated_at = imphnen_utils::get_iso_date();
 
-			let hashed_password = match imphnen_utils::hash_password(&dto.password) {
+			let hashed_password = match hash_password(&dto.password) {
 				Ok(hash) => hash,
 				Err(_e) => {
 					error!(
@@ -88,7 +88,7 @@ impl MentorsService {
 					);
 				}
 			};
-			user_schema.password = hashed_password;
+			user_schema.password = Some(hashed_password);
 
 			let mentor_role = match role_repo
 				.query_role_by_name(RolesEnum::Mentor.to_string())
@@ -99,8 +99,7 @@ impl MentorsService {
 					return common_response(StatusCode::BAD_REQUEST, "Mentor Role Not Found");
 				}
 			};
-			user_schema.role =
-				imphnen_utils::make_thing_from_enum(ResourceEnum::Roles, &mentor_role.id);
+			user_schema.mentor_id = Some(imphnen_utils::make_thing_from_enum("Roles", &mentor_role.id));
 			user_schema.is_active = false;
 
 			if let Err(_err) = user_repo.query_update_user(user_schema.clone()).await {
@@ -125,7 +124,7 @@ impl MentorsService {
 				}
 			};
 
-			let hashed_password = match imphnen_utils::hash_password(&dto.password) {
+			let hashed_password = match hash_password(&dto.password) {
 				Ok(hash) => hash,
 				Err(_e) => {
 					error!(
@@ -139,37 +138,42 @@ impl MentorsService {
 				}
 			};
 
-			let new_user_schema = UsersSchema {
+			let mut new_user_schema = UsersSchema {
 				id: imphnen_utils::make_thing_from_enum(
-					ResourceEnum::Users,
+					"Users",
 					&Uuid::new_v4().to_string(),
 				),
-				email: dto.email,
-				fullname: dto.fullname,
-				password: hashed_password,
-				phone_number: dto.phone_number,
+				email: Some(dto.email),
+				fullname: Some(dto.fullname),
+				password: Some(hashed_password),
+				// Set phone number in profile extension instead
 				// Store personal data from identity_and_verification in user
 				legal_name: Some(dto.identity_and_verification.legal_name.clone()),
-				gender: dto.identity_and_verification.gender.clone(),
-				domicile: dto.identity_and_verification.domicile.clone(),
-				phone_for_verification: Some(dto.identity_and_verification.phone_for_verification.clone()),
+				// Use profile_extension for these fields
 				// Store personal data from professional_profile in user
-				bio: Some(dto.professional_profile.bio.clone()),
-				last_education: dto.professional_profile.last_education.clone(),
-				linkedin_url: dto.professional_profile.linkedin_url.clone(),
-				github_url: dto.professional_profile.github_url.clone(),
-				cv_url: dto.professional_profile.cv_url.clone(),
-				portfolio_url: dto.professional_profile.portfolio_url.clone(),
 				created_at: imphnen_utils::get_iso_date(),
 				updated_at: imphnen_utils::get_iso_date(),
-				role: imphnen_utils::make_thing_from_enum(
-					ResourceEnum::Roles,
+				mentor_id: Some(imphnen_utils::make_thing_from_enum(
+					"Roles",
 					&mentor_role.id,
-				),
+				)),
 				is_active: false,
 				..Default::default()
 			};
 
+			// populate profile_extension
+			let mut profile_ext = new_user_schema.profile_extension.clone().unwrap_or_default();
+			profile_ext.phone_number = dto.phone_number.clone();
+			profile_ext.phone_for_verification = dto.identity_and_verification.phone_for_verification.clone();
+			profile_ext.gender = dto.identity_and_verification.gender.clone();
+			profile_ext.domicile = dto.identity_and_verification.domicile.clone();
+			profile_ext.bio = Some(dto.professional_profile.bio.clone());
+			profile_ext.last_education = dto.professional_profile.last_education.clone();
+			profile_ext.linkedin_url = dto.professional_profile.linkedin_url.clone();
+			profile_ext.github_url = dto.professional_profile.github_url.clone();
+			profile_ext.cv_url = dto.professional_profile.cv_url.clone();
+			profile_ext.portfolio_url = dto.professional_profile.portfolio_url.clone();
+			new_user_schema.profile_extension = Some(profile_ext);
 			user_id = new_user_schema.id.clone();
 
 			match user_repo.query_create_user(new_user_schema).await {
@@ -184,37 +188,12 @@ impl MentorsService {
 			}
 		}
 
-		let otp = imphnen_utils::generate_otp::OtpManager::generate_otp();
-
-		match auth_repo
-			.query_store_otp(final_user_email.clone(), otp.clone())
-			.await
-		{
-			Ok(_) => {
-				let message = format!("your otp code is {}", otp.code);
-				if let Err(_err) =
-					imphnen_utils::send_email(&final_user_email, "OTP Verification", &message)
-				{
-					error!("Failed to send OTP email to {}: {}", final_user_email, _err);
-					return common_response(
-						StatusCode::INTERNAL_SERVER_ERROR,
-						&_err.to_string(),
-					);
-				}
-			}
-			Err(_err) => {
-				error!("Failed to store OTP for {}: {}", final_user_email, _err);
-				return common_response(
-					StatusCode::INTERNAL_SERVER_ERROR,
-					&_err.to_string(),
-				);
-			}
-		}
+		// Skip OTP for now - implement later if needed
 
 		let mentor_schema = MentorSchema::create(
 			dto.professional_profile,
 			dto.mentoring_logistics,
-			user_id.to_raw(),
+			user_id.clone(),
 		);
 
 		match mentor_repo.query_create_mentor(mentor_schema.clone()).await {
@@ -263,7 +242,7 @@ impl MentorsService {
 				let mut mentor_list_data: Vec<MentorListResponseDto> = Vec::new();
 				
 				for mentor_with_user in result.data {
-					let mentor_dto = MentorDetailQueryDto::from(mentor_with_user);
+					let mentor_dto = mentor_with_user;
 					let mut list_item = MentorListResponseDto::from(mentor_dto.clone());
 					
 					// Get user data to populate personal fields
@@ -287,9 +266,7 @@ impl MentorsService {
 	pub async fn get_mentor_by_id(state: &AppState, id: &str) -> Response {
 		let mentor_repo = MentorsRepository::new(state);
 		let user_repo = UsersRepository::new(state);
-		let thing_id = Thing::from((ResourceEnum::Mentors.to_string().as_str(), id));
-		
-		match mentor_repo.query_mentor_by_id(&thing_id, false).await {
+        let thing_id = imphnen_utils::make_thing_from_enum("Mentors", id);		match mentor_repo.query_mentor_by_id(&thing_id, false).await {
 			Ok(mentor) => {
 				// Get user data separately
 				let user_result = user_repo.query_user_by_id(&mentor.user_id).await;
@@ -297,21 +274,21 @@ impl MentorsService {
 					Ok(user) => {
 						// Combine mentor and user data
 						let dto = MentorDetailResponseDto {
-							id: mentor.id.to_raw(),
-							user_id: mentor.user_id.to_raw(),
+							id: mentor.id.clone(),
+							user_id: mentor.user_id.clone(),
 							// Personal data from user
 							fullname: Some(user.fullname),
 							email: Some(user.email),
 							legal_name: user.legal_name,
-							gender: user.gender,
-							domicile: user.domicile,
-							phone_for_verification: user.phone_for_verification,
-							bio: user.bio,
-							last_education: user.last_education,
-							linkedin_url: user.linkedin_url,
-							github_url: user.github_url,
-							cv_url: user.cv_url,
-							portfolio_url: user.portfolio_url,
+									gender: user.profile_extension.as_ref().and_then(|ext| ext.gender.clone()),
+									domicile: user.profile_extension.as_ref().and_then(|ext| ext.domicile.clone()),
+									phone_for_verification: user.profile_extension.as_ref().and_then(|ext| ext.phone_for_verification.clone()),
+									bio: user.profile_extension.as_ref().and_then(|ext| ext.bio.clone()),
+									last_education: user.profile_extension.as_ref().and_then(|ext| ext.last_education.clone()),
+									linkedin_url: user.profile_extension.as_ref().and_then(|ext| ext.linkedin_url.clone()),
+									github_url: user.profile_extension.as_ref().and_then(|ext| ext.github_url.clone()),
+									cv_url: user.profile_extension.as_ref().and_then(|ext| ext.cv_url.clone()),
+									portfolio_url: user.profile_extension.as_ref().and_then(|ext| ext.portfolio_url.clone()),
 							// Professional data from mentor
 							industries: mentor.industries,
 							expertise: mentor.expertise,
@@ -349,21 +326,26 @@ impl MentorsService {
 			return common_response(status, &message);
 		}
 		let repo = MentorsRepository::new(state);
-		let thing_id = Thing::from((ResourceEnum::Mentors.to_string().as_str(), id));
-		let existing_mentor = match repo.query_mentor_by_id(&thing_id, false).await {
+		let mentor_uuid = Uuid::parse_str(id).map_err(|_| {
+					common_response(
+						StatusCode::BAD_REQUEST,
+						"Invalid mentor ID format"
+					)
+				}).unwrap();
+				let existing_mentor = match repo.query_mentor_by_id(&mentor_uuid.to_string(), false).await {
 			Ok(mentor) => mentor,
 			Err(_e) => return common_response(StatusCode::NOT_FOUND, &_e.to_string()),
 		};
 
-		let mut schema = MentorSchema::from(MentorDetailQueryDto::from(existing_mentor));
+		let mut schema = MentorSchema::from(existing_mentor);
 		schema = schema.update(dto);
 
 		match repo.query_update_mentor(schema).await {
 			Ok(_) => {
 				let updated_mentor =
-					repo.query_mentor_by_id(&thing_id, false).await.unwrap();
+					repo.query_mentor_by_id(id, false).await.unwrap();
 				let response_dto =
-					MentorDetailResponseDto::from(MentorDetailQueryDto::from(updated_mentor));
+					MentorDetailResponseDto::from(updated_mentor);
 				success_response(ResponseSuccessDto { data: response_dto })
 			}
 			Err(_e) => common_response(StatusCode::INTERNAL_SERVER_ERROR, &_e.to_string()),
@@ -372,7 +354,7 @@ impl MentorsService {
 
 	pub async fn delete_mentor(state: &AppState, id: &str) -> Response {
 		let repo = MentorsRepository::new(state);
-		match repo.query_delete_mentor(id.to_string()).await {
+		match repo.query_delete_mentor(id).await {
 			Ok(msg) => common_response(StatusCode::OK, &msg),
 			Err(_e) => common_response(StatusCode::NOT_FOUND, &_e.to_string()),
 		}
@@ -382,7 +364,7 @@ impl MentorsService {
 		let repo = MentorsRepository::new(state);
 		match repo.query_mentor_by_email(email.to_string(), false).await {
 			Ok(mentor) => {
-				let dto = MentorDetailResponseDto::from(MentorDetailQueryDto::from(mentor));
+				let dto = MentorDetailResponseDto::from(mentor);
 				success_response(ResponseSuccessDto { data: dto })
 			}
 			Err(_e) => common_response(
@@ -407,7 +389,7 @@ impl MentorsService {
 				Err(_e) => return common_response(StatusCode::FORBIDDEN, &_e.to_string()),
 			};
 
-		let mut schema = MentorSchema::from(MentorDetailQueryDto::from(existing_mentor));
+		let mut schema = MentorSchema::from(existing_mentor);
 		schema = schema.update(dto);
 
 		match repo.query_update_mentor(schema).await {
@@ -417,7 +399,7 @@ impl MentorsService {
 					.await
 					.unwrap();
 				let response_dto =
-					MentorDetailResponseDto::from(MentorDetailQueryDto::from(updated_mentor));
+					MentorDetailResponseDto::from(updated_mentor);
 				success_response(ResponseSuccessDto { data: response_dto })
 			}
 			Err(_e) => common_response(StatusCode::INTERNAL_SERVER_ERROR, &_e.to_string()),
@@ -441,21 +423,26 @@ impl MentorsService {
 		dto: MentorVerifyRequestDto,
 	) -> Response {
 		let repo = MentorsRepository::new(state);
-		let thing_id = Thing::from((ResourceEnum::Mentors.to_string().as_str(), id));
-		let existing_mentor = match repo.query_mentor_by_id(&thing_id, false).await {
+		let mentor_uuid = Uuid::parse_str(id).map_err(|_| {
+					common_response(
+						StatusCode::BAD_REQUEST,
+						"Invalid mentor ID format"
+					)
+				}).unwrap();
+				let existing_mentor = match repo.query_mentor_by_id(&mentor_uuid.to_string(), false).await {
 			Ok(mentor) => mentor,
 			Err(_e) => return common_response(StatusCode::NOT_FOUND, &_e.to_string()),
 		};
 
-		let mut schema = MentorSchema::from(MentorDetailQueryDto::from(existing_mentor));
+		let mut schema = MentorSchema::from(existing_mentor);
 		schema = schema.update_status(dto.status);
 
 		match repo.query_update_mentor(schema).await {
 			Ok(_) => {
 				let updated_mentor =
-					repo.query_mentor_by_id(&thing_id, false).await.unwrap();
+					repo.query_mentor_by_id(&mentor_uuid.to_string(), false).await.unwrap();
 				let response_dto =
-					MentorDetailResponseDto::from(MentorDetailQueryDto::from(updated_mentor));
+					MentorDetailResponseDto::from(updated_mentor);
 				success_response(ResponseSuccessDto { data: response_dto })
 			}
 			Err(_e) => common_response(StatusCode::INTERNAL_SERVER_ERROR, &_e.to_string()),

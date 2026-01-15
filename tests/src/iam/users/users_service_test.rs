@@ -110,7 +110,6 @@ mod tests {
 			email: email.clone(),
 			password: password.clone(),
 			fullname: "Test User Service".to_string(),
-			phone_number: "+1234567890".to_string(),
 			role_id: role_id.id.to_raw(),
 			is_active: true,
 			avatar: None,
@@ -132,7 +131,9 @@ mod tests {
 		assert!(!created_user.role.name.is_empty(), "Created user must have non-empty role name");
 		assert!(!created_user.fullname.is_empty(), "Created user must have non-empty fullname");
 		assert_eq!(created_user.email, email, "Created user email must match request");
-		assert!(!created_user.phone_number.is_empty(), "Created user must have non-empty phone_number");
+		// Check nested profile extension phone number (optional)
+		let created_phone = created_user.profile_extension.as_ref().and_then(|pe| pe.phone_number.clone()).unwrap_or_default();
+		assert!(!created_phone.is_empty(), "Created user must have non-empty phone_number");
 		assert_eq!(created_user.is_active, true, "Created user must be active");
 		assert!(!created_user.created_at.is_empty(), "Created user must have non-empty created_at");
 		assert!(!created_user.updated_at.is_empty(), "Created user must have non-empty updated_at");
@@ -161,7 +162,7 @@ mod tests {
 		assert_eq!(db_user.email, email);
 
 		// Clean up
-		let _ = repo.query_delete_user(db_user.id.id.to_raw()).await;
+		let _ = repo.query_delete_user(db_user.id.clone()).await;
 	}
 
 	#[tokio::test]
@@ -177,12 +178,12 @@ mod tests {
 		// Create existing user
 		let user_schema = UsersSchema {
 			id: make_thing_from_enum(UtilsResourceEnum::Users, &Uuid::new_v4().to_string()),
-			fullname: "Existing User".to_string(),
+			fullname: Some("Existing User".to_string()),
 			legal_name: None,
-			email: email.clone(),
-			password: imphnen_utils::hash_password(&password).unwrap(),
+			email: Some(email.clone()),
+			password: Some(imphnen_utils::hash_password(&password).unwrap()),
 			avatar: None,
-			phone_number: "+1234567890".to_string(),
+			profile_extension: Some(imphnen_entities::users::UserProfileExtensionDto { phone_number: Some("+1234567890".to_string()), ..Default::default() }),
 			phone_for_verification: None,
 			is_active: true,
 			is_deleted: false,
@@ -203,7 +204,7 @@ mod tests {
 			experience: None,
 			education: None,
 			career_status: None,
-			role: role_id.clone(),
+			role_id: Uuid::parse_str(&role_id.id.to_raw()).ok(),
 			created_at: "2023-01-01T00:00:00Z".to_string(),
 			updated_at: "2023-01-01T00:00:00Z".to_string(),
 		};
@@ -216,7 +217,7 @@ mod tests {
 			email: email.clone(),
 			password: password.clone(),
 			fullname: "New User".to_string(),
-			phone_number: "+1234567891".to_string(),
+			// phone_number is optional in create request; omit here or set via profile extension
 			role_id: role_id.id.to_raw(),
 			is_active: true,
 			avatar: None,
@@ -233,7 +234,7 @@ mod tests {
 
 		// Clean up
 		let user = repo.query_user_by_email(email.clone()).await.unwrap();
-		let _ = repo.query_delete_user(user.id.id.to_raw()).await;
+		let _ = repo.query_delete_user(user.id.clone()).await;
 	}
 
 	#[tokio::test]

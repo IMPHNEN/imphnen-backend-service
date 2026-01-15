@@ -23,12 +23,12 @@ mod tests {
 		// Create test user first
 		let user_schema = imphnen_iam::UsersSchema {
 			id: make_thing_from_enum(UtilsResourceEnum::Users, &Uuid::new_v4().to_string()),
-			email: email.clone(),
-			fullname: "Test User Service".to_string(),
-			password: imphnen_utils::hash_password(&password).unwrap(),
+			email: Some(email.clone()),
+			fullname: Some("Test User Service".to_string()),
+			password: Some(imphnen_utils::hash_password(&password).unwrap()),
 			phone_number: Some("+1234567890".to_string()),
 			is_active: true,
-			role: role_id,
+			role_id: Uuid::parse_str(&role_id).ok(),
 			..Default::default()
 		};
 
@@ -127,8 +127,8 @@ mod tests {
 		assert!(!created_user.phone_number.unwrap().is_empty(), "Registered user must have non-empty phone_number");
 		assert!(!created_user.role.id.id.to_raw().is_empty(), "Registered user must have non-empty role id");
 		assert!(!created_user.role.name.is_empty(), "Registered user must have non-empty role name");
-		assert!(created_user.created_at.is_some(), "Registered user must have created_at timestamp");
-		assert!(created_user.updated_at.is_some(), "Registered user must have updated_at timestamp");
+		assert!(!created_user.created_at.is_empty(), "Registered user must have created_at timestamp");
+		assert!(!created_user.updated_at.is_empty(), "Registered user must have updated_at timestamp");
 		assert!(created_user.is_deleted == false, "Registered user should not be deleted");
 		assert!(created_user.avatar.is_some(), "Registered user must have avatar field");
 		assert!(created_user.bio.is_some(), "Registered user must have bio field");
@@ -404,12 +404,12 @@ mod tests {
 		// Create test mentor user first
 		let user_schema = imphnen_iam::UsersSchema {
 			id: make_thing_from_enum(UtilsResourceEnum::Users, &Uuid::new_v4().to_string()),
-			email: email.clone(),
-			fullname: "Test Mentor Service".to_string(),
-			password: imphnen_utils::hash_password(&password).unwrap(),
+			email: Some(email.clone()),
+			fullname: Some("Test Mentor Service".to_string()),
+			password: Some(imphnen_utils::hash_password(&password).unwrap()),
 			phone_number: Some("+1234567890".to_string()),
 			is_active: true,
-			role: role_id,
+			role_id: Uuid::parse_str(&role_id).ok(),
 			..Default::default()
 		};
 
@@ -448,12 +448,12 @@ mod tests {
 		// Create test user (not mentor) first
 		let user_schema = imphnen_iam::UsersSchema {
 			id: make_thing_from_enum(UtilsResourceEnum::Users, &Uuid::new_v4().to_string()),
-			email: email.clone(),
-			fullname: "Test User Service".to_string(),
-			password: imphnen_utils::hash_password(&password).unwrap(),
+			email: Some(email.clone()),
+			fullname: Some("Test User Service".to_string()),
+			password: Some(imphnen_utils::hash_password(&password).unwrap()),
 			phone_number: Some("+1234567890".to_string()),
 			is_active: true,
-			role: role_id,
+			role_id: Uuid::parse_str(&role_id).ok(),
 			..Default::default()
 		};
 
@@ -490,12 +490,12 @@ mod tests {
 		// Create inactive test user
 		let user_schema = imphnen_iam::UsersSchema {
 			id: make_thing_from_enum(UtilsResourceEnum::Users, &Uuid::new_v4().to_string()),
-			email: email.clone(),
-			fullname: "Test User Service".to_string(),
-			password: imphnen_utils::hash_password(&password).unwrap(),
+			email: Some(email.clone()),
+			fullname: Some("Test User Service".to_string()),
+			password: Some(imphnen_utils::hash_password(&password).unwrap()),
 			phone_number: Some("+1234567890".to_string()),
 			is_active: false, // Inactive
-			role: role_id,
+			role_id: Uuid::parse_str(&role_id).ok(),
 			..Default::default()
 		};
 
@@ -534,12 +534,12 @@ mod tests {
 		// Create existing user
 		let user_schema = imphnen_iam::UsersSchema {
 			id: make_thing_from_enum(UtilsResourceEnum::Users, &Uuid::new_v4().to_string()),
-			email: email.clone(),
-			fullname: "Existing User".to_string(),
-			password: imphnen_utils::hash_password(&password).unwrap(),
+			email: Some(email.clone()),
+			fullname: Some("Existing User".to_string()),
+			password: Some(imphnen_utils::hash_password(&password).unwrap()),
 			phone_number: Some("+1234567890".to_string()),
 			is_active: true,
-			role: role_id,
+			role_id: Uuid::parse_str(&role_id).ok(),
 			..Default::default()
 		};
 
@@ -764,12 +764,12 @@ mod tests {
 		// Create inactive mentor user
 		let user_schema = imphnen_iam::UsersSchema {
 			id: make_thing_from_enum(UtilsResourceEnum::Users, &Uuid::new_v4().to_string()),
-			email: email.clone(),
-			fullname: "Test Mentor Service".to_string(),
-			password: imphnen_utils::hash_password(&password).unwrap(),
+			email: Some(email.clone()),
+			fullname: Some("Test Mentor Service".to_string()),
+			password: Some(imphnen_utils::hash_password(&password).unwrap()),
 			phone_number: Some("+1234567890".to_string()),
 			is_active: false, // Inactive
-			role: role_id,
+			role_id: Uuid::parse_str(&role_id).ok(),
 			..Default::default()
 		};
 

@@ -26,29 +26,6 @@ use imphnen_gacha::v1::gacha_items::{gacha_items_controller, GachaItemDto};
 use imphnen_gacha::v1::gacha_items::gacha_items_dto::GachaItemRequestDto;
 use imphnen_gacha::v1::gacha_rolls::{gacha_rolls_controller, GachaRollItemDto};
 use imphnen_gacha::v1::gacha_rolls::gacha_rolls_dto::GachaRollRequestDto;
-use imphnen_hackathon::v1::hackathon::{
-    hackathon_controller,
-    hackathon_dto::{
-        HackathonCreateRequestDto, HackathonDto, HackathonEventCreateRequestDto, HackathonEventDto,
-        HackathonEventUpdateRequestDto, HackathonSubmissionCreateRequestDto,
-        HackathonSubmissionDto, HackathonSubmissionUpdateRequestDto, HackathonTimelineCreateRequestDto,
-        HackathonTimelineDto, HackathonTimelineUpdateRequestDto, HackathonUpdateRequestDto,
-    },
-};
-use imphnen_hackathon::v1::registrations::{
-    registration_controller,
-    RegistrationRequestDto, RegistrationResponseDto, RegistrationListResponseDto,
-    RegistrationListItemDto, UpdateRegistrationStatusRequestDto, UpdateRegistrationStatusResponseDto,
-    CheckInResponseDto, RegistrationStatsDto, UserHackathonsResponseDto, UserHackathonDto,
-    RegistrationStatus, ParticipantRole,
-};
-use imphnen_hackathon::v1::notifications::{
-    notification_controller,
-    notification_dto::{
-        NotificationDto, NotificationListResponseDto, MarkAsReadResponseDto,
-        MarkAllAsReadResponseDto, DeleteNotificationResponseDto, UnreadCountResponseDto,
-    },
-};
 use imphnen_entities::{PermissionsItemDto, RolesDetailItemDto};
 use imphnen_entities::{MessageResponseDto, MetaRequestDto, MetaResponseDto, ResponseListSuccessDto, ResponseSuccessDto};
 use imphnen_iam::v1::auth::auth_dto::{AuthLoginRequestDto, AuthLoginResponsetDto, AuthNewPasswordRequestDto, AuthRefreshTokenRequestDto, AuthResendOtpRequestDto, AuthVerifyEmailRequestDto, TokenDto};
@@ -57,8 +34,7 @@ use imphnen_iam::v1::roles::RolesListItemDto;
 use imphnen_iam::v1::roles::roles_dto::{RolesRequestCreateDto, RolesRequestUpdateDto};
 use imphnen_iam::v1::users::UsersDetailItemDto;
 use imphnen_iam::v1::users::users_dto::{UsersCreateRequestDto, UsersListItemDto, UsersUpdateRequestDto};
-use imphnen_iam::v1::teams::teams_dto::{TeamsCreateRequestDto, TeamsUpdateRequestDto, TeamInviteRequestDto, TeamAcceptInvitationRequestDto, TeamsDetailItemDto, TeamsListItemDto, TeamMemberDto, TeamInvitationDto, TeamsSearchQueryDto};
-use imphnen_iam::v1::{auth, permissions, roles, users, teams};
+use imphnen_iam::v1::{auth, permissions, roles, users};
 use imphnen_iam::v1::users::users_controller::FileUploadSchema;
 use utoipa::{
     Modify, OpenApi,
@@ -95,16 +71,6 @@ use utoipa::{
      permissions::permissions_controller::post_create_permission,
      permissions::permissions_controller::put_update_permission,
      permissions::permissions_controller::delete_permission,
-           teams::teams_controller::get_team_list,
-           teams::teams_controller::get_team_by_id,
-           teams::teams_controller::post_create_team,
-           teams::teams_controller::put_update_team,
-           teams::teams_controller::delete_team,
-           teams::teams_controller::post_invite_team_members,
-           teams::teams_controller::post_accept_invitation,
-           teams::teams_controller::get_public_team_search,
-           teams::teams_controller::get_team_members,
-           teams::teams_controller::post_leave_team,
            gacha_claims_controller::get_detail_gacha_claim,
            gacha_claims_controller::post_create_gacha_claim,
            gacha_items_controller::get_gacha_item_list,
@@ -140,35 +106,6 @@ use utoipa::{
      sessions_controller::put_update_session_status,
      sessions_controller::post_submit_feedback,
      sessions_controller::get_my_sessions,
-     hackathon_controller::create_hackathon,
-     hackathon_controller::get_hackathon,
-     hackathon_controller::list_hackathons,
-     hackathon_controller::update_hackathon,
-     hackathon_controller::delete_hackathon,
-     hackathon_controller::create_hackathon_event,
-     hackathon_controller::list_hackathon_events,
-     hackathon_controller::update_hackathon_event,
-     hackathon_controller::delete_hackathon_event,
-     hackathon_controller::create_hackathon_timeline,
-     hackathon_controller::list_hackathon_timeline,
-     hackathon_controller::update_hackathon_timeline,
-     hackathon_controller::delete_hackathon_timeline,
-     hackathon_controller::create_hackathon_submission,
-     hackathon_controller::list_hackathon_submissions,
-     hackathon_controller::update_hackathon_submission,
-     hackathon_controller::submit_hackathon_submission,
-     hackathon_controller::delete_hackathon_submission,
-     registration_controller::post_register_hackathon,
-     registration_controller::get_hackathon_registrations,
-     registration_controller::get_my_hackathons,
-     registration_controller::put_update_registration_status,
-     registration_controller::post_check_in_participant,
-     registration_controller::get_registration_stats,
-     notification_controller::get_notifications_handler,
-     notification_controller::mark_as_read_handler,
-     notification_controller::mark_all_as_read_handler,
-     notification_controller::delete_notification_handler,
-     notification_controller::get_unread_count_handler,
     ),
     components(
         schemas(
@@ -244,66 +181,6 @@ use utoipa::{
            ResponseSuccessDto<MentorAvailabilityDto>,
            ResponseSuccessDto<UpdateSessionStatusResponseDto>,
            ResponseSuccessDto<SessionFeedbackResponseDto>,
-                       TeamsCreateRequestDto,
-                       TeamsUpdateRequestDto,
-                       TeamInviteRequestDto,
-                       TeamAcceptInvitationRequestDto,
-                       TeamsDetailItemDto,
-                       TeamsListItemDto,
-                       TeamMemberDto,
-                       TeamInvitationDto,
-                       TeamsSearchQueryDto,
-                       ResponseListSuccessDto<Vec<TeamsListItemDto>>,
-                       ResponseSuccessDto<TeamsDetailItemDto>,
-                       HackathonCreateRequestDto,
-                       HackathonDto,
-                       HackathonEventCreateRequestDto,
-                       HackathonEventDto,
-                       HackathonEventUpdateRequestDto,
-                       HackathonSubmissionCreateRequestDto,
-                       HackathonSubmissionDto,
-                       HackathonSubmissionUpdateRequestDto,
-                       HackathonTimelineCreateRequestDto,
-                       HackathonTimelineDto,
-                       HackathonTimelineUpdateRequestDto,
-                       HackathonUpdateRequestDto,
-                       RegistrationRequestDto,
-                       RegistrationResponseDto,
-                       RegistrationListResponseDto,
-                       RegistrationListItemDto,
-                       UpdateRegistrationStatusRequestDto,
-                       UpdateRegistrationStatusResponseDto,
-                       CheckInResponseDto,
-                       RegistrationStatsDto,
-                       UserHackathonsResponseDto,
-                       UserHackathonDto,
-                       RegistrationStatus,
-                       ParticipantRole,
-                       NotificationDto,
-                       NotificationListResponseDto,
-                       MarkAsReadResponseDto,
-                       MarkAllAsReadResponseDto,
-                       DeleteNotificationResponseDto,
-                       UnreadCountResponseDto,
-                       ResponseSuccessDto<RegistrationResponseDto>,
-                       ResponseSuccessDto<RegistrationListResponseDto>,
-                       ResponseSuccessDto<UpdateRegistrationStatusResponseDto>,
-                       ResponseSuccessDto<CheckInResponseDto>,
-                       ResponseSuccessDto<RegistrationStatsDto>,
-                       ResponseSuccessDto<UserHackathonsResponseDto>,
-                       ResponseSuccessDto<NotificationListResponseDto>,
-                       ResponseSuccessDto<MarkAsReadResponseDto>,
-                       ResponseSuccessDto<MarkAllAsReadResponseDto>,
-                       ResponseSuccessDto<DeleteNotificationResponseDto>,
-                       ResponseSuccessDto<UnreadCountResponseDto>,
-                       ResponseListSuccessDto<Vec<HackathonDto>>,
-                       ResponseSuccessDto<HackathonDto>,
-                       ResponseListSuccessDto<Vec<HackathonEventDto>>,
-                       ResponseSuccessDto<HackathonEventDto>,
-                       ResponseListSuccessDto<Vec<HackathonSubmissionDto>>,
-                       ResponseSuccessDto<HackathonSubmissionDto>,
-                       ResponseListSuccessDto<Vec<HackathonTimelineDto>>,
-                       ResponseSuccessDto<HackathonTimelineDto>,
         )
     ),
     info(
@@ -331,13 +208,6 @@ use utoipa::{
         (name = "Mentors - Admin", description = "Mentor Admin Management Endpoints (Admin Access Required)"),
         (name = "sessions", description = "Mentoring Sessions Management API"),
         (name = "Gacha", description = "Gacha System Endpoints"),
-        (name = "Hackathons", description = "Hackathon Management Endpoints"),
-        (name = "Hackathon Events", description = "Hackathon Event Management Endpoints"),
-        (name = "Hackathon Timeline", description = "Hackathon Timeline Management Endpoints"),
-        (name = "Hackathon Submissions", description = "Hackathon Submission Management Endpoints"),
-        (name = "registrations", description = "Hackathon Registration Management API"),
-        (name = "notifications", description = "User Notifications Management API"),
-        (name = "Teams", description = "Team Management Endpoints"),
     )
 )]
     pub struct ApiDoc;

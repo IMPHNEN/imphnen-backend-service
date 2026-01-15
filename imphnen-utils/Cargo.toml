@@ -6,7 +6,6 @@ edition = "2024"
 [dependencies]
 imphnen-libs.workspace = true
 imphnen-entities.workspace = true
-surrealdb.workspace = true
 axum.workspace = true
 chrono.workspace = true
 rand.workspace = true
@@ -22,6 +21,7 @@ tracing.workspace = true
 base64.workspace = true
 sha2.workspace = true
 reqwest.workspace = true
-regex = "1.11"
+regex = "1.12"
 dotenvy = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
+sea-orm.workspace = true

@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-	use crate::{generate_unique_email, get_role_id, setup_all_test_environment, UsersRepository};
+	use crate::{generate_unique_email, get_role_id, setup_postgres_test_environment, UsersRepository};
 	use axum::{http::StatusCode, response::Response};
 	use imphnen_entities::{AppState, MetaRequestDto, ResponseSuccessDto, ResponseListSuccessDto};
 	use imphnen_gacha::{
@@ -9,8 +9,9 @@ mod tests {
 	};
 	use serde_json::json;
 	use imphnen_iam::users_service::UsersService;
-	use imphnen_utils::{generate_otp, hash_password, make_thing_from_enum, get_iso_date};
-	use surrealdb::Uuid;
+	use imphnen_utils::{generate_otp, hash_password, get_iso_date};
+	use sea_orm::EntityTrait;
+	use uuid::Uuid;
 
 	#[tokio::test]
 	async fn test_create_gacha_credits() {
@@ -34,7 +35,7 @@ mod tests {
 
 		// Test data
 		let gacha_credits_dto = GachaCreditsCreateRequestDto {
-			user_id: user.id.id.to_raw(),
+			user_id: user.id.to_string(),
 			amount: 100,
 			description: Some("Test Gacha Credits".to_string()),
 			transaction_id: Some("TXN-123456".to_string()),
@@ -77,7 +78,7 @@ mod tests {
 
 		// Create test gacha credits
 		let gacha_credits_dto = GachaCreditsCreateRequestDto {
-			user_id: user.id.id.to_raw(),
+			user_id: user.id.to_string(),
 			amount: 100,
 			description: Some("Test Gacha Credits List".to_string()),
 			transaction_id: Some("TXN-123456".to_string()),
@@ -150,7 +151,7 @@ mod tests {
 		};
 
 		let create_response = GachaCreditsController::create_gacha_credits(&app_state, gacha_credits_dto).await;
-		let gacha_credits = gacha_credits_repo.query_gacha_credits_by_user_id(user.id.id.to_raw(), false).await.unwrap();
+		let gacha_credits = gacha_credits_repo.query_gacha_credits_by_user_id(user.id.to_string(), false).await.unwrap();
 		let gacha_credits_id = gacha_credits.id.id.to_raw();
 
 		// Get gacha credits by ID
@@ -199,7 +200,7 @@ mod tests {
 
 		// Create test gacha credits
 		let gacha_credits_dto = GachaCreditsCreateRequestDto {
-			user_id: user.id.id.to_raw(),
+			user_id: user.id.to_string(),
 			amount: 100,
 			description: Some("Test Update Gacha Credits".to_string()),
 			transaction_id: Some("TXN-123456".to_string()),
@@ -207,7 +208,7 @@ mod tests {
 		};
 
 		let _ = GachaCreditsController::create_gacha_credits(&app_state, gacha_credits_dto).await;
-		let gacha_credits = gacha_credits_repo.query_gacha_credits_by_user_id(user.id.id.to_raw(), false).await.unwrap();
+		let gacha_credits = gacha_credits_repo.query_gacha_credits_by_user_id(user.id.to_string(), false).await.unwrap();
 		let gacha_credits_id = gacha_credits.id.id.to_raw();
 
 		// Prepare update request
@@ -262,7 +263,7 @@ mod tests {
 
 		// Create test gacha credits
 		let gacha_credits_dto = GachaCreditsCreateRequestDto {
-			user_id: user.id.id.to_raw(),
+			user_id: user.id.to_string(),
 			amount: 100,
 			description: Some("Test Delete Gacha Credits".to_string()),
 			transaction_id: Some("TXN-123456".to_string()),
@@ -270,7 +271,7 @@ mod tests {
 		};
 
 		let _ = GachaCreditsController::create_gacha_credits(&app_state, gacha_credits_dto).await;
-		let gacha_credits = gacha_credits_repo.query_gacha_credits_by_user_id(user.id.id.to_raw(), false).await.unwrap();
+		let gacha_credits = gacha_credits_repo.query_gacha_credits_by_user_id(user.id.to_string(), false).await.unwrap();
 		let gacha_credits_id = gacha_credits.id.id.to_raw();
 
 		// Delete gacha credits

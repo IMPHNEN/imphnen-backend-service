@@ -27,7 +27,7 @@ mod tests {
 
 		// Create test roll
 		let roll_dto = GachaRollRequestDto {
-			item_id: item.id.id.to_raw(),
+			item_id: item.id.clone(),
 			weight: 1.0,
 			quantity: 10,
 		};
@@ -35,7 +35,7 @@ mod tests {
 		let roll = roll_repo.query_all_active_rolls().await.unwrap().into_iter().find(|r| r.item.name == "Test Item").unwrap();
 
 		// Test get by id
-		let response = GachaRollService::get_gacha_roll_by_id(&app_state, roll.id.id.to_raw()).await;
+		let response = GachaRollService::get_gacha_roll_by_id(&app_state, roll.id.clone()).await;
 
 		// Verify response (status + body)
 		assert_eq!(response.status(), StatusCode::OK);
@@ -44,7 +44,7 @@ mod tests {
 		assert_eq!(data["item"]["name"].as_str().unwrap(), "Test Item");
 
 		// Clean up
-		let _ = roll_repo.query_soft_delete_gacha_roll(roll.id.id.to_raw()).await;
+		let _ = roll_repo.query_soft_delete_gacha_roll(roll.id.clone()).await;
 	}
 
 	#[tokio::test]
@@ -75,7 +75,7 @@ mod tests {
 
 		// Test data
 		let roll_dto = GachaRollRequestDto {
-			item_id: item.id.id.to_raw(),
+			item_id: item.id.clone(),
 			weight: 1.0,
 			quantity: 10,
 		};
@@ -97,7 +97,7 @@ mod tests {
 
 		// Clean up
 		for roll in rolls {
-			let _ = roll_repo.query_soft_delete_gacha_roll(roll.id.id.to_raw()).await;
+			let _ = roll_repo.query_soft_delete_gacha_roll(roll.id.clone()).await;
 		}
 	}
 
@@ -135,7 +135,7 @@ mod tests {
 
 		// Test with quantity = 0
 		let roll_dto = GachaRollRequestDto {
-			item_id: item.id.id.to_raw(),
+			item_id: item.id.clone(),
 			weight: 1.0,
 			quantity: 0,
 		};
@@ -178,7 +178,7 @@ mod tests {
 		let rolls = roll_repo.query_all_active_rolls().await.unwrap();
 		let item = rolls.iter().find(|r| r.item.name == "Test Item Roll").unwrap().item.clone();
 		let roll_dto = GachaRollRequestDto {
-			item_id: item.id.id.to_raw(),
+			item_id: item.id.clone(),
 			weight: 1.0,
 			quantity: 10,
 		};
@@ -186,10 +186,10 @@ mod tests {
 
 	// Create auth header
 	let mut headers = HeaderMap::new();
-	headers.insert("Authorization", format!("Bearer {}", email).parse().unwrap());
+	headers.insert("Authorization", format!("Bearer {email}").parse().unwrap());
 
 	// Execute roll once
-		let response = GachaRollService::execute_roll_once(headers, &app_state).await;
+	let response = GachaRollService::execute_roll_once(headers, &app_state).await;
 
 		// Verify response (status + body)
 		assert_eq!(response.status(), StatusCode::OK);
@@ -197,10 +197,10 @@ mod tests {
 		assert!(v.get("data").is_some(), "expected data in OK response");
 
 		// Clean up
-		let _ = user_repo.query_delete_user(user.id.id.to_raw()).await;
+		let _ = user_repo.query_delete_user(user.id.clone()).await;
 		let rolls = roll_repo.query_all_active_rolls().await.unwrap();
 		for roll in rolls {
-			let _ = roll_repo.query_soft_delete_gacha_roll(roll.id.id.to_raw()).await;
+			let _ = roll_repo.query_soft_delete_gacha_roll(roll.id.clone()).await;
 		}
 	}
 
@@ -223,7 +223,7 @@ mod tests {
 
 	// Create auth header
 	let mut headers = HeaderMap::new();
-	headers.insert("Authorization", format!("Bearer {}", email).parse().unwrap());
+	headers.insert("Authorization", format!("Bearer {email}").parse().unwrap());
 
 	// Execute roll once with no active rolls
 		let response = GachaRollService::execute_roll_once(headers, &app_state).await;
@@ -235,7 +235,7 @@ mod tests {
 
 		// Clean up
 		let user = user_repo.query_user_by_email(email).await.unwrap();
-		let _ = user_repo.query_delete_user(user.id.id.to_raw()).await;
+		let _ = user_repo.query_delete_user(user.id.clone()).await;
 	}
 
 	#[tokio::test]
@@ -266,7 +266,7 @@ mod tests {
 		let rolls = roll_repo.query_all_active_rolls().await.unwrap();
 		let item = rolls.iter().find(|r| r.item.name == "Test Item Delete").unwrap().item.clone();
 		let roll_dto = GachaRollRequestDto {
-			item_id: item.id.id.to_raw(),
+			item_id: item.id.clone(),
 			weight: 1.0,
 			quantity: 10,
 		};
@@ -274,7 +274,7 @@ mod tests {
 		let roll = roll_repo.query_all_active_rolls().await.unwrap().into_iter().find(|r| r.item.name == "Test Item Delete").unwrap();
 
 		// Soft delete roll
-		let response = GachaRollService::soft_delete_gacha_roll(&app_state, roll.id.id.to_raw()).await;
+		let response = GachaRollService::soft_delete_gacha_roll(&app_state, roll.id.clone()).await;
 
 		// Verify response (status + body)
 		assert_eq!(response.status(), StatusCode::OK);
@@ -282,7 +282,7 @@ mod tests {
 		assert!(v.get("message").and_then(|m| m.as_str()).is_some() || v.get("data").is_some(), "expected message or data in OK response");
 
 		// Verify roll is deleted
-		let deleted_roll = roll_repo.query_gacha_roll_by_id(roll.id.id.to_raw()).await;
+		let deleted_roll = roll_repo.query_gacha_roll_by_id(roll.id.clone()).await;
 		assert!(deleted_roll.is_err());
 	}
 

@@ -3,7 +3,7 @@ use crate::{
 	AppState, MetaRequestDto, ResponseListSuccessDto, ResponseSuccessDto,
 	common_response, success_list_response, success_response, validate_request,
 };
-use imphnen_utils::success_created_response;
+use crate::success_created_response;
 use axum::{http::StatusCode, response::Response};
 
 pub struct RolesService;

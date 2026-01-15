@@ -7,12 +7,14 @@ use super::{
 };
 use axum::extract::{Path, Query};
 use axum::response::IntoResponse;
-use axum::{Extension, http::HeaderMap};
+use axum::{Extension, http::HeaderMap, http::StatusCode};
 use imphnen_libs::{
     AppState, MessageResponseDto, MetaRequestDto, ResponseListSuccessDto,
     ResponseSuccessDto, ValidatedJson,
 };
 use imphnen_iam::{PermissionsEnum, require_permissions};
+use imphnen_utils::common_response;
+use uuid::Uuid;
 
 #[utoipa::path(
     get,
@@ -53,7 +55,11 @@ pub async fn get_event_by_id(
 	Extension(state): Extension<AppState>,
 	Path(id): Path<String>,
 ) -> impl IntoResponse {
-	EventsService::get_event_by_id(&state, id).await
+	let parsed_id = match Uuid::parse_str(&id) {
+        Ok(uuid) => uuid,
+        Err(e) => return common_response(StatusCode::BAD_REQUEST, &format!("Invalid UUID format: {}", e)),
+    };
+	EventsService::get_event_by_id(&state, parsed_id).await
 }
 
 #[utoipa::path(
@@ -124,6 +130,10 @@ pub async fn delete_event(
     Path(id): Path<String>,
 ) -> impl IntoResponse {
     require_permissions!(headers, state, [PermissionsEnum::Administrator], {
-        EventsService::delete_event(&state, id).await
+        let parsed_id = match Uuid::parse_str(&id) {
+            Ok(uuid) => uuid,
+            Err(e) => return common_response(StatusCode::BAD_REQUEST, &format!("Invalid UUID format: {}", e)),
+        };
+        EventsService::delete_event(&state, parsed_id).await
     })
 }

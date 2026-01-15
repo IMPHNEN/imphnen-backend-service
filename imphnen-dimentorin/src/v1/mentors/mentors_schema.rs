@@ -1,11 +1,12 @@
 use super::{
 	MentorDetailQueryDto, MentorUpdateRequestDto,
-	MentoringLogistics, MentoringRate, ProfessionalProfile,
+	MentoringLogistics, ProfessionalProfile,
 };
-use imphnen_libs::ResourceEnum;
+use crate::v1::sessions::sessions_schema::Thing;
+use imphnen_entities::ResourceEnum;
 use imphnen_utils::{get_iso_date, make_thing};
 use serde::{Deserialize, Serialize};
-use surrealdb::{Uuid, sql::Thing};
+use uuid::Uuid;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MentorSchema {
@@ -25,7 +26,7 @@ pub struct MentorSchema {
 	pub preferred_mentee_level: Vec<String>,
 	pub preferred_mentoring_formats: Vec<String>,
 	pub availability_commitment: String,
-	pub mentoring_rate: MentoringRate,
+	pub mentoring_rate: f64,
 	pub status: String,
 	pub is_deleted: bool,
 	pub created_at: String,
@@ -53,11 +54,7 @@ impl Default for MentorSchema {
 			preferred_mentee_level: Vec::new(),
 			preferred_mentoring_formats: Vec::new(),
 			availability_commitment: String::new(),
-			mentoring_rate: MentoringRate {
-				amount: 0,
-				currency: "IDR".to_string(),
-				per_duration: "hour".to_string(),
-			},
+			mentoring_rate: 0.0,
 			status: "pending".to_string(),
 			is_deleted: false,
 			created_at: get_iso_date(),
@@ -89,11 +86,7 @@ impl MentorSchema {
 			preferred_mentee_level: mentoring_logistics.preferred_mentee_level,
 			preferred_mentoring_formats: mentoring_logistics.preferred_mentoring_formats,
 			availability_commitment: mentoring_logistics.availability_commitment,
-			mentoring_rate: MentoringRate {
-				amount: mentoring_logistics.mentoring_rate_amount,
-				currency: "IDR".to_string(),
-				per_duration: "hour".to_string(),
-			},
+			mentoring_rate: mentoring_logistics.mentoring_rate_amount as f64,
 			status: "pending".to_string(),
 			is_deleted: false,
 			created_at: get_iso_date(),
@@ -160,7 +153,7 @@ impl MentorSchema {
 			self.availability_commitment = val;
 		}
 		if let Some(val) = dto.mentoring_rate_amount {
-			self.mentoring_rate.amount = val;
+			self.mentoring_rate = val as f64;
 		}
 
 		self.updated_at = get_iso_date();

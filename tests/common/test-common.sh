@@ -18,7 +18,7 @@ export NC='\033[0m' # No Color
 # Base configuration
 export BASE_URL="${BASE_URL:-http://127.0.0.1:4099}"
 export TEST_USER_EMAIL="${TEST_USER_EMAIL:-admin@example.com}"
-export TEST_USER_PASSWORD="${TEST_USER_PASSWORD:-Admin@123}"
+export TEST_USER_PASSWORD="${TEST_USER_PASSWORD:-password}"
 
 # Global variables for auth
 export AUTH_TOKEN=""
@@ -160,10 +160,22 @@ test_api_endpoint() {
   local status_file=$(mktemp)
   
   # MSYS path conversion disabled via export at top of file
-  curl -s -X "$method" "${headers[@]}" -d "$body" "$BASE_URL$endpoint" \
-    -D "$status_file" -o "$temp_file"
+  curl -s -v -X "$method" "${headers[@]}" -d "$body" "$BASE_URL$endpoint" \
+    -D "$status_file" -o "$temp_file" 2> curl_debug.log
   
+  local curl_exit=$?
+  if [ $curl_exit -ne 0 ]; then
+    write_test_log "ERROR" "curl failed with exit code $curl_exit"
+    cat curl_debug.log
+  fi
+
   response_body=$(cat "$temp_file")
+  if [ ! -f "$status_file" ]; then
+     write_test_log "ERROR" "status_file not found"
+  else
+     # Debug: print first line of status file
+     head -n 1 "$status_file" > status_debug.log
+  fi
   http_status=$(head -n 1 "$status_file" | cut -d' ' -f2)
   
   rm -f "$temp_file" "$status_file"
@@ -238,9 +250,11 @@ get_auth_token() {
   local temp_file=$(mktemp)
   local status_file=$(mktemp)
   
+  local curl_debug_file=$(mktemp)
+
   # MSYS path conversion disabled via export at top of file
-  curl -s -X "POST" -H "Content-Type: application/json" -d "$login_data" "$BASE_URL/v1/auth/login" \
-    -D "$status_file" -o "$temp_file"
+  curl -s -v -X "POST" -H "Content-Type: application/json" -d "$login_data" "$BASE_URL/v1/auth/login" \
+    -D "$status_file" -o "$temp_file" 2> "$curl_debug_file"
   
   local response_body=$(cat "$temp_file")
   local http_status=$(head -n 1 "$status_file" | cut -d' ' -f2)
@@ -253,22 +267,46 @@ get_auth_token() {
       AUTH_USER_ID=$(echo "$response_body" | jq -r '.data.user.id // empty')
       if [[ -n "$AUTH_TOKEN" && "$AUTH_TOKEN" != "null" ]]; then
           write_test_log "SUCCESS" "Autentikasi berhasil"
+          
+          # Decode and print token payload
+          local token_payload=$(echo "$AUTH_TOKEN" | cut -d. -f2 | tr -d '\n' | sed 's/-/+/g; s/_/\//g')
+          # Add padding if needed
+          local pad=$(( 4 - ${#token_payload} % 4 ))
+          if [ $pad -ne 4 ]; then
+            token_payload="${token_payload}$(printf '%*s' $pad | tr ' ' '=')"
+          fi
+          local decoded_payload=$(echo "$token_payload" | base64 -d 2>/dev/null)
+          write_test_log "SUCCESS" "Token Payload: $decoded_payload"
+          
           ((PASS_COUNT++))
       else
           write_test_log "ERROR" "Autentikasi gagal - token tidak ditemukan dalam response"
           AUTH_TOKEN=""
           ((FAIL_COUNT++))
+          write_test_log "ERROR" "Curl Debug Output:"
+          cat "$curl_debug_file"
+          write_test_log "ERROR" "Response Body:"
+          echo "$response_body"
       fi
     else
       write_test_log "ERROR" "Autentikasi gagal - response bukan JSON valid"
       AUTH_TOKEN=""
       ((FAIL_COUNT++))
+      write_test_log "ERROR" "Curl Debug Output:"
+      cat "$curl_debug_file"
+      write_test_log "ERROR" "Response Body:"
+      echo "$response_body"
     fi
   else
     write_test_log "ERROR" "Login gagal dengan status: $http_status"
     AUTH_TOKEN=""
     ((FAIL_COUNT++))
+    write_test_log "ERROR" "Curl Debug Output:"
+    cat "$curl_debug_file"
+    write_test_log "ERROR" "Response Body:"
+    echo "$response_body"
   fi
+  rm -f "$curl_debug_file" # Clean up debug file
 }
 
 print_test_summary() {

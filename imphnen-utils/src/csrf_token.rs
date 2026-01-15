@@ -51,7 +51,7 @@ pub fn generate_csrf_token(secret: &str) -> Result<String, Error> {
     hasher.update(secret.as_bytes());
     let signature = URL_SAFE_NO_PAD.encode(hasher.finalize());
 
-    Ok(format!("{}.{}", payload_b64, signature))
+    Ok(format!("{payload_b64}.{signature}"))
 }
 
 /// Generate a signed OAuth CSRF token with PKCE verifier
@@ -83,7 +83,7 @@ pub fn generate_oauth_csrf_token(secret: &str, pkce_verifier: &str) -> Result<St
     hasher.update(secret.as_bytes());
     let signature = URL_SAFE_NO_PAD.encode(hasher.finalize());
 
-    Ok(format!("{}.{}", payload_b64, signature))
+    Ok(format!("{payload_b64}.{signature}"))
 }
 
 /// Validate a CSRF token

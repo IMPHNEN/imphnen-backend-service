@@ -51,7 +51,7 @@ mod tests {
 		// Clean up
 		let items = item_repo.query_gacha_item_list(MetaRequestDto::default()).await.unwrap().data;
 		for item in items {
-			let _ = item_repo.query_delete_gacha_item(item.id.id.to_raw()).await;
+			let _ = item_repo.query_delete_gacha_item(item.id.clone()).await;
 		}
 	}
 
@@ -69,7 +69,7 @@ mod tests {
 		let item = item_repo.query_gacha_item_list(MetaRequestDto::default()).await.unwrap().data.into_iter().find(|i| i.name == "Test Item By ID").unwrap();
 
 		// Get item by id
-		let response = GachaItemService::get_gacha_item_by_id(&app_state, item.id.id.to_raw()).await;
+		let response = GachaItemService::get_gacha_item_by_id(&app_state, item.id.clone()).await;
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
@@ -85,7 +85,7 @@ mod tests {
 		assert!(response_body.data.updated_at.is_some(), "GachaItemDto.updated_at should be present");
 
 		// Clean up
-		let _ = item_repo.query_delete_gacha_item(item.id.id.to_raw()).await;
+		let _ = item_repo.query_delete_gacha_item(item.id.clone()).await;
 	}
 
 	#[tokio::test]
@@ -130,7 +130,7 @@ mod tests {
 
 		// Clean up
 		for item in items {
-			let _ = item_repo.query_delete_gacha_item(item.id.id.to_raw()).await;
+			let _ = item_repo.query_delete_gacha_item(item.id.clone()).await;
 		}
 	}
 
@@ -193,7 +193,7 @@ mod tests {
 			image_url: Some("https://example.com/updated.png".to_string()),
 		};
 
-		let response = GachaItemService::update_gacha_item(&app_state, update_dto, item.id.id.to_raw()).await;
+		let response = GachaItemService::update_gacha_item(&app_state, update_dto, item.id.clone()).await;
 
 		// Verify response
 		assert_eq!(response.status(), StatusCode::OK);
@@ -210,11 +210,11 @@ mod tests {
 		assert!(response_body.data.updated_at.is_some(), "GachaItemDto.updated_at should be present");
 
 		// Verify item was updated
-		let updated_item = item_repo.query_gacha_item_by_id(item.id.id.to_raw()).await.unwrap();
+		let updated_item = item_repo.query_gacha_item_by_id(item.id.clone()).await.unwrap();
 		assert_eq!(updated_item.name, "Updated Test Item");
 
 		// Clean up
-		let _ = item_repo.query_delete_gacha_item(item.id.id.to_raw()).await;
+		let _ = item_repo.query_delete_gacha_item(item.id.clone()).await;
 	}
 
 	#[tokio::test]

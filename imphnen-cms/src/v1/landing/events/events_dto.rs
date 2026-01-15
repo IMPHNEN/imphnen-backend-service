@@ -1,16 +1,14 @@
 use chrono::{DateTime, Utc};
-use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::Thing;
+use std::sync::LazyLock;
 use utoipa::ToSchema;
 use validator::{Validate, ValidationError};
 
 // Custom URL validator that ensures valid HTTP/HTTPS URLs
+static VALID_URL_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^https?://[^\s$.?#].[^\s]*$").unwrap());
+
 pub fn validate_url(url: &str) -> Result<(), ValidationError> {
-	lazy_static! {
-		static ref VALID_URL_REGEX: Regex = Regex::new(r"^https?://[^\s$.?#].[^\s]*$").unwrap();
-	}
 	if VALID_URL_REGEX.is_match(url) {
 		Ok(())
 	} else {
@@ -121,7 +119,7 @@ pub struct EventsDetailItemDto {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EventsQueryDto {
-	pub id: Thing,
+	pub id: String,
 	pub name: String,
 	pub description: String,
 	pub detail_link: String,
@@ -138,7 +136,7 @@ pub struct EventsQueryDto {
 impl EventsQueryDto {
 	pub fn from(self) -> EventsListItemDto {
 		EventsListItemDto {
-			id: self.id.id.to_raw(),
+			id: self.id,
 			name: self.name,
 			description: self.description,
 			detail_link: self.detail_link,

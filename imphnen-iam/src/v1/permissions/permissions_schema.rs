@@ -1,13 +1,11 @@
-use crate::ResourceEnum;
-use imphnen_utils::make_thing_from_enum;
 use serde::{Deserialize, Serialize};
-use surrealdb::{Uuid, sql::Thing};
+use uuid::Uuid;
 
 use imphnen_entities::{PermissionsItemDto, PermissionsQueryDto};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PermissionsSchema {
-	pub id: Thing,
+	pub id: Uuid,
 	pub name: String,
 	pub is_deleted: bool,
 	pub created_at: Option<String>,
@@ -17,10 +15,7 @@ pub struct PermissionsSchema {
 impl Default for PermissionsSchema {
 	fn default() -> Self {
 		Self {
-			id: make_thing_from_enum(
-				ResourceEnum::Permissions,
-				&Uuid::new_v4().to_string(),
-			),
+			id: Uuid::new_v4(),
 			name: String::new(),
 			is_deleted: false,
 			created_at: None,
@@ -32,7 +27,7 @@ impl Default for PermissionsSchema {
 impl PermissionsSchema {
 	pub fn list(&self) -> PermissionsItemDto {
 		PermissionsItemDto {
-			id: self.id.id.to_raw(),
+			id: self.to_string(),
 			name: self.name.clone(),
 			created_at: self.created_at.clone(),
 			updated_at: self.updated_at.clone(),
@@ -41,11 +36,17 @@ impl PermissionsSchema {
 
 	pub fn from(dto: PermissionsQueryDto) -> Self {
 		Self {
-			id: dto.id.unwrap_or_else(|| make_thing_from_enum(ResourceEnum::Permissions, "unknown")),
+			id: Uuid::parse_str(&dto.id.unwrap_or_default()).unwrap_or(Uuid::new_v4()),
 			name: dto.name.unwrap_or_default(),
 			is_deleted: false,
 			created_at: dto.created_at,
 			updated_at: dto.updated_at,
 		}
+	}
+}
+
+impl std::fmt::Display for PermissionsSchema {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "{}", self.id)
 	}
 }

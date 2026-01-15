@@ -44,6 +44,10 @@ pub async fn check_authenticated(
 /// ```rust
 /// use imphnen_iam::require_permissions;
 /// use imphnen_entities::PermissionsEnum;
+/// use axum::{extract::Query, http::HeaderMap, response::Response, Extension};
+/// use imphnen_iam::AppState;
+/// use imphnen_entities::MetaRequestDto;
+/// use imphnen_iam::v1::users::users_service::{UsersService, UsersServiceTrait};
 ///
 /// pub async fn get_user_list(
 ///     headers: HeaderMap,
@@ -94,22 +98,4 @@ macro_rules! require_auth {
     };
 }
 
-/// Macro for handlers that need access to the authenticated user
-#[macro_export]
-macro_rules! with_user {
-    ($headers:expr, $state:expr, [$($perm:expr),*], |$user:ident, $state_var:ident| $body:block) => {
-        {
-            let state_clone = $state.clone();
-            match $crate::permissions_guard(
-                $headers,
-                axum::extract::Extension(state_clone),
-                vec![$($perm),*],
-            )
-            .await
-            {
-                Ok(($user, $state_var)) => $body,
-                Err(response) => response,
-            }
-        }
-    };
-}
+

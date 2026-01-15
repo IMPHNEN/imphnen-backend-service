@@ -1,11 +1,9 @@
 use std::fmt;
 use uuid::Uuid;
-use strum_macros::EnumIter;
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::Thing;
 use utoipa::ToSchema;
 
-#[derive(Debug, Clone, PartialEq, Eq, EnumIter)]
+#[derive(Debug, Clone, PartialEq, Eq, strum::EnumIter)]
 pub enum PermissionsEnum {
 	// User permissions
 	ReadListUsers,
@@ -29,15 +27,10 @@ pub enum PermissionsEnum {
 	DeletePermissions,
 	UpdatePermissions,
 
-	// Team permissions
-	ReadListTeams,
-	ReadDetailTeams,
-
 	// Administrator permissions
 	ManageAllUsers,
 	ManageAllRoles,
 	ManageAllPermissions,
-	ManageAllTeams,
 	ViewAllSensitiveData,
 	AccessAdminDashboard,
 	Administrator,
@@ -92,10 +85,6 @@ impl fmt::Display for PermissionsEnum {
 			PermissionsEnum::DeletePermissions => "Delete Permissions",
 			PermissionsEnum::UpdatePermissions => "Update Permissions",
 
-			// Team permissions
-			PermissionsEnum::ReadListTeams => "Read List Teams",
-			PermissionsEnum::ReadDetailTeams => "Read Detail Teams",
-
 			// Gacha permissions
 			PermissionsEnum::CreateGachaClaims => "Create Gacha Claims",
 			PermissionsEnum::ReadDetailGachaClaims => "Read Detail Gacha Claims",
@@ -124,7 +113,6 @@ impl fmt::Display for PermissionsEnum {
 			PermissionsEnum::ManageAllUsers => "Manage All Users",
 			PermissionsEnum::ManageAllRoles => "Manage All Roles",
 			PermissionsEnum::ManageAllPermissions => "Manage All Permissions",
-			PermissionsEnum::ManageAllTeams => "Manage All Teams",
 			PermissionsEnum::ViewAllSensitiveData => "View All Sensitive Data",
 			PermissionsEnum::AccessAdminDashboard => "Access Admin Dashboard",
 			PermissionsEnum::Administrator => "Administrator",
@@ -158,10 +146,6 @@ impl PermissionsEnum {
 			PermissionsEnum::DeletePermissions => "b2dc3928-86ba-4c59-a03d-0b57d5183ebc".to_string(),
 			PermissionsEnum::UpdatePermissions => "299cb4d5-6556-4cc9-b6c1-32e6d31e0f9b".to_string(),
 
-			// Team permissions
-			PermissionsEnum::ReadListTeams => "e1f23456-7890-1234-5678-90abcdef1234".to_string(),
-			PermissionsEnum::ReadDetailTeams => "f2345678-8901-2345-6789-01bcdef23456".to_string(),
-
 			// Gacha permissions
 			PermissionsEnum::CreateGachaClaims => "f41d53ce-4f88-4bb6-b9b4-5e3a8c38d962".to_string(),
 			PermissionsEnum::ReadDetailGachaClaims => "c1c3d6c2-19fb-4b70-b58c-c19f2e8cfc79".to_string(),
@@ -190,7 +174,6 @@ impl PermissionsEnum {
 			PermissionsEnum::ManageAllUsers => "d0e1f2a3-4567-8901-2345-0123456789ab".to_string(),
 			PermissionsEnum::ManageAllRoles => "e1f2a3b4-5678-9012-3456-1234567890ab".to_string(),
 			PermissionsEnum::ManageAllPermissions => "f2a3b4c5-6789-0123-4567-2345678901ab".to_string(),
-			PermissionsEnum::ManageAllTeams => "a3b4c5d6-7890-1234-5678-3456789012ab".to_string(),
 			PermissionsEnum::ViewAllSensitiveData => "b4c5d6e7-8901-2345-6789-4567890123ab".to_string(),
 			PermissionsEnum::AccessAdminDashboard => "c5d6e7f8-9012-3456-7890-5678901234ab".to_string(),
 			PermissionsEnum::Administrator => "d6e7f8a9-0123-4567-8901-6789012345ab".to_string(),
@@ -227,10 +210,6 @@ impl PermissionsEnum {
 			PermissionsEnum::DeletePermissions,
 			PermissionsEnum::UpdatePermissions,
 
-			// Team permissions
-			PermissionsEnum::ReadListTeams,
-			PermissionsEnum::ReadDetailTeams,
-
 			// Gacha permissions
 			PermissionsEnum::CreateGachaClaims,
 			PermissionsEnum::ReadDetailGachaClaims,
@@ -259,7 +238,6 @@ impl PermissionsEnum {
 			PermissionsEnum::ManageAllUsers,
 			PermissionsEnum::ManageAllRoles,
 			PermissionsEnum::ManageAllPermissions,
-			PermissionsEnum::ManageAllTeams,
 			PermissionsEnum::ViewAllSensitiveData,
 			PermissionsEnum::AccessAdminDashboard,
 			PermissionsEnum::Administrator,
@@ -278,7 +256,7 @@ pub struct PermissionsItemDto {
 impl PermissionsItemDto {
 	pub fn from(dto: &PermissionsQueryDto) -> Self {
 		Self {
-			id: dto.id.as_ref().map(|id| id.id.to_raw()).unwrap_or_default(),
+			id: dto.id.clone().unwrap_or_default(),
 			name: dto.name.clone().unwrap_or_default(),
 			created_at: dto.created_at.clone(),
 			updated_at: dto.updated_at.clone(),
@@ -288,7 +266,7 @@ impl PermissionsItemDto {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PermissionsQueryDto {
-	pub id: Option<Thing>,
+	pub id: Option<String>,
 	pub name: Option<String>,
 	pub created_at: Option<String>,
 	pub updated_at: Option<String>,

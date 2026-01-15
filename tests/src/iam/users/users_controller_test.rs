@@ -82,6 +82,6 @@ mod tests {
 		assert_eq!(db_user.is_active, true);
 
 		// Clean up
-		let _ = repo.query_delete_user(db_user.id.id.to_raw()).await;
+		let _ = repo.query_delete_user(db_user.id.clone()).await;
 	}
 }

@@ -1,18 +1,18 @@
 use anyhow::Result;
 use imphnen_dimentorin::v1::mentors::{MentorSchema, MentoringRate, MentorsRepository};
-use surrealdb::sql::Thing;
 use imphnen_iam::v1::users::UsersRepository;
 use tests::{
     create_test_user, get_role_id, ResourceEnum, cleanup_db,
-    generate_unique_email, setup_all_test_environment,
+    generate_unique_email, setup_postgres_test_environment,
 };
-use surrealdb::Uuid;
+use sea_orm::{EntityTrait, ActiveModelTrait, Set};
+use uuid::Uuid;
 
 /// Helper to create a full-featured MentorSchema for tests
 fn create_full_mentor_schema(id: &str, user_id: &str, email: &str, legal_name: &str) -> MentorSchema {
     MentorSchema {
-        id: Thing::from(("app_mentors", id)),
-        user_id: Some(Thing::from(("app_users", user_id))),
+        id: Uuid::parse_str(id).unwrap(),
+        user_id: Some(Uuid::parse_str(user_id).unwrap()),
         email: Some(email.to_string()),
         legal_name: legal_name.to_string(),
         gender: Some("Laki-laki".to_string()),
@@ -50,8 +50,8 @@ fn create_full_mentor_schema(id: &str, user_id: &str, email: &str, legal_name: &
 
 #[tokio::test]
 async fn test_create_mentor() -> Result<()> {
-    cleanup_db().await; // Keep for now as setup_all_test_environment doesn't clean up
-    let app_state = setup_all_test_environment().await;
+    cleanup_db().await; // Keep for now as setup_postgres_test_environment doesn't clean up
+    let app_state = setup_postgres_test_environment().await;
     let repo = MentorsRepository::new(&app_state);
 
     let id = Uuid::new_v4().to_string();
@@ -59,9 +59,9 @@ async fn test_create_mentor() -> Result<()> {
 
     let user_repo = UsersRepository::new(&app_state);
     let mut user = create_test_user(&email, "Mentor User", true, &get_role_id(&app_state).await);
-    user.id = Thing::from(("app_users", id.as_str()));
+    user.id = Uuid::parse_str(id.as_str()).unwrap();
     user.email = email.to_string();
-    user.mentor_id = Some(Thing::from(("app_mentors", id.as_str())));
+    user.mentor_id = Some(id.parse::<Uuid>().unwrap());
     let create_result = user_repo.query_create_user(user.clone()).await;
     assert!(create_result.is_ok(), "Failed to create user: {:?}", create_result.err());
 
@@ -69,13 +69,12 @@ async fn test_create_mentor() -> Result<()> {
     let create_res = repo.query_create_mentor(mentor.clone()).await;
     assert!(create_res.is_ok(), "Failed to create mentor: {:?}", create_res.err());
 
-    let thing_id = Thing::from((ResourceEnum::Mentors.to_string().as_str(), id.as_str()));
-    let mentor_fetched = repo.query_mentor_by_id(&thing_id, false).await;
+    let mentor_fetched = repo.query_mentor_by_id(&id, false).await;
     assert!(mentor_fetched.is_ok(), "Failed to fetch mentor after create: {:?}", mentor_fetched.err());
     let mentor_fetched = mentor_fetched.unwrap();
     assert_eq!(mentor_fetched.legal_name, "Mentor User");
     assert_eq!(mentor_fetched.status, "verified");
-    assert_eq!(mentor_fetched.user_id, Thing::from(("app_users", id.as_str())));
+    assert_eq!(mentor_fetched.user_id.unwrap(), Uuid::parse_str(id.as_str()).unwrap());
     Ok(())
 }
 
@@ -90,9 +89,9 @@ async fn test_get_all_mentors() -> Result<()> {
 
     let user_repo = UsersRepository::new(&app_state);
     let mut user = create_test_user(&email, "Test Mentor Get All User", true, &get_role_id(&app_state).await);
-    user.id = Thing::from(("app_users", id.as_str()));
+    user.id = Uuid::parse_str(id.as_str()).unwrap();
     user.email = email.to_string();
-    user.mentor_id = Some(Thing::from(("app_mentors", id.as_str())));
+    user.mentor_id = Some(id.parse::<Uuid>().unwrap());
     let create_user_res = user_repo.query_create_user(user.clone()).await;
     assert!(create_user_res.is_ok(), "Failed to create user for get_all test: {:?}", create_user_res.err());
 
@@ -121,9 +120,9 @@ async fn test_get_mentor_by_id() -> Result<()> {
 
     let user_repo = UsersRepository::new(&app_state);
     let mut user = create_test_user(&email, "Test Mentor Get By Id User", true, &get_role_id(&app_state).await);
-    user.id = Thing::from(("app_users", id.as_str()));
+    user.id = Uuid::parse_str(id.as_str()).unwrap();
     user.email = email.to_string();
-    user.mentor_id = Some(Thing::from(("app_mentors", id.as_str())));
+    user.mentor_id = Some(id.parse::<Uuid>().unwrap());
     let create_user_res = user_repo.query_create_user(user.clone()).await;
     assert!(create_user_res.is_ok(), "Failed to create user for get_by_id test: {:?}", create_user_res.err());
 
@@ -132,7 +131,7 @@ async fn test_get_mentor_by_id() -> Result<()> {
     assert!(create_res.is_ok(), "Failed to create mentor: {:?}", create_res.err());
 
     let mentor_res = repo
-        .query_mentor_by_id(&Thing::from((ResourceEnum::Mentors.to_string().as_str(), id.as_str())), false)
+        .query_mentor_by_id(&id, false)
         .await;
     assert!(mentor_res.is_ok(), "Failed to get mentor by id: {:?}", mentor_res.err());
     let mentor = mentor_res.unwrap();
@@ -143,7 +142,7 @@ async fn test_get_mentor_by_id() -> Result<()> {
 #[tokio::test]
 async fn test_update_mentor() -> Result<()> {
     cleanup_db().await;
-    let app_state = setup_all_test_environment().await;
+    let app_state = setup_postgres_test_environment().await;
     let repo = MentorsRepository::new(&app_state);
 
     let id = Uuid::new_v4().to_string();
@@ -151,9 +150,9 @@ async fn test_update_mentor() -> Result<()> {
 
     let user_repo = UsersRepository::new(&app_state);
     let mut user = create_test_user(&email, "Test Mentor Update User", true, &get_role_id(&app_state).await);
-    user.id = Thing::from(("app_users", id.as_str()));
+    user.id = Uuid::parse_str(id.as_str()).unwrap();
     user.email = email.to_string();
-    user.mentor_id = Some(Thing::from(("app_mentors", id.as_str())));
+    user.mentor_id = Some(id.parse::<Uuid>().unwrap());
     let create_user_res = user_repo.query_create_user(user.clone()).await;
     assert!(create_user_res.is_ok(), "Failed to create user for update test: {:?}", create_user_res.err());
 
@@ -173,8 +172,8 @@ async fn test_update_mentor() -> Result<()> {
     assert!(update_res.is_ok(), "Failed to update mentor: {:?}", update_res.err());
 
     let mentor_fetched = repo
-        .query_mentor_by_id(&Thing::from((ResourceEnum::Mentors.to_string().as_str(), id.as_str())), false)
-        .await;
+            .query_mentor_by_id(&id, false)
+            .await;
     assert!(mentor_fetched.is_ok(), "Failed to fetch mentor after update: {:?}", mentor_fetched.err());
     let mentor_fetched = mentor_fetched.unwrap();
     assert_eq!(mentor_fetched.legal_name, "Test Mentor Updated");
@@ -197,9 +196,9 @@ async fn test_delete_mentor() -> Result<()> {
 
     let user_repo = UsersRepository::new(&app_state);
     let mut user = create_test_user(&email, "Test Mentor Delete User", true, &get_role_id(&app_state).await);
-    user.id = Thing::from(("app_users", id.as_str()));
+    user.id = Uuid::parse_str(id.as_str()).unwrap();
     user.email = email.to_string();
-    user.mentor_id = Some(Thing::from(("app_mentors", id.as_str())));
+    user.mentor_id = Some(id.parse::<Uuid>().unwrap());
     let create_user_res = user_repo.query_create_user(user.clone()).await;
     assert!(create_user_res.is_ok(), "Failed to create user for delete test: {:?}", create_user_res.err());
 
@@ -210,8 +209,7 @@ async fn test_delete_mentor() -> Result<()> {
     let delete_res = repo.query_delete_mentor(id.clone()).await;
     assert!(delete_res.is_ok(), "Failed to delete mentor: {:?}", delete_res.err());
 
-    let thing_id = Thing::from((ResourceEnum::Mentors.to_string().as_str(), id.as_str()));
-    let mentor_fetched = repo.query_mentor_by_id(&thing_id, false).await;
+    let mentor_fetched = repo.query_mentor_by_id(&id, false).await;
     assert!(mentor_fetched.is_err(), "Mentor should not be found after soft delete");
     if let Some(err) = mentor_fetched.err() {
         assert!(
@@ -245,9 +243,9 @@ async fn test_get_by_user_email() -> Result<()> {
 
     let user_repo = UsersRepository::new(&app_state);
     let mut user = create_test_user(&user_email, "Test User By Email", true, &get_role_id(&app_state).await);
-    user.id = Thing::from(("app_users", id.as_str()));
+    user.id = Uuid::parse_str(id.as_str()).unwrap();
     user.email = user_email.clone();
-    user.mentor_id = Some(Thing::from(("app_mentors", id.as_str())));
+    user.mentor_id = Some(id.parse::<Uuid>().unwrap());
     let create_user_res = user_repo.query_create_user(user.clone()).await;
     assert!(create_user_res.is_ok(), "Failed to create user for get_by_user_email test: {:?}", create_user_res.err());
 
@@ -258,12 +256,12 @@ async fn test_get_by_user_email() -> Result<()> {
     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
 
     let mentor_detail = repo
-        .query_mentor_by_email(user_email.to_string(), false)
-        .await;
-    if mentor_detail.is_err() {
-        let mentor_by_id = repo
-            .query_mentor_by_id(&Thing::from(("app_mentors", id.as_str())), false)
+            .query_mentor_by_email(user_email.to_string(), false)
             .await;
+        if mentor_detail.is_err() {
+            let mentor_by_id = repo
+                .query_mentor_by_id(&id, false)
+                .await;
         assert!(
             mentor_by_id.is_ok(),
             "Failed to get mentor by user_id fallback: {:?}",
@@ -294,9 +292,9 @@ async fn test_create_mentor_with_duplicate_user_id() -> Result<()> {
 
     let user_repo = UsersRepository::new(&app_state);
     let mut user = create_test_user(&email, "Duplicate User", true, &get_role_id(&app_state).await);
-    user.id = Thing::from(("app_users", id.as_str()));
+    user.id = Uuid::parse_str(id.as_str()).unwrap();
     user.email = email.to_string();
-    user.mentor_id = Some(Thing::from(("app_mentors", id.as_str())));
+    user.mentor_id = Some(id.parse::<Uuid>().unwrap());
     let _ = user_repo.query_create_user(user.clone()).await;
 
     let mentor1 = create_full_mentor_schema(&id, &id, &email, "Mentor 1");
@@ -357,9 +355,9 @@ async fn test_create_mentor_with_invalid_data() -> Result<()> {
 
     let user_repo = UsersRepository::new(&app_state);
     let mut user = create_test_user(&email, "Invalid Mentor User", true, &get_role_id(&app_state).await);
-    user.id = Thing::from(("app_users", id.as_str()));
+    user.id = Uuid::parse_str(id.as_str()).unwrap();
     user.email = email.to_string();
-    user.mentor_id = Some(Thing::from(("app_mentors", id.as_str())));
+    user.mentor_id = Some(id.parse::<Uuid>().unwrap());
     let _ = user_repo.query_create_user(user.clone()).await;
 
     // Test with empty legal_name (required field)
@@ -393,9 +391,9 @@ async fn test_boundary_conditions_mentor() -> Result<()> {
 
     let user_repo = UsersRepository::new(&app_state);
     let mut user = create_test_user(&email, "Boundary Mentor User", true, &get_role_id(&app_state).await);
-    user.id = Thing::from(("app_users", id.as_str()));
+    user.id = Uuid::parse_str(id.as_str()).unwrap();
     user.email = email.to_string();
-    user.mentor_id = Some(Thing::from(("app_mentors", id.as_str())));
+    user.mentor_id = Some(id.parse::<Uuid>().unwrap());
     let _ = user_repo.query_create_user(user.clone()).await;
 
     // Test with zero years of experience
@@ -431,9 +429,9 @@ async fn test_get_mentor_with_deleted_flag() -> Result<()> {
 
     let user_repo = UsersRepository::new(&app_state);
     let mut user = create_test_user(&email, "Deleted Flag Mentor User", true, &get_role_id(&app_state).await);
-    user.id = Thing::from(("app_users", id.as_str()));
+    user.id = Uuid::parse_str(id.as_str()).unwrap();
     user.email = email.to_string();
-    user.mentor_id = Some(Thing::from(("app_mentors", id.as_str())));
+    user.mentor_id = Some(id.parse::<Uuid>().unwrap());
     let _ = user_repo.query_create_user(user.clone()).await;
 
     let mentor = create_full_mentor_schema(&id, &id, &email, "Deleted Flag Mentor");
@@ -443,11 +441,11 @@ async fn test_get_mentor_with_deleted_flag() -> Result<()> {
     let _ = repo.query_delete_mentor(id.clone()).await;
 
     // Try to get mentor without including deleted
-    let mentor_res = repo.query_mentor_by_id(&Thing::from(("app_mentors", id.as_str())), false).await;
+    let mentor_res = repo.query_mentor_by_id(&id, false).await;
     assert!(mentor_res.is_err(), "Should not find deleted mentor when include_deleted=false");
 
     // Try to get mentor including deleted
-    let mentor_res_incl = repo.query_mentor_by_id(&Thing::from(("app_mentors", id.as_str())), true).await;
+    let mentor_res_incl = repo.query_mentor_by_id(&id, true).await;
     assert!(mentor_res_incl.is_ok(), "Should find deleted mentor when include_deleted=true");
     let mentor_incl = mentor_res_incl.unwrap();
     assert_eq!(mentor_incl.is_deleted, true);
@@ -466,9 +464,9 @@ async fn test_update_mentor_with_invalid_data() -> Result<()> {
 
     let user_repo = UsersRepository::new(&app_state);
     let mut user = create_test_user(&email, "Update Invalid Mentor User", true, &get_role_id(&app_state).await);
-    user.id = Thing::from(("app_users", id.as_str()));
+    user.id = id.clone();
     user.email = email.to_string();
-    user.mentor_id = Some(Thing::from(("app_mentors", id.as_str())));
+    user.mentor_id = Some(id.parse::<Uuid>().unwrap());
     let _ = user_repo.query_create_user(user.clone()).await;
 
     let mentor = create_full_mentor_schema(&id, &id, &email, "Update Invalid Mentor");

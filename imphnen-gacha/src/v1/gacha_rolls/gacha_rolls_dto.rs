@@ -1,9 +1,8 @@
-use crate::v1::gacha_items::GachaItemDto;
-use crate::v1::gacha_items::gacha_items_schema::GachaItemSchema;
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::Thing;
 use utoipa::ToSchema;
 use validator::Validate;
+use crate::v1::gacha_items::GachaItemDto;
+use crate::v1::gacha_items::gacha_items_schema::GachaItemSchema;
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Validate)]
 pub struct GachaRollRequestDto {
@@ -31,7 +30,7 @@ pub struct GachaRollItemDto {
 impl GachaRollItemDto {
 	pub fn from(dto: &GachaRollQueryDto) -> Self {
 		Self {
-			id: dto.id.id.to_raw(),
+			id: dto.id.clone(),
 			// Handle case where item might be missing
 			item: match &dto.item {
 				Some(item) => GachaItemDto::from(item.clone()),
@@ -54,7 +53,7 @@ impl GachaRollItemDto {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GachaRollQueryDto {
-	pub id: Thing,
+	pub id: String,
 	// item can be missing in the DB (during partial queries); make optional to allow graceful handling
 	pub item: Option<GachaItemSchema>,
 	pub weight: f32,

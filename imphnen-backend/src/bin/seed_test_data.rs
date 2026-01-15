@@ -1,174 +1,76 @@
-use imphnen_cms::v1::landing::events::events_schema::EventsSchema;
-use imphnen_cms::v1::landing::testimonials::testimonials_schema::TestimonialsSchema;
-use imphnen_dimentorin::v1::mentors::mentors_schema::MentorSchema;
-use imphnen_dimentorin::v1::mentors::mentors_dto::MentoringRate;
-use imphnen_hackathon::v1::hackathon::hackathon_schema::{
-    HackathonSchema, HackathonEventsSchema, HackathonTimelineSchema,
-    HackathonStatus, HackathonEventType, HackathonPhase
-};
-use imphnen_utils::get_iso_date;
+#![allow(clippy::all)]
+
 use std::error::Error;
-use surrealdb::{opt::auth::Root, sql::Thing};
+use imphnen_libs::postgres::{PostgresConfig, PostgresConnection};
+use imphnen_entities::seaorm::common::events::ActiveModel as EventsActiveModel;
+use imphnen_entities::seaorm::common::testimonials::ActiveModel as TestimonialsActiveModel;
+use imphnen_entities::seaorm::auth::mentors::ActiveModel as MentorsActiveModel;
+use sea_orm::ActiveValue::Set;
+use sea_orm::ActiveModelTrait;
+use uuid::Uuid;
+use serde_json::json;
 use chrono::Utc;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let env = &imphnen_libs::environment::ENV;
-    use surrealdb::engine::any;
-    let db = any::connect(&env.surrealdb_url).await?;
-    db.signin(Root {
-        username: &env.surrealdb_username,
-        password: &env.surrealdb_password,
-    })
-    .await?;
-    db.use_ns(env.surrealdb_namespace.clone())
-        .use_db(env.surrealdb_dbname.clone())
-        .await?;
+    let config = PostgresConfig::from_env()?;
+    let pg_conn = PostgresConnection::new(config).await?;
+    let db = &pg_conn.conn;
 
     // Seed Events - handle existing data
-    let event = EventsSchema {
-        id: Thing::from(("app_events", "1")),
-        name: "Test Event".to_string(),
-        description: "Test event description".to_string(),
-        detail_link: "https://example.com/event".to_string(),
-        price: 50.0,
-        is_online: true,
-        start_date: get_iso_date(),
-        end_date: get_iso_date(),
-        location: None,
-        is_deleted: false,
-        created_at: get_iso_date(),
-        updated_at: get_iso_date(),
-    };
-    match db.create::<Option<EventsSchema>>(("app_events", "1"))
-        .content(event)
-        .await {
+    let uuid = Uuid::new_v4().to_string();
+    let mut event_model: EventsActiveModel = Default::default();
+    event_model.id = Set(Uuid::parse_str(&uuid)?);
+    event_model.name = Set("Test Event".to_string());
+    event_model.description = Set("Test event description".to_string());
+    event_model.detail_link = Set("https://example.com/event".to_string());
+    event_model.price = Set(50.0);
+    event_model.is_online = Set(true);
+    event_model.start_date = Set(Utc::now());
+    event_model.end_date = Set(Utc::now() + chrono::Duration::days(1));
+    event_model.location = Set(None);
+    event_model.is_deleted = Set(false);
+    match event_model.insert(db).await {
         Ok(_) => println!("✅ Inserted test event"),
-        Err(_) => println!("⚠️  Test event already exists, skipping"),
+        Err(_) => println!("⚠️  Test event already exists or could not be inserted, skipping"),
     };
 
     // Seed Testimonials - handle existing data
-    let testimonial = TestimonialsSchema {
-        id: Thing::from(("app_testimonials", "1")),
-        user: Thing::from(("app_users", "c3b1d6a8-8d4f-4b36-b789-2e532ec7a7b2")),
-        role: "Student".to_string(),
-        content: "This is a great platform!".to_string(),
-        is_deleted: false,
-        created_at: get_iso_date(),
-        updated_at: get_iso_date(),
-    };
-    match db.create::<Option<TestimonialsSchema>>(("app_testimonials", "1"))
-        .content(testimonial)
-        .await {
+    let mut testimonial_model: TestimonialsActiveModel = Default::default();
+    testimonial_model.id = Set(Uuid::parse_str("00000000-0000-0000-0000-000000000001")?);
+    testimonial_model.user_id = Set(Uuid::parse_str("c3b1d6a8-8d4f-4b36-b789-2e532ec7a7b2")?);
+    testimonial_model.role = Set("Student".to_string());
+    testimonial_model.content = Set("This is a great platform!".to_string());
+    testimonial_model.is_deleted = Set(false);
+    match testimonial_model.insert(db).await {
         Ok(_) => println!("✅ Inserted test testimonial"),
-        Err(_) => println!("⚠️  Test testimonial already exists, skipping"),
-    };
-
-    // Seed Hackathon - handle existing data
-    let hackathon = HackathonSchema {
-        id: Thing::from(("app_hackathons", "1")),
-        name: "Test Hackathon".to_string(),
-        description: "Test hackathon description".to_string(),
-        start_date: Utc::now() + chrono::Duration::days(30),
-        end_date: Utc::now() + chrono::Duration::days(37),
-        registration_deadline: Utc::now() + chrono::Duration::days(25),
-        max_participants: Some(100),
-        status: HackathonStatus::Draft,
-        theme: Some("Technology".to_string()),
-        rules: Some("Follow the rules".to_string()),
-        prizes: Some(vec![]),
-        previous_winners: Some(vec![]),
-        organizers: vec!["c3b1d6a8-8d4f-4b36-b789-2e532ec7a7b2".to_string()],
-        is_deleted: false,
-        created_at: Some(get_iso_date()),
-        updated_at: Some(get_iso_date()),
-    };
-    match db.create::<Option<HackathonSchema>>(("app_hackathons", "1"))
-        .content(hackathon)
-        .await {
-        Ok(_) => println!("✅ Inserted test hackathon"),
-        Err(_) => println!("⚠️  Test hackathon already exists, skipping"),
-    };
-
-    // Seed Hackathon Event
-    let hackathon_event = HackathonEventsSchema {
-        id: Thing::from(("app_hackathon_events", "test-event-001")),
-        hackathon_id: Thing::from(("app_hackathons", "1")),
-        title: "Test Event".to_string(),
-        description: Some("Test hackathon event description".to_string()),
-        event_type: HackathonEventType::Workshop,
-        start_time: Utc::now() + chrono::Duration::days(30),
-        end_time: Utc::now() + chrono::Duration::days(30) + chrono::Duration::hours(6),
-        location: Some("Online".to_string()),
-        virtual_link: None,
-        max_attendees: Some(50),
-        is_mandatory: false,
-        is_deleted: false,
-        created_at: Some(get_iso_date()),
-        updated_at: Some(get_iso_date()),
-    };
-    // Try to create hackathon event, skip if already exists
-    match db.create::<Option<HackathonEventsSchema>>(("app_hackathon_events", "test-event-001"))
-        .content(hackathon_event)
-        .await {
-        Ok(_) => println!("✅ Inserted test hackathon event"),
-        Err(_) => println!("⚠️  Test hackathon event already exists, skipping"),
-    };
-
-    // Seed Hackathon Timeline
-    let hackathon_timeline = HackathonTimelineSchema {
-        id: Thing::from(("app_hackathon_timeline", "test-timeline-001")),
-        hackathon_id: Thing::from(("app_hackathons", "1")),
-        phase: HackathonPhase::Registration,
-        title: "Test Timeline".to_string(),
-        description: Some("Test hackathon timeline description".to_string()),
-        start_date: Utc::now(),
-        end_date: Utc::now() + chrono::Duration::days(7),
-        is_active: true,
-        order: 1,
-        is_deleted: false,
-        created_at: Some(get_iso_date()),
-        updated_at: Some(get_iso_date()),
-    };
-    
-    // Try to create hackathon timeline, skip if already exists
-    match db.create::<Option<HackathonTimelineSchema>>(("app_hackathon_timeline", "test-timeline-001"))
-        .content(hackathon_timeline)
-        .await {
-        Ok(_) => println!("✅ Inserted test hackathon timeline"),
-        Err(_) => println!("⚠️  Test hackathon timeline already exists, skipping"),
+        Err(_) => println!("⚠️  Test testimonial already exists or could not be inserted, skipping"),
     };
 
     // Seed Mentor - handle existing data
-    let mentor = MentorSchema {
-        id: Thing::from(("app_mentors", "e6f78d23-83bf-5c2b-bcd4-001345678901")),
-        user_id: Some(Thing::from(("app_users", "e6f78d23-83bf-5c2b-bcd4-001345678901"))),
-        industries: vec!["Technology".to_string(), "Education".to_string()],
-        expertise: vec!["Software Development".to_string()],
-        languages: vec!["English".to_string(), "Indonesian".to_string()],
-        current_company: "Tech Corp".to_string(),
-        current_role: "Senior Engineer".to_string(),
-        years_of_experience: 5,
-        topics_of_interest: vec!["Rust".to_string(), "Web Development".to_string()],
-        preferred_mentee_level: vec!["Beginner".to_string()],
-        preferred_mentoring_formats: vec!["1:1".to_string(), "Group".to_string()],
-        availability_commitment: "Weekly".to_string(),
-        mentoring_rate: MentoringRate {
-            amount: 100,
-            currency: "IDR".to_string(),
-            per_duration: "hour".to_string(),
-        },
-        status: "active".to_string(),
-        is_deleted: false,
-        created_at: get_iso_date(),
-        updated_at: get_iso_date(),
-    };
-    match db.create::<Option<MentorSchema>>(("app_mentors", "e6f78d23-83bf-5c2b-bcd4-001345678901"))
-        .content(mentor)
-        .await {
-        Ok(_) => println!("✅ Inserted test mentor"),
-        Err(_) => println!("⚠️  Test mentor already exists, skipping"),
-    };
+    let mentor_id = Uuid::new_v4();
+    let mut mentor_model: MentorsActiveModel = Default::default();
+    mentor_model.id = Set(mentor_id);
+    // Use the admin user ID instead of a random one
+    mentor_model.user_id = Set(Uuid::parse_str("c3b1d6a8-8d4f-4b36-b789-2e532ec7a7b2")?);
+    mentor_model.industries = Set(Some(json!( ["Technology", "Education"] )));
+    mentor_model.expertise = Set(Some(json!( ["Software Development"] )));
+    mentor_model.languages = Set(Some(json!( ["English", "Indonesian"] )));
+    mentor_model.current_company = Set(Some("Tech Corp".to_string()));
+    mentor_model.current_role = Set(Some("Senior Engineer".to_string()));
+    mentor_model.years_of_experience = Set(Some(5));
+    mentor_model.topics_of_interest = Set(Some(json!( ["Rust", "Web Development"] )));
+    mentor_model.preferred_mentee_level = Set(Some("Beginner".to_string()));
+    mentor_model.preferred_mentoring_formats = Set(Some(json!( ["1:1", "Group"] )));
+    mentor_model.availability_commitment = Set(Some("Weekly".to_string()));
+    mentor_model.mentoring_rate = Set(Some(100.0));
+    mentor_model.status = Set(Some("active".to_string()));
+    mentor_model.is_deleted = Set(false);
+    mentor_model.created_at = Set(chrono::Utc::now());
+    mentor_model.updated_at = Set(chrono::Utc::now());
+    // Create mentor record via SeaORM active model
+    mentor_model.insert(db).await?;
+    println!("✅ Inserted test mentor via SeaORM");
 
     println!("✅ All test data seeded successfully");
     Ok(())

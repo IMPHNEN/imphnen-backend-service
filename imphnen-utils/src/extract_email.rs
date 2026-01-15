@@ -5,7 +5,7 @@
 //! validation methods.
 
 use tracing::{error, info};
-use crate::decode_access_token;
+use imphnen_libs::jsonwebtoken::decode_access_token;
 use axum::http::{HeaderMap, header::AUTHORIZATION};
 
 /// Extracts the email from the Authorization header, if present and valid.
@@ -89,7 +89,7 @@ async fn extract_email_from_google_token(token: &str) -> Option<String> {
     use serde_json::Value;
     
     let client = reqwest::Client::new();
-    let tokeninfo_url = format!("https://oauth2.googleapis.com/tokeninfo?access_token={}", token);
+    let tokeninfo_url = format!("https://oauth2.googleapis.com/tokeninfo?access_token={token}");
     
     match client.get(&tokeninfo_url).send().await {
         Ok(response) => {

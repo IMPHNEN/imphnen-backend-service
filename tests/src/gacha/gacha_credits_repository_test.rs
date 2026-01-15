@@ -1,16 +1,12 @@
 use imphnen_gacha::v1::gacha_credits::gacha_credits_repository::{self, GachaCreditsRepository};
-use surrealdb::engine::local::Mem;
-use surrealdb::Surreal;
-use surrealdb::opt::auth::Root;
+use sea_orm::{Database, DatabaseConnection, EntityTrait, MockDatabase};
 use std::sync::Arc;
+use uuid::Uuid;
 
 #[tokio::test]
 async fn test_credits_repository_crud_operations() {
-    // Setup in-memory SurrealDB for testing
-    let db = Surreal::new::<Mem>(()).await.unwrap();
-    db.signin(Root { username: "root", password: "root" }).await.unwrap();
-    db.use_ns("test").use_db("test").await.unwrap();
-    
+    // Setup in-memory SeaORM database for testing
+    let db = MockDatabase::new().await;
     let repo = gacha_credits_repository::GachaCreditsRepository::new(Arc::new(db));
 
     // Test initial balance (should be 0 for new user)
@@ -41,10 +37,7 @@ async fn test_credits_repository_crud_operations() {
 
 #[tokio::test]
 async fn test_credits_repository_error_cases() {
-    let db = Surreal::new::<Mem>(()).await.unwrap();
-    db.signin(Root { username: "root", password: "root" }).await.unwrap();
-    db.use_ns("test").use_db("test").await.unwrap();
-    
+    let db = MockDatabase::new().await;
     let repo = gacha_credits_repository::GachaCreditsRepository::new(Arc::new(db));
 
     // Test deduct more than available
@@ -65,10 +58,7 @@ async fn test_credits_repository_error_cases() {
 
 #[tokio::test]
 async fn test_credits_repository_edge_cases() {
-    let db = Surreal::new::<Mem>(()).await.unwrap();
-    db.signin(Root { username: "root", password: "root" }).await.unwrap();
-    db.use_ns("test").use_db("test").await.unwrap();
-    
+    let db = MockDatabase::new().await;
     let repo = gacha_credits_repository::GachaCreditsRepository::new(Arc::new(db));
 
     // Test add zero credits

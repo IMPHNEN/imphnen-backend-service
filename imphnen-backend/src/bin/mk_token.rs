@@ -1,3 +1,5 @@
+#![allow(clippy::all)]
+
 use imphnen_libs::jsonwebtoken::encode_access_token;
 use std::env;
 
