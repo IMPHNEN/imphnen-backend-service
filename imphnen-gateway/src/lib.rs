@@ -17,6 +17,7 @@ use imphnen_dimentorin::{
 };
 use imphnen_gacha::gacha_router;
 use imphnen_hackathon::{hackathon_router, HackathonConfig};
+use imphnen_qr::{qr_router, QrConfig};
 use imphnen_iam::{
     auth_public_routes,
     permissions_protected_routes,
@@ -45,6 +46,14 @@ pub async fn gateway_service(
     let db = state.postgres_connection.conn.clone();
     let state_arc = Arc::new(state.clone());
     let hackathon_config = Arc::new(HackathonConfig::from_env());
+    let qr_config = Arc::new(QrConfig::from_env());
+    let qr_pool = Arc::new(
+        sqlx::PgPool::connect(
+            &std::env::var("QR_DATABASE_URL").expect("QR_DATABASE_URL must be set"),
+        )
+        .await
+        .expect("Failed to connect to QR database"),
+    );
 
     let public_routes = Router::new()
         .merge(auth_public_routes(db.clone(), Arc::clone(&state_arc)).layer(from_fn(rate_limiting_middleware)))
@@ -68,6 +77,7 @@ pub async fn gateway_service(
             .route("/", get(Redirect::to("/docs")))
             .nest("/v1", public_routes.merge(protected_routes))
             .nest("/v1/hackathon", hackathon_router(db.clone(), hackathon_config))
+            .nest("/v1/qr", qr_router(qr_pool, qr_config))
             .merge(SwaggerUi::new("/docs").url("/openapi.json", docs_router()))
             .layer(cors_middleware())
             .layer(from_fn(security_headers_middleware))

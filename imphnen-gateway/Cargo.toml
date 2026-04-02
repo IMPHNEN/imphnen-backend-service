@@ -5,6 +5,8 @@ edition = "2024"
 
 [dependencies]
 imphnen-hackathon.workspace = true
+imphnen-qr.workspace = true
+sqlx.workspace = true
 imphnen-iam.workspace = true
 imphnen-libs.workspace = true
 imphnen-utils.workspace = true

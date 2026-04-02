@@ -11,6 +11,7 @@ members = [
   "imphnen-gacha",     # Game mechanics, depends on core services
   "imphnen-dimentorin",# Learning platform, depends on core services
   "imphnen-hackathon", # Hackathon feature, standalone with Supabase auth
+  "imphnen-qr",        # QR campaign overlay service
   "imphnen-gateway",   # API gateway, depends on all services
   "imphnen-backend",   # Main application, depends on all services
 ]
@@ -89,6 +90,10 @@ imphnen-dimentorin = { path = "./imphnen-dimentorin" }
 imphnen-middleware = { path = "./imphnen-middleware" }
 imphnen-macros = { path = "./imphnen-macros" }
 imphnen-hackathon = { path = "./imphnen-hackathon" }
+imphnen-qr = { path = "./imphnen-qr" }
+bcrypt = "0.15"
+image = { version = "0.25", features = ["png", "jpeg"] }
+qrcode = { version = "0.14", default-features = false, features = ["image"] }
 
 [profile.release]
 lto = "fat"
