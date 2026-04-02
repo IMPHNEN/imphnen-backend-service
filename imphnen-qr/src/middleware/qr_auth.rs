@@ -1,9 +1,10 @@
 use axum::{body::Body, extract::Request, middleware::Next, response::{IntoResponse, Response}};
 use axum::http::StatusCode;
+use sqlx::PgPool;
 use std::sync::Arc;
 use uuid::Uuid;
 use serde::{Deserialize, Serialize};
-use crate::common::qr_jwt::QrJwtService;
+use imphnen_libs::decode_access_token;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QrAuthUser {
@@ -12,7 +13,7 @@ pub struct QrAuthUser {
 }
 
 pub async fn qr_auth_middleware(
-    axum::Extension(jwt_service): axum::Extension<Arc<QrJwtService>>,
+    axum::Extension(pool): axum::Extension<Arc<PgPool>>,
     mut request: Request<Body>,
     next: Next,
 ) -> Result<Response, Response> {
@@ -26,14 +27,29 @@ pub async fn qr_auth_middleware(
         (StatusCode::UNAUTHORIZED, "Invalid Authorization header format").into_response()
     })?;
 
-    let claims = jwt_service.verify_token(token).map_err(|_| {
+    let token_data = decode_access_token(token).map_err(|_| {
         (StatusCode::UNAUTHORIZED, "Invalid or expired token").into_response()
     })?;
 
-    let user_id = Uuid::parse_str(&claims.sub).map_err(|_| {
+    let user_id = Uuid::parse_str(&token_data.claims.user_id).map_err(|_| {
         (StatusCode::UNAUTHORIZED, "Invalid user ID in token").into_response()
     })?;
 
-    request.extensions_mut().insert(QrAuthUser { user_id, role: claims.role });
+    let _ = sqlx::query(
+        "INSERT INTO users (id, email, name, role, provider) VALUES ($1, $2, $2, 'user', 'external') ON CONFLICT (id) DO NOTHING"
+    )
+    .bind(user_id)
+    .bind(&token_data.claims.sub)
+    .execute(pool.as_ref())
+    .await;
+
+    let role: String = sqlx::query_scalar("SELECT role FROM users WHERE id = $1")
+        .bind(user_id)
+        .fetch_optional(pool.as_ref())
+        .await
+        .unwrap_or(None)
+        .unwrap_or_else(|| "user".to_string());
+
+    request.extensions_mut().insert(QrAuthUser { user_id, role });
     Ok(next.run(request).await)
 }

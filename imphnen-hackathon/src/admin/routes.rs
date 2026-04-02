@@ -12,7 +12,6 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use imphnen_utils::{errors::AppError, response_format::{ApiSuccess, ApiMessage}};
 use crate::middleware::{admin_only::admin_only, hackathon_auth::hackathon_auth_middleware};
-use crate::common::hackathon_jwt::HackathonJwtService;
 
 #[derive(Deserialize)]
 struct PageQuery {
@@ -173,7 +172,7 @@ async fn admin_list_winners(
     Ok(ApiSuccess(rows).into_response())
 }
 
-pub fn hackathon_admin_routes(pool: Arc<PgPool>, jwt: Arc<HackathonJwtService>) -> Router {
+pub fn hackathon_admin_routes(pool: Arc<PgPool>) -> Router {
     Router::new()
         .route("/admin/users", get(admin_list_users))
         .route("/admin/users/:user_id", get(admin_get_user).delete(admin_delete_user))
@@ -185,7 +184,6 @@ pub fn hackathon_admin_routes(pool: Arc<PgPool>, jwt: Arc<HackathonJwtService>) 
         .route("/admin/winners/:team_id", delete(admin_remove_winner))
         .layer(Extension(pool.clone()))
         .layer(from_fn(admin_only))
-        .layer(Extension(jwt.clone()))
         .layer(Extension(pool))
         .layer(from_fn(hackathon_auth_middleware))
 }

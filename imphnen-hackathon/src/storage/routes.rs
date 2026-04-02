@@ -4,8 +4,7 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use imphnen_utils::{errors::AppError, response_format::ApiSuccess};
-use crate::common::hackathon_jwt::HackathonJwtService;
-use crate::common::supabase_client::SupabaseClient;
+use imphnen_libs::MinioService;
 use crate::middleware::hackathon_auth::{hackathon_auth_middleware, HackathonAuthUser};
 use super::service::StorageService;
 
@@ -57,15 +56,14 @@ async fn upload_submission_handler(
     Ok(ApiSuccess(UploadResponse { url }).into_response())
 }
 
-pub fn hackathon_storage_routes(pool: Arc<PgPool>, jwt: Arc<HackathonJwtService>, supabase: Arc<SupabaseClient>) -> Router {
-    let service = Arc::new(StorageService::new(supabase));
+pub fn hackathon_storage_routes(pool: Arc<PgPool>, minio: Arc<MinioService>) -> Router {
+    let service = Arc::new(StorageService::new(minio));
     Router::new()
         .route("/upload", post(upload_file_handler))
         .route("/upload/avatar", post(upload_avatar_handler))
         .route("/upload/team", post(upload_team_handler))
         .route("/upload/submission", post(upload_submission_handler))
         .layer(Extension(service))
-        .layer(Extension(jwt.clone()))
         .layer(Extension(pool))
         .layer(from_fn(hackathon_auth_middleware))
 }

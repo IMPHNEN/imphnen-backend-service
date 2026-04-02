@@ -7,7 +7,6 @@ use sqlx::PgPool;
 use std::sync::Arc;
 
 use crate::{
-    common::qr_jwt::QrJwtService,
     middleware::qr_auth::qr_auth_middleware,
     users::{
         application::user_service::QrUserServiceImpl,
@@ -22,7 +21,7 @@ use crate::{
     },
 };
 
-pub fn qr_users_routes(pool: Arc<PgPool>, jwt: Arc<QrJwtService>) -> Router {
+pub fn qr_users_routes(pool: Arc<PgPool>) -> Router {
     let repo: Arc<dyn UserRepository> = Arc::new(PostgresUserRepository::new(pool.clone()));
     let service: Arc<dyn QrUserService> = Arc::new(QrUserServiceImpl::new(repo));
 
@@ -32,7 +31,6 @@ pub fn qr_users_routes(pool: Arc<PgPool>, jwt: Arc<QrJwtService>) -> Router {
         .route("/users/:id/role", put(update_role_handler))
         .route("/users/:id", delete(delete_user_handler))
         .layer(Extension(service))
-        .layer(Extension(jwt.clone()))
         .layer(Extension(pool))
         .layer(from_fn(qr_auth_middleware))
 }

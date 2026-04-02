@@ -17,7 +17,8 @@ use imphnen_dimentorin::{
 };
 use imphnen_gacha::gacha_router;
 use imphnen_hackathon::{hackathon_router, HackathonConfig};
-use imphnen_qr::{qr_router, QrConfig};
+use imphnen_qr::qr_router;
+use imphnen_libs::{MinioConfig, create_minio_service_from_config};
 use imphnen_iam::{
     auth_public_routes,
     permissions_protected_routes,
@@ -46,7 +47,11 @@ pub async fn gateway_service(
     let db = state.postgres_connection.conn.clone();
     let state_arc = Arc::new(state.clone());
     let hackathon_config = Arc::new(HackathonConfig::from_env());
-    let qr_config = Arc::new(QrConfig::from_env());
+    let minio = Arc::new(
+        create_minio_service_from_config(MinioConfig::from_env().expect("MinIO config required"))
+            .await
+            .expect("Failed to create MinIO service"),
+    );
     let qr_pool = Arc::new(
         sqlx::PgPool::connect(
             &std::env::var("QR_DATABASE_URL").expect("QR_DATABASE_URL must be set"),
@@ -76,8 +81,8 @@ pub async fn gateway_service(
     Router::new()
             .route("/", get(Redirect::to("/docs")))
             .nest("/v1", public_routes.merge(protected_routes))
-            .nest("/v1/hackathon", hackathon_router(db.clone(), hackathon_config))
-            .nest("/v1/qr", qr_router(qr_pool, qr_config))
+            .nest("/v1/hackathon", hackathon_router(db.clone(), hackathon_config, minio))
+            .nest("/v1/qr", qr_router(qr_pool))
             .merge(SwaggerUi::new("/docs").url("/openapi.json", docs_router()))
             .layer(cors_middleware())
             .layer(from_fn(security_headers_middleware))

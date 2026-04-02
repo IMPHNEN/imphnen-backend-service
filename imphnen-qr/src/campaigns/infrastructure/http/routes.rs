@@ -18,11 +18,10 @@ use crate::{
             persistence::postgres_campaign_repository::PostgresCampaignRepository,
         },
     },
-    common::qr_jwt::QrJwtService,
     middleware::qr_auth::qr_auth_middleware,
 };
 
-pub fn qr_campaigns_routes(pool: Arc<PgPool>, jwt: Arc<QrJwtService>) -> Router {
+pub fn qr_campaigns_routes(pool: Arc<PgPool>) -> Router {
     let repo: Arc<dyn CampaignRepository> = Arc::new(PostgresCampaignRepository::new(pool.clone()));
     let service: Arc<dyn QrCampaignService> = Arc::new(QrCampaignServiceImpl::new(repo));
 
@@ -32,7 +31,6 @@ pub fn qr_campaigns_routes(pool: Arc<PgPool>, jwt: Arc<QrJwtService>) -> Router 
         .route("/campaigns/:id", delete(delete_campaign_handler))
         .route("/campaigns/process-image", post(process_image_handler))
         .layer(Extension(service))
-        .layer(Extension(jwt.clone()))
         .layer(Extension(pool))
         .layer(from_fn(qr_auth_middleware))
 }

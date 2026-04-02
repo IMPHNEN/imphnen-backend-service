@@ -4,11 +4,10 @@ use std::sync::Arc;
 use crate::teams::application::team_service::TeamServiceImpl;
 use crate::teams::domain::service::TeamService;
 use crate::teams::infrastructure::persistence::PostgresTeamRepository;
-use crate::common::hackathon_jwt::HackathonJwtService;
 use crate::middleware::hackathon_auth::hackathon_auth_middleware;
 use super::handlers::*;
 
-pub fn build_team_routes(pool: Arc<PgPool>, jwt: Arc<HackathonJwtService>) -> Router {
+pub fn build_team_routes(pool: Arc<PgPool>) -> Router {
     let repo = Arc::new(PostgresTeamRepository::new(pool.clone()));
     let service: Arc<dyn TeamService> = Arc::new(TeamServiceImpl::new(repo));
 
@@ -25,7 +24,6 @@ pub fn build_team_routes(pool: Arc<PgPool>, jwt: Arc<HackathonJwtService>) -> Ro
         .route("/teams/:team_id/members/:member_id", delete(remove_member_handler))
         .layer(Extension(service))
         .layer(Extension(pool.clone()))
-        .layer(Extension(jwt))
         .layer(from_fn(hackathon_auth_middleware));
 
     Router::new().merge(public).merge(protected)
