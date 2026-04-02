@@ -1,0 +1,73 @@
+name: Nix Build & Deploy
+
+on:
+  push:
+    branches: ['develop']
+  pull_request:
+    branches: ['develop']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Setup Cachix
+        uses: cachix/cachix-action@v15
+        with:
+          name: msdqn
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+
+      - name: Build
+        run: nix build .#default -o result
+
+      - name: Push to Cachix
+        if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+        run: cachix push msdqn result
+
+  deploy:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Setup SSH
+        env:
+          INFRA_DEPLOY_KEY: ${{ secrets.INFRA_DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "${INFRA_DEPLOY_KEY}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+          ssh-keyscan 167.235.70.37 >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Update infra flake.lock
+        run: |
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes"
+          git clone git@github.com:IMPHNEN/imphnen-infrastructure.git /tmp/infra
+          cd /tmp/infra
+          nix flake update imphnen-backend
+          if git diff --quiet flake.lock; then
+            echo "flake.lock unchanged, skipping"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add flake.lock
+            git commit -m "chore: update imphnen-backend-service to ${GITHUB_SHA::7}"
+            git push
+          fi
+
+      - name: Deploy to server
+        continue-on-error: true
+        run: |
+          ssh -i ~/.ssh/deploy_key -o ConnectTimeout=15 -o StrictHostKeyChecking=accept-new root@167.235.70.37 \
+            'nixos-rebuild switch --flake github:IMPHNEN/imphnen-infrastructure#hetzner --refresh 2>&1 | tail -30'
+
+      - name: Cleanup
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
