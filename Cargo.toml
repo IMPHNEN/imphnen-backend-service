@@ -10,6 +10,7 @@ members = [
   "imphnen-cms",       # Content management, depends on core services
   "imphnen-gacha",     # Game mechanics, depends on core services
   "imphnen-dimentorin",# Learning platform, depends on core services
+  "imphnen-hackathon", # Hackathon feature, standalone with Supabase auth
   "imphnen-gateway",   # API gateway, depends on all services
   "imphnen-backend",   # Main application, depends on all services
 ]
@@ -27,7 +28,7 @@ tokio = { version = "1.47.1", features = ["full"] }
 argon2 = { version = "0.5.3", features = ["password-hash"] }
 jsonwebtoken = "9.3.1"
 chrono = "0.4.41"
-utoipa = { version = "5.4.0", features = ["axum_extras"] }
+utoipa = { version = "5.4.0", features = ["axum_extras", "uuid", "chrono"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
 lettre = { version = "0.11.18", features = ["tokio1-native-tls"] }
 thiserror = "2.0.14"
@@ -63,6 +64,7 @@ hyper = "1.6.0"
 hyper-util = "0.1.16"
 minio = "0.3.0"
 sea-orm = { version = "1.1", features = ["sqlx-postgres", "runtime-tokio-native-tls", "macros", "with-chrono", "uuid"] }
+sqlx = { version = "0.8", features = ["postgres", "runtime-tokio-native-tls", "uuid", "chrono", "json", "macros"] }
 num_cpus = "1.16.0"
 
 
@@ -86,6 +88,7 @@ imphnen-entities = { path = "./imphnen-entities" }
 imphnen-dimentorin = { path = "./imphnen-dimentorin" }
 imphnen-middleware = { path = "./imphnen-middleware" }
 imphnen-macros = { path = "./imphnen-macros" }
+imphnen-hackathon = { path = "./imphnen-hackathon" }
 
 [profile.release]
 lto = "fat"

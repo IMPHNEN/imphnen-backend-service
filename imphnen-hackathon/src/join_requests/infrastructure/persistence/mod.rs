@@ -1,0 +1,2 @@
+pub mod postgres_join_request_repository;
+pub use postgres_join_request_repository::PostgresJoinRequestRepository;

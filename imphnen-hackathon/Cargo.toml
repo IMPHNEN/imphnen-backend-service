@@ -1,0 +1,25 @@
+[package]
+name = "imphnen-hackathon"
+version = "0.2.0"
+edition = "2024"
+
+[dependencies]
+imphnen-utils.workspace = true
+imphnen-libs.workspace = true
+axum.workspace = true
+axum-extra.workspace = true
+sea-orm.workspace = true
+sqlx.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+utoipa.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+tokio.workspace = true
+reqwest.workspace = true
+lettre.workspace = true
+base64.workspace = true
+jsonwebtoken.workspace = true
+tracing.workspace = true
+thiserror.workspace = true

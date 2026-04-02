@@ -1,0 +1,2 @@
+pub mod postgres_invitation_repository;
+pub use postgres_invitation_repository::PostgresInvitationRepository;

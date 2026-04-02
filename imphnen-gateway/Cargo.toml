@@ -4,6 +4,7 @@ version = "0.2.0"
 edition = "2024"
 
 [dependencies]
+imphnen-hackathon.workspace = true
 imphnen-iam.workspace = true
 imphnen-libs.workspace = true
 imphnen-utils.workspace = true
