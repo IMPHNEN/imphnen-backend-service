@@ -1,6 +1,3 @@
-//! SeaORM entity definitions for Imphenia backend
-//! Provides PostgreSQL-compatible entity definitions corresponding to SurrealDB ResourceEnum
-
 pub mod auth;
 pub mod gacha;
 pub mod common;
@@ -8,7 +5,6 @@ pub mod relationships;
 pub mod schema_validation;
 pub mod examples;
 
-// Re-export specific items from modules for better API clarity
 pub use auth::{
     users, mentors, roles, permissions, roles_permissions, sessions
 };
@@ -23,25 +19,18 @@ pub use relationships;
 pub use schema_validation;
 pub use examples;
 
-/// Initialize the SeaORM entity system
-/// Should be called once at application startup
 pub fn initialize() -> Result<(), String> {
-    // Perform schema validation on initialization
     validate_schema_equivalence()?;
-    
-    // Initialize any global utilities or configurations
+
     common::utils::initialize_utils();
-    
+
     Ok(())
 }
 
-/// Get the table name for a given ResourceEnum
-/// Provides a consistent way to access table names across the application
 pub fn get_table_name(resource: &common::enums::ResourceEnum) -> &str {
     resource.as_str()
 }
 
-/// Get the schema name for all entities (default: "public")
 pub fn get_schema_name() -> &str {
     "public"
 }
@@ -65,7 +54,6 @@ mod tests {
 
     #[test]
     fn test_initialize() {
-        // This should not panic and should return Ok(())
         let result = initialize();
         assert!(result.is_ok());
     }

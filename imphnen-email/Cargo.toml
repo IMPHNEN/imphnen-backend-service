@@ -1,0 +1,9 @@
+[package]
+name = "imphnen-email"
+version = "0.3.0"
+edition = "2024"
+
+[dependencies]
+imphnen-libs.workspace = true
+lettre.workspace = true
+tracing.workspace = true

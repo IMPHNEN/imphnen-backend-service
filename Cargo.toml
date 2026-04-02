@@ -1,19 +1,20 @@
 [workspace]
 resolver = "2"
 members = [
-  "imphnen-entities",  # Most basic - core data structures
-  "imphnen-macros",   # Macros
-  "imphnen-libs",      # Depends on entities
-  "imphnen-utils",     # Depends on libs and entities
-  "imphnen-middleware",# Utility for permissions
-  "imphnen-iam",       # Core auth service, depends on libs, utils, entities
-  "imphnen-cms",       # Content management, depends on core services
-  "imphnen-gacha",     # Game mechanics, depends on core services
-  "imphnen-dimentorin",# Learning platform, depends on core services
-  "imphnen-hackathon", # Hackathon feature, standalone with Supabase auth
-  "imphnen-qr",        # QR campaign overlay service
-  "imphnen-gateway",   # API gateway, depends on all services
-  "imphnen-backend",   # Main application, depends on all services
+  "imphnen-entities",
+  "imphnen-macros",
+  "imphnen-libs",
+  "imphnen-storage",
+  "imphnen-email",
+  "imphnen-utils",
+  "imphnen-middleware",
+  "imphnen-iam",
+  "imphnen-cms",
+  "imphnen-gacha",
+  "imphnen-dimentorin",
+  "imphnen-hackathon",
+  "imphnen-gateway",
+  "imphnen-backend",
 ]
 
 
@@ -90,7 +91,8 @@ imphnen-dimentorin = { path = "./imphnen-dimentorin" }
 imphnen-middleware = { path = "./imphnen-middleware" }
 imphnen-macros = { path = "./imphnen-macros" }
 imphnen-hackathon = { path = "./imphnen-hackathon" }
-imphnen-qr = { path = "./imphnen-qr" }
+imphnen-storage = { path = "./imphnen-storage" }
+imphnen-email = { path = "./imphnen-email" }
 bcrypt = "0.15"
 image = { version = "0.25", features = ["png", "jpeg"] }
 qrcode = { version = "0.14", default-features = false, features = ["image"] }

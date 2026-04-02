@@ -5,9 +5,6 @@ use imphnen_libs::axum_init;
 async fn main() {
 	tracing_subscriber::fmt::init();
 
-	let _ = axum_init(|postgres_conn| async {
-		// PostgreSQL is now the primary database - SurrealDB has been completely removed
-		gateway_service(postgres_conn).await
-	})
-	.await;
+	let _ =
+		axum_init(|postgres_conn| async { gateway_service(postgres_conn).await }).await;
 }

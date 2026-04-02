@@ -1,3 +1,4 @@
+use axum::response::IntoResponse;
 use axum::{
 	body::Body,
 	http::{Request, Response, StatusCode},
@@ -6,13 +7,10 @@ use futures::future::BoxFuture;
 use imphnen_entities::PermissionsEnum;
 use imphnen_libs::{AppState, services::ExtendedUserInfo};
 use imphnen_utils::response_format::ApiMessage;
-use axum::response::IntoResponse;
 use imphnen_utils::{extract_email, extract_email_async};
 use std::task::{Context, Poll};
 use tower::{Layer, Service};
 
-/// Unified middleware layer for enforcing user permissions on requests.
-/// This replaces the legacy permissions_guard function calls with a consistent middleware approach.
 #[derive(Clone)]
 pub struct PermissionsMiddlewareLayer {
 	app_state: AppState,
@@ -20,7 +18,6 @@ pub struct PermissionsMiddlewareLayer {
 }
 
 impl PermissionsMiddlewareLayer {
-	/// Create a new permissions middleware layer with the required permissions
 	pub fn new(app_state: AppState, permissions: Vec<PermissionsEnum>) -> Self {
 		Self {
 			app_state,
@@ -28,12 +25,10 @@ impl PermissionsMiddlewareLayer {
 		}
 	}
 
-	/// Create a middleware layer that requires administrator permissions
 	pub fn admin_only(app_state: AppState) -> Self {
 		Self::new(app_state, vec![PermissionsEnum::Administrator])
 	}
 
-	/// Create a middleware layer that requires specific permission
 	pub fn with_permission(app_state: AppState, permission: PermissionsEnum) -> Self {
 		Self::new(app_state, vec![permission])
 	}
@@ -59,7 +54,10 @@ pub struct PermissionsMiddleware<S> {
 
 impl<S> Service<Request<Body>> for PermissionsMiddleware<S>
 where
-	S: Service<Request<Body>, Response = Response<Body>, Error = Response<Body>> + Clone + Send + 'static,
+	S: Service<Request<Body>, Response = Response<Body>, Error = Response<Body>>
+		+ Clone
+		+ Send
+		+ 'static,
 	S::Future: Send + 'static,
 {
 	type Response = S::Response;
@@ -74,59 +72,55 @@ where
 		let permissions = self.permissions.clone();
 		Box::pin(async move {
 			let headers = req.headers();
-			
-			// Extract user email from authorization headers
-			let email = extract_user_email(headers).await
-				.ok_or_else(|| {
-					ApiMessage::new(
-						StatusCode::UNAUTHORIZED,
-						"Invalid or missing authorization token",
-					).into_response()
-				})?;
 
-			// Get user data with permissions from user lookup service
-			let user = app_state.user_lookup_service.get_user_by_email(&email, &app_state).await
+			let email = extract_user_email(headers).await.ok_or_else(|| {
+				ApiMessage::new(
+					StatusCode::UNAUTHORIZED,
+					"Invalid or missing authorization token",
+				)
+				.into_response()
+			})?;
+
+			let user = app_state
+				.user_lookup_service
+				.get_user_by_email(&email, &app_state)
+				.await
 				.map_err(|_| {
 					ApiMessage::new(
 						StatusCode::UNAUTHORIZED,
 						"User session expired or not found",
-					).into_response()
+					)
+					.into_response()
 				})?;
-			
-			// Extract user permissions from role
+
 			let user_permissions = extract_user_permissions(&user);
-            
-            println!("DEBUG: User Permissions: {:?}", user_permissions);
-            println!("DEBUG: Required Permissions: {:?}", permissions);
-			
-			// Check if user has required permissions
+
 			if !has_required_permissions(&user_permissions, &permissions) {
-				return Err(ApiMessage::new(
-					StatusCode::FORBIDDEN,
-					"You don't have the required permissions",
-				).into_response());
+				return Err(
+					ApiMessage::new(
+						StatusCode::FORBIDDEN,
+						"You don't have the required permissions",
+					)
+					.into_response(),
+				);
 			}
-			
+
 			inner.call(req).await
 		})
 	}
 }
 
-/// Extract user email from headers (sync and async fallback)
 async fn extract_user_email(headers: &axum::http::HeaderMap) -> Option<String> {
-	// Try synchronous extraction first
 	match extract_email(headers) {
 		Some(email) => Some(email),
-		None => {
-			// Fallback to async extraction for Google tokens
-			extract_email_async(headers).await
-		}
+		None => extract_email_async(headers).await,
 	}
 }
 
-/// Extract user permissions from user data
 fn extract_user_permissions(user: &ExtendedUserInfo) -> Vec<String> {
-	user.basic_info.role
+	user
+		.basic_info
+		.role
 		.permissions
 		.as_ref()
 		.unwrap_or(&vec![])
@@ -134,11 +128,9 @@ fn extract_user_permissions(user: &ExtendedUserInfo) -> Vec<String> {
 		.filter_map(|p| p.as_ref())
 		.flat_map(|pp| {
 			let mut permissions = Vec::new();
-			// Add permission name if available
 			if let Some(name) = pp.name.clone() {
 				permissions.push(name);
 			}
-			// Add permission ID if available
 			if let Some(id) = pp.id.as_ref().map(|id| id.to_string()) {
 				permissions.push(id);
 			}
@@ -147,56 +139,61 @@ fn extract_user_permissions(user: &ExtendedUserInfo) -> Vec<String> {
 		.collect()
 }
 
-/// Check if user has required permissions
-fn has_required_permissions(user_permissions: &[String], required_permissions: &[PermissionsEnum]) -> bool {
-    // Administrator has access to everything
-    let admin_name = PermissionsEnum::Administrator.to_string();
-    let admin_id = PermissionsEnum::Administrator.id();
-    
-    if user_permissions.contains(&admin_name) || user_permissions.contains(&admin_id) {
-        return true;
-    }
-    
-    // Check if user has all required permissions
-    required_permissions.iter().all(|required| {
-        let required_name = required.to_string();
-        let required_id = required.id();
-        
-        user_permissions.contains(&required_name) || user_permissions.contains(&required_id)
-    })
+fn has_required_permissions(
+	user_permissions: &[String],
+	required_permissions: &[PermissionsEnum],
+) -> bool {
+	let admin_name = PermissionsEnum::Administrator.to_string();
+	let admin_id = PermissionsEnum::Administrator.id();
+
+	if user_permissions.contains(&admin_name) || user_permissions.contains(&admin_id) {
+		return true;
+	}
+
+	required_permissions.iter().all(|required| {
+		let required_name = required.to_string();
+		let required_id = required.id();
+		user_permissions.contains(&required_name)
+			|| user_permissions.contains(&required_id)
+	})
 }
 
-/// Simple permission check function for use in controllers (legacy compatibility)
-/// This provides a bridge between old permissions_guard calls and new middleware approach
 pub async fn check_permissions(
 	headers: &axum::http::HeaderMap,
 	app_state: &AppState,
 	required_permissions: Vec<PermissionsEnum>,
 ) -> Result<(), Response<Body>> {
-	let email = extract_user_email(headers).await
-		.ok_or_else(|| {
-			ApiMessage::new(
-				StatusCode::UNAUTHORIZED,
-				"Invalid or missing authorization token",
-			).into_response()
-		})?;
+	let email = extract_user_email(headers).await.ok_or_else(|| {
+		ApiMessage::new(
+			StatusCode::UNAUTHORIZED,
+			"Invalid or missing authorization token",
+		)
+		.into_response()
+	})?;
 
-	let user = app_state.user_lookup_service.get_user_by_email(&email, app_state).await
+	let user = app_state
+		.user_lookup_service
+		.get_user_by_email(&email, app_state)
+		.await
 		.map_err(|_| {
 			ApiMessage::new(
 				StatusCode::UNAUTHORIZED,
 				"User session expired or not found",
-			).into_response()
+			)
+			.into_response()
 		})?;
 
 	let user_permissions = extract_user_permissions(&user);
 
 	if !has_required_permissions(&user_permissions, &required_permissions) {
-		return Err(ApiMessage::new(
-			StatusCode::FORBIDDEN,
-			"You don't have the required permissions",
-		).into_response());
+		return Err(
+			ApiMessage::new(
+				StatusCode::FORBIDDEN,
+				"You don't have the required permissions",
+			)
+			.into_response(),
+		);
 	}
-	
+
 	Ok(())
 }

@@ -1,7 +1,7 @@
-pub mod role;
 pub mod repository;
+pub mod role;
 pub mod service;
 
-pub use role::RoleEntity;
 pub use repository::RoleRepository;
+pub use role::RoleEntity;
 pub use service::RoleService;

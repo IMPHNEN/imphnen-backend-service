@@ -1,13 +1,13 @@
-use std::sync::Arc;
-use axum::{Extension, http::HeaderMap, response::IntoResponse};
-use imphnen_libs::{AppState, ValidatedJson};
-use imphnen_utils::{ApiSuccess, ApiMessage, extract_email};
-use imphnen_entities::ResponseSuccessDto;
-use imphnen_iam::{PermissionsEnum, require_permissions};
-use imphnen_utils::AppError;
-use uuid::Uuid;
 use super::dto::{GachaCreditAddRequestDto, GachaCreditDto};
 use crate::gacha_credits::domain::GachaCreditService;
+use axum::{Extension, http::HeaderMap, response::IntoResponse};
+use imphnen_entities::ResponseSuccessDto;
+use imphnen_iam::{PermissionsEnum, require_permissions};
+use imphnen_libs::{AppState, ValidatedJson};
+use imphnen_utils::AppError;
+use imphnen_utils::{ApiMessage, ApiSuccess, extract_email};
+use std::sync::Arc;
+use uuid::Uuid;
 
 #[utoipa::path(
     get,
@@ -19,30 +19,38 @@ use crate::gacha_credits::domain::GachaCreditService;
     tag = "Gacha"
 )]
 pub async fn get_user_credits(
-    headers: HeaderMap,
-    Extension(state): Extension<AppState>,
-    Extension(service): Extension<Arc<dyn GachaCreditService>>,
+	headers: HeaderMap,
+	Extension(state): Extension<AppState>,
+	Extension(service): Extension<Arc<dyn GachaCreditService>>,
 ) -> Result<impl IntoResponse, AppError> {
-    require_permissions!(headers.clone(), state, [PermissionsEnum::ReadDetailGachaItems], {
-        let email = extract_email(&headers)
-            .ok_or_else(|| AppError::AuthenticationError("Unauthorized".to_string()))?;
-        let user_info = state.user_lookup_service.get_user_by_email(&email, &state).await
-            .map_err(|_| AppError::NotFoundError("User not found".to_string()))?;
-        let user = user_info.basic_info;
-        let user_id = Uuid::parse_str(&user.id)
-            .map_err(|e| AppError::BadRequestError(e.to_string()))?;
-        match service.get_credits(user_id).await? {
-            Some(credit) => Ok(ApiSuccess(GachaCreditDto::from(credit))),
-            None => Ok(ApiSuccess(GachaCreditDto {
-                id: "".to_string(),
-                user_id: user.id,
-                available_rolls: 0,
-                is_deleted: false,
-                created_at: None,
-                updated_at: None,
-            })),
-        }
-    })
+	require_permissions!(
+		headers.clone(),
+		state,
+		[PermissionsEnum::ReadDetailGachaItems],
+		{
+			let email = extract_email(&headers)
+				.ok_or_else(|| AppError::AuthenticationError("Unauthorized".to_string()))?;
+			let user_info = state
+				.user_lookup_service
+				.get_user_by_email(&email, &state)
+				.await
+				.map_err(|_| AppError::NotFoundError("User not found".to_string()))?;
+			let user = user_info.basic_info;
+			let user_id = Uuid::parse_str(&user.id)
+				.map_err(|e| AppError::BadRequestError(e.to_string()))?;
+			match service.get_credits(user_id).await? {
+				Some(credit) => Ok(ApiSuccess(GachaCreditDto::from(credit))),
+				None => Ok(ApiSuccess(GachaCreditDto {
+					id: "".to_string(),
+					user_id: user.id,
+					available_rolls: 0,
+					is_deleted: false,
+					created_at: None,
+					updated_at: None,
+				})),
+			}
+		}
+	)
 }
 
 #[utoipa::path(
@@ -56,21 +64,32 @@ pub async fn get_user_credits(
     tag = "Gacha"
 )]
 pub async fn post_add_credits(
-    headers: HeaderMap,
-    Extension(state): Extension<AppState>,
-    Extension(service): Extension<Arc<dyn GachaCreditService>>,
-    ValidatedJson(payload): ValidatedJson<GachaCreditAddRequestDto>,
+	headers: HeaderMap,
+	Extension(state): Extension<AppState>,
+	Extension(service): Extension<Arc<dyn GachaCreditService>>,
+	ValidatedJson(payload): ValidatedJson<GachaCreditAddRequestDto>,
 ) -> Result<impl IntoResponse, AppError> {
-    require_permissions!(headers.clone(), state, [PermissionsEnum::CreateGachaItems], {
-        let email = extract_email(&headers)
-            .ok_or_else(|| AppError::AuthenticationError("Unauthorized".to_string()))?;
-        let user_info = state.user_lookup_service.get_user_by_email(&email, &state).await
-            .map_err(|_| AppError::NotFoundError("User not found".to_string()))?;
-        let user_id = Uuid::parse_str(&user_info.basic_info.id)
-            .map_err(|e| AppError::BadRequestError(e.to_string()))?;
-        service.add_credits(user_id, payload.amount).await?;
-        Ok(ApiMessage::ok(format!("Added {} credits successfully", payload.amount)))
-    })
+	require_permissions!(
+		headers.clone(),
+		state,
+		[PermissionsEnum::CreateGachaItems],
+		{
+			let email = extract_email(&headers)
+				.ok_or_else(|| AppError::AuthenticationError("Unauthorized".to_string()))?;
+			let user_info = state
+				.user_lookup_service
+				.get_user_by_email(&email, &state)
+				.await
+				.map_err(|_| AppError::NotFoundError("User not found".to_string()))?;
+			let user_id = Uuid::parse_str(&user_info.basic_info.id)
+				.map_err(|e| AppError::BadRequestError(e.to_string()))?;
+			service.add_credits(user_id, payload.amount).await?;
+			Ok(ApiMessage::ok(format!(
+				"Added {} credits successfully",
+				payload.amount
+			)))
+		}
+	)
 }
 
 #[utoipa::path(
@@ -83,18 +102,26 @@ pub async fn post_add_credits(
     tag = "Gacha"
 )]
 pub async fn post_consume_credit(
-    headers: HeaderMap,
-    Extension(state): Extension<AppState>,
-    Extension(service): Extension<Arc<dyn GachaCreditService>>,
+	headers: HeaderMap,
+	Extension(state): Extension<AppState>,
+	Extension(service): Extension<Arc<dyn GachaCreditService>>,
 ) -> Result<impl IntoResponse, AppError> {
-    require_permissions!(headers.clone(), state, [PermissionsEnum::UpdateGachaItems], {
-        let email = extract_email(&headers)
-            .ok_or_else(|| AppError::AuthenticationError("Unauthorized".to_string()))?;
-        let user_info = state.user_lookup_service.get_user_by_email(&email, &state).await
-            .map_err(|_| AppError::NotFoundError("User not found".to_string()))?;
-        let user_id = Uuid::parse_str(&user_info.basic_info.id)
-            .map_err(|e| AppError::BadRequestError(e.to_string()))?;
-        service.consume_credit(user_id).await?;
-        Ok(ApiMessage::ok("Consumed 1 credit successfully"))
-    })
+	require_permissions!(
+		headers.clone(),
+		state,
+		[PermissionsEnum::UpdateGachaItems],
+		{
+			let email = extract_email(&headers)
+				.ok_or_else(|| AppError::AuthenticationError("Unauthorized".to_string()))?;
+			let user_info = state
+				.user_lookup_service
+				.get_user_by_email(&email, &state)
+				.await
+				.map_err(|_| AppError::NotFoundError("User not found".to_string()))?;
+			let user_id = Uuid::parse_str(&user_info.basic_info.id)
+				.map_err(|e| AppError::BadRequestError(e.to_string()))?;
+			service.consume_credit(user_id).await?;
+			Ok(ApiMessage::ok("Consumed 1 credit successfully"))
+		}
+	)
 }

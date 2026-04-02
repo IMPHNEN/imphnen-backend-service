@@ -1,11 +1,15 @@
 #![allow(clippy::all)]
 
-use std::error::Error;
+use chrono::Utc;
+use imphnen_entities::seaorm::common::events::{
+	ActiveModel as EventsActiveModel, Entity as EventEntity,
+};
 use imphnen_libs::postgres::{PostgresConfig, PostgresConnection};
-use imphnen_entities::seaorm::common::events::{ActiveModel as EventsActiveModel, Entity as EventEntity};
-use sea_orm::{ActiveValue::Set, ActiveModelTrait, EntityTrait, ColumnTrait, QueryFilter};
+use sea_orm::{
+	ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter,
+};
+use std::error::Error;
 use uuid::Uuid;
-use chrono::Utc; // Removed NaiveDateTime as it was unused
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -54,7 +58,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			"2025-09-20T13:00:00Z",
 			"2025-09-22T15:00:00Z",
 		),
-        // Additional Events
         (
             "Rust Programming Bootcamp",
             "Intensive 3-day bootcamp to master Rust fundamentals and advanced concepts.",
@@ -154,18 +157,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		price,
 		location,
 		is_online,
-		start_date_str, // Renamed to avoid conflict
-		end_date_str,   // Renamed to avoid conflict
+		start_date_str,
+		end_date_str,
 	) in events
 	{
-		// Check if event already exists by name
-		let existing = EventEntity::find().filter(<EventEntity as EntityTrait>::Column::Name.eq(name)).one(db).await?;
+		let existing = EventEntity::find()
+			.filter(<EventEntity as EntityTrait>::Column::Name.eq(name))
+			.one(db)
+			.await?;
 		if existing.is_some() {
 			println!("ℹ️  Skipping (already exists): {name}");
 			continue;
 		}
 
-		let uuid = Uuid::new_v4(); // Generate a Uuid
+		let uuid = Uuid::new_v4();
 		let mut event_model: EventsActiveModel = Default::default();
 		event_model.id = Set(uuid);
 		event_model.name = Set(name.to_string());
@@ -174,12 +179,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		event_model.price = Set(price);
 		event_model.is_online = Set(is_online);
 		event_model.location = Set(location.clone());
-		event_model.start_date = Set(chrono::DateTime::parse_from_rfc3339(start_date_str)?.with_timezone(&chrono::Utc));
-		event_model.end_date = Set(chrono::DateTime::parse_from_rfc3339(end_date_str)?.with_timezone(&chrono::Utc));
-		event_model.is_deleted = Set(false); // Explicitly set is_deleted
-		event_model.created_at = Set(Utc::now()); // Explicitly set created_at
-		event_model.updated_at = Set(Utc::now()); // Explicitly set updated_at
-
+		event_model.start_date = Set(
+			chrono::DateTime::parse_from_rfc3339(start_date_str)?
+				.with_timezone(&chrono::Utc),
+		);
+		event_model.end_date = Set(
+			chrono::DateTime::parse_from_rfc3339(end_date_str)?
+				.with_timezone(&chrono::Utc),
+		);
+		event_model.is_deleted = Set(false);
+		event_model.created_at = Set(Utc::now());
+		event_model.updated_at = Set(Utc::now());
 
 		event_model.insert(db).await?;
 

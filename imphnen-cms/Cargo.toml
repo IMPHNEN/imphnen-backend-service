@@ -1,6 +1,6 @@
 [package]
 name = "imphnen-cms"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 
 [dependencies]
@@ -33,6 +33,9 @@ paginator-rs.workspace = true
 paginator-utils.workspace = true
 paginator-sea-orm.workspace = true
 paginator-axum.workspace = true
+sqlx.workspace = true
+image.workspace = true
+qrcode.workspace = true
 
 [package.metadata.validator.regex]
 VALID_URL_REGEX = "^https?://"

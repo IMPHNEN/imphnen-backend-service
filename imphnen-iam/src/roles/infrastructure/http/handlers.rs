@@ -1,19 +1,20 @@
-use crate::require_permissions;
-use std::sync::Arc;
-use axum::{
-    Extension, Json,
-    extract::Path,
-    http::HeaderMap,
-    response::IntoResponse,
+use super::dto::{
+	RolesCreateRequestDto, RolesDetailItemDto, RolesListItemDto, RolesUpdateRequestDto,
 };
+use crate::require_permissions;
+use crate::roles::domain::RoleService;
+use axum::{
+	Extension, Json, extract::Path, http::HeaderMap, response::IntoResponse,
+};
+use imphnen_entities::{
+	PermissionsEnum, ResponseListSuccessDto, ResponseSuccessDto,
+};
+use imphnen_libs::AppState;
+use imphnen_utils::AppError;
+use imphnen_utils::{ApiCreated, ApiMessage, ApiPaginated, ApiSuccess};
 use paginator_axum::PaginationQuery;
 use paginator_utils::PaginatorResponse;
-use imphnen_libs::AppState;
-use imphnen_utils::{ApiSuccess, ApiCreated, ApiPaginated, ApiMessage};
-use imphnen_entities::{ResponseSuccessDto, ResponseListSuccessDto, PermissionsEnum};
-use imphnen_utils::AppError;
-use crate::roles::domain::RoleService;
-use super::dto::{RolesCreateRequestDto, RolesDetailItemDto, RolesListItemDto, RolesUpdateRequestDto};
+use std::sync::Arc;
 
 #[utoipa::path(
     get,
@@ -34,19 +35,23 @@ use super::dto::{RolesCreateRequestDto, RolesDetailItemDto, RolesListItemDto, Ro
     tag = "Roles"
 )]
 pub async fn get_role_list(
-    headers: HeaderMap,
-    Extension(state): Extension<AppState>,
-    Extension(service): Extension<Arc<dyn RoleService>>,
-    PaginationQuery(params): PaginationQuery,
+	headers: HeaderMap,
+	Extension(state): Extension<AppState>,
+	Extension(service): Extension<Arc<dyn RoleService>>,
+	PaginationQuery(params): PaginationQuery,
 ) -> Result<impl IntoResponse, AppError> {
-    require_permissions!(headers, state, [PermissionsEnum::ReadListRoles], {
-        let result = service.list(params).await?;
-        let mapped = PaginatorResponse {
-            data: result.data.into_iter().map(RolesListItemDto::from).collect::<Vec<_>>(),
-            meta: result.meta,
-        };
-        Ok(ApiPaginated(mapped))
-    })
+	require_permissions!(headers, state, [PermissionsEnum::ReadListRoles], {
+		let result = service.list(params).await?;
+		let mapped = PaginatorResponse {
+			data: result
+				.data
+				.into_iter()
+				.map(RolesListItemDto::from)
+				.collect::<Vec<_>>(),
+			meta: result.meta,
+		};
+		Ok(ApiPaginated(mapped))
+	})
 }
 
 #[utoipa::path(
@@ -60,15 +65,15 @@ pub async fn get_role_list(
     tag = "Roles"
 )]
 pub async fn get_role_by_id(
-    headers: HeaderMap,
-    Extension(state): Extension<AppState>,
-    Extension(service): Extension<Arc<dyn RoleService>>,
-    Path(id): Path<String>,
+	headers: HeaderMap,
+	Extension(state): Extension<AppState>,
+	Extension(service): Extension<Arc<dyn RoleService>>,
+	Path(id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
-    require_permissions!(headers, state, [PermissionsEnum::ReadDetailRoles], {
-        let role = service.get(id).await?;
-        Ok(ApiSuccess(RolesDetailItemDto::from(role)))
-    })
+	require_permissions!(headers, state, [PermissionsEnum::ReadDetailRoles], {
+		let role = service.get(id).await?;
+		Ok(ApiSuccess(RolesDetailItemDto::from(role)))
+	})
 }
 
 #[utoipa::path(
@@ -82,15 +87,15 @@ pub async fn get_role_by_id(
     tag = "Roles"
 )]
 pub async fn post_create_role(
-    headers: HeaderMap,
-    Extension(state): Extension<AppState>,
-    Extension(service): Extension<Arc<dyn RoleService>>,
-    Json(payload): Json<RolesCreateRequestDto>,
+	headers: HeaderMap,
+	Extension(state): Extension<AppState>,
+	Extension(service): Extension<Arc<dyn RoleService>>,
+	Json(payload): Json<RolesCreateRequestDto>,
 ) -> Result<impl IntoResponse, AppError> {
-    require_permissions!(headers, state, [PermissionsEnum::CreateRoles], {
-        let role = service.create(payload.name, payload.permissions).await?;
-        Ok(ApiCreated(RolesDetailItemDto::from(role)))
-    })
+	require_permissions!(headers, state, [PermissionsEnum::CreateRoles], {
+		let role = service.create(payload.name, payload.permissions).await?;
+		Ok(ApiCreated(RolesDetailItemDto::from(role)))
+	})
 }
 
 #[utoipa::path(
@@ -105,16 +110,18 @@ pub async fn post_create_role(
     tag = "Roles"
 )]
 pub async fn put_update_role(
-    headers: HeaderMap,
-    Extension(state): Extension<AppState>,
-    Extension(service): Extension<Arc<dyn RoleService>>,
-    Path(id): Path<String>,
-    Json(payload): Json<RolesUpdateRequestDto>,
+	headers: HeaderMap,
+	Extension(state): Extension<AppState>,
+	Extension(service): Extension<Arc<dyn RoleService>>,
+	Path(id): Path<String>,
+	Json(payload): Json<RolesUpdateRequestDto>,
 ) -> Result<impl IntoResponse, AppError> {
-    require_permissions!(headers, state, [PermissionsEnum::UpdateRoles], {
-        let msg = service.update(id, payload.name, payload.permissions).await?;
-        Ok(ApiMessage::ok(&msg))
-    })
+	require_permissions!(headers, state, [PermissionsEnum::UpdateRoles], {
+		let msg = service
+			.update(id, payload.name, payload.permissions)
+			.await?;
+		Ok(ApiMessage::ok(&msg))
+	})
 }
 
 #[utoipa::path(
@@ -128,13 +135,13 @@ pub async fn put_update_role(
     tag = "Roles"
 )]
 pub async fn delete_role(
-    headers: HeaderMap,
-    Extension(state): Extension<AppState>,
-    Extension(service): Extension<Arc<dyn RoleService>>,
-    Path(id): Path<String>,
+	headers: HeaderMap,
+	Extension(state): Extension<AppState>,
+	Extension(service): Extension<Arc<dyn RoleService>>,
+	Path(id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
-    require_permissions!(headers, state, [PermissionsEnum::DeleteRoles], {
-        let msg = service.delete(id).await?;
-        Ok(ApiMessage::ok(&msg))
-    })
+	require_permissions!(headers, state, [PermissionsEnum::DeleteRoles], {
+		let msg = service.delete(id).await?;
+		Ok(ApiMessage::ok(&msg))
+	})
 }

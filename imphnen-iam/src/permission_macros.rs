@@ -1,28 +1,25 @@
-use axum::{
-    extract::Extension,
-    http::HeaderMap,
-};
-use imphnen_entities::PermissionsEnum;
 use crate::AppState;
 use crate::permissions_guard;
+use axum::{extract::Extension, http::HeaderMap};
+use imphnen_entities::PermissionsEnum;
 use imphnen_libs::jsonwebtoken::Claims;
 use imphnen_utils::AppError;
 
 pub type PermissionGuardResult<T> = Result<(T, AppState), AppError>;
 
 pub async fn check_permissions(
-    headers: HeaderMap,
-    state: Extension<AppState>,
-    required_permissions: Vec<PermissionsEnum>,
+	headers: HeaderMap,
+	state: Extension<AppState>,
+	required_permissions: Vec<PermissionsEnum>,
 ) -> PermissionGuardResult<Claims> {
-    permissions_guard(headers, state, required_permissions).await
+	permissions_guard(headers, state, required_permissions).await
 }
 
 pub async fn check_authenticated(
-    headers: HeaderMap,
-    state: Extension<AppState>,
+	headers: HeaderMap,
+	state: Extension<AppState>,
 ) -> PermissionGuardResult<Claims> {
-    check_permissions(headers, state, vec![]).await
+	check_permissions(headers, state, vec![]).await
 }
 
 #[macro_export]
@@ -43,11 +40,14 @@ macro_rules! require_permissions {
 
 #[macro_export]
 macro_rules! require_auth {
-    ($headers:expr, $state:expr, $body:block) => {
-        {
-            let state_clone = $state.clone();
-            $crate::permissions_guard($headers, axum::extract::Extension(state_clone), vec![]).await?;
-            $body
-        }
-    };
+	($headers:expr, $state:expr, $body:block) => {{
+		let state_clone = $state.clone();
+		$crate::permissions_guard(
+			$headers,
+			axum::extract::Extension(state_clone),
+			vec![],
+		)
+		.await?;
+		$body
+	}};
 }

@@ -1,14 +1,14 @@
 #![allow(clippy::all)]
 
-use imphnen_iam::PermissionsEnum;
-use std::error::Error;
-use imphnen_libs::postgres::{PostgresConfig, PostgresConnection};
+use chrono::Utc;
 use imphnen_entities::seaorm::auth::permissions::ActiveModel as PermissionActiveModel;
 use imphnen_entities::seaorm::auth::permissions::Entity as PermissionEntity;
+use imphnen_iam::PermissionsEnum;
+use imphnen_libs::postgres::{PostgresConfig, PostgresConnection};
+use sea_orm::ActiveModelTrait;
 use sea_orm::ActiveValue::Set;
-use sea_orm::{ActiveModelTrait};
+use std::error::Error;
 use uuid::Uuid;
-use chrono::Utc;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -54,17 +54,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		PermissionsEnum::DeleteMentors,
 		PermissionsEnum::Administrator,
 	] {
-		// permission.id() returns a string, try parse to uuid
-		let parsed_id = Uuid::parse_str(&permission.id()).unwrap_or_else(|_| Uuid::new_v4());
+		let parsed_id =
+			Uuid::parse_str(&permission.id()).unwrap_or_else(|_| Uuid::new_v4());
 
-		// Check if permission already exists
 		let existing = PermissionEntity::find_by_id(parsed_id).one(db).await?;
 		if existing.is_some() {
 			println!("ℹ️  Skipping (already exists): {permission}");
 			continue;
 		}
 
-		// Insert permission using active model
 		let mut perm_model: PermissionActiveModel = Default::default();
 		perm_model.id = Set(parsed_id);
 		perm_model.name = Set(permission.to_string());

@@ -1,55 +1,52 @@
-use async_trait::async_trait;
-use paginator_rs::PaginationParams;
-use paginator_utils::PaginatorResponse;
-use uuid::Uuid;
-use imphnen_utils::AppError;
 use super::mentor::MentorEntity;
-use crate::mentors::infrastructure::http::dto::{
-    MentorDetailResponseDto, MentorListResponseDto, MentorRegisterResponseDto,
-    MentorUpdateRequestDto, MentorUserRegisterRequestDto, MentorVerifyRequestDto,
+use super::mentor_types::{
+	MentorDetail, MentorListPage, MentorRegisterCommand, MentorRegistered,
+	MentorUpdateCommand, MentorVerifyCommand,
 };
+use async_trait::async_trait;
+use imphnen_utils::AppError;
+use paginator_rs::PaginationParams;
+use uuid::Uuid;
 
 #[async_trait]
 pub trait MentorService: Send + Sync {
-    async fn list(
-        &self,
-        params: PaginationParams,
-    ) -> Result<PaginatorResponse<MentorListResponseDto>, AppError>;
+	async fn list(&self, params: PaginationParams)
+	-> Result<MentorListPage, AppError>;
 
-    async fn get_by_id(&self, id: Uuid) -> Result<MentorDetailResponseDto, AppError>;
+	async fn get_by_id(&self, id: Uuid) -> Result<MentorDetail, AppError>;
 
-    async fn get_by_email(&self, email: &str) -> Result<MentorDetailResponseDto, AppError>;
+	async fn get_by_email(&self, email: &str) -> Result<MentorDetail, AppError>;
 
-    async fn register(
-        &self,
-        dto: MentorUserRegisterRequestDto,
-    ) -> Result<MentorRegisterResponseDto, AppError>;
+	async fn register(
+		&self,
+		cmd: MentorRegisterCommand,
+	) -> Result<MentorRegistered, AppError>;
 
-    async fn update(
-        &self,
-        id: Uuid,
-        dto: MentorUpdateRequestDto,
-    ) -> Result<MentorDetailResponseDto, AppError>;
+	async fn update(
+		&self,
+		id: Uuid,
+		cmd: MentorUpdateCommand,
+	) -> Result<MentorDetail, AppError>;
 
-    async fn update_me(
-        &self,
-        email: &str,
-        dto: MentorUpdateRequestDto,
-    ) -> Result<MentorDetailResponseDto, AppError>;
+	async fn update_me(
+		&self,
+		email: &str,
+		cmd: MentorUpdateCommand,
+	) -> Result<MentorDetail, AppError>;
 
-    async fn delete(&self, id: Uuid) -> Result<(), AppError>;
+	async fn delete(&self, id: Uuid) -> Result<(), AppError>;
 
-    async fn verify(
-        &self,
-        id: Uuid,
-        dto: MentorVerifyRequestDto,
-    ) -> Result<MentorDetailResponseDto, AppError>;
+	async fn verify(
+		&self,
+		id: Uuid,
+		cmd: MentorVerifyCommand,
+	) -> Result<MentorDetail, AppError>;
 
-    async fn get_status(&self, email: &str) -> Result<String, AppError>;
+	async fn get_status(&self, email: &str) -> Result<String, AppError>;
 
-    async fn get_entity_by_id(
-        &self,
-        id: Uuid,
-        include_deleted: bool,
-    ) -> Result<MentorEntity, AppError>;
+	async fn get_entity_by_id(
+		&self,
+		id: Uuid,
+		include_deleted: bool,
+	) -> Result<MentorEntity, AppError>;
 }

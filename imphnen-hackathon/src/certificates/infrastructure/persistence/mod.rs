@@ -1,0 +1,2 @@
+pub mod postgres_certificate_repository;
+pub use postgres_certificate_repository::PostgresCertificateRepository;

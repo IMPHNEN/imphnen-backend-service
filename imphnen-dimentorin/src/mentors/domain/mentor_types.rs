@@ -1,0 +1,110 @@
+use paginator_utils::PaginatorResponse;
+
+pub struct MentorListItem {
+	pub id: String,
+	pub user_id: String,
+	pub fullname: Option<String>,
+	pub email: Option<String>,
+	pub status: String,
+	pub created_at: String,
+	pub updated_at: String,
+}
+
+pub struct MentorDetail {
+	pub id: String,
+	pub user_id: String,
+	pub fullname: Option<String>,
+	pub email: Option<String>,
+	pub legal_name: Option<String>,
+	pub gender: Option<String>,
+	pub domicile: Option<String>,
+	pub phone_for_verification: Option<String>,
+	pub bio: Option<String>,
+	pub last_education: Option<String>,
+	pub linkedin_url: Option<String>,
+	pub github_url: Option<String>,
+	pub cv_url: Option<String>,
+	pub portfolio_url: Option<String>,
+	pub industries: Vec<String>,
+	pub expertise: Vec<String>,
+	pub languages: Vec<String>,
+	pub current_company: String,
+	pub current_role: String,
+	pub years_of_experience: i32,
+	pub topics_of_interest: Vec<String>,
+	pub preferred_mentee_level: Vec<String>,
+	pub preferred_mentoring_formats: Vec<String>,
+	pub availability_commitment: String,
+	pub mentoring_rate: f64,
+	pub status: String,
+	pub created_at: String,
+	pub updated_at: String,
+}
+
+pub struct MentorRegistered {
+	pub id: String,
+	pub user_id: String,
+	pub email: Option<String>,
+	pub status: String,
+	pub created_at: String,
+	pub updated_at: String,
+}
+
+pub struct MentorRegisterCommand {
+	pub email: String,
+	pub password: String,
+	pub fullname: String,
+	pub phone_number: Option<String>,
+	pub legal_name: String,
+	pub gender: Option<String>,
+	pub domicile: Option<String>,
+	pub identity_document_url: String,
+	pub phone_for_verification: Option<String>,
+	pub bio: String,
+	pub last_education: Option<String>,
+	pub linkedin_url: Option<String>,
+	pub github_url: Option<String>,
+	pub cv_url: Option<String>,
+	pub portfolio_url: Option<String>,
+	pub industries: Vec<String>,
+	pub expertise: Vec<String>,
+	pub languages: Vec<String>,
+	pub current_company: String,
+	pub current_role: String,
+	pub years_of_experience: i32,
+	pub topics_of_interest: Vec<String>,
+	pub preferred_mentee_level: Vec<String>,
+	pub preferred_mentoring_formats: Vec<String>,
+	pub availability_commitment: String,
+	pub mentoring_rate_amount: u64,
+}
+
+pub struct MentorUpdateCommand {
+	pub legal_name: Option<String>,
+	pub gender: Option<String>,
+	pub domicile: Option<String>,
+	pub phone_for_verification: Option<String>,
+	pub bio: Option<String>,
+	pub last_education: Option<String>,
+	pub linkedin_url: Option<String>,
+	pub github_url: Option<String>,
+	pub cv_url: Option<String>,
+	pub portfolio_url: Option<String>,
+	pub industries: Option<Vec<String>>,
+	pub expertise: Option<Vec<String>>,
+	pub languages: Option<Vec<String>>,
+	pub current_company: Option<String>,
+	pub current_role: Option<String>,
+	pub years_of_experience: Option<i32>,
+	pub topics_of_interest: Option<Vec<String>>,
+	pub preferred_mentee_level: Option<Vec<String>>,
+	pub preferred_mentoring_formats: Option<Vec<String>>,
+	pub availability_commitment: Option<String>,
+	pub mentoring_rate_amount: Option<u64>,
+}
+
+pub struct MentorVerifyCommand {
+	pub status: String,
+}
+
+pub type MentorListPage = PaginatorResponse<MentorListItem>;

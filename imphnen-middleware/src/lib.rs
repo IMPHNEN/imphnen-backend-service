@@ -6,7 +6,6 @@ pub mod permissions_middleware;
 pub mod rate_limiting_middleware;
 pub mod security_headers_middleware;
 
-// Re-export all middleware for easy access
 pub use audit_logging_middleware::audit_logging_middleware;
 pub use auth_middleware::auth_middleware;
 pub use cors_middleware::cors_middleware;

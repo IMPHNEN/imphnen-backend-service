@@ -1,14 +1,14 @@
 [package]
 name = "imphnen-gateway"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 
 [dependencies]
 imphnen-hackathon.workspace = true
-imphnen-qr.workspace = true
 sqlx.workspace = true
 imphnen-iam.workspace = true
 imphnen-libs.workspace = true
+imphnen-storage.workspace = true
 imphnen-utils.workspace = true
 imphnen-gacha.workspace = true
 imphnen-entities.workspace = true

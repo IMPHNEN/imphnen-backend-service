@@ -1,5 +1,7 @@
-pub mod domain;
 pub mod application;
+pub mod domain;
 pub mod infrastructure;
 
-pub use infrastructure::http::routes::{users_public_routes, users_protected_routes};
+pub use infrastructure::http::routes::{
+	users_protected_routes, users_public_routes,
+};

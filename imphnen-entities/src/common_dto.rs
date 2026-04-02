@@ -25,11 +25,9 @@ pub struct ResponseListSuccessDto<T: Serialize> {
 	pub meta: Option<MetaResponseDto>,
 }
 
-
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct ErrorDto {
-    pub status: u16,
-    pub message: String,
-    pub details: Option<serde_json::Value>,
+	pub status: u16,
+	pub message: String,
+	pub details: Option<serde_json::Value>,
 }
-

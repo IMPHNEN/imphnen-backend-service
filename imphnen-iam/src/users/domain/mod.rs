@@ -1,7 +1,7 @@
-pub mod user;
 pub mod repository;
 pub mod service;
+pub mod user;
 
-pub use user::UserEntity;
-pub use repository::{UserRepository, UserListItem};
+pub use repository::{UserListItem, UserRepository};
 pub use service::UserService;
+pub use user::UserEntity;

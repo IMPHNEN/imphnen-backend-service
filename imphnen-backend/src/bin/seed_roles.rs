@@ -1,9 +1,9 @@
-use std::error::Error;
+use chrono::Utc;
+use imphnen_entities::seaorm::auth::roles::{Entity as RoleEntity, RoleBuilder};
 use imphnen_libs::postgres::{PostgresConfig, PostgresConnection};
-use imphnen_entities::seaorm::auth::roles::{RoleBuilder, Entity as RoleEntity};
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait};
+use std::error::Error;
 use uuid::Uuid;
-use chrono::Utc; // Added chrono
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -50,19 +50,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		),
 	];
 
-	for (id, name, _created_at_str, _updated_at_str) in roles { // Renamed to avoid conflict
+	for (id, name, _created_at_str, _updated_at_str) in roles {
 		let uuid = Uuid::parse_str(id).unwrap_or_else(|_| Uuid::new_v4());
-		
-		// Check if role already exists
+
 		let existing = RoleEntity::find_by_id(uuid).one(db).await?;
 		if existing.is_some() {
 			println!("ℹ️  Skipping (already exists): {name}");
 			continue;
 		}
 
-		// Delete existing by id to avoid duplicates (original logic, replaced by existence check)
-		// let _ = pg_conn.execute(sea_orm::Statement::from_string(db.get_database_backend(), format!("DELETE FROM app_roles WHERE id = '{}'", uuid))).await.ok();
-		
 		let role_model = RoleBuilder::new()
 			.name(name.to_string())
 			.description("System generated role".to_string())
@@ -71,9 +67,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			.build()?;
 		let mut role_model = role_model;
 		role_model.id = Set(uuid);
-		role_model.is_system_role = Set(true); // Set the missing field
-		role_model.created_at = Set(Utc::now()); // Set created_at
-		role_model.updated_at = Set(Utc::now()); // Set updated_at
+		role_model.is_system_role = Set(true);
+		role_model.created_at = Set(Utc::now());
+		role_model.updated_at = Set(Utc::now());
 
 		role_model.insert(db).await?;
 		println!("✅ Inserted role: {name}");

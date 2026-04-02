@@ -1,12 +1,43 @@
-use std::sync::Arc;
-use axum::{Extension, response::IntoResponse};
-use imphnen_libs::ValidatedJson;
-use imphnen_utils::{ApiSuccess, ApiMessage, AppError};
 use super::dto::{
-    AuthLoginRequestDto, AuthRegisterRequestDto, AuthResendOtpRequestDto,
-    AuthVerifyEmailRequestDto, AuthNewPasswordRequestDto, AuthRefreshTokenRequestDto,
+	AuthLoginRequestDto, AuthLoginResponsetDto, AuthNewPasswordRequestDto,
+	AuthRefreshTokenRequestDto, AuthRegisterRequestDto, AuthResendOtpRequestDto,
+	AuthVerifyEmailRequestDto, TokenDto,
 };
 use crate::auth::domain::AuthService;
+use crate::auth::domain::types::{
+	LoginInput, NewPasswordInput, RefreshTokenInput, RegisterInput, ResendOtpInput,
+	VerifyEmailInput,
+};
+use crate::users::infrastructure::http::dto::UsersDetailItemDto;
+use axum::{Extension, response::IntoResponse};
+use imphnen_entities::RolesDetailItemDto;
+use imphnen_libs::ValidatedJson;
+use imphnen_utils::{ApiMessage, ApiSuccess, AppError};
+use std::sync::Arc;
+
+fn login_resp_to_dto(
+	output: crate::auth::domain::types::LoginOutput,
+) -> AuthLoginResponsetDto {
+	let u = output.user;
+	AuthLoginResponsetDto {
+		token: TokenDto {
+			access_token: output.token.access_token,
+			refresh_token: output.token.refresh_token,
+		},
+		user: UsersDetailItemDto {
+			id: u.id,
+			role: RolesDetailItemDto::from(&u.role),
+			fullname: u.fullname,
+			legal_name: u.legal_name,
+			email: u.email,
+			avatar: u.avatar,
+			is_active: u.is_active,
+			profile_extension: u.profile_extension,
+			created_at: u.created_at,
+			updated_at: u.updated_at,
+		},
+	}
+}
 
 #[utoipa::path(
     post,
@@ -19,11 +50,15 @@ use crate::auth::domain::AuthService;
     tag = "Authentication"
 )]
 pub async fn post_login(
-    Extension(service): Extension<Arc<dyn AuthService>>,
-    ValidatedJson(payload): ValidatedJson<AuthLoginRequestDto>,
+	Extension(service): Extension<Arc<dyn AuthService>>,
+	ValidatedJson(payload): ValidatedJson<AuthLoginRequestDto>,
 ) -> Result<impl IntoResponse, AppError> {
-    let resp = service.login(payload).await?;
-    Ok(ApiSuccess(resp))
+	let input = LoginInput {
+		email: payload.email,
+		password: payload.password,
+	};
+	let resp = service.login(input).await?;
+	Ok(ApiSuccess(login_resp_to_dto(resp)))
 }
 
 #[utoipa::path(
@@ -38,11 +73,15 @@ pub async fn post_login(
     tag = "Authentication"
 )]
 pub async fn post_login_mentor(
-    Extension(service): Extension<Arc<dyn AuthService>>,
-    ValidatedJson(payload): ValidatedJson<AuthLoginRequestDto>,
+	Extension(service): Extension<Arc<dyn AuthService>>,
+	ValidatedJson(payload): ValidatedJson<AuthLoginRequestDto>,
 ) -> Result<impl IntoResponse, AppError> {
-    let resp = service.login_mentor(payload).await?;
-    Ok(ApiSuccess(resp))
+	let input = LoginInput {
+		email: payload.email,
+		password: payload.password,
+	};
+	let resp = service.login_mentor(input).await?;
+	Ok(ApiSuccess(login_resp_to_dto(resp)))
 }
 
 #[utoipa::path(
@@ -56,11 +95,17 @@ pub async fn post_login_mentor(
     tag = "Authentication"
 )]
 pub async fn post_register(
-    Extension(service): Extension<Arc<dyn AuthService>>,
-    ValidatedJson(payload): ValidatedJson<AuthRegisterRequestDto>,
+	Extension(service): Extension<Arc<dyn AuthService>>,
+	ValidatedJson(payload): ValidatedJson<AuthRegisterRequestDto>,
 ) -> Result<impl IntoResponse, AppError> {
-    service.register(payload).await?;
-    Ok(ApiMessage::created("Registration successful"))
+	let input = RegisterInput {
+		email: payload.email,
+		password: payload.password,
+		fullname: payload.fullname,
+		phone_number: payload.phone_number,
+	};
+	service.register(input).await?;
+	Ok(ApiMessage::created("Registration successful"))
 }
 
 #[utoipa::path(
@@ -74,11 +119,15 @@ pub async fn post_register(
     tag = "Authentication"
 )]
 pub async fn post_verify_email(
-    Extension(service): Extension<Arc<dyn AuthService>>,
-    ValidatedJson(payload): ValidatedJson<AuthVerifyEmailRequestDto>,
+	Extension(service): Extension<Arc<dyn AuthService>>,
+	ValidatedJson(payload): ValidatedJson<AuthVerifyEmailRequestDto>,
 ) -> Result<impl IntoResponse, AppError> {
-    service.verify_email(payload).await?;
-    Ok(ApiMessage::ok("Email verified successfully"))
+	let input = VerifyEmailInput {
+		email: payload.email,
+		otp: payload.otp,
+	};
+	service.verify_email(input).await?;
+	Ok(ApiMessage::ok("Email verified successfully"))
 }
 
 #[utoipa::path(
@@ -92,11 +141,14 @@ pub async fn post_verify_email(
     tag = "Authentication"
 )]
 pub async fn post_resend_otp(
-    Extension(service): Extension<Arc<dyn AuthService>>,
-    ValidatedJson(payload): ValidatedJson<AuthResendOtpRequestDto>,
+	Extension(service): Extension<Arc<dyn AuthService>>,
+	ValidatedJson(payload): ValidatedJson<AuthResendOtpRequestDto>,
 ) -> Result<impl IntoResponse, AppError> {
-    service.resend_otp(payload).await?;
-    Ok(ApiMessage::ok("OTP sent"))
+	let input = ResendOtpInput {
+		email: payload.email,
+	};
+	service.resend_otp(input).await?;
+	Ok(ApiMessage::ok("OTP sent"))
 }
 
 #[utoipa::path(
@@ -109,13 +161,16 @@ pub async fn post_resend_otp(
     tag = "Authentication"
 )]
 pub async fn post_forgot_password(
-    Extension(service): Extension<Arc<dyn AuthService>>,
-    ValidatedJson(payload): ValidatedJson<AuthResendOtpRequestDto>,
+	Extension(service): Extension<Arc<dyn AuthService>>,
+	ValidatedJson(payload): ValidatedJson<AuthResendOtpRequestDto>,
 ) -> Result<impl IntoResponse, AppError> {
-    service.forgot_password(payload).await?;
-    Ok(ApiMessage::ok(
-        "If your email is registered, you will receive a password reset link.",
-    ))
+	let input = ResendOtpInput {
+		email: payload.email,
+	};
+	service.forgot_password(input).await?;
+	Ok(ApiMessage::ok(
+		"If your email is registered, you will receive a password reset link.",
+	))
 }
 
 #[utoipa::path(
@@ -129,11 +184,15 @@ pub async fn post_forgot_password(
     tag = "Authentication"
 )]
 pub async fn post_new_password(
-    Extension(service): Extension<Arc<dyn AuthService>>,
-    ValidatedJson(payload): ValidatedJson<AuthNewPasswordRequestDto>,
+	Extension(service): Extension<Arc<dyn AuthService>>,
+	ValidatedJson(payload): ValidatedJson<AuthNewPasswordRequestDto>,
 ) -> Result<impl IntoResponse, AppError> {
-    service.new_password(payload).await?;
-    Ok(ApiMessage::ok("Password updated successfully"))
+	let input = NewPasswordInput {
+		token: payload.token,
+		password: payload.password,
+	};
+	service.new_password(input).await?;
+	Ok(ApiMessage::ok("Password updated successfully"))
 }
 
 #[utoipa::path(
@@ -147,10 +206,15 @@ pub async fn post_new_password(
     tag = "Authentication"
 )]
 pub async fn post_refresh_token(
-    Extension(service): Extension<Arc<dyn AuthService>>,
-    ValidatedJson(payload): ValidatedJson<AuthRefreshTokenRequestDto>,
+	Extension(service): Extension<Arc<dyn AuthService>>,
+	ValidatedJson(payload): ValidatedJson<AuthRefreshTokenRequestDto>,
 ) -> Result<impl IntoResponse, AppError> {
-    let resp = service.refresh_token(payload).await?;
-    Ok(ApiSuccess(resp))
+	let input = RefreshTokenInput {
+		refresh_token: payload.refresh_token,
+	};
+	let tokens = service.refresh_token(input).await?;
+	Ok(ApiSuccess(TokenDto {
+		access_token: tokens.access_token,
+		refresh_token: tokens.refresh_token,
+	}))
 }
-

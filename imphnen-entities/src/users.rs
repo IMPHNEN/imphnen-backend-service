@@ -1,6 +1,6 @@
+use crate::permissions::{PermissionsItemDto, PermissionsQueryDto};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-use crate::permissions::{PermissionsQueryDto, PermissionsItemDto};
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct ExperienceDto {
@@ -26,26 +26,25 @@ pub struct UserProfileExtensionDto {
 	pub phone_number: Option<String>,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub phone_for_verification: Option<String>,
-    pub gender: Option<String>,
-    pub birthdate: Option<String>,
-    pub domicile: Option<String>,
-    pub bio: Option<String>,
-    pub last_education: Option<String>,
-    pub linkedin_url: Option<String>,
-    pub github_url: Option<String>,
-    pub cv_url: Option<String>,
-    pub portfolio_url: Option<String>,
-    pub website_url: Option<String>,
-    pub twitter_url: Option<String>,
-    pub location: Option<String>,
-    pub skills: Option<Vec<String>>,
-    pub experience: Option<Vec<ExperienceDto>>,
-    pub education: Option<Vec<EducationDto>>,
-    pub career_status: Option<String>,
+	pub gender: Option<String>,
+	pub birthdate: Option<String>,
+	pub domicile: Option<String>,
+	pub bio: Option<String>,
+	pub last_education: Option<String>,
+	pub linkedin_url: Option<String>,
+	pub github_url: Option<String>,
+	pub cv_url: Option<String>,
+	pub portfolio_url: Option<String>,
+	pub website_url: Option<String>,
+	pub twitter_url: Option<String>,
+	pub location: Option<String>,
+	pub skills: Option<Vec<String>>,
+	pub experience: Option<Vec<ExperienceDto>>,
+	pub education: Option<Vec<EducationDto>>,
+	pub career_status: Option<String>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct RolesDetailQueryDto {
 	pub id: String,
 	pub name: String,
@@ -54,7 +53,6 @@ pub struct RolesDetailQueryDto {
 	pub created_at: Option<String>,
 	pub updated_at: Option<String>,
 }
-
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Default)]
 pub struct RolesDetailItemDto {
@@ -95,8 +93,8 @@ pub struct UsersDetailQueryDto {
 	pub avatar: Option<String>,
 	pub is_active: bool,
 	pub is_deleted: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub profile_extension: Option<UserProfileExtensionDto>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub profile_extension: Option<UserProfileExtensionDto>,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub phone_number: Option<String>,
 	#[serde(skip_serializing_if = "Option::is_none")]

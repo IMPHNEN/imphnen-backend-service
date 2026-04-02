@@ -1,19 +1,20 @@
-use crate::require_permissions;
-use std::sync::Arc;
-use axum::{
-    Extension, Json,
-    extract::Path,
-    http::HeaderMap,
-    response::IntoResponse,
+use super::dto::{
+	PermissionsCreateRequestDto, PermissionsItemDto, PermissionsUpdateRequestDto,
 };
+use crate::permissions::domain::PermissionService;
+use crate::require_permissions;
+use axum::{
+	Extension, Json, extract::Path, http::HeaderMap, response::IntoResponse,
+};
+use imphnen_entities::{
+	PermissionsEnum, ResponseListSuccessDto, ResponseSuccessDto,
+};
+use imphnen_libs::AppState;
+use imphnen_utils::AppError;
+use imphnen_utils::{ApiMessage, ApiPaginated, ApiSuccess};
 use paginator_axum::PaginationQuery;
 use paginator_utils::PaginatorResponse;
-use imphnen_libs::AppState;
-use imphnen_utils::{ApiSuccess, ApiPaginated, ApiMessage};
-use imphnen_entities::{ResponseSuccessDto, ResponseListSuccessDto, PermissionsEnum};
-use imphnen_utils::AppError;
-use crate::permissions::domain::PermissionService;
-use super::dto::{PermissionsCreateRequestDto, PermissionsItemDto, PermissionsUpdateRequestDto};
+use std::sync::Arc;
 
 #[utoipa::path(
     get,
@@ -34,19 +35,23 @@ use super::dto::{PermissionsCreateRequestDto, PermissionsItemDto, PermissionsUpd
     tag = "Permissions"
 )]
 pub async fn get_permission_list(
-    headers: HeaderMap,
-    Extension(state): Extension<AppState>,
-    Extension(service): Extension<Arc<dyn PermissionService>>,
-    PaginationQuery(params): PaginationQuery,
+	headers: HeaderMap,
+	Extension(state): Extension<AppState>,
+	Extension(service): Extension<Arc<dyn PermissionService>>,
+	PaginationQuery(params): PaginationQuery,
 ) -> Result<impl IntoResponse, AppError> {
-    require_permissions!(headers, state, [PermissionsEnum::ReadListPermissions], {
-        let result = service.list(params).await?;
-        let mapped = PaginatorResponse {
-            data: result.data.into_iter().map(PermissionsItemDto::from).collect::<Vec<_>>(),
-            meta: result.meta,
-        };
-        Ok(ApiPaginated(mapped))
-    })
+	require_permissions!(headers, state, [PermissionsEnum::ReadListPermissions], {
+		let result = service.list(params).await?;
+		let mapped = PaginatorResponse {
+			data: result
+				.data
+				.into_iter()
+				.map(PermissionsItemDto::from)
+				.collect::<Vec<_>>(),
+			meta: result.meta,
+		};
+		Ok(ApiPaginated(mapped))
+	})
 }
 
 #[utoipa::path(
@@ -60,15 +65,15 @@ pub async fn get_permission_list(
     tag = "Permissions"
 )]
 pub async fn get_permission_by_id(
-    headers: HeaderMap,
-    Extension(state): Extension<AppState>,
-    Extension(service): Extension<Arc<dyn PermissionService>>,
-    Path(id): Path<String>,
+	headers: HeaderMap,
+	Extension(state): Extension<AppState>,
+	Extension(service): Extension<Arc<dyn PermissionService>>,
+	Path(id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
-    require_permissions!(headers, state, [PermissionsEnum::ReadDetailPermissions], {
-        let perm = service.get(id).await?;
-        Ok(ApiSuccess(PermissionsItemDto::from(perm)))
-    })
+	require_permissions!(headers, state, [PermissionsEnum::ReadDetailPermissions], {
+		let perm = service.get(id).await?;
+		Ok(ApiSuccess(PermissionsItemDto::from(perm)))
+	})
 }
 
 #[utoipa::path(
@@ -82,15 +87,15 @@ pub async fn get_permission_by_id(
     tag = "Permissions"
 )]
 pub async fn post_create_permission(
-    headers: HeaderMap,
-    Extension(state): Extension<AppState>,
-    Extension(service): Extension<Arc<dyn PermissionService>>,
-    Json(payload): Json<PermissionsCreateRequestDto>,
+	headers: HeaderMap,
+	Extension(state): Extension<AppState>,
+	Extension(service): Extension<Arc<dyn PermissionService>>,
+	Json(payload): Json<PermissionsCreateRequestDto>,
 ) -> Result<impl IntoResponse, AppError> {
-    require_permissions!(headers, state, [PermissionsEnum::CreatePermissions], {
-        let msg = service.create(payload.name).await?;
-        Ok(ApiMessage::created(&msg))
-    })
+	require_permissions!(headers, state, [PermissionsEnum::CreatePermissions], {
+		let msg = service.create(payload.name).await?;
+		Ok(ApiMessage::created(&msg))
+	})
 }
 
 #[utoipa::path(
@@ -105,19 +110,21 @@ pub async fn post_create_permission(
     tag = "Permissions"
 )]
 pub async fn put_update_permission(
-    headers: HeaderMap,
-    Extension(state): Extension<AppState>,
-    Extension(service): Extension<Arc<dyn PermissionService>>,
-    Path(id): Path<String>,
-    Json(payload): Json<PermissionsUpdateRequestDto>,
+	headers: HeaderMap,
+	Extension(state): Extension<AppState>,
+	Extension(service): Extension<Arc<dyn PermissionService>>,
+	Path(id): Path<String>,
+	Json(payload): Json<PermissionsUpdateRequestDto>,
 ) -> Result<impl IntoResponse, AppError> {
-    require_permissions!(headers, state, [PermissionsEnum::UpdatePermissions], {
-        let current = service.get(id.clone()).await
-            .map_err(|_| AppError::NotFoundError("Permission not found".to_string()))?;
-        let updated = payload.apply_to(current, id);
-        let msg = service.update(updated).await?;
-        Ok(ApiMessage::ok(&msg))
-    })
+	require_permissions!(headers, state, [PermissionsEnum::UpdatePermissions], {
+		let current = service
+			.get(id.clone())
+			.await
+			.map_err(|_| AppError::NotFoundError("Permission not found".to_string()))?;
+		let updated = payload.apply_to(current, id);
+		let msg = service.update(updated).await?;
+		Ok(ApiMessage::ok(&msg))
+	})
 }
 
 #[utoipa::path(
@@ -131,13 +138,13 @@ pub async fn put_update_permission(
     tag = "Permissions"
 )]
 pub async fn delete_permission(
-    headers: HeaderMap,
-    Extension(state): Extension<AppState>,
-    Extension(service): Extension<Arc<dyn PermissionService>>,
-    Path(id): Path<String>,
+	headers: HeaderMap,
+	Extension(state): Extension<AppState>,
+	Extension(service): Extension<Arc<dyn PermissionService>>,
+	Path(id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
-    require_permissions!(headers, state, [PermissionsEnum::DeletePermissions], {
-        let msg = service.delete(id).await?;
-        Ok(ApiMessage::ok(&msg))
-    })
+	require_permissions!(headers, state, [PermissionsEnum::DeletePermissions], {
+		let msg = service.delete(id).await?;
+		Ok(ApiMessage::ok(&msg))
+	})
 }
