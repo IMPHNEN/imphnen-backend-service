@@ -5,6 +5,7 @@ on:
     branches: ['develop']
   pull_request:
     branches: ['develop']
+  workflow_dispatch:
 
 jobs:
   build:
@@ -63,10 +64,14 @@ jobs:
           fi
 
       - name: Deploy to server
-        continue-on-error: true
         run: |
-          ssh -i ~/.ssh/deploy_key -o ConnectTimeout=15 -o StrictHostKeyChecking=accept-new root@167.235.70.37 \
-            'nixos-rebuild switch --flake github:IMPHNEN/imphnen-infrastructure#hetzner --refresh 2>&1 | tail -30'
+          ssh -i ~/.ssh/deploy_key \
+            -o ConnectTimeout=30 \
+            -o StrictHostKeyChecking=accept-new \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=40 \
+            root@167.235.70.37 \
+            'nixos-rebuild switch --flake github:IMPHNEN/imphnen-infrastructure#hetzner --refresh 2>&1 | tail -50'
 
       - name: Cleanup
         if: always()
