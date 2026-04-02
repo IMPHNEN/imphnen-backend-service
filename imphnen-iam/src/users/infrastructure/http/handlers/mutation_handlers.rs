@@ -15,7 +15,7 @@ use uuid::Uuid;
 
 #[utoipa::path(
     post,
-    path = "/v1/users/create",
+    path = "/v1/iam/users/create",
     security(("Bearer" = [])),
     request_body = UsersCreateRequestDto,
     responses(
@@ -54,7 +54,7 @@ pub async fn post_create_user(
 
 #[utoipa::path(
     put,
-    path = "/v1/users/update/{id}",
+    path = "/v1/iam/users/update/{id}",
     security(("Bearer" = [])),
     params(("id" = String, Path, description = "User ID")),
     request_body = UsersUpdateRequestDto,
@@ -108,7 +108,7 @@ pub async fn put_update_user(
 
 #[utoipa::path(
     put,
-    path = "/v1/users/activate/{id}",
+    path = "/v1/iam/users/activate/{id}",
     security(("Bearer" = [])),
     params(("id" = String, Path, description = "User ID")),
     request_body = UsersActiveInactiveRequestDto,
@@ -135,7 +135,7 @@ pub async fn patch_user_active_status(
 
 #[utoipa::path(
     delete,
-    path = "/v1/users/delete/{id}",
+    path = "/v1/iam/users/delete/{id}",
     security(("Bearer" = [])),
     params(("id" = String, Path, description = "User ID")),
     responses(

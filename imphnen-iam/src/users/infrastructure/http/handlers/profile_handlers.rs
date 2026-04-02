@@ -16,7 +16,7 @@ use tracing::error;
 
 #[utoipa::path(
     put,
-    path = "/v1/users/update/me",
+    path = "/v1/iam/users/update/me",
     security(("Bearer" = [])),
     request_body = UsersUpdateRequestDto,
     responses(
@@ -70,7 +70,7 @@ pub async fn put_update_user_me(
 
 #[utoipa::path(
     post,
-    path = "/v1/users/upload",
+    path = "/v1/iam/users/upload",
     security(("Bearer" = [])),
     request_body(
         content = super::super::dto::FileUploadSchema,

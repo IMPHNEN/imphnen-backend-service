@@ -16,7 +16,7 @@ use uuid::Uuid;
 
 #[utoipa::path(
     get,
-    path = "/v1/mentors",
+    path = "/v1/dimentorin/mentors",
     params(
         ("page" = Option<u64>, Query, description = "Page number"),
         ("per_page" = Option<u64>, Query, description = "Items per page"),
@@ -53,7 +53,7 @@ pub async fn get_mentor_list(
 
 #[utoipa::path(
     get,
-    path = "/v1/mentors/detail/{id}",
+    path = "/v1/dimentorin/mentors/detail/{id}",
     params(
         ("id" = String, Path, description = "Mentor ID")
     ),
@@ -84,7 +84,7 @@ pub async fn get_mentor_by_id(
 
 #[utoipa::path(
     get,
-    path = "/v1/mentors/me",
+    path = "/v1/dimentorin/mentors/me",
     responses(
         (status = 200, description = "[MENTOR] Current user's mentor profile", body = MentorDetailResponseDto),
         (status = 401, description = "[MENTOR] Unauthorized - invalid token"),
@@ -119,7 +119,7 @@ pub async fn get_mentor_me(
 
 #[utoipa::path(
     get,
-    path = "/v1/mentors/me/status",
+    path = "/v1/dimentorin/mentors/me/status",
     responses(
         (status = 200, description = "[MENTOR] Mentor application status", body = String),
         (status = 401, description = "[MENTOR] Unauthorized - invalid token"),

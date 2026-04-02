@@ -45,40 +45,50 @@ pub async fn gateway_service(postgres_clients: PostgresClients) -> Router {
 		.await
 		.expect("Failed to create MinIO service"),
 	);
-	let public_routes = Router::new()
+
+	let iam_routes = Router::new()
 		.merge(
 			auth_public_routes(db.clone(), Arc::clone(&state_arc))
 				.layer(from_fn(rate_limiting_middleware)),
 		)
+		.merge(
+			Router::new()
+				.merge(users_protected_routes(db.clone(), Arc::clone(&state_arc)))
+				.merge(roles_protected_routes(db.clone(), Arc::clone(&state_arc)))
+				.merge(permissions_protected_routes(db.clone(), Arc::clone(&state_arc)))
+				.layer(from_fn(auth_middleware)),
+		);
+
+	let cms_routes = Router::new()
 		.merge(testimonials_public_routes(db.clone()))
 		.merge(events_public_routes(db.clone()))
-		.merge(mentors_public_routes(db.clone(), Arc::clone(&state_arc)))
-		.merge(sessions_public_routes(db.clone()));
+		.merge(
+			Router::new()
+				.merge(events_protected_routes(db.clone()))
+				.merge(testimonials_protected_routes(db.clone()))
+				.layer(from_fn(auth_middleware)),
+		);
 
-	let protected_routes = Router::new()
-		.merge(users_protected_routes(db.clone(), Arc::clone(&state_arc)))
-		.merge(roles_protected_routes(db.clone(), Arc::clone(&state_arc)))
-		.merge(permissions_protected_routes(
-			db.clone(),
-			Arc::clone(&state_arc),
-		))
-		.merge(events_protected_routes(db.clone()))
-		.merge(testimonials_protected_routes(db.clone()))
-		.merge(mentors_protected_routes(db.clone(), Arc::clone(&state_arc)))
-		.merge(sessions_protected_routes(
-			db.clone(),
-			Arc::clone(&state_arc),
-		))
-		.nest("/gacha", gacha_router(db.clone(), Arc::clone(&state_arc)))
+	let dimentorin_routes = Router::new()
+		.merge(mentors_public_routes(db.clone(), Arc::clone(&state_arc)))
+		.merge(sessions_public_routes(db.clone()))
+		.merge(
+			Router::new()
+				.merge(mentors_protected_routes(db.clone(), Arc::clone(&state_arc)))
+				.merge(sessions_protected_routes(db.clone(), Arc::clone(&state_arc)))
+				.layer(from_fn(auth_middleware)),
+		);
+
+	let gacha_routes = gacha_router(db.clone(), Arc::clone(&state_arc))
 		.layer(from_fn(auth_middleware));
 
 	Router::new()
 		.route("/", get(Redirect::to("/docs")))
-		.nest("/v1", public_routes.merge(protected_routes))
-		.nest(
-			"/v1/hackathon",
-			hackathon_router(db.clone(), minio),
-		)
+		.nest("/v1/iam", iam_routes)
+		.nest("/v1/landing/cms", cms_routes)
+		.nest("/v1/dimentorin", dimentorin_routes)
+		.nest("/v1/gacha", gacha_routes)
+		.nest("/v1/hackathon", hackathon_router(db.clone(), minio))
 		.nest("/v1/qr", qr_router(db.clone()))
 		.merge(SwaggerUi::new("/docs").url("/openapi.json", docs_router()))
 		.layer(cors_middleware())

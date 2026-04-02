@@ -41,7 +41,7 @@ fn login_resp_to_dto(
 
 #[utoipa::path(
     post,
-    path = "/v1/auth/login",
+    path = "/v1/iam/auth/login",
     request_body = AuthLoginRequestDto,
     responses(
         (status = 200, description = "[PUBLIC] Login successful"),
@@ -63,7 +63,7 @@ pub async fn post_login(
 
 #[utoipa::path(
     post,
-    path = "/v1/auth/login-mentor",
+    path = "/v1/iam/auth/login-mentor",
     request_body = AuthLoginRequestDto,
     responses(
         (status = 200, description = "[PUBLIC] Mentor login successful"),
@@ -86,7 +86,7 @@ pub async fn post_login_mentor(
 
 #[utoipa::path(
     post,
-    path = "/v1/auth/register",
+    path = "/v1/iam/auth/register",
     request_body = AuthRegisterRequestDto,
     responses(
         (status = 201, description = "[PUBLIC] Register successful"),
@@ -110,7 +110,7 @@ pub async fn post_register(
 
 #[utoipa::path(
     post,
-    path = "/v1/auth/verify-email",
+    path = "/v1/iam/auth/verify-email",
     request_body = AuthVerifyEmailRequestDto,
     responses(
         (status = 200, description = "[PUBLIC] Verify email successful"),
@@ -132,7 +132,7 @@ pub async fn post_verify_email(
 
 #[utoipa::path(
     post,
-    path = "/v1/auth/send-otp",
+    path = "/v1/iam/auth/send-otp",
     request_body = AuthResendOtpRequestDto,
     responses(
         (status = 200, description = "[PUBLIC] Resend OTP successful"),
@@ -153,7 +153,7 @@ pub async fn post_resend_otp(
 
 #[utoipa::path(
     post,
-    path = "/v1/auth/forgot",
+    path = "/v1/iam/auth/forgot",
     request_body = AuthResendOtpRequestDto,
     responses(
         (status = 200, description = "[PUBLIC] Forgot password request successful")
@@ -175,7 +175,7 @@ pub async fn post_forgot_password(
 
 #[utoipa::path(
     post,
-    path = "/v1/auth/new-password",
+    path = "/v1/iam/auth/new-password",
     request_body = AuthNewPasswordRequestDto,
     responses(
         (status = 200, description = "[PUBLIC] New password set successfully"),
@@ -197,7 +197,7 @@ pub async fn post_new_password(
 
 #[utoipa::path(
     post,
-    path = "/v1/auth/refresh",
+    path = "/v1/iam/auth/refresh",
     request_body = AuthRefreshTokenRequestDto,
     responses(
         (status = 200, description = "[PUBLIC] Refresh token successful"),

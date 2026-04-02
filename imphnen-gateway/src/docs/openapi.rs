@@ -29,6 +29,10 @@ use imphnen_gacha::gacha_claims::infrastructure::http::dto::{
 	GachaClaimCreateRequestDto, GachaClaimDetailDto,
 };
 use imphnen_gacha::gacha_claims::infrastructure::http::handlers as gacha_claims_controller;
+use imphnen_gacha::gacha_credits::infrastructure::http::dto::{
+	GachaCreditAddRequestDto, GachaCreditDto,
+};
+use imphnen_gacha::gacha_credits::infrastructure::http::handlers as gacha_credits_controller;
 use imphnen_gacha::gacha_items::infrastructure::http::dto::{
 	GachaItemCreateRequestDto, GachaItemDto,
 };
@@ -77,6 +81,8 @@ use utoipa::OpenApi;
         permissions_controller::post_create_permission, permissions_controller::put_update_permission,
         permissions_controller::delete_permission,
         gacha_claims_controller::get_gacha_claim_by_id, gacha_claims_controller::post_create_gacha_claim,
+        gacha_credits_controller::get_user_credits, gacha_credits_controller::post_add_credits,
+        gacha_credits_controller::post_consume_credit,
         gacha_items_controller::get_gacha_item_list, gacha_items_controller::get_gacha_item_by_id,
         gacha_items_controller::post_create_gacha_item, gacha_items_controller::put_update_gacha_item,
         gacha_items_controller::delete_gacha_item,
@@ -104,7 +110,9 @@ use utoipa::OpenApi;
         RolesListItemDto, RolesDetailItemDto, RolesCreateRequestDto, RolesUpdateRequestDto,
         PermissionsCreateRequestDto, PermissionsItemDto,
         UsersDetailItemDto, UsersListItemDto, UsersUpdateRequestDto, UsersCreateRequestDto, FileUploadSchema,
-        GachaClaimDetailDto, GachaClaimCreateRequestDto, GachaItemDto, GachaItemCreateRequestDto,
+        GachaClaimDetailDto, GachaClaimCreateRequestDto,
+        GachaCreditDto, GachaCreditAddRequestDto,
+        GachaItemDto, GachaItemCreateRequestDto,
         GachaRollItemDto, GachaRollCreateRequestDto,
         ResponseListSuccessDto<Vec<GachaItemDto>>, ResponseSuccessDto<GachaRollItemDto>,
         ResponseSuccessDto<GachaItemDto>, ResponseSuccessDto<GachaClaimDetailDto>,
@@ -137,16 +145,16 @@ use utoipa::OpenApi;
     ),
     modifiers(&SecurityAddon),
     tags(
-        (name = "Authentication", description = "List of Authentication Endpoints"),
-        (name = "Users", description = "User Management Endpoints"),
-        (name = "Roles", description = "Role Management Endpoints"),
-        (name = "Permissions", description = "Permission Management Endpoints"),
-        (name = "Events", description = "Event Management Endpoints"),
-        (name = "Testimonials", description = "Testimonial Management Endpoints"),
-        (name = "Mentors", description = "Mentor Management Endpoints"),
-        (name = "Mentors - Admin", description = "Mentor Admin Management Endpoints (Admin Access Required)"),
-        (name = "sessions", description = "Mentoring Sessions Management API"),
-        (name = "Gacha", description = "Gacha System Endpoints"),
+        (name = "Authentication", description = "IAM — Auth endpoints (/v1/iam/auth)"),
+        (name = "Users", description = "IAM — User management (/v1/iam/users)"),
+        (name = "Roles", description = "IAM — Role management (/v1/iam/roles)"),
+        (name = "Permissions", description = "IAM — Permission management (/v1/iam/permissions)"),
+        (name = "Events", description = "Landing CMS — Event management (/v1/landing/cms/events)"),
+        (name = "Testimonials", description = "Landing CMS — Testimonial management (/v1/landing/cms/testimonials)"),
+        (name = "Mentors", description = "Dimentorin — Mentor management (/v1/dimentorin/mentors)"),
+        (name = "Mentors - Admin", description = "Dimentorin — Mentor admin endpoints (/v1/dimentorin/mentors)"),
+        (name = "sessions", description = "Dimentorin — Session management (/v1/dimentorin/sessions)"),
+        (name = "Gacha", description = "Gacha system (/v1/gacha)"),
     )
 )]
 pub struct ApiDoc;

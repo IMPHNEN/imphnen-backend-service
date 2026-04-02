@@ -17,7 +17,7 @@ pub struct SessionStatusFilter {
 
 #[utoipa::path(
     get,
-    path = "/v1/mentors/{id}/sessions",
+    path = "/v1/dimentorin/mentors/{id}/sessions",
     tag = "sessions",
     security(("Bearer" = [])),
     params(
@@ -48,7 +48,7 @@ pub async fn get_mentor_sessions(
 
 #[utoipa::path(
     get,
-    path = "/v1/mentors/{id}/availability",
+    path = "/v1/dimentorin/mentors/{id}/availability",
     tag = "sessions",
     params(
         ("id" = String, Path, description = "Mentor ID"),
@@ -69,7 +69,7 @@ pub async fn get_mentor_availability(
 
 #[utoipa::path(
     get,
-    path = "/v1/users/me/sessions",
+    path = "/v1/dimentorin/sessions/me",
     tag = "sessions",
     security(("Bearer" = [])),
     params(

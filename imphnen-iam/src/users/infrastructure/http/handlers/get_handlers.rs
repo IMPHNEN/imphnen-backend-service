@@ -52,7 +52,7 @@ pub async fn get_user_list(
 
 #[utoipa::path(
     get,
-    path = "/v1/users/detail/{id}",
+    path = "/v1/iam/users/detail/{id}",
     security(("Bearer" = [])),
     params(("id" = String, Path, description = "User ID")),
     responses(
@@ -80,7 +80,7 @@ pub async fn get_user_by_id(
 
 #[utoipa::path(
     get,
-    path = "/v1/users/me",
+    path = "/v1/iam/users/me",
     security(("Bearer" = [])),
     responses(
         (status = 200, description = "[USER] Get current user", body = ResponseSuccessDto<UsersDetailItemDto>)

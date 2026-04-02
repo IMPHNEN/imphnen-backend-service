@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 #[utoipa::path(
     get,
-    path = "/v1/permissions",
+    path = "/v1/iam/permissions",
     security(("Bearer" = [])),
     params(
         ("page" = Option<i64>, Query, description = "Page number"),
@@ -56,7 +56,7 @@ pub async fn get_permission_list(
 
 #[utoipa::path(
     get,
-    path = "/v1/permissions/detail/{id}",
+    path = "/v1/iam/permissions/detail/{id}",
     security(("Bearer" = [])),
     params(("id" = String, Path, description = "Permission ID")),
     responses(
@@ -78,7 +78,7 @@ pub async fn get_permission_by_id(
 
 #[utoipa::path(
     post,
-    path = "/v1/permissions/create",
+    path = "/v1/iam/permissions/create",
     security(("Bearer" = [])),
     request_body = PermissionsCreateRequestDto,
     responses(
@@ -100,7 +100,7 @@ pub async fn post_create_permission(
 
 #[utoipa::path(
     put,
-    path = "/v1/permissions/update/{id}",
+    path = "/v1/iam/permissions/update/{id}",
     security(("Bearer" = [])),
     params(("id" = String, Path, description = "Permission ID")),
     request_body = PermissionsUpdateRequestDto,
@@ -129,7 +129,7 @@ pub async fn put_update_permission(
 
 #[utoipa::path(
     delete,
-    path = "/v1/permissions/delete/{id}",
+    path = "/v1/iam/permissions/delete/{id}",
     security(("Bearer" = [])),
     params(("id" = String, Path, description = "Permission ID")),
     responses(

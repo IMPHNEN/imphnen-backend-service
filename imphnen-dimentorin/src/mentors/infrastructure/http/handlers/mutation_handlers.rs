@@ -17,7 +17,7 @@ use uuid::Uuid;
 
 #[utoipa::path(
     post,
-    path = "/v1/mentors/create",
+    path = "/v1/dimentorin/mentors/create",
     request_body = MentorUserRegisterRequestDto,
     responses(
         (status = 200, description = "[PUBLIC] Mentor registered successfully", body = MentorRegisterResponseDto),
@@ -41,7 +41,7 @@ pub async fn post_register_mentor(
 
 #[utoipa::path(
     put,
-    path = "/v1/mentors/update/{id}",
+    path = "/v1/dimentorin/mentors/update/{id}",
     params(
         ("id" = String, Path, description = "Mentor ID")
     ),
@@ -76,7 +76,7 @@ pub async fn put_update_mentor(
 
 #[utoipa::path(
     delete,
-    path = "/v1/mentors/delete/{id}",
+    path = "/v1/dimentorin/mentors/delete/{id}",
     params(
         ("id" = String, Path, description = "Mentor ID")
     ),
@@ -107,7 +107,7 @@ pub async fn delete_mentor(
 
 #[utoipa::path(
     put,
-    path = "/v1/mentors/verify/{id}",
+    path = "/v1/dimentorin/mentors/verify/{id}",
     params(
         ("id" = String, Path, description = "Mentor ID")
     ),
@@ -142,7 +142,7 @@ pub async fn put_verify_mentor(
 
 #[utoipa::path(
     put,
-    path = "/v1/mentors/me/update",
+    path = "/v1/dimentorin/mentors/me/update",
     request_body = MentorUpdateRequestDto,
     responses(
         (status = 200, description = "[MENTOR] Mentor profile updated successfully", body = MentorDetailResponseDto),
@@ -177,7 +177,7 @@ pub async fn put_update_mentor_me(
 
 #[utoipa::path(
     put,
-    path = "/v1/mentors/update",
+    path = "/v1/dimentorin/mentors/update",
     request_body = MentorUpdateRequestDto,
     responses(
         (status = 400, description = "[PUBLIC] Bad request - Mentor ID is required for update"),

@@ -21,7 +21,7 @@ use uuid::Uuid;
 
 #[utoipa::path(
     get,
-    path = "/v1/cms/landing/events",
+    path = "/v1/landing/cms/events",
     params(
         ("page" = Option<i64>, Query, description = "Page number"),
         ("per_page" = Option<i64>, Query, description = "Items per page"),
@@ -57,7 +57,7 @@ pub async fn get_event_list(
 
 #[utoipa::path(
     get,
-    path = "/v1/cms/landing/events/detail/{id}",
+    path = "/v1/landing/cms/events/detail/{id}",
     params(
         ("id" = String, Path, description = "Event ID")
     ),
@@ -90,7 +90,7 @@ pub async fn get_event_by_id(
 #[utoipa::path(
     post,
     security(("Bearer" = [])),
-    path = "/v1/cms/landing/events/create",
+    path = "/v1/landing/cms/events/create",
     request_body = EventsCreateRequestDto,
     responses(
         (status = 201, description = "[ADMIN] Create new event")
@@ -113,7 +113,7 @@ pub async fn post_create_event(
 #[utoipa::path(
     patch,
     security(("Bearer" = [])),
-    path = "/v1/cms/landing/events/update/{id}",
+    path = "/v1/landing/cms/events/update/{id}",
     params(
         ("id" = String, Path, description = "Event ID")
     ),
@@ -156,7 +156,7 @@ pub async fn patch_update_event(
 #[utoipa::path(
     delete,
     security(("Bearer" = [])),
-    path = "/v1/cms/landing/events/delete/{id}",
+    path = "/v1/landing/cms/events/delete/{id}",
     params(
         ("id" = String, Path, description = "Event ID")
     ),

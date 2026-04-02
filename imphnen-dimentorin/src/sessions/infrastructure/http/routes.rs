@@ -38,7 +38,7 @@ pub fn sessions_protected_routes(
 			put(put_update_session_status),
 		)
 		.route("/sessions/{id}/feedback/create", post(post_submit_feedback))
-		.route("/users/me/sessions", get(get_my_sessions))
+		.route("/sessions/me", get(get_my_sessions))
 		.layer(Extension(service))
 		.layer(Extension((*state).clone()))
 }

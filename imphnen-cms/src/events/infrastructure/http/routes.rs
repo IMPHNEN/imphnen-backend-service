@@ -20,16 +20,16 @@ fn build_service(db: DatabaseConnection) -> Arc<dyn EventService> {
 pub fn events_public_routes(db: DatabaseConnection) -> Router {
 	let service = build_service(db);
 	Router::new()
-		.route("/cms/landing/events", get(get_event_list))
-		.route("/cms/landing/events/detail/{id}", get(get_event_by_id))
+		.route("/events", get(get_event_list))
+		.route("/events/detail/{id}", get(get_event_by_id))
 		.layer(Extension(service))
 }
 
 pub fn events_protected_routes(db: DatabaseConnection) -> Router {
 	let service = build_service(db);
 	Router::new()
-		.route("/cms/landing/events/create", post(post_create_event))
-		.route("/cms/landing/events/update/{id}", patch(patch_update_event))
-		.route("/cms/landing/events/delete/{id}", delete(delete_event))
+		.route("/events/create", post(post_create_event))
+		.route("/events/update/{id}", patch(patch_update_event))
+		.route("/events/delete/{id}", delete(delete_event))
 		.layer(Extension(service))
 }

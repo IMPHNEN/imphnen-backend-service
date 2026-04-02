@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 #[utoipa::path(
     get,
-    path = "/v1/roles",
+    path = "/v1/iam/roles",
     security(("Bearer" = [])),
     params(
         ("page" = Option<i64>, Query, description = "Page number"),
@@ -56,7 +56,7 @@ pub async fn get_role_list(
 
 #[utoipa::path(
     get,
-    path = "/v1/roles/detail/{id}",
+    path = "/v1/iam/roles/detail/{id}",
     security(("Bearer" = [])),
     params(("id" = String, Path, description = "Role ID")),
     responses(
@@ -78,7 +78,7 @@ pub async fn get_role_by_id(
 
 #[utoipa::path(
     post,
-    path = "/v1/roles/create",
+    path = "/v1/iam/roles/create",
     security(("Bearer" = [])),
     request_body = RolesCreateRequestDto,
     responses(
@@ -100,7 +100,7 @@ pub async fn post_create_role(
 
 #[utoipa::path(
     put,
-    path = "/v1/roles/update/{id}",
+    path = "/v1/iam/roles/update/{id}",
     security(("Bearer" = [])),
     params(("id" = String, Path, description = "Role ID")),
     request_body = RolesUpdateRequestDto,
@@ -126,7 +126,7 @@ pub async fn put_update_role(
 
 #[utoipa::path(
     delete,
-    path = "/v1/roles/delete/{id}",
+    path = "/v1/iam/roles/delete/{id}",
     security(("Bearer" = [])),
     params(("id" = String, Path, description = "Role ID")),
     responses(

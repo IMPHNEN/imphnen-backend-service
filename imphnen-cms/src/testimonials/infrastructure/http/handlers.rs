@@ -24,7 +24,7 @@ use uuid::Uuid;
 
 #[utoipa::path(
     get,
-    path = "/v1/cms/landing/testimonials",
+    path = "/v1/landing/cms/testimonials",
     params(
         ("page" = Option<i64>, Query, description = "Page number"),
         ("per_page" = Option<i64>, Query, description = "Items per page"),
@@ -62,7 +62,7 @@ pub async fn get_testimonial_list(
 
 #[utoipa::path(
     get,
-    path = "/v1/cms/landing/testimonials/detail/{id}",
+    path = "/v1/landing/cms/testimonials/detail/{id}",
     params(
         ("id" = String, Path, description = "Testimonial ID")
     ),
@@ -96,7 +96,7 @@ pub async fn get_testimonial_by_id(
 #[utoipa::path(
     post,
     security(("Bearer" = [])),
-    path = "/v1/cms/landing/testimonials/create",
+    path = "/v1/landing/cms/testimonials/create",
     request_body = TestimonialsCreateRequestDto,
     responses(
         (status = 201, description = "[USER] Create new testimonial", body = ResponseSuccessDto<TestimonialsDetailItemDto>)
@@ -139,7 +139,7 @@ pub async fn post_create_testimonial(
 #[utoipa::path(
     patch,
     security(("Bearer" = [])),
-    path = "/v1/cms/landing/testimonials/update/{id}",
+    path = "/v1/landing/cms/testimonials/update/{id}",
     params(
         ("id" = String, Path, description = "Testimonial ID")
     ),
@@ -178,7 +178,7 @@ pub async fn patch_update_testimonial(
 #[utoipa::path(
     delete,
     security(("Bearer" = [])),
-    path = "/v1/cms/landing/testimonials/delete/{id}",
+    path = "/v1/landing/cms/testimonials/delete/{id}",
     params(
         ("id" = String, Path, description = "Testimonial ID")
     ),

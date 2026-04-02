@@ -20,9 +20,9 @@ fn build_service(db: DatabaseConnection) -> Arc<dyn TestimonialService> {
 pub fn testimonials_public_routes(db: DatabaseConnection) -> Router {
 	let service = build_service(db);
 	Router::new()
-		.route("/cms/landing/testimonials", get(get_testimonial_list))
+		.route("/testimonials", get(get_testimonial_list))
 		.route(
-			"/cms/landing/testimonials/detail/{id}",
+			"/testimonials/detail/{id}",
 			get(get_testimonial_by_id),
 		)
 		.layer(Extension(service))
@@ -32,15 +32,15 @@ pub fn testimonials_protected_routes(db: DatabaseConnection) -> Router {
 	let service = build_service(db);
 	Router::new()
 		.route(
-			"/cms/landing/testimonials/create",
+			"/testimonials/create",
 			post(post_create_testimonial),
 		)
 		.route(
-			"/cms/landing/testimonials/update/{id}",
+			"/testimonials/update/{id}",
 			patch(patch_update_testimonial),
 		)
 		.route(
-			"/cms/landing/testimonials/delete/{id}",
+			"/testimonials/delete/{id}",
 			delete(delete_testimonial),
 		)
 		.layer(Extension(service))

@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 #[utoipa::path(
     post,
-    path = "/v1/mentors/{id}/sessions/create",
+    path = "/v1/dimentorin/mentors/{id}/sessions/create",
     tag = "sessions",
     security(("Bearer" = [])),
     params(
@@ -48,7 +48,7 @@ pub async fn post_book_session(
 
 #[utoipa::path(
     put,
-    path = "/v1/sessions/update/{id}/status",
+    path = "/v1/dimentorin/sessions/update/{id}/status",
     tag = "sessions",
     security(("Bearer" = [])),
     params(
@@ -80,7 +80,7 @@ pub async fn put_update_session_status(
 
 #[utoipa::path(
     post,
-    path = "/v1/sessions/{id}/feedback/create",
+    path = "/v1/dimentorin/sessions/{id}/feedback/create",
     tag = "sessions",
     security(("Bearer" = [])),
     params(
