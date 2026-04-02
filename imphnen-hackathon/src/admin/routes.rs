@@ -2,7 +2,7 @@ use axum::{
     extract::{Path, Query},
     middleware::from_fn,
     response::IntoResponse,
-    routing::{delete, get, post, put},
+    routing::{delete, get, post},
     Extension, Json, Router,
 };
 use sqlx::{PgPool, FromRow};

@@ -2,7 +2,6 @@ use axum::{extract::Path, response::IntoResponse, routing::get, Extension, Route
 use sqlx::{PgPool, FromRow};
 use std::sync::Arc;
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 use serde::Serialize;
 use utoipa::ToSchema;
 use imphnen_utils::{errors::AppError, response_format::ApiSuccess};

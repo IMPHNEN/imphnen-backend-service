@@ -1,4 +1,4 @@
-use axum::{middleware::from_fn, routing::{get, put}, Extension, Router};
+use axum::{middleware::from_fn, routing::get, Extension, Router};
 use sqlx::PgPool;
 use std::sync::Arc;
 use crate::users::application::user_service::HackathonUserServiceImpl;

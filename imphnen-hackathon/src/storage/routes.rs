@@ -3,7 +3,6 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-use uuid::Uuid;
 use imphnen_utils::{errors::AppError, response_format::ApiSuccess};
 use crate::common::hackathon_jwt::HackathonJwtService;
 use crate::common::supabase_client::SupabaseClient;

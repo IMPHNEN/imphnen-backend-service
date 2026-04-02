@@ -1,4 +1,4 @@
-use axum::{middleware::from_fn, routing::{delete, get, post}, Extension, Router};
+use axum::{middleware::from_fn, routing::{delete, get}, Extension, Router};
 use sqlx::PgPool;
 use std::sync::Arc;
 use crate::chat::application::chat_service::ChatServiceImpl;
