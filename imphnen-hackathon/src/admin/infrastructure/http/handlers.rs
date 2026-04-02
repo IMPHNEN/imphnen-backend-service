@@ -12,6 +12,18 @@ use imphnen_utils::{
 use std::sync::Arc;
 use uuid::Uuid;
 
+#[utoipa::path(
+    get,
+    path = "/v1/hackathon/admin/users",
+    params(PageQuery),
+    responses(
+        (status = 200, description = "Admin: list all users"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - admin only")
+    ),
+    tag = "Hackathon - Admin",
+    security(("bearer_auth" = []))
+)]
 pub async fn admin_list_users(
 	Extension(service): Extension<Arc<dyn AdminService>>,
 	Query(q): Query<PageQuery>,
@@ -28,6 +40,18 @@ pub async fn admin_list_users(
 	)
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/hackathon/admin/users/{user_id}",
+    params(("user_id" = Uuid, Path, description = "User ID")),
+    responses(
+        (status = 200, description = "Admin: get user by ID"),
+        (status = 403, description = "Forbidden - admin only"),
+        (status = 404, description = "User not found")
+    ),
+    tag = "Hackathon - Admin",
+    security(("bearer_auth" = []))
+)]
 pub async fn admin_get_user(
 	Extension(service): Extension<Arc<dyn AdminService>>,
 	Path(user_id): Path<Uuid>,
@@ -36,6 +60,18 @@ pub async fn admin_get_user(
 	Ok(ApiSuccess(user).into_response())
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/hackathon/admin/users/{user_id}/set-admin",
+    params(("user_id" = Uuid, Path, description = "User ID")),
+    request_body = SetAdminRequest,
+    responses(
+        (status = 200, description = "Admin: set user admin status"),
+        (status = 403, description = "Forbidden - admin only")
+    ),
+    tag = "Hackathon - Admin",
+    security(("bearer_auth" = []))
+)]
 pub async fn admin_set_admin(
 	Extension(service): Extension<Arc<dyn AdminService>>,
 	Path(user_id): Path<Uuid>,
@@ -45,6 +81,17 @@ pub async fn admin_set_admin(
 	Ok(ApiMessage::ok("User admin status updated"))
 }
 
+#[utoipa::path(
+    delete,
+    path = "/v1/hackathon/admin/users/{user_id}",
+    params(("user_id" = Uuid, Path, description = "User ID")),
+    responses(
+        (status = 200, description = "Admin: delete user"),
+        (status = 403, description = "Forbidden - admin only")
+    ),
+    tag = "Hackathon - Admin",
+    security(("bearer_auth" = []))
+)]
 pub async fn admin_delete_user(
 	Extension(service): Extension<Arc<dyn AdminService>>,
 	Path(user_id): Path<Uuid>,
@@ -53,6 +100,17 @@ pub async fn admin_delete_user(
 	Ok(ApiMessage::ok("User deleted"))
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/hackathon/admin/teams",
+    params(PageQuery),
+    responses(
+        (status = 200, description = "Admin: list all teams"),
+        (status = 403, description = "Forbidden - admin only")
+    ),
+    tag = "Hackathon - Admin",
+    security(("bearer_auth" = []))
+)]
 pub async fn admin_list_teams(
 	Extension(service): Extension<Arc<dyn AdminService>>,
 	Query(q): Query<PageQuery>,
@@ -69,6 +127,17 @@ pub async fn admin_list_teams(
 	)
 }
 
+#[utoipa::path(
+    delete,
+    path = "/v1/hackathon/admin/teams/{team_id}",
+    params(("team_id" = Uuid, Path, description = "Team ID")),
+    responses(
+        (status = 200, description = "Admin: delete team"),
+        (status = 403, description = "Forbidden - admin only")
+    ),
+    tag = "Hackathon - Admin",
+    security(("bearer_auth" = []))
+)]
 pub async fn admin_delete_team(
 	Extension(service): Extension<Arc<dyn AdminService>>,
 	Path(team_id): Path<Uuid>,
@@ -77,6 +146,17 @@ pub async fn admin_delete_team(
 	Ok(ApiMessage::ok("Team deleted"))
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/hackathon/admin/submissions",
+    params(PageQuery),
+    responses(
+        (status = 200, description = "Admin: list all submissions"),
+        (status = 403, description = "Forbidden - admin only")
+    ),
+    tag = "Hackathon - Admin",
+    security(("bearer_auth" = []))
+)]
 pub async fn admin_list_submissions(
 	Extension(service): Extension<Arc<dyn AdminService>>,
 	Query(q): Query<PageQuery>,
@@ -93,6 +173,17 @@ pub async fn admin_list_submissions(
 	)
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/hackathon/admin/winners",
+    request_body = SetWinnerRequest,
+    responses(
+        (status = 200, description = "Admin: set winner"),
+        (status = 403, description = "Forbidden - admin only")
+    ),
+    tag = "Hackathon - Admin",
+    security(("bearer_auth" = []))
+)]
 pub async fn admin_set_winner(
 	Extension(service): Extension<Arc<dyn AdminService>>,
 	Json(body): Json<SetWinnerRequest>,
@@ -103,6 +194,17 @@ pub async fn admin_set_winner(
 	Ok(ApiMessage::ok("Winner set"))
 }
 
+#[utoipa::path(
+    delete,
+    path = "/v1/hackathon/admin/winners/{team_id}",
+    params(("team_id" = Uuid, Path, description = "Team ID")),
+    responses(
+        (status = 200, description = "Admin: remove winner"),
+        (status = 403, description = "Forbidden - admin only")
+    ),
+    tag = "Hackathon - Admin",
+    security(("bearer_auth" = []))
+)]
 pub async fn admin_remove_winner(
 	Extension(service): Extension<Arc<dyn AdminService>>,
 	Path(team_id): Path<Uuid>,
@@ -111,6 +213,16 @@ pub async fn admin_remove_winner(
 	Ok(ApiMessage::ok("Winner removed"))
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/hackathon/admin/winners",
+    responses(
+        (status = 200, description = "Admin: list winners"),
+        (status = 403, description = "Forbidden - admin only")
+    ),
+    tag = "Hackathon - Admin",
+    security(("bearer_auth" = []))
+)]
 pub async fn admin_list_winners(
 	Extension(service): Extension<Arc<dyn AdminService>>,
 ) -> Result<axum::response::Response, AppError> {

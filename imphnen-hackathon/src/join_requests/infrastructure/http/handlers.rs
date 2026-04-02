@@ -9,6 +9,18 @@ use imphnen_utils::{
 use std::sync::Arc;
 use uuid::Uuid;
 
+#[utoipa::path(
+    post,
+    path = "/v1/hackathon/join-requests/teams/{team_id}",
+    params(("team_id" = Uuid, Path, description = "Team ID")),
+    request_body = CreateJoinRequestRequest,
+    responses(
+        (status = 200, description = "Create a join request"),
+        (status = 401, description = "Unauthorized")
+    ),
+    tag = "Hackathon - Join Requests",
+    security(("bearer_auth" = []))
+)]
 pub async fn create_join_request_handler(
 	Extension(service): Extension<Arc<dyn JoinRequestService>>,
 	Extension(auth): Extension<HackathonAuthUser>,
@@ -21,6 +33,16 @@ pub async fn create_join_request_handler(
 	Ok(ApiSuccess(JoinRequestResponse::from(request)).into_response())
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/hackathon/join-requests/my",
+    responses(
+        (status = 200, description = "Get my join requests"),
+        (status = 401, description = "Unauthorized")
+    ),
+    tag = "Hackathon - Join Requests",
+    security(("bearer_auth" = []))
+)]
 pub async fn get_my_join_requests_handler(
 	Extension(service): Extension<Arc<dyn JoinRequestService>>,
 	Extension(auth): Extension<HackathonAuthUser>,
@@ -31,6 +53,18 @@ pub async fn get_my_join_requests_handler(
 	Ok(ApiSuccess(response).into_response())
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/hackathon/join-requests/teams/{team_id}/pending",
+    params(("team_id" = Uuid, Path, description = "Team ID")),
+    responses(
+        (status = 200, description = "Get pending join requests for team"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden")
+    ),
+    tag = "Hackathon - Join Requests",
+    security(("bearer_auth" = []))
+)]
 pub async fn get_team_join_requests_handler(
 	Extension(service): Extension<Arc<dyn JoinRequestService>>,
 	Extension(auth): Extension<HackathonAuthUser>,
@@ -44,6 +78,19 @@ pub async fn get_team_join_requests_handler(
 	Ok(ApiSuccess(response).into_response())
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/hackathon/join-requests/{request_id}/respond",
+    params(("request_id" = Uuid, Path, description = "Join request ID")),
+    request_body = RespondToJoinRequestRequest,
+    responses(
+        (status = 200, description = "Respond to join request"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden")
+    ),
+    tag = "Hackathon - Join Requests",
+    security(("bearer_auth" = []))
+)]
 pub async fn respond_to_join_request_handler(
 	Extension(service): Extension<Arc<dyn JoinRequestService>>,
 	Extension(auth): Extension<HackathonAuthUser>,

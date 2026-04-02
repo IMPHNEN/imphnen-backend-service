@@ -5,6 +5,17 @@ use axum::{Extension, Json, response::IntoResponse};
 use imphnen_utils::{errors::AppError, response_format::ApiSuccess};
 use std::sync::Arc;
 
+#[utoipa::path(
+    post,
+    path = "/v1/hackathon/upload",
+    request_body = UploadRequest,
+    responses(
+        (status = 200, description = "Upload a file"),
+        (status = 401, description = "Unauthorized")
+    ),
+    tag = "Hackathon - Storage",
+    security(("bearer_auth" = []))
+)]
 pub async fn upload_file_handler(
 	Extension(service): Extension<Arc<dyn StorageService>>,
 	Extension(auth): Extension<HackathonAuthUser>,
@@ -22,6 +33,17 @@ pub async fn upload_file_handler(
 	Ok(ApiSuccess(UploadResponse { url }).into_response())
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/hackathon/upload/avatar",
+    request_body = UploadRequest,
+    responses(
+        (status = 200, description = "Upload avatar image"),
+        (status = 401, description = "Unauthorized")
+    ),
+    tag = "Hackathon - Storage",
+    security(("bearer_auth" = []))
+)]
 pub async fn upload_avatar_handler(
 	Extension(service): Extension<Arc<dyn StorageService>>,
 	Extension(auth): Extension<HackathonAuthUser>,
@@ -39,6 +61,17 @@ pub async fn upload_avatar_handler(
 	Ok(ApiSuccess(UploadResponse { url }).into_response())
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/hackathon/upload/team",
+    request_body = UploadRequest,
+    responses(
+        (status = 200, description = "Upload team image"),
+        (status = 401, description = "Unauthorized")
+    ),
+    tag = "Hackathon - Storage",
+    security(("bearer_auth" = []))
+)]
 pub async fn upload_team_handler(
 	Extension(service): Extension<Arc<dyn StorageService>>,
 	Extension(auth): Extension<HackathonAuthUser>,
@@ -56,6 +89,17 @@ pub async fn upload_team_handler(
 	Ok(ApiSuccess(UploadResponse { url }).into_response())
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/hackathon/upload/submission",
+    request_body = UploadRequest,
+    responses(
+        (status = 200, description = "Upload submission file"),
+        (status = 401, description = "Unauthorized")
+    ),
+    tag = "Hackathon - Storage",
+    security(("bearer_auth" = []))
+)]
 pub async fn upload_submission_handler(
 	Extension(service): Extension<Arc<dyn StorageService>>,
 	Extension(auth): Extension<HackathonAuthUser>,

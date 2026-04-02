@@ -15,6 +15,16 @@ use crate::qr::{
 	},
 };
 
+#[utoipa::path(
+    get,
+    path = "/v1/qr/users/me",
+    responses(
+        (status = 200, description = "Get my QR user profile"),
+        (status = 401, description = "Unauthorized")
+    ),
+    tag = "QR - Users",
+    security(("bearer_auth" = []))
+)]
 pub async fn get_me_handler(
 	Extension(service): Extension<Arc<dyn QrUserService>>,
 	Extension(auth_user): Extension<QrAuthUser>,
@@ -23,6 +33,17 @@ pub async fn get_me_handler(
 	Ok(ApiSuccess(user).into_response())
 }
 
+#[utoipa::path(
+    put,
+    path = "/v1/qr/users/me",
+    request_body = UpdateProfileRequest,
+    responses(
+        (status = 200, description = "Update my QR user profile"),
+        (status = 401, description = "Unauthorized")
+    ),
+    tag = "QR - Users",
+    security(("bearer_auth" = []))
+)]
 pub async fn update_me_handler(
 	Extension(service): Extension<Arc<dyn QrUserService>>,
 	Extension(auth_user): Extension<QrAuthUser>,
@@ -36,6 +57,17 @@ pub async fn update_me_handler(
 	Ok(ApiSuccess(user).into_response())
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/qr/users",
+    responses(
+        (status = 200, description = "Admin: list all QR users"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - admin only")
+    ),
+    tag = "QR - Users",
+    security(("bearer_auth" = []))
+)]
 pub async fn list_users_handler(
 	Extension(service): Extension<Arc<dyn QrUserService>>,
 	Extension(auth_user): Extension<QrAuthUser>,
@@ -49,6 +81,19 @@ pub async fn list_users_handler(
 	Ok(ApiSuccess(users).into_response())
 }
 
+#[utoipa::path(
+    put,
+    path = "/v1/qr/users/{id}/role",
+    params(("id" = Uuid, Path, description = "User ID")),
+    request_body = UpdateRoleRequest,
+    responses(
+        (status = 200, description = "Admin: update user role"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - admin only")
+    ),
+    tag = "QR - Users",
+    security(("bearer_auth" = []))
+)]
 pub async fn update_role_handler(
 	Extension(service): Extension<Arc<dyn QrUserService>>,
 	Extension(auth_user): Extension<QrAuthUser>,
@@ -64,6 +109,18 @@ pub async fn update_role_handler(
 	Ok(ApiSuccess(user).into_response())
 }
 
+#[utoipa::path(
+    delete,
+    path = "/v1/qr/users/{id}",
+    params(("id" = Uuid, Path, description = "User ID")),
+    responses(
+        (status = 200, description = "Admin: delete QR user"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - admin only")
+    ),
+    tag = "QR - Users",
+    security(("bearer_auth" = []))
+)]
 pub async fn delete_user_handler(
 	Extension(service): Extension<Arc<dyn QrUserService>>,
 	Extension(auth_user): Extension<QrAuthUser>,

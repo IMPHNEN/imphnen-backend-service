@@ -15,6 +15,18 @@ use crate::qr::{
 	middleware::qr_auth::QrAuthUser,
 };
 
+#[utoipa::path(
+    post,
+    path = "/v1/qr/campaigns",
+    request_body = CreateCampaignRequest,
+    responses(
+        (status = 201, description = "Create a QR campaign"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - admin only")
+    ),
+    tag = "QR - Campaigns",
+    security(("bearer_auth" = []))
+)]
 pub async fn create_campaign_handler(
 	Extension(service): Extension<Arc<dyn QrCampaignService>>,
 	Extension(auth_user): Extension<QrAuthUser>,
@@ -31,6 +43,17 @@ pub async fn create_campaign_handler(
 	Ok(imphnen_utils::response_format::ApiCreated(campaign).into_response())
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/qr/campaigns",
+    responses(
+        (status = 200, description = "Admin: list all QR campaigns"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - admin only")
+    ),
+    tag = "QR - Campaigns",
+    security(("bearer_auth" = []))
+)]
 pub async fn list_campaigns_handler(
 	Extension(service): Extension<Arc<dyn QrCampaignService>>,
 	Extension(auth_user): Extension<QrAuthUser>,
@@ -44,6 +67,18 @@ pub async fn list_campaigns_handler(
 	Ok(ApiSuccess(campaigns).into_response())
 }
 
+#[utoipa::path(
+    put,
+    path = "/v1/qr/campaigns/{id}/activate",
+    params(("id" = Uuid, Path, description = "Campaign ID")),
+    responses(
+        (status = 200, description = "Admin: activate a campaign"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - admin only")
+    ),
+    tag = "QR - Campaigns",
+    security(("bearer_auth" = []))
+)]
 pub async fn activate_campaign_handler(
 	Extension(service): Extension<Arc<dyn QrCampaignService>>,
 	Extension(auth_user): Extension<QrAuthUser>,
@@ -58,6 +93,18 @@ pub async fn activate_campaign_handler(
 	Ok(ApiSuccess(campaign).into_response())
 }
 
+#[utoipa::path(
+    delete,
+    path = "/v1/qr/campaigns/{id}",
+    params(("id" = Uuid, Path, description = "Campaign ID")),
+    responses(
+        (status = 200, description = "Admin: delete a campaign"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - admin only")
+    ),
+    tag = "QR - Campaigns",
+    security(("bearer_auth" = []))
+)]
 pub async fn delete_campaign_handler(
 	Extension(service): Extension<Arc<dyn QrCampaignService>>,
 	Extension(auth_user): Extension<QrAuthUser>,
@@ -75,6 +122,16 @@ pub async fn delete_campaign_handler(
 	)
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/qr/campaigns/process-image",
+    responses(
+        (status = 200, description = "Process QR code image (multipart/form-data with 'file' field)"),
+        (status = 401, description = "Unauthorized")
+    ),
+    tag = "QR - Campaigns",
+    security(("bearer_auth" = []))
+)]
 pub async fn process_image_handler(
 	Extension(service): Extension<Arc<dyn QrCampaignService>>,
 	Extension(_auth_user): Extension<QrAuthUser>,

@@ -9,6 +9,17 @@ use imphnen_utils::{
 use std::sync::Arc;
 use uuid::Uuid;
 
+#[utoipa::path(
+    get,
+    path = "/v1/hackathon/chat/teams/{team_id}",
+    params(("team_id" = Uuid, Path, description = "Team ID")),
+    responses(
+        (status = 200, description = "Get team chat messages"),
+        (status = 401, description = "Unauthorized")
+    ),
+    tag = "Hackathon - Chat",
+    security(("bearer_auth" = []))
+)]
 pub async fn get_team_messages_handler(
 	Extension(service): Extension<Arc<dyn ChatService>>,
 	Extension(auth): Extension<HackathonAuthUser>,
@@ -20,6 +31,18 @@ pub async fn get_team_messages_handler(
 	Ok(ApiSuccess(response).into_response())
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/hackathon/chat/teams/{team_id}",
+    params(("team_id" = Uuid, Path, description = "Team ID")),
+    request_body = SendMessageRequest,
+    responses(
+        (status = 200, description = "Send a message to team chat"),
+        (status = 401, description = "Unauthorized")
+    ),
+    tag = "Hackathon - Chat",
+    security(("bearer_auth" = []))
+)]
 pub async fn send_message_handler(
 	Extension(service): Extension<Arc<dyn ChatService>>,
 	Extension(auth): Extension<HackathonAuthUser>,
@@ -32,6 +55,18 @@ pub async fn send_message_handler(
 	Ok(ApiSuccess(MessageResponse::from(message)).into_response())
 }
 
+#[utoipa::path(
+    delete,
+    path = "/v1/hackathon/chat/messages/{message_id}",
+    params(("message_id" = Uuid, Path, description = "Message ID")),
+    responses(
+        (status = 200, description = "Delete a chat message"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden")
+    ),
+    tag = "Hackathon - Chat",
+    security(("bearer_auth" = []))
+)]
 pub async fn delete_message_handler(
 	Extension(service): Extension<Arc<dyn ChatService>>,
 	Extension(auth): Extension<HackathonAuthUser>,

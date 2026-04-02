@@ -145,7 +145,7 @@ impl From<UpdateTeamRequest> for UpdateTeamInput {
 	}
 }
 
-#[derive(Debug, Deserialize, ToSchema)]
+#[derive(Debug, Deserialize, ToSchema, utoipa::IntoParams)]
 pub struct BrowseTeamsQuery {
 	pub search: Option<String>,
 	pub city: Option<String>,

@@ -6,6 +6,16 @@ use imphnen_utils::{errors::AppError, response_format::ApiSuccess};
 use std::sync::Arc;
 use uuid::Uuid;
 
+#[utoipa::path(
+    get,
+    path = "/v1/hackathon/users/me",
+    responses(
+        (status = 200, description = "Get my hackathon user profile"),
+        (status = 401, description = "Unauthorized")
+    ),
+    tag = "Hackathon - Users",
+    security(("bearer_auth" = []))
+)]
 pub async fn get_me_handler(
 	Extension(service): Extension<Arc<dyn HackathonUserService>>,
 	Extension(auth): Extension<HackathonAuthUser>,
@@ -14,6 +24,17 @@ pub async fn get_me_handler(
 	Ok(ApiSuccess(UserResponse::from(user)).into_response())
 }
 
+#[utoipa::path(
+    put,
+    path = "/v1/hackathon/users/me",
+    request_body = UpdateUserRequest,
+    responses(
+        (status = 200, description = "Update my hackathon user profile"),
+        (status = 401, description = "Unauthorized")
+    ),
+    tag = "Hackathon - Users",
+    security(("bearer_auth" = []))
+)]
 pub async fn update_me_handler(
 	Extension(service): Extension<Arc<dyn HackathonUserService>>,
 	Extension(auth): Extension<HackathonAuthUser>,
@@ -23,6 +44,16 @@ pub async fn update_me_handler(
 	Ok(ApiSuccess(UserResponse::from(user)).into_response())
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/hackathon/users/{user_id}",
+    params(("user_id" = Uuid, Path, description = "User ID")),
+    responses(
+        (status = 200, description = "Get hackathon user by ID"),
+        (status = 404, description = "User not found")
+    ),
+    tag = "Hackathon - Users"
+)]
 pub async fn get_user_handler(
 	Extension(service): Extension<Arc<dyn HackathonUserService>>,
 	Path(user_id): Path<Uuid>,
@@ -31,6 +62,16 @@ pub async fn get_user_handler(
 	Ok(ApiSuccess(UserResponse::from(user)).into_response())
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/hackathon/users/{user_id}/teams",
+    params(("user_id" = Uuid, Path, description = "User ID")),
+    responses(
+        (status = 200, description = "Get teams for a hackathon user"),
+        (status = 404, description = "User not found")
+    ),
+    tag = "Hackathon - Users"
+)]
 pub async fn get_user_teams_handler(
 	Extension(service): Extension<Arc<dyn HackathonUserService>>,
 	Path(user_id): Path<Uuid>,

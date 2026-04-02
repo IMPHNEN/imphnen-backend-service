@@ -9,6 +9,16 @@ use imphnen_utils::{
 use std::sync::Arc;
 use uuid::Uuid;
 
+#[utoipa::path(
+    get,
+    path = "/v1/hackathon/invitations/my",
+    responses(
+        (status = 200, description = "Get my invitations"),
+        (status = 401, description = "Unauthorized")
+    ),
+    tag = "Hackathon - Invitations",
+    security(("bearer_auth" = []))
+)]
 pub async fn get_my_invitations_handler(
 	Extension(service): Extension<Arc<dyn InvitationService>>,
 	Extension(auth): Extension<HackathonAuthUser>,
@@ -19,6 +29,19 @@ pub async fn get_my_invitations_handler(
 	Ok(ApiSuccess(response).into_response())
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/hackathon/invitations/{invitation_id}/respond",
+    params(("invitation_id" = Uuid, Path, description = "Invitation ID")),
+    request_body = RespondToInvitationRequest,
+    responses(
+        (status = 200, description = "Respond to invitation"),
+        (status = 401, description = "Unauthorized"),
+        (status = 404, description = "Invitation not found")
+    ),
+    tag = "Hackathon - Invitations",
+    security(("bearer_auth" = []))
+)]
 pub async fn respond_to_invitation_handler(
 	Extension(service): Extension<Arc<dyn InvitationService>>,
 	Extension(auth): Extension<HackathonAuthUser>,
@@ -36,6 +59,19 @@ pub async fn respond_to_invitation_handler(
 	Ok(ApiMessage::ok(msg).into_response())
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/hackathon/invitations/teams/{team_id}/invite",
+    params(("team_id" = Uuid, Path, description = "Team ID")),
+    request_body = CreateInvitationRequest,
+    responses(
+        (status = 200, description = "Invite a member to team"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden")
+    ),
+    tag = "Hackathon - Invitations",
+    security(("bearer_auth" = []))
+)]
 pub async fn invite_team_member_handler(
 	Extension(service): Extension<Arc<dyn InvitationService>>,
 	Extension(auth): Extension<HackathonAuthUser>,

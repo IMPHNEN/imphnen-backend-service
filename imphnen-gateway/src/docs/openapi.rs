@@ -3,6 +3,12 @@ use imphnen_cms::events::infrastructure::http::dto::{
 	EventsDetailItemDto, EventsListItemDto,
 };
 use imphnen_cms::events::infrastructure::http::handlers as events_controller;
+use imphnen_cms::qr::campaigns::infrastructure::http::dto::CreateCampaignRequest;
+use imphnen_cms::qr::campaigns::infrastructure::http::handlers as qr_campaigns_controller;
+use imphnen_cms::qr::users::infrastructure::http::dto::{
+	UpdateProfileRequest, UpdateRoleRequest,
+};
+use imphnen_cms::qr::users::infrastructure::http::handlers as qr_users_controller;
 use imphnen_cms::testimonials::infrastructure::http::dto::{
 	TestimonialsCreateRequestDto, TestimonialsDetailItemDto, TestimonialsListItemDto,
 	TestimonialsUpdateRequestDto,
@@ -41,6 +47,46 @@ use imphnen_gacha::gacha_rolls::infrastructure::http::dto::{
 	GachaRollCreateRequestDto, GachaRollItemDto,
 };
 use imphnen_gacha::gacha_rolls::infrastructure::http::handlers as gacha_rolls_controller;
+use imphnen_hackathon::admin::domain::entity::{
+	AdminSubmissionRow, AdminTeamRow, AdminUserRow, WinnerRow,
+};
+use imphnen_hackathon::admin::infrastructure::http::dto::{
+	SetAdminRequest, SetWinnerRequest,
+};
+use imphnen_hackathon::admin::infrastructure::http::handlers as hackathon_admin_controller;
+use imphnen_hackathon::certificates::infrastructure::http::dto::CertificateResponse;
+use imphnen_hackathon::certificates::infrastructure::http::handlers as hackathon_certificates_controller;
+use imphnen_hackathon::chat::infrastructure::http::dto::{
+	MessageResponse, SendMessageRequest,
+};
+use imphnen_hackathon::chat::infrastructure::http::handlers as hackathon_chat_controller;
+use imphnen_hackathon::invitations::infrastructure::http::dto::{
+	CreateInvitationRequest, InvitationResponse, RespondToInvitationRequest,
+};
+use imphnen_hackathon::invitations::infrastructure::http::handlers as hackathon_invitations_controller;
+use imphnen_hackathon::join_requests::infrastructure::http::dto::{
+	CreateJoinRequestRequest, JoinRequestResponse, RespondToJoinRequestRequest,
+};
+use imphnen_hackathon::join_requests::infrastructure::http::handlers as hackathon_join_requests_controller;
+use imphnen_hackathon::storage::infrastructure::http::dto::{
+	UploadRequest, UploadResponse,
+};
+use imphnen_hackathon::storage::infrastructure::http::handlers as hackathon_storage_controller;
+use imphnen_hackathon::submissions::infrastructure::http::dto::{
+	CreateSubmissionRequest, SubmissionResponse, UpdateSubmissionRequest,
+};
+use imphnen_hackathon::submissions::infrastructure::http::handlers as hackathon_submissions_controller;
+use imphnen_hackathon::teams::infrastructure::http::dto::{
+	BrowseTeamsQuery, CreateTeamRequest, TeamListResponse, TeamMemberResponse,
+	TeamResponse, UpdateTeamRequest, UserInfoResponse,
+};
+use imphnen_hackathon::teams::infrastructure::http::handlers as hackathon_teams_controller;
+use imphnen_hackathon::users::infrastructure::http::dto::{
+	UpdateUserRequest, UserResponse,
+};
+use imphnen_hackathon::users::infrastructure::http::handlers as hackathon_users_controller;
+use imphnen_hackathon::winners::infrastructure::http::dto::WinnerResponse;
+use imphnen_hackathon::winners::infrastructure::http::handlers as hackathon_winners_controller;
 use imphnen_iam::auth::infrastructure::http::dto::{
 	AuthLoginRequestDto, AuthLoginResponsetDto, AuthNewPasswordRequestDto,
 	AuthRefreshTokenRequestDto, AuthResendOtpRequestDto, AuthVerifyEmailRequestDto,
@@ -102,6 +148,48 @@ use utoipa::OpenApi;
         sessions_controller::mutation_handlers::post_book_session, sessions_controller::query_handlers::get_mentor_sessions,
         sessions_controller::query_handlers::get_mentor_availability, sessions_controller::mutation_handlers::put_update_session_status,
         sessions_controller::mutation_handlers::post_submit_feedback, sessions_controller::query_handlers::get_my_sessions,
+        hackathon_users_controller::get_me_handler, hackathon_users_controller::update_me_handler,
+        hackathon_users_controller::get_user_handler, hackathon_users_controller::get_user_teams_handler,
+        hackathon_teams_controller::create_team_handler, hackathon_teams_controller::get_team_handler,
+        hackathon_teams_controller::browse_teams_handler, hackathon_teams_controller::get_my_teams_handler,
+        hackathon_teams_controller::update_team_handler, hackathon_teams_controller::delete_team_handler,
+        hackathon_teams_controller::leave_team_handler, hackathon_teams_controller::remove_member_handler,
+        hackathon_invitations_controller::get_my_invitations_handler,
+        hackathon_invitations_controller::respond_to_invitation_handler,
+        hackathon_invitations_controller::invite_team_member_handler,
+        hackathon_join_requests_controller::create_join_request_handler,
+        hackathon_join_requests_controller::get_my_join_requests_handler,
+        hackathon_join_requests_controller::get_team_join_requests_handler,
+        hackathon_join_requests_controller::respond_to_join_request_handler,
+        hackathon_submissions_controller::create_submission_handler,
+        hackathon_submissions_controller::get_team_submission_handler,
+        hackathon_submissions_controller::update_submission_handler,
+        hackathon_submissions_controller::submit_project_handler,
+        hackathon_submissions_controller::confirm_submission_handler,
+        hackathon_submissions_controller::cancel_submission_handler,
+        hackathon_certificates_controller::get_certificate_handler,
+        hackathon_winners_controller::list_winners_handler,
+        hackathon_admin_controller::admin_list_users, hackathon_admin_controller::admin_get_user,
+        hackathon_admin_controller::admin_set_admin, hackathon_admin_controller::admin_delete_user,
+        hackathon_admin_controller::admin_list_teams, hackathon_admin_controller::admin_delete_team,
+        hackathon_admin_controller::admin_list_submissions,
+        hackathon_admin_controller::admin_set_winner, hackathon_admin_controller::admin_remove_winner,
+        hackathon_admin_controller::admin_list_winners,
+        hackathon_chat_controller::get_team_messages_handler,
+        hackathon_chat_controller::send_message_handler,
+        hackathon_chat_controller::delete_message_handler,
+        hackathon_storage_controller::upload_file_handler,
+        hackathon_storage_controller::upload_avatar_handler,
+        hackathon_storage_controller::upload_team_handler,
+        hackathon_storage_controller::upload_submission_handler,
+        qr_users_controller::get_me_handler, qr_users_controller::update_me_handler,
+        qr_users_controller::list_users_handler, qr_users_controller::update_role_handler,
+        qr_users_controller::delete_user_handler,
+        qr_campaigns_controller::create_campaign_handler,
+        qr_campaigns_controller::list_campaigns_handler,
+        qr_campaigns_controller::activate_campaign_handler,
+        qr_campaigns_controller::delete_campaign_handler,
+        qr_campaigns_controller::process_image_handler,
     ),
     components(schemas(
         MessageResponseDto, AuthLoginRequestDto, AuthLoginResponsetDto,
@@ -135,6 +223,18 @@ use utoipa::OpenApi;
         ResponseSuccessDto<BookSessionResponseDto>, ResponseSuccessDto<SessionListResponseDto>,
         ResponseSuccessDto<MentorAvailabilityDto>, ResponseSuccessDto<UpdateSessionStatusResponseDto>,
         ResponseSuccessDto<SessionFeedbackResponseDto>,
+        UserResponse, UpdateUserRequest,
+        TeamResponse, CreateTeamRequest, UpdateTeamRequest, BrowseTeamsQuery,
+        TeamListResponse, UserInfoResponse, TeamMemberResponse,
+        InvitationResponse, RespondToInvitationRequest, CreateInvitationRequest,
+        JoinRequestResponse, CreateJoinRequestRequest, RespondToJoinRequestRequest,
+        SubmissionResponse, CreateSubmissionRequest, UpdateSubmissionRequest,
+        CertificateResponse, WinnerResponse,
+        SetAdminRequest, SetWinnerRequest,
+        AdminUserRow, AdminTeamRow, AdminSubmissionRow, WinnerRow,
+        MessageResponse, SendMessageRequest,
+        UploadRequest, UploadResponse,
+        UpdateProfileRequest, UpdateRoleRequest, CreateCampaignRequest,
     )),
     info(
         title = "IMPHNEN Backend Service",
@@ -155,6 +255,18 @@ use utoipa::OpenApi;
         (name = "Mentors - Admin", description = "Dimentorin — Mentor admin endpoints (/v1/dimentorin/mentors)"),
         (name = "sessions", description = "Dimentorin — Session management (/v1/dimentorin/sessions)"),
         (name = "Gacha", description = "Gacha system (/v1/gacha)"),
+        (name = "Hackathon - Users", description = "Hackathon — User profile (/v1/hackathon/users)"),
+        (name = "Hackathon - Teams", description = "Hackathon — Team management (/v1/hackathon/teams)"),
+        (name = "Hackathon - Invitations", description = "Hackathon — Team invitations (/v1/hackathon/invitations)"),
+        (name = "Hackathon - Join Requests", description = "Hackathon — Join requests (/v1/hackathon/join-requests)"),
+        (name = "Hackathon - Submissions", description = "Hackathon — Project submissions (/v1/hackathon/submissions)"),
+        (name = "Hackathon - Certificates", description = "Hackathon — Certificates (/v1/hackathon/certificates)"),
+        (name = "Hackathon - Winners", description = "Hackathon — Winners (/v1/hackathon/winners)"),
+        (name = "Hackathon - Admin", description = "Hackathon — Admin management (/v1/hackathon/admin)"),
+        (name = "Hackathon - Chat", description = "Hackathon — Team chat (/v1/hackathon/chat)"),
+        (name = "Hackathon - Storage", description = "Hackathon — File uploads (/v1/hackathon/upload)"),
+        (name = "QR - Users", description = "QR — User management (/v1/qr/users)"),
+        (name = "QR - Campaigns", description = "QR — Campaign management (/v1/qr/campaigns)"),
     )
 )]
 pub struct ApiDoc;

@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, IntoParams)]
 pub struct PageQuery {
 	#[serde(default = "default_page")]
 	pub page: i64,
