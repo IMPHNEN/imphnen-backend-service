@@ -16,8 +16,8 @@ pub fn hackathon_users_routes(pool: Arc<PgPool>) -> Router {
 	let service = build_service(pool.clone());
 	Router::new()
 		.route("/users/me", get(get_me_handler).put(update_me_handler))
-		.route("/users/:user_id", get(get_user_handler))
-		.route("/users/:user_id/teams", get(get_user_teams_handler))
+		.route("/users/{user_id}", get(get_user_handler))
+		.route("/users/{user_id}/teams", get(get_user_teams_handler))
 		.layer(Extension(service))
 		.layer(Extension(pool))
 		.layer(from_fn(hackathon_auth_middleware))

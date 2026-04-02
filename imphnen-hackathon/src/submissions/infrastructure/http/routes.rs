@@ -17,23 +17,23 @@ pub fn hackathon_submissions_routes(pool: Arc<PgPool>) -> Router {
 	));
 	Router::new()
 		.route(
-			"/submissions/teams/:team_id",
+			"/submissions/teams/{team_id}",
 			get(get_team_submission_handler).post(create_submission_handler),
 		)
 		.route(
-			"/submissions/:submission_id",
+			"/submissions/{submission_id}",
 			put(update_submission_handler),
 		)
 		.route(
-			"/submissions/:submission_id/submit",
+			"/submissions/{submission_id}/submit",
 			post(submit_project_handler),
 		)
 		.route(
-			"/submissions/:submission_id/confirm",
+			"/submissions/{submission_id}/confirm",
 			post(confirm_submission_handler),
 		)
 		.route(
-			"/submissions/:submission_id/cancel",
+			"/submissions/{submission_id}/cancel",
 			post(cancel_submission_handler),
 		)
 		.layer(Extension(service))

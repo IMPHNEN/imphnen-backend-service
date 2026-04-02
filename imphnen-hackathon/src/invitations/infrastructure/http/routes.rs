@@ -18,11 +18,11 @@ pub fn build_invitation_routes(pool: Arc<PgPool>) -> Router {
 	Router::new()
 		.route("/invitations/my", get(get_my_invitations_handler))
 		.route(
-			"/invitations/:invitation_id/respond",
+			"/invitations/{invitation_id}/respond",
 			post(respond_to_invitation_handler),
 		)
 		.route(
-			"/invitations/teams/:team_id/invite",
+			"/invitations/teams/{team_id}/invite",
 			post(invite_team_member_handler),
 		)
 		.layer(Extension(service))

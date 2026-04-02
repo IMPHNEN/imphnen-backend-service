@@ -17,16 +17,16 @@ pub fn build_join_request_routes(pool: Arc<PgPool>) -> Router {
 	));
 	Router::new()
 		.route(
-			"/join-requests/teams/:team_id",
+			"/join-requests/teams/{team_id}",
 			post(create_join_request_handler),
 		)
 		.route("/join-requests/my", get(get_my_join_requests_handler))
 		.route(
-			"/join-requests/teams/:team_id/pending",
+			"/join-requests/teams/{team_id}/pending",
 			get(get_team_join_requests_handler),
 		)
 		.route(
-			"/join-requests/:request_id/respond",
+			"/join-requests/{request_id}/respond",
 			post(respond_to_join_request_handler),
 		)
 		.layer(Extension(service))

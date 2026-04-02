@@ -11,7 +11,7 @@ pub fn hackathon_certificates_routes(pool: Arc<PgPool>) -> Router {
 		Arc::new(PostgresCertificateRepository::new(pool.clone())),
 	));
 	Router::new()
-		.route("/certificates/:user_id", get(get_certificate_handler))
+		.route("/certificates/{user_id}", get(get_certificate_handler))
 		.layer(Extension(service))
 		.layer(Extension(pool))
 }

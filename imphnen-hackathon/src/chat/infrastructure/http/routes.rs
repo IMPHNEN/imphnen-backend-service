@@ -17,10 +17,10 @@ pub fn build_chat_routes(pool: Arc<PgPool>) -> Router {
 	)));
 	Router::new()
 		.route(
-			"/chat/teams/:team_id",
+			"/chat/teams/{team_id}",
 			get(get_team_messages_handler).post(send_message_handler),
 		)
-		.route("/chat/messages/:message_id", delete(delete_message_handler))
+		.route("/chat/messages/{message_id}", delete(delete_message_handler))
 		.layer(Extension(service))
 		.layer(Extension(pool))
 		.layer(from_fn(hackathon_auth_middleware))
