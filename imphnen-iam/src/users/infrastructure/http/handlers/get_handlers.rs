@@ -14,7 +14,7 @@ use uuid::Uuid;
 
 #[utoipa::path(
     get,
-    path = "/v1/users",
+    path = "/v1/iam/users",
     security(("Bearer" = [])),
     params(
         ("page" = Option<i64>, Query, description = "Page number"),
