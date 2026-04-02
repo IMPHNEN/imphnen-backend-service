@@ -13,7 +13,22 @@ use uuid::Uuid;
     get,
     path = "/v1/hackathon/invitations/my",
     responses(
-        (status = 200, description = "Get my invitations"),
+        (status = 200, description = "Get my invitations",
+         example = json!({
+             "data": [
+                 {
+                     "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                     "team_id": "7c3a1d2e-8f4b-4c5a-9d6e-1f2a3b4c5d6e",
+                     "team_name": "Rust Enjoyers",
+                     "inviter_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                     "inviter_fullname": "Budi Santoso",
+                     "invitee_email": "newmember@example.com",
+                     "status": "pending",
+                     "created_at": "2025-01-10T00:00:00Z"
+                 }
+             ],
+             "version": "0.3.0"
+         })),
         (status = 401, description = "Unauthorized")
     ),
     tag = "Hackathon - Invitations",
@@ -35,7 +50,8 @@ pub async fn get_my_invitations_handler(
     params(("invitation_id" = Uuid, Path, description = "Invitation ID")),
     request_body = RespondToInvitationRequest,
     responses(
-        (status = 200, description = "Respond to invitation"),
+        (status = 200, description = "Respond to invitation",
+         example = json!({"message": "Invitation accepted", "version": "0.3.0"})),
         (status = 401, description = "Unauthorized"),
         (status = 404, description = "Invitation not found")
     ),
@@ -65,9 +81,23 @@ pub async fn respond_to_invitation_handler(
     params(("team_id" = Uuid, Path, description = "Team ID")),
     request_body = CreateInvitationRequest,
     responses(
-        (status = 200, description = "Invite a member to team"),
+        (status = 200, description = "Invite a member to team",
+         body = inline(InvitationResponse),
+         example = json!({
+             "data": {
+                 "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                 "team_id": "7c3a1d2e-8f4b-4c5a-9d6e-1f2a3b4c5d6e",
+                 "team_name": "Rust Enjoyers",
+                 "inviter_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                 "inviter_fullname": "Budi Santoso",
+                 "invitee_email": "newmember@example.com",
+                 "status": "pending",
+                 "created_at": "2025-01-10T00:00:00Z"
+             },
+             "version": "0.3.0"
+         })),
         (status = 401, description = "Unauthorized"),
-        (status = 403, description = "Forbidden")
+        (status = 403, description = "Forbidden - not team leader")
     ),
     tag = "Hackathon - Invitations",
     security(("bearer_auth" = []))

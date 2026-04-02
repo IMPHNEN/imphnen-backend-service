@@ -17,7 +17,26 @@ use uuid::Uuid;
     path = "/v1/hackathon/admin/users",
     params(PageQuery),
     responses(
-        (status = 200, description = "Admin: list all users"),
+        (status = 200, description = "Admin: list all users",
+         example = json!({
+             "data": {
+                 "data": [
+                     {
+                         "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                         "email": "user@example.com",
+                         "fullname": "Budi Santoso",
+                         "avatar": null,
+                         "is_active": true,
+                         "is_admin": false,
+                         "created_at": "2025-01-01T00:00:00Z"
+                     }
+                 ],
+                 "total": 42,
+                 "page": 1,
+                 "limit": 20
+             },
+             "version": "0.3.0"
+         })),
         (status = 401, description = "Unauthorized"),
         (status = 403, description = "Forbidden - admin only")
     ),
@@ -45,7 +64,19 @@ pub async fn admin_list_users(
     path = "/v1/hackathon/admin/users/{user_id}",
     params(("user_id" = Uuid, Path, description = "User ID")),
     responses(
-        (status = 200, description = "Admin: get user by ID"),
+        (status = 200, description = "Admin: get user by ID",
+         example = json!({
+             "data": {
+                 "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                 "email": "user@example.com",
+                 "fullname": "Budi Santoso",
+                 "avatar": null,
+                 "is_active": true,
+                 "is_admin": false,
+                 "created_at": "2025-01-01T00:00:00Z"
+             },
+             "version": "0.3.0"
+         })),
         (status = 403, description = "Forbidden - admin only"),
         (status = 404, description = "User not found")
     ),
@@ -66,7 +97,8 @@ pub async fn admin_get_user(
     params(("user_id" = Uuid, Path, description = "User ID")),
     request_body = SetAdminRequest,
     responses(
-        (status = 200, description = "Admin: set user admin status"),
+        (status = 200, description = "Admin: set user admin status",
+         example = json!({"message": "User admin status updated", "version": "0.3.0"})),
         (status = 403, description = "Forbidden - admin only")
     ),
     tag = "Hackathon - Admin",
@@ -86,7 +118,8 @@ pub async fn admin_set_admin(
     path = "/v1/hackathon/admin/users/{user_id}",
     params(("user_id" = Uuid, Path, description = "User ID")),
     responses(
-        (status = 200, description = "Admin: delete user"),
+        (status = 200, description = "Admin: delete user",
+         example = json!({"message": "User deleted", "version": "0.3.0"})),
         (status = 403, description = "Forbidden - admin only")
     ),
     tag = "Hackathon - Admin",
@@ -105,7 +138,25 @@ pub async fn admin_delete_user(
     path = "/v1/hackathon/admin/teams",
     params(PageQuery),
     responses(
-        (status = 200, description = "Admin: list all teams"),
+        (status = 200, description = "Admin: list all teams",
+         example = json!({
+             "data": {
+                 "data": [
+                     {
+                         "id": "7c3a1d2e-8f4b-4c5a-9d6e-1f2a3b4c5d6e",
+                         "name": "Rust Enjoyers",
+                         "city": "Jakarta",
+                         "visibility": "public",
+                         "leader_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                         "created_at": "2025-01-01T00:00:00Z"
+                     }
+                 ],
+                 "total": 15,
+                 "page": 1,
+                 "limit": 20
+             },
+             "version": "0.3.0"
+         })),
         (status = 403, description = "Forbidden - admin only")
     ),
     tag = "Hackathon - Admin",
@@ -132,7 +183,8 @@ pub async fn admin_list_teams(
     path = "/v1/hackathon/admin/teams/{team_id}",
     params(("team_id" = Uuid, Path, description = "Team ID")),
     responses(
-        (status = 200, description = "Admin: delete team"),
+        (status = 200, description = "Admin: delete team",
+         example = json!({"message": "Team deleted", "version": "0.3.0"})),
         (status = 403, description = "Forbidden - admin only")
     ),
     tag = "Hackathon - Admin",
@@ -151,7 +203,25 @@ pub async fn admin_delete_team(
     path = "/v1/hackathon/admin/submissions",
     params(PageQuery),
     responses(
-        (status = 200, description = "Admin: list all submissions"),
+        (status = 200, description = "Admin: list all submissions",
+         example = json!({
+             "data": {
+                 "data": [
+                     {
+                         "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+                         "team_id": "7c3a1d2e-8f4b-4c5a-9d6e-1f2a3b4c5d6e",
+                         "project_name": "EcoTrack - Sustainability Monitor",
+                         "status": "submitted",
+                         "submitted_at": "2025-01-20T12:00:00Z",
+                         "created_at": "2025-01-05T00:00:00Z"
+                     }
+                 ],
+                 "total": 8,
+                 "page": 1,
+                 "limit": 20
+             },
+             "version": "0.3.0"
+         })),
         (status = 403, description = "Forbidden - admin only")
     ),
     tag = "Hackathon - Admin",
@@ -178,7 +248,8 @@ pub async fn admin_list_submissions(
     path = "/v1/hackathon/admin/winners",
     request_body = SetWinnerRequest,
     responses(
-        (status = 200, description = "Admin: set winner"),
+        (status = 200, description = "Admin: set winner",
+         example = json!({"message": "Winner set", "version": "0.3.0"})),
         (status = 403, description = "Forbidden - admin only")
     ),
     tag = "Hackathon - Admin",
@@ -199,7 +270,8 @@ pub async fn admin_set_winner(
     path = "/v1/hackathon/admin/winners/{team_id}",
     params(("team_id" = Uuid, Path, description = "Team ID")),
     responses(
-        (status = 200, description = "Admin: remove winner"),
+        (status = 200, description = "Admin: remove winner",
+         example = json!({"message": "Winner removed", "version": "0.3.0"})),
         (status = 403, description = "Forbidden - admin only")
     ),
     tag = "Hackathon - Admin",
@@ -217,7 +289,19 @@ pub async fn admin_remove_winner(
     get,
     path = "/v1/hackathon/admin/winners",
     responses(
-        (status = 200, description = "Admin: list winners"),
+        (status = 200, description = "Admin: list winners",
+         example = json!({
+             "data": [
+                 {
+                     "id": "d4e5f6a7-b8c9-0123-defa-234567890123",
+                     "team_id": "7c3a1d2e-8f4b-4c5a-9d6e-1f2a3b4c5d6e",
+                     "rank": 1,
+                     "prize": "Rp 10.000.000",
+                     "created_at": "2025-02-01T10:00:00Z"
+                 }
+             ],
+             "version": "0.3.0"
+         })),
         (status = 403, description = "Forbidden - admin only")
     ),
     tag = "Hackathon - Admin",

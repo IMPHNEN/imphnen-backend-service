@@ -20,7 +20,20 @@ use crate::qr::{
     path = "/v1/qr/campaigns",
     request_body = CreateCampaignRequest,
     responses(
-        (status = 201, description = "Create a QR campaign"),
+        (status = 201, description = "Create a QR campaign",
+         example = json!({
+             "data": {
+                 "id": "e5f6a7b8-c9d0-1234-efab-345678901234",
+                 "name": "Imphnen Hackathon 2025",
+                 "url": "https://imphnen.dev/register",
+                 "is_active": false,
+                 "created_by": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                 "expires_at": "2025-12-31T23:59:59Z",
+                 "created_at": "2025-01-01T00:00:00Z",
+                 "updated_at": "2025-01-01T00:00:00Z"
+             },
+             "version": "0.3.0"
+         })),
         (status = 401, description = "Unauthorized"),
         (status = 403, description = "Forbidden - admin only")
     ),
@@ -47,7 +60,22 @@ pub async fn create_campaign_handler(
     get,
     path = "/v1/qr/campaigns",
     responses(
-        (status = 200, description = "Admin: list all QR campaigns"),
+        (status = 200, description = "Admin: list all QR campaigns",
+         example = json!({
+             "data": [
+                 {
+                     "id": "e5f6a7b8-c9d0-1234-efab-345678901234",
+                     "name": "Imphnen Hackathon 2025",
+                     "url": "https://imphnen.dev/register",
+                     "is_active": true,
+                     "created_by": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                     "expires_at": "2025-12-31T23:59:59Z",
+                     "created_at": "2025-01-01T00:00:00Z",
+                     "updated_at": "2025-01-05T00:00:00Z"
+                 }
+             ],
+             "version": "0.3.0"
+         })),
         (status = 401, description = "Unauthorized"),
         (status = 403, description = "Forbidden - admin only")
     ),
@@ -72,7 +100,20 @@ pub async fn list_campaigns_handler(
     path = "/v1/qr/campaigns/{id}/activate",
     params(("id" = Uuid, Path, description = "Campaign ID")),
     responses(
-        (status = 200, description = "Admin: activate a campaign"),
+        (status = 200, description = "Admin: activate a campaign (deactivates all others)",
+         example = json!({
+             "data": {
+                 "id": "e5f6a7b8-c9d0-1234-efab-345678901234",
+                 "name": "Imphnen Hackathon 2025",
+                 "url": "https://imphnen.dev/register",
+                 "is_active": true,
+                 "created_by": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                 "expires_at": "2025-12-31T23:59:59Z",
+                 "created_at": "2025-01-01T00:00:00Z",
+                 "updated_at": "2025-01-05T10:00:00Z"
+             },
+             "version": "0.3.0"
+         })),
         (status = 401, description = "Unauthorized"),
         (status = 403, description = "Forbidden - admin only")
     ),
@@ -98,7 +139,8 @@ pub async fn activate_campaign_handler(
     path = "/v1/qr/campaigns/{id}",
     params(("id" = Uuid, Path, description = "Campaign ID")),
     responses(
-        (status = 200, description = "Admin: delete a campaign"),
+        (status = 200, description = "Admin: delete a campaign",
+         example = json!({"message": "Campaign deleted successfully", "version": "0.3.0"})),
         (status = 401, description = "Unauthorized"),
         (status = 403, description = "Forbidden - admin only")
     ),
@@ -126,7 +168,9 @@ pub async fn delete_campaign_handler(
     post,
     path = "/v1/qr/campaigns/process-image",
     responses(
-        (status = 200, description = "Process QR code image (multipart/form-data with 'file' field)"),
+        (status = 200, description = "Process QR code image — send multipart/form-data with field 'file'. Returns PNG image bytes.",
+         content_type = "image/png"),
+        (status = 400, description = "No file provided or invalid image"),
         (status = 401, description = "Unauthorized")
     ),
     tag = "QR - Campaigns",

@@ -10,7 +10,14 @@ use std::sync::Arc;
     path = "/v1/hackathon/upload",
     request_body = UploadRequest,
     responses(
-        (status = 200, description = "Upload a file"),
+        (status = 200, description = "Upload a file (base64 encoded)",
+         body = inline(UploadResponse),
+         example = json!({
+             "data": {
+                 "url": "https://minio.example.com/uploads/3fa85f64-5717-4562-b3fc-2c963f66afa6/document.pdf"
+             },
+             "version": "0.3.0"
+         })),
         (status = 401, description = "Unauthorized")
     ),
     tag = "Hackathon - Storage",
@@ -38,7 +45,14 @@ pub async fn upload_file_handler(
     path = "/v1/hackathon/upload/avatar",
     request_body = UploadRequest,
     responses(
-        (status = 200, description = "Upload avatar image"),
+        (status = 200, description = "Upload avatar image (base64 encoded)",
+         body = inline(UploadResponse),
+         example = json!({
+             "data": {
+                 "url": "https://minio.example.com/avatars/3fa85f64-5717-4562-b3fc-2c963f66afa6/avatar.png"
+             },
+             "version": "0.3.0"
+         })),
         (status = 401, description = "Unauthorized")
     ),
     tag = "Hackathon - Storage",
@@ -66,7 +80,14 @@ pub async fn upload_avatar_handler(
     path = "/v1/hackathon/upload/team",
     request_body = UploadRequest,
     responses(
-        (status = 200, description = "Upload team image"),
+        (status = 200, description = "Upload team logo or banner (base64 encoded)",
+         body = inline(UploadResponse),
+         example = json!({
+             "data": {
+                 "url": "https://minio.example.com/teams/3fa85f64-5717-4562-b3fc-2c963f66afa6/logo.png"
+             },
+             "version": "0.3.0"
+         })),
         (status = 401, description = "Unauthorized")
     ),
     tag = "Hackathon - Storage",
@@ -94,7 +115,14 @@ pub async fn upload_team_handler(
     path = "/v1/hackathon/upload/submission",
     request_body = UploadRequest,
     responses(
-        (status = 200, description = "Upload submission file"),
+        (status = 200, description = "Upload submission screenshot (base64 encoded)",
+         body = inline(UploadResponse),
+         example = json!({
+             "data": {
+                 "url": "https://minio.example.com/submissions/3fa85f64-5717-4562-b3fc-2c963f66afa6/screenshot.png"
+             },
+             "version": "0.3.0"
+         })),
         (status = 401, description = "Unauthorized")
     ),
     tag = "Hackathon - Storage",

@@ -19,7 +19,19 @@ use crate::qr::{
     get,
     path = "/v1/qr/users/me",
     responses(
-        (status = 200, description = "Get my QR user profile"),
+        (status = 200, description = "Get my QR user profile",
+         example = json!({
+             "data": {
+                 "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                 "email": "user@example.com",
+                 "name": "Budi Santoso",
+                 "role": "user",
+                 "provider": "google",
+                 "created_at": "2025-01-01T00:00:00Z",
+                 "updated_at": "2025-01-01T00:00:00Z"
+             },
+             "version": "0.3.0"
+         })),
         (status = 401, description = "Unauthorized")
     ),
     tag = "QR - Users",
@@ -38,7 +50,19 @@ pub async fn get_me_handler(
     path = "/v1/qr/users/me",
     request_body = UpdateProfileRequest,
     responses(
-        (status = 200, description = "Update my QR user profile"),
+        (status = 200, description = "Update my QR user profile",
+         example = json!({
+             "data": {
+                 "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                 "email": "updated@example.com",
+                 "name": "Budi Santoso Updated",
+                 "role": "user",
+                 "provider": "google",
+                 "created_at": "2025-01-01T00:00:00Z",
+                 "updated_at": "2025-01-15T00:00:00Z"
+             },
+             "version": "0.3.0"
+         })),
         (status = 401, description = "Unauthorized")
     ),
     tag = "QR - Users",
@@ -61,7 +85,30 @@ pub async fn update_me_handler(
     get,
     path = "/v1/qr/users",
     responses(
-        (status = 200, description = "Admin: list all QR users"),
+        (status = 200, description = "Admin: list all QR users",
+         example = json!({
+             "data": [
+                 {
+                     "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                     "email": "user@example.com",
+                     "name": "Budi Santoso",
+                     "role": "user",
+                     "provider": "google",
+                     "created_at": "2025-01-01T00:00:00Z",
+                     "updated_at": "2025-01-01T00:00:00Z"
+                 },
+                 {
+                     "id": "4gb96g75-6828-5673-c4gd-3d074g77bgb7",
+                     "email": "admin@example.com",
+                     "name": "Admin User",
+                     "role": "admin",
+                     "provider": "google",
+                     "created_at": "2024-12-01T00:00:00Z",
+                     "updated_at": "2024-12-01T00:00:00Z"
+                 }
+             ],
+             "version": "0.3.0"
+         })),
         (status = 401, description = "Unauthorized"),
         (status = 403, description = "Forbidden - admin only")
     ),
@@ -87,7 +134,19 @@ pub async fn list_users_handler(
     params(("id" = Uuid, Path, description = "User ID")),
     request_body = UpdateRoleRequest,
     responses(
-        (status = 200, description = "Admin: update user role"),
+        (status = 200, description = "Admin: update user role",
+         example = json!({
+             "data": {
+                 "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                 "email": "user@example.com",
+                 "name": "Budi Santoso",
+                 "role": "admin",
+                 "provider": "google",
+                 "created_at": "2025-01-01T00:00:00Z",
+                 "updated_at": "2025-01-20T00:00:00Z"
+             },
+             "version": "0.3.0"
+         })),
         (status = 401, description = "Unauthorized"),
         (status = 403, description = "Forbidden - admin only")
     ),
@@ -114,7 +173,8 @@ pub async fn update_role_handler(
     path = "/v1/qr/users/{id}",
     params(("id" = Uuid, Path, description = "User ID")),
     responses(
-        (status = 200, description = "Admin: delete QR user"),
+        (status = 200, description = "Admin: delete QR user",
+         example = json!({"message": "User deleted successfully", "version": "0.3.0"})),
         (status = 401, description = "Unauthorized"),
         (status = 403, description = "Forbidden - admin only")
     ),
