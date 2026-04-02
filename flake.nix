@@ -21,9 +21,7 @@
         system:
         import nixpkgs {
           inherit system;
-          config = {
-            allowUnfree = true;
-          };
+          config.allowUnfree = true;
         };
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
     in
@@ -31,9 +29,17 @@
       packages = forAllSystems (system: {
         default = (pkgsFor system).callPackage ./default.nix { };
       });
+
+      overlays.default = final: _prev: {
+        imphnen-backend = final.callPackage ./default.nix { };
+      };
+
+      nixosModules.backend = ./nixos-module.nix;
+
       devShells = forAllSystems (system: {
         default = (pkgsFor system).callPackage ./shell.nix { };
       });
+
       dockerImages = forAllSystems (system: {
         tryOutApi = (pkgsFor system).callPackage ./docker.nix { };
       });

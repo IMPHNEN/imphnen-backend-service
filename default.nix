@@ -1,15 +1,16 @@
-{pkgs ? import <nixpkgs> {}}: let
-  manifest = (pkgs.lib.importTOML ./Cargo.toml).package;
-  rustDeps = pkgs.callPackage ./Cargo.nix {};
-  packageEntry = rustDeps.workspaceMembers.${manifest.name};
-  deps = packageEntry.build.cargoDeps or null;
-in
-  pkgs.rustPlatform.buildRustPackage {
-    pname = manifest.name;
-    version = manifest.version;
-    cargoDeps = deps;
-    src = pkgs.lib.cleanSource ./.;
-    cargoLock.lockFile = ./Cargo.lock;
-    nativeBuildInputs = [pkgs.openssl pkgs.pkg-config];
-    buildInputs = [pkgs.openssl];
-  }
+{ pkgs ? import <nixpkgs> { } }:
+pkgs.rustPlatform.buildRustPackage {
+  pname = "imphnen-backend";
+  version = (pkgs.lib.importTOML ./imphnen-backend/Cargo.toml).package.version;
+  src = pkgs.lib.cleanSource ./.;
+  cargoLock.lockFile = ./Cargo.lock;
+  cargoBuildFlags = [
+    "--package"
+    "imphnen-backend"
+    "--bin"
+    "api"
+  ];
+  nativeBuildInputs = [ pkgs.pkg-config ];
+  buildInputs = [ pkgs.openssl ];
+  doCheck = false;
+}
