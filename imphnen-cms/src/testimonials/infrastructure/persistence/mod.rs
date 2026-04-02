@@ -1,0 +1,3 @@
+pub mod postgres_testimonial_repository;
+
+pub use postgres_testimonial_repository::PostgresTestimonialRepository;

@@ -1,5 +1,10 @@
-use axum::http::StatusCode;
+use axum::{
+    Json,
+    http::StatusCode,
+    response::{IntoResponse, Response},
+};
 use serde::Serialize;
+use serde_json::json;
 
 #[derive(Debug, Serialize)]
 pub enum AppError {
@@ -89,6 +94,20 @@ impl From<chrono::ParseError> for AppError {
 impl From<uuid::Error> for AppError {
     fn from(err: uuid::Error) -> Self {
         AppError::BadRequestError(format!("UUID parsing error: {err}"))
+    }
+}
+
+impl IntoResponse for AppError {
+    fn into_response(self) -> Response {
+        let status = self.status_code();
+        (
+            status,
+            Json(json!({
+                "message": self.to_string(),
+                "version": env!("CARGO_PKG_VERSION"),
+            })),
+        )
+            .into_response()
     }
 }
 

@@ -1,6 +1,5 @@
 //! Service abstractions for the application
-//! Provides traits and implementations for user lookup and authentication services
-//! with PostgreSQL integration and comprehensive error handling
+#![allow(clippy::field_reassign_with_default)]
 
 use crate::{postgres::PostgresError, AppState};
 use async_trait::async_trait;
@@ -51,6 +50,7 @@ pub enum ServiceError {
 
 /// User reference types for different identification methods
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum UserReference {
 	/// User ID (UUID)
 	Id(Uuid),

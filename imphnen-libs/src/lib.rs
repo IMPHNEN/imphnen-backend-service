@@ -1,21 +1,3 @@
-/*!
-# imphnen-libs
-
-A collection of utility libraries and services for the imphnen project, providing integrations
-with various external services and common functionality.
-
-This crate includes modules for:
-- Password hashing with Argon2 (`argon`)
-- Axum web framework utilities (`axum`)
-- Environment configuration (`environment`)
-- JWT token handling (`jsonwebtoken`)
-- Email sending with Lettre (`lettre`)
-- MinIO object storage client (`minio`)
-- Service abstractions (`services`)
-- PostgreSQL database client (`postgres`)
-- Dual-mode repository pattern (`dual_mode_repository`)
-*/
-
 use std::sync::Arc;
 
 pub mod postgres;
@@ -26,21 +8,14 @@ pub mod jsonwebtoken;
 pub mod lettre;
 pub mod minio;
 pub mod services;
-pub mod dual_mode_repository;
 
 pub use argon::{hash_password, verify_password};
-pub use axum::{axum_init, ValidatedJson};
+pub use axum::{axum_init, ValidatedJson, ZodValidate};
 pub use environment::{ENV, Env};
 pub use imphnen_entities::{
     MessageResponseDto,
-    MetaRequestDto,
-    MetaResponseDto,
     ResponseSuccessDto,
     ResponseListSuccessDto,
-    CountResult,
-    Error,
-    ExperienceDto,
-    EducationDto,
     UsersDetailQueryDto,
     PermissionsEnum,
     PermissionsItemDto,
@@ -62,8 +37,6 @@ pub use services::PostgresAuthRepository;
 pub use postgres::{
     PostgresConnection, PostgresConfig, PostgresError, AppStatePostgresExt,
 };
-pub use dual_mode_repository::{PostgresRepository, PostgresRepositoryDefaultImpl, conversion_utils, PostgresRepositoryError};
-
 #[derive(Clone)]
 pub struct AppState {
 	pub postgres_connection: Arc<PostgresConnection>,

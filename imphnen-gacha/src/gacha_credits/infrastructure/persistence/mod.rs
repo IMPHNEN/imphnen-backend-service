@@ -1,0 +1,3 @@
+pub mod postgres_gacha_credit_repository;
+
+pub use postgres_gacha_credit_repository::PostgresGachaCreditRepository;

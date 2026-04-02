@@ -627,41 +627,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "darling"
-version = "0.20.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc7f46116c46ff9ab3eb1597a45688b6715c6e628b5c133e288e709a29bcb4ee"
-dependencies = [
- "darling_core",
- "darling_macro",
-]
-
-[[package]]
-name = "darling_core"
-version = "0.20.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d00b9596d185e565c2207a0b01f8bd1a135483d02d9b7b0a54b11da8d53412e"
-dependencies = [
- "fnv",
- "ident_case",
- "proc-macro2",
- "quote",
- "strsim",
- "syn 2.0.111",
-]
-
-[[package]]
-name = "darling_macro"
-version = "0.20.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc34b93ccb385b40dc71c6fceac4b2ad23662c7eeb248cf10d529b7e055b6ead"
-dependencies = [
- "darling_core",
- "quote",
- "syn 2.0.111",
-]
-
-[[package]]
 name = "der"
 version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1452,12 +1417,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ident_case"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
-
-[[package]]
 name = "idna"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1480,7 +1439,7 @@ dependencies = [
 
 [[package]]
 name = "imphnen-backend"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -1508,14 +1467,14 @@ dependencies = [
  "utoipa",
  "utoipa-swagger-ui",
  "uuid",
- "validator",
 ]
 
 [[package]]
 name = "imphnen-cms"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "axum",
  "axum-test",
  "chrono",
@@ -1525,6 +1484,10 @@ dependencies = [
  "imphnen-utils",
  "lazy_static",
  "log",
+ "paginator-axum",
+ "paginator-rs",
+ "paginator-sea-orm",
+ "paginator-utils",
  "rand 0.9.2",
  "regex",
  "sea-orm",
@@ -1536,12 +1499,13 @@ dependencies = [
  "utoipa",
  "utoipa-swagger-ui",
  "uuid",
- "validator",
+ "zod-rs",
+ "zod-rs-util",
 ]
 
 [[package]]
 name = "imphnen-dimentorin"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1556,6 +1520,10 @@ dependencies = [
  "imphnen-middleware",
  "imphnen-utils",
  "lazy_static",
+ "paginator-axum",
+ "paginator-rs",
+ "paginator-sea-orm",
+ "paginator-utils",
  "rand 0.9.2",
  "regex",
  "sea-orm",
@@ -1567,12 +1535,13 @@ dependencies = [
  "utoipa",
  "utoipa-swagger-ui",
  "uuid",
- "validator",
+ "zod-rs",
+ "zod-rs-util",
 ]
 
 [[package]]
 name = "imphnen-entities"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -1590,9 +1559,10 @@ dependencies = [
 
 [[package]]
 name = "imphnen-gacha"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "axum",
  "axum-test",
  "chrono",
@@ -1602,6 +1572,10 @@ dependencies = [
  "imphnen-utils",
  "lazy_static",
  "log",
+ "paginator-axum",
+ "paginator-rs",
+ "paginator-sea-orm",
+ "paginator-utils",
  "rand 0.9.2",
  "rand_distr",
  "regex",
@@ -1614,12 +1588,13 @@ dependencies = [
  "utoipa",
  "utoipa-swagger-ui",
  "uuid",
- "validator",
+ "zod-rs",
+ "zod-rs-util",
 ]
 
 [[package]]
 name = "imphnen-gateway"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -1642,12 +1617,11 @@ dependencies = [
  "tower-http",
  "utoipa",
  "utoipa-swagger-ui",
- "validator",
 ]
 
 [[package]]
 name = "imphnen-iam"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1665,6 +1639,10 @@ dependencies = [
  "mockall",
  "oauth2",
  "once_cell",
+ "paginator-axum",
+ "paginator-rs",
+ "paginator-sea-orm",
+ "paginator-utils",
  "rand 0.9.2",
  "regex",
  "reqwest",
@@ -1680,12 +1658,13 @@ dependencies = [
  "utoipa",
  "utoipa-swagger-ui",
  "uuid",
- "validator",
+ "zod-rs",
+ "zod-rs-util",
 ]
 
 [[package]]
 name = "imphnen-libs"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "argon2",
@@ -1714,12 +1693,12 @@ dependencies = [
  "tracing-subscriber",
  "urlencoding",
  "uuid",
- "validator",
+ "zod-rs",
 ]
 
 [[package]]
 name = "imphnen-macros"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1728,7 +1707,7 @@ dependencies = [
 
 [[package]]
 name = "imphnen-middleware"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -1753,12 +1732,11 @@ dependencies = [
  "utoipa",
  "utoipa-swagger-ui",
  "uuid",
- "validator",
 ]
 
 [[package]]
 name = "imphnen-utils"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -1768,6 +1746,10 @@ dependencies = [
  "dotenvy",
  "imphnen-entities",
  "imphnen-libs",
+ "paginator-axum",
+ "paginator-rs",
+ "paginator-sea-orm",
+ "paginator-utils",
  "rand 0.9.2",
  "regex",
  "reqwest",
@@ -1780,7 +1762,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
- "validator",
+ "zod-rs",
 ]
 
 [[package]]
@@ -2329,6 +2311,57 @@ dependencies = [
  "proc-macro2-diagnostics",
  "quote",
  "syn 2.0.111",
+]
+
+[[package]]
+name = "paginator-axum"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "599c5c103c2e05968133b94fe4e50eadd32122ec5de67d23cc4560b92d14ad89"
+dependencies = [
+ "async-trait",
+ "axum",
+ "http",
+ "paginator-rs",
+ "paginator-utils",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "paginator-rs"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5fdee525f1aa47af3330e699c14044c317454207668c80c9aeb8207d2c662a6c"
+dependencies = [
+ "paginator-utils",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "paginator-sea-orm"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c7d707483ea0b638e24da8e8f2b4fd077bdc88dbd5832b534eee1d8e66f6974"
+dependencies = [
+ "async-trait",
+ "paginator-rs",
+ "paginator-utils",
+ "sea-orm",
+ "serde",
+ "uuid",
+]
+
+[[package]]
+name = "paginator-utils"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e1e7ca0ba9d0ec274d2dcf4aa95420bd07d5eaed5c5c20258e26fd59aa73bad2"
+dependencies = [
+ "base64",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -3624,12 +3657,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "strsim"
-version = "0.11.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
-
-[[package]]
 name = "strum"
 version = "0.26.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3749,33 +3776,6 @@ name = "termtree"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f50febec83f5ee1df3015341d8bd429f2d1cc62bcba7ea2076759d315084683"
-
-[[package]]
-name = "tests"
-version = "0.1.0"
-dependencies = [
- "axum",
- "chrono",
- "dotenvy",
- "http-body-util",
- "hyper",
- "hyper-util",
- "imphnen-dimentorin",
- "imphnen-entities",
- "imphnen-iam",
- "imphnen-libs",
- "imphnen-utils",
- "rand 0.9.2",
- "serde",
- "serde_json",
- "strum 0.27.2",
- "tokio",
- "tower",
- "tracing",
- "uuid",
- "yoke",
- "yoke-derive",
-]
 
 [[package]]
 name = "thiserror"
@@ -4246,36 +4246,6 @@ dependencies = [
  "rand 0.9.2",
  "serde",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "validator"
-version = "0.20.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43fb22e1a008ece370ce08a3e9e4447a910e92621bb49b85d6e48a45397e7cfa"
-dependencies = [
- "idna",
- "once_cell",
- "regex",
- "serde",
- "serde_derive",
- "serde_json",
- "url",
- "validator_derive",
-]
-
-[[package]]
-name = "validator_derive"
-version = "0.20.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7df16e474ef958526d1205f6dda359fdfab79d9aa6d54bafcb92dcd07673dca"
-dependencies = [
- "darling",
- "once_cell",
- "proc-macro-error2",
- "proc-macro2",
- "quote",
- "syn 2.0.111",
 ]
 
 [[package]]
@@ -4907,6 +4877,40 @@ name = "zlib-rs"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2f06ae92f42f5e5c42443fd094f245eb656abf56dd7cce9b8b263236565e00f2"
+
+[[package]]
+name = "zod-rs"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6b3d6798b23cf9be839aa5dc002b72ae21b52c0a112920b4397252eb152ce10b"
+dependencies = [
+ "regex",
+ "serde",
+ "serde_json",
+ "zod-rs-macros",
+ "zod-rs-util",
+]
+
+[[package]]
+name = "zod-rs-macros"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fa0aeb5fc2bd71f115da362f9173505fad648bd8ec57a1ce583049a6b0acf46b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde",
+ "syn 2.0.111",
+]
+
+[[package]]
+name = "zod-rs-util"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "86ea855d76c2e2839eb794cc70c4e772c575ff997c00b6daea503d42cae44adb"
+dependencies = [
+ "serde_json",
+]
 
 [[package]]
 name = "zopfli"

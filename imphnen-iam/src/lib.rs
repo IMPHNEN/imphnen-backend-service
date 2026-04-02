@@ -1,22 +1,24 @@
-pub mod v1;
 pub mod permission_macros;
+pub mod permissions_guard;
 
-// Re-export core entity types used throughout the IAM module
+pub mod permissions;
+pub mod roles;
+pub mod users;
+pub mod auth;
+
+pub use permissions::{permissions_public_routes, permissions_protected_routes};
+pub use roles::{roles_public_routes, roles_protected_routes};
+pub use users::{users_public_routes, users_protected_routes};
+pub use auth::auth_public_routes;
+
 pub use imphnen_entities::{
     MessageResponseDto,
-    MetaRequestDto,
-    MetaResponseDto,
     ResponseSuccessDto,
     ResponseListSuccessDto,
-    CountResult,
-    Error,
-    ExperienceDto,
-    EducationDto,
     UsersDetailQueryDto,
     PermissionsEnum,
     PermissionsItemDto,
     PermissionsQueryDto,
-    ResourceEnum, // Import ResourceEnum from imphnen_entities
 };
 
 // Explicitly export only the imphnen_libs types actually used in IAM
@@ -36,47 +38,23 @@ pub use imphnen_libs::{
     jsonwebtoken::Claims,
 };
 
-// Explicitly export only the imphnen_utils types actually used in IAM
 pub use imphnen_utils::{
-    response_format::success_response,
-    response_format::success_list_response,
-    response_format::common_response,
-    validator::validate_request,
+    response_format::ApiSuccess,
+    response_format::ApiCreated,
+    response_format::ApiPaginated,
+    response_format::ApiMessage,
     csrf_token::generate_oauth_csrf_token,
     csrf_token::validate_oauth_csrf_token,
     csrf_token::validate_csrf_token,
     extract_email::extract_email_async,
     generate_otp::OtpManager,
     errors::AppError,
-    response_format::error_response,
-    response_format::success_created_response,
     generate_date::get_iso_date,
 };
+pub use paginator_axum::PaginationQuery;
+pub use paginator_rs::PaginationParams;
+pub use paginator_utils::{PaginatorResponse, PaginatorResponseMeta};
 pub use imphnen_libs::AppStatePostgresExt;
 
-// Export the main router functions and types from v1 module
-pub use v1::{
-    iam_public_routes,
-    iam_protected_routes,
-    auth_router,
-    users_router,
-    roles_router,
-    permissions_router,
-    permissions_guard,
-};
+pub use permissions_guard::permissions_guard;
 
-// Export permission macros (module not yet implemented)
-// pub use permission_macros::*;
-
-// Export IAM-specific types
-pub use v1::auth::{
-    AuthOtpSchema,
-    AuthRepository,
-    AuthLoginRequestDto, AuthLoginResponsetDto, AuthRegisterRequestDto,
-    AuthResendOtpRequestDto, AuthVerifyEmailRequestDto,
-    AuthNewPasswordRequestDto, AuthRefreshTokenRequestDto,
-    TokenDto,
-};
-pub use v1::permissions::{PermissionsRepository, PermissionsSchema};
-pub use v1::roles::{RolesRepository, RolesSchema, RolesEnum, RolesDetailQueryDto, RolesRequestCreateDto, RolesRequestUpdateDto, RolesDetailItemDto};
-pub use v1::users::{UsersRepository, UsersSchema, UsersDetailItemDto, UsersCreateRequestDto};

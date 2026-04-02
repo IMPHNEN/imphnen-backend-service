@@ -5,7 +5,8 @@ use axum::{
 use futures::future::BoxFuture;
 use imphnen_entities::PermissionsEnum;
 use imphnen_libs::{AppState, services::ExtendedUserInfo};
-use imphnen_utils::response_format::common_response;
+use imphnen_utils::response_format::ApiMessage;
+use axum::response::IntoResponse;
 use imphnen_utils::{extract_email, extract_email_async};
 use std::task::{Context, Poll};
 use tower::{Layer, Service};
@@ -77,19 +78,19 @@ where
 			// Extract user email from authorization headers
 			let email = extract_user_email(headers).await
 				.ok_or_else(|| {
-					common_response(
+					ApiMessage::new(
 						StatusCode::UNAUTHORIZED,
 						"Invalid or missing authorization token",
-					)
+					).into_response()
 				})?;
-			
+
 			// Get user data with permissions from user lookup service
 			let user = app_state.user_lookup_service.get_user_by_email(&email, &app_state).await
 				.map_err(|_| {
-					common_response(
+					ApiMessage::new(
 						StatusCode::UNAUTHORIZED,
 						"User session expired or not found",
-					)
+					).into_response()
 				})?;
 			
 			// Extract user permissions from role
@@ -100,10 +101,10 @@ where
 			
 			// Check if user has required permissions
 			if !has_required_permissions(&user_permissions, &permissions) {
-				return Err(common_response(
+				return Err(ApiMessage::new(
 					StatusCode::FORBIDDEN,
 					"You don't have the required permissions",
-				));
+				).into_response());
 			}
 			
 			inner.call(req).await
@@ -174,27 +175,27 @@ pub async fn check_permissions(
 ) -> Result<(), Response<Body>> {
 	let email = extract_user_email(headers).await
 		.ok_or_else(|| {
-			common_response(
+			ApiMessage::new(
 				StatusCode::UNAUTHORIZED,
 				"Invalid or missing authorization token",
-			)
+			).into_response()
 		})?;
-	
+
 	let user = app_state.user_lookup_service.get_user_by_email(&email, app_state).await
 		.map_err(|_| {
-			common_response(
+			ApiMessage::new(
 				StatusCode::UNAUTHORIZED,
 				"User session expired or not found",
-			)
+			).into_response()
 		})?;
-	
+
 	let user_permissions = extract_user_permissions(&user);
-	
+
 	if !has_required_permissions(&user_permissions, &required_permissions) {
-		return Err(common_response(
+		return Err(ApiMessage::new(
 			StatusCode::FORBIDDEN,
 			"You don't have the required permissions",
-		));
+		).into_response());
 	}
 	
 	Ok(())

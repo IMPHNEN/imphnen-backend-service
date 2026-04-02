@@ -1,6 +1,6 @@
 [package]
 name = "imphnen-iam"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 
 [dependencies]
@@ -17,7 +17,8 @@ reqwest = { workspace = true, features = ["json"] }
 utoipa.workspace = true
 lazy_static.workspace = true
 regex.workspace = true
-validator.workspace = true
+zod-rs.workspace = true
+zod-rs-util.workspace = true
 axum-test.workspace = true
 sea-orm.workspace = true
 rand.workspace = true
@@ -33,6 +34,11 @@ once_cell.workspace = true
 tracing.workspace = true
 uuid.workspace = true
 axum-extra.workspace = true
+
+paginator-rs.workspace = true
+paginator-utils.workspace = true
+paginator-sea-orm.workspace = true
+paginator-axum.workspace = true
 
 [dev-dependencies]
 dotenvy.workspace = true

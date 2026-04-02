@@ -1,9 +1,5 @@
-pub mod v1;
+pub mod events;
+pub mod testimonials;
 
-pub use v1::landing;
-pub use v1::landing::events;
-pub use v1::landing::testimonials;
-pub use v1::landing::events::events_public_routes;
-pub use v1::landing::events::events_protected_routes;
-pub use v1::landing::testimonials::testimonials_public_routes;
-pub use v1::landing::testimonials::testimonials_protected_routes;
+pub use events::{events_public_routes, events_protected_routes};
+pub use testimonials::{testimonials_public_routes, testimonials_protected_routes};

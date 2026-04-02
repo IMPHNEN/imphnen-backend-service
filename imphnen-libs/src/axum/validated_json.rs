@@ -1,114 +1,58 @@
-//! Custom extractor for automatic JSON validation and sanitization
-//!
-//! This extractor automatically validates request payloads using the validator crate
-//! and returns appropriate error responses if validation fails.
-
 use axum::{
-    extract::{rejection::JsonRejection, FromRequest, Request},
+    body::Bytes,
+    extract::{FromRequest, Request},
     http::StatusCode,
     response::{IntoResponse, Response},
     Json,
 };
-use serde::de::DeserializeOwned;
-use serde_json;
-use validator::Validate;
+use serde_json::json;
 
-/// Custom extractor that automatically validates JSON payloads
-///
-/// # Example
-/// ```rust
-/// use imphnen_libs::axum::ValidatedJson;
-/// use axum::response::Response;
-/// use axum::body::Body;
-/// use serde::Deserialize;
-/// use validator::Validate;
-///
-/// #[derive(Deserialize, Validate)]
-/// struct CreateUserRequest {
-///     #[validate(email)]
-///     email: String,
-///     #[validate(length(min = 8))]
-///     password: String,
-/// }
-///
-/// async fn create_user(
-///     ValidatedJson(payload): ValidatedJson<CreateUserRequest>
-/// ) -> Response {
-///     // payload is already validated
-///     // ... your logic here
-///     Response::new(Body::from("ok"))
-/// }
-/// ```
+use super::zod_validate::ZodValidate;
+
 pub struct ValidatedJson<T>(pub T);
 
 impl<T, S> FromRequest<S> for ValidatedJson<T>
 where
-    T: DeserializeOwned + Validate + 'static,
+    T: ZodValidate + 'static,
     S: Send + Sync,
-    Json<T>: FromRequest<S, Rejection = JsonRejection>,
 {
     type Rejection = Response;
 
     async fn from_request(req: Request, state: &S) -> Result<Self, Self::Rejection> {
-        // First, extract JSON
-        let Json(value) = match Json::<T>::from_request(req, state).await {
-            Ok(value) => value,
-            Err(rejection) => {
-                let error_message = format!("Invalid JSON payload: {rejection}");
-                return Err((
-                    StatusCode::BAD_REQUEST,
-                    Json(serde_json::json!({
-                        "error": error_message,
-                        "version": env!("CARGO_PKG_VERSION"),
-                    })),
-                )
-                    .into_response());
-            }
-        };
-
-        // Then, validate it
-        if let Err(errors) = value.validate() {
-            let error_messages: Vec<String> = errors
-                .field_errors()
-                .iter()
-                .flat_map(|(field, errors)| {
-                    errors.iter().map(move |error| {
-                        format!(
-                            "{}: {}",
-                            field,
-                            error.message.as_ref().map(|m| m.to_string()).unwrap_or_else(|| error.code.to_string())
-                        )
-                    })
-                })
-                .collect();
-
-            return Err((
+        let bytes = Bytes::from_request(req, state).await.map_err(|e| {
+            (
                 StatusCode::BAD_REQUEST,
-                Json(serde_json::json!({
-                    "error": "Validation failed",
-                    "details": error_messages,
+                Json(json!({
+                    "message": format!("Failed to read body: {e}"),
                     "version": env!("CARGO_PKG_VERSION"),
                 })),
             )
-                .into_response());
-        }
+                .into_response()
+        })?;
+
+        let json_value: serde_json::Value =
+            serde_json::from_slice(&bytes).map_err(|e| {
+                (
+                    StatusCode::BAD_REQUEST,
+                    Json(json!({
+                        "message": format!("Invalid JSON: {e}"),
+                        "version": env!("CARGO_PKG_VERSION"),
+                    })),
+                )
+                    .into_response()
+            })?;
+
+        let value = T::zod_validate(&json_value).map_err(|e| {
+            (
+                StatusCode::BAD_REQUEST,
+                Json(json!({
+                    "message": format!("Validation error: {e}"),
+                    "version": env!("CARGO_PKG_VERSION"),
+                })),
+            )
+                .into_response()
+        })?;
 
         Ok(ValidatedJson(value))
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde::Deserialize;
-
-    #[derive(Debug, Deserialize, Validate)]
-    struct TestPayload {
-        #[validate(email)]
-        email: String,
-        #[validate(length(min = 8))]
-        password: String,
-    }
-
-    // Note: Full integration tests should be done at the application level
 }

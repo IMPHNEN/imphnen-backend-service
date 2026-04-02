@@ -1,38 +1,37 @@
-pub mod v1;
+pub mod gacha_items;
+pub mod gacha_credits;
+pub mod gacha_claims;
+pub mod gacha_rolls;
 
-// Re-export core entity types used across the gacha system
+pub use imphnen_libs::AppState;
 pub use imphnen_entities::{
-    CountResult,
-    Error,
-    ExperienceDto,
-    EducationDto,
-    MessageResponseDto,
-    MetaRequestDto,
-    MetaResponseDto,
-    PermissionsEnum,
-    PermissionsItemDto,
-    PermissionsQueryDto,
     ResponseListSuccessDto,
     ResponseSuccessDto,
-    UsersDetailQueryDto,
+    MessageResponseDto,
+    PermissionsEnum,
 };
 
-// Explicitly import only what we need from libs and utils to avoid pollution
-pub use imphnen_libs::{
-    AppState,
-    MinioService,
-};
+use std::sync::Arc;
+use axum::Router;
+use sea_orm::DatabaseConnection;
+use gacha_items::gacha_item_router;
+use gacha_credits::gacha_credit_router;
+use gacha_rolls::gacha_roll_router;
+use gacha_claims::gacha_claim_router;
 
-pub use imphnen_utils::{
-    csrf_token,
-    extract_email,
-    generate_date,
-    generate_otp,
-    logger,
-    make_thing,
-    response_format,
-    validator,
-};
-
-// Re-export public v1 API
-pub use v1::gacha_router;
+pub fn gacha_router(db: DatabaseConnection, state: Arc<AppState>) -> Router {
+    let mut router = Router::new();
+    router = router.nest("/credits", gacha_credit_router(db.clone()));
+    router = router.nest("/items", gacha_item_router(db.clone()));
+    router = router.nest("/rolls", gacha_roll_router(db.clone(), state.clone()));
+    router = router.nest("/claims", gacha_claim_router(db.clone(), state));
+    router = router.nest("/admin", Router::new().route(
+        "/",
+        axum::routing::get(gacha_items::infrastructure::http::handlers::get_gacha_item_list),
+    ).layer(axum::Extension(Arc::new(
+        gacha_items::application::GachaItemServiceImpl::new(
+            Arc::new(gacha_items::infrastructure::persistence::PostgresGachaItemRepository::new(db))
+        )
+    ) as Arc<dyn gacha_items::domain::GachaItemService>)));
+    router
+}

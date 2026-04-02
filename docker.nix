@@ -1,42 +1,43 @@
-{pkgs, ...}: let
+{ pkgs, ... }:
+let
   baseImage = pkgs.ociTools.pullImage {
     imageName = "ubuntu";
     tag = "latest";
   };
 in
-  pkgs.dockerTools.buildImage {
-    name = "imphnen-cms-api";
+pkgs.dockerTools.buildImage {
+  name = "imphnen-backend-service";
 
-    fromImage = baseImage;
+  fromImage = baseImage;
 
-    copyToRoot = pkgs.buildEnv {
-      name = "imphnen-cms-api";
-      paths = [
-        (pkgs.stdenv.mkDerivation {
-          name = "imphnen-cms-api";
-          src = ./src;
+  copyToRoot = pkgs.buildEnv {
+    name = "imphnen-backend-service";
+    paths = [
+      (pkgs.stdenv.mkDerivation {
+        name = "imphnen-backend-service";
+        src = ./src;
 
-          buildInputs = [
-            pkgs.rustc
-            pkgs.cargo
-            pkgs.openssl
-            pkgs.pkg-config
-          ];
+        buildInputs = [
+          pkgs.rustc
+          pkgs.cargo
+          pkgs.openssl
+          pkgs.pkg-config
+        ];
 
-          buildPhase = ''
-            cargo build --release
-          '';
+        buildPhase = ''
+          cargo build --release
+        '';
 
-          installPhase = ''
-            mkdir -p $out/bin
-            cp target/release/najm-course-api $out/bin/
-          '';
-        })
-      ];
-    };
+        installPhase = ''
+          mkdir -p $out/bin
+          cp target/release/imphnen-backend-service $out/bin/
+        '';
+      })
+    ];
+  };
 
-    config = {
-      Cmd = ["/bin/imphnen-cms-api"];
-      WorkingDir = "/bin";
-    };
-  }
+  config = {
+    Cmd = [ "/bin/imphnen-backend-service" ];
+    WorkingDir = "/bin";
+  };
+}

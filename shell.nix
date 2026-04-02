@@ -1,6 +1,8 @@
-{pkgs ? import <nixpkgs> {}}:
+{
+  pkgs ? import <nixpkgs> { },
+}:
 pkgs.mkShell {
-  inputsFrom = [(pkgs.callPackage ./default.nix {})];
+  inputsFrom = [ (pkgs.callPackage ./default.nix { }) ];
   buildInputs = with pkgs; [
     rust-analyzer
     rustfmt
@@ -10,7 +12,7 @@ pkgs.mkShell {
 
     (writeScriptBin "helpme" ''
       __usage="
-      👋 Welcome to IMPHNEN CMS API development environment. 🚀
+      👋 Welcome to IMPHNEN Backend Service development environment. 🚀
       If you see this message, it means your are inside the Nix shell ❄️.
 
       [Info]===============================================================>

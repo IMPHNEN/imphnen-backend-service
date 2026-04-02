@@ -1,41 +1,39 @@
-use imphnen_cms::v1::landing::events::events_controller;
-use imphnen_cms::v1::landing::events::events_dto::{EventsDetailItemDto, EventsListItemDto};
-use imphnen_cms::v1::landing::testimonials::testimonials_controller;
-use imphnen_cms::v1::landing::testimonials::testimonials_dto::{
+use imphnen_cms::events::infrastructure::http::handlers as events_controller;
+use imphnen_cms::events::infrastructure::http::dto::{EventsDetailItemDto, EventsListItemDto};
+use imphnen_cms::testimonials::infrastructure::http::handlers as testimonials_controller;
+use imphnen_cms::testimonials::infrastructure::http::dto::{
 	TestimonialsCreateRequestDto, TestimonialsDetailItemDto,
 	TestimonialsListItemDto, TestimonialsUpdateRequestDto,
 };
-use imphnen_dimentorin::v1::mentors::{
-	mentors_controller,
-	mentors_dto::{
-		IdentityAndVerification, MentorDetailResponseDto, MentorListResponseDto,
-		MentorRegisterFromTokenRequestDto, MentorRegisterResponseDto,
-		MentorUpdateRequestDto, MentorUserRegisterRequestDto, MentorVerifyRequestDto,
-		MentoringLogistics, MentoringRate, ProfessionalProfile,
-	},
+use imphnen_dimentorin::mentors::infrastructure::http::handlers as mentors_controller;
+use imphnen_dimentorin::mentors::infrastructure::http::dto::{
+	IdentityAndVerification, MentorDetailResponseDto, MentorListResponseDto,
+	MentorRegisterFromTokenRequestDto, MentorRegisterResponseDto,
+	MentorUpdateRequestDto, MentorUserRegisterRequestDto, MentorVerifyRequestDto,
+	MentoringLogistics, MentoringRate, ProfessionalProfile,
 };
-use imphnen_dimentorin::v1::sessions::{
-	sessions_controller,
+use imphnen_dimentorin::sessions::infrastructure::http::handlers as sessions_controller;
+use imphnen_dimentorin::sessions::infrastructure::http::dto::{
 	BookSessionRequestDto, BookSessionResponseDto, MentorAvailabilityDto,
 	SessionFeedbackRequestDto, SessionFeedbackResponseDto, SessionListItemDto,
 	SessionListResponseDto, UpdateSessionStatusRequestDto, UpdateSessionStatusResponseDto,
 	AvailabilitySlotDto,
 };
-use imphnen_gacha::v1::gacha_claims::{gacha_claims_controller, GachaClaimItemDto, GachaClaimRequestDto};
-use imphnen_gacha::v1::gacha_items::{gacha_items_controller, GachaItemDto};
-use imphnen_gacha::v1::gacha_items::gacha_items_dto::GachaItemRequestDto;
-use imphnen_gacha::v1::gacha_rolls::{gacha_rolls_controller, GachaRollItemDto};
-use imphnen_gacha::v1::gacha_rolls::gacha_rolls_dto::GachaRollRequestDto;
-use imphnen_entities::{PermissionsItemDto, RolesDetailItemDto};
-use imphnen_entities::{MessageResponseDto, MetaRequestDto, MetaResponseDto, ResponseListSuccessDto, ResponseSuccessDto};
-use imphnen_iam::v1::auth::auth_dto::{AuthLoginRequestDto, AuthLoginResponsetDto, AuthNewPasswordRequestDto, AuthRefreshTokenRequestDto, AuthResendOtpRequestDto, AuthVerifyEmailRequestDto, TokenDto};
-use imphnen_iam::v1::permissions::permissions_dto::PermissionsRequestDto;
-use imphnen_iam::v1::roles::RolesListItemDto;
-use imphnen_iam::v1::roles::roles_dto::{RolesRequestCreateDto, RolesRequestUpdateDto};
-use imphnen_iam::v1::users::UsersDetailItemDto;
-use imphnen_iam::v1::users::users_dto::{UsersCreateRequestDto, UsersListItemDto, UsersUpdateRequestDto};
-use imphnen_iam::v1::{auth, permissions, roles, users};
-use imphnen_iam::v1::users::users_controller::FileUploadSchema;
+use imphnen_gacha::gacha_claims::infrastructure::http::handlers as gacha_claims_controller;
+use imphnen_gacha::gacha_claims::infrastructure::http::dto::{GachaClaimDetailDto, GachaClaimCreateRequestDto};
+use imphnen_gacha::gacha_items::infrastructure::http::handlers as gacha_items_controller;
+use imphnen_gacha::gacha_items::infrastructure::http::dto::{GachaItemDto, GachaItemCreateRequestDto};
+use imphnen_gacha::gacha_rolls::infrastructure::http::handlers as gacha_rolls_controller;
+use imphnen_gacha::gacha_rolls::infrastructure::http::dto::{GachaRollItemDto, GachaRollCreateRequestDto};
+use imphnen_entities::{MessageResponseDto, ResponseListSuccessDto, ResponseSuccessDto};
+use imphnen_iam::auth::infrastructure::http::dto::{AuthLoginRequestDto, AuthLoginResponsetDto, AuthNewPasswordRequestDto, AuthRefreshTokenRequestDto, AuthResendOtpRequestDto, AuthVerifyEmailRequestDto, TokenDto};
+use imphnen_iam::permissions::infrastructure::http::handlers as permissions_controller;
+use imphnen_iam::permissions::infrastructure::http::dto::{PermissionsCreateRequestDto, PermissionsItemDto};
+use imphnen_iam::roles::infrastructure::http::handlers as roles_controller;
+use imphnen_iam::roles::infrastructure::http::dto::{RolesDetailItemDto, RolesListItemDto, RolesCreateRequestDto, RolesUpdateRequestDto};
+use imphnen_iam::users::infrastructure::http::handlers as users_controller;
+use imphnen_iam::users::infrastructure::http::dto::{UsersDetailItemDto, UsersCreateRequestDto, UsersListItemDto, UsersUpdateRequestDto, FileUploadSchema};
+use imphnen_iam::auth::infrastructure::http::handlers as auth_controller;
 use utoipa::{
     Modify, OpenApi,
     openapi::security::{Http, HttpAuthScheme, SecurityScheme, SecurityRequirement},
@@ -44,43 +42,44 @@ use utoipa::{
 #[derive(OpenApi)]
 #[openapi(
     paths(
-     auth::auth_controller::post_login,
-     auth::auth_controller::post_login_mentor,
-     auth::auth_controller::post_register,
-     auth::auth_controller::post_verify_email,
-     auth::auth_controller::post_resend_otp,
-     auth::auth_controller::post_refresh_token,
-     auth::auth_controller::post_forgot_password,
-     auth::auth_controller::post_new_password,
-     users::users_controller::post_create_user,
-     users::users_controller::put_update_user,
-     users::users_controller::put_update_user_me,
-     users::users_controller::patch_user_active_status,
-     users::users_controller::delete_user,
-     users::users_controller::get_user_by_id,
-     users::users_controller::get_user_me,
-     users::users_controller::get_user_list,
-     users::users_controller::upload_file,
-     roles::roles_controller::get_role_list,
-     roles::roles_controller::get_role_by_id,
-     roles::roles_controller::post_create_role,
-     roles::roles_controller::put_update_role,
-     roles::roles_controller::delete_role,
-     permissions::permissions_controller::get_permission_list,
-     permissions::permissions_controller::get_permission_by_id,
-     permissions::permissions_controller::post_create_permission,
-     permissions::permissions_controller::put_update_permission,
-     permissions::permissions_controller::delete_permission,
-           gacha_claims_controller::get_detail_gacha_claim,
+     auth_controller::post_login,
+     auth_controller::post_login_mentor,
+     auth_controller::post_register,
+     auth_controller::post_verify_email,
+     auth_controller::post_resend_otp,
+     auth_controller::post_refresh_token,
+     auth_controller::post_forgot_password,
+     auth_controller::post_new_password,
+     users_controller::post_create_user,
+     users_controller::put_update_user,
+     users_controller::put_update_user_me,
+     users_controller::patch_user_active_status,
+     users_controller::delete_user,
+     users_controller::get_user_by_id,
+     users_controller::get_user_me,
+     users_controller::get_user_list,
+     users_controller::upload_file,
+     roles_controller::get_role_list,
+     roles_controller::get_role_by_id,
+     roles_controller::post_create_role,
+     roles_controller::put_update_role,
+     roles_controller::delete_role,
+     permissions_controller::get_permission_list,
+     permissions_controller::get_permission_by_id,
+     permissions_controller::post_create_permission,
+     permissions_controller::put_update_permission,
+     permissions_controller::delete_permission,
+           gacha_claims_controller::get_gacha_claim_by_id,
            gacha_claims_controller::post_create_gacha_claim,
            gacha_items_controller::get_gacha_item_list,
            gacha_items_controller::get_gacha_item_by_id,
            gacha_items_controller::post_create_gacha_item,
            gacha_items_controller::put_update_gacha_item,
            gacha_items_controller::delete_gacha_item,
-           gacha_rolls_controller::get_detail_gacha_roll,
+           gacha_rolls_controller::get_gacha_roll_by_id,
            gacha_rolls_controller::post_create_gacha_roll,
            gacha_rolls_controller::post_execute_gacha_roll,
+           gacha_rolls_controller::delete_gacha_roll,
      events_controller::get_event_list,
      events_controller::get_event_by_id,
      events_controller::post_create_event,
@@ -109,8 +108,6 @@ use utoipa::{
     ),
     components(
         schemas(
-           MetaRequestDto,
-           MetaResponseDto,
            MessageResponseDto,
            AuthLoginRequestDto,
            AuthLoginResponsetDto,
@@ -120,25 +117,26 @@ use utoipa::{
            AuthRefreshTokenRequestDto,
            ResponseSuccessDto<TokenDto>,
            RolesListItemDto,
-           RolesRequestCreateDto,
-           RolesRequestUpdateDto,
-           PermissionsRequestDto,
+           RolesDetailItemDto,
+           RolesCreateRequestDto,
+           RolesUpdateRequestDto,
+           PermissionsCreateRequestDto,
            PermissionsItemDto,
            UsersDetailItemDto,
            UsersListItemDto,
            UsersUpdateRequestDto,
            UsersCreateRequestDto,
            FileUploadSchema,
-           GachaClaimItemDto,
-           GachaClaimRequestDto,
+           GachaClaimDetailDto,
+           GachaClaimCreateRequestDto,
            GachaItemDto,
-           GachaItemRequestDto,
+           GachaItemCreateRequestDto,
            GachaRollItemDto,
-           GachaRollRequestDto,
+           GachaRollCreateRequestDto,
            ResponseListSuccessDto<Vec<GachaItemDto>>,
            ResponseSuccessDto<GachaRollItemDto>,
            ResponseSuccessDto<GachaItemDto>,
-           ResponseSuccessDto<GachaClaimItemDto>,
+           ResponseSuccessDto<GachaClaimDetailDto>,
            ResponseSuccessDto<AuthLoginResponsetDto>,
            ResponseListSuccessDto<Vec<RolesListItemDto>>,
            ResponseSuccessDto<RolesDetailItemDto>,

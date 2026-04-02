@@ -1,0 +1,2 @@
+pub mod postgres_permission_repository;
+pub use postgres_permission_repository::PostgresPermissionRepository;

@@ -4,6 +4,7 @@
 //! with PostgreSQL database connections and comprehensive error handling.
 
 pub mod validated_json;
+pub mod zod_validate;
 
 use axum::{Router, serve};
 use std::{future::Future, net::SocketAddr};
@@ -14,6 +15,7 @@ use sea_orm::DbErr;
 use std::sync::Arc;
 
 pub use validated_json::ValidatedJson;
+pub use zod_validate::ZodValidate;
 
 /// PostgreSQL database clients for different connection types
 pub struct PostgresClients {

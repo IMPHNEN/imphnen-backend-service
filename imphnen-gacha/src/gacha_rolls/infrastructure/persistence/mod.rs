@@ -1,0 +1,3 @@
+pub mod postgres_gacha_roll_repository;
+
+pub use postgres_gacha_roll_repository::PostgresGachaRollRepository;

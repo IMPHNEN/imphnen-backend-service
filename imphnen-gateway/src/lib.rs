@@ -11,13 +11,18 @@ use imphnen_cms::{
     testimonials_protected_routes,
     testimonials_public_routes,
 };
-use imphnen_dimentorin::dimentorin_router;
+use imphnen_dimentorin::{
+    mentors_public_routes, mentors_protected_routes,
+    sessions_public_routes, sessions_protected_routes,
+};
 use imphnen_gacha::gacha_router;
 use imphnen_iam::{
-    iam_protected_routes,
-    iam_public_routes,
-    v1::auth::auth_repository::AuthRepoImpl,
+    auth_public_routes,
+    permissions_protected_routes,
+    roles_protected_routes,
+    users_protected_routes,
 };
+use imphnen_libs::services::PostgresAuthRepository as AuthRepoImpl;
 use imphnen_libs::PostgresUserLookupService;
 use imphnen_libs::{AppState, axum::PostgresClients};
 use imphnen_middleware::{auth_middleware, cors_middleware, rate_limiting_middleware, security_headers_middleware};
@@ -36,17 +41,25 @@ pub async fn gateway_service(
         auth_repository: Arc::new(AuthRepoImpl::new()),
     };
 
+    let db = state.postgres_connection.conn.clone();
+    let state_arc = Arc::new(state.clone());
+
     let public_routes = Router::new()
-        .merge(iam_public_routes().layer(from_fn(rate_limiting_middleware)))
-        .merge(testimonials_public_routes())
-        .merge(events_public_routes());
+        .merge(auth_public_routes(db.clone(), Arc::clone(&state_arc)).layer(from_fn(rate_limiting_middleware)))
+        .merge(testimonials_public_routes(db.clone()))
+        .merge(events_public_routes(db.clone()))
+        .merge(mentors_public_routes(db.clone(), Arc::clone(&state_arc)))
+        .merge(sessions_public_routes(db.clone()));
 
     let protected_routes = Router::new()
-        .merge(iam_protected_routes())
-        .merge(events_protected_routes())
-        .merge(testimonials_protected_routes())
-        .merge(dimentorin_router())
-        .nest("/gacha", gacha_router())
+        .merge(users_protected_routes(db.clone(), Arc::clone(&state_arc)))
+        .merge(roles_protected_routes(db.clone(), Arc::clone(&state_arc)))
+        .merge(permissions_protected_routes(db.clone(), Arc::clone(&state_arc)))
+        .merge(events_protected_routes(db.clone()))
+        .merge(testimonials_protected_routes(db.clone()))
+        .merge(mentors_protected_routes(db.clone(), Arc::clone(&state_arc)))
+        .merge(sessions_protected_routes(db.clone(), Arc::clone(&state_arc)))
+        .nest("/gacha", gacha_router(db.clone(), Arc::clone(&state_arc)))
         .layer(from_fn(auth_middleware));
 
     Router::new()
