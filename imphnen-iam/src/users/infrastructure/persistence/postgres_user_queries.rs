@@ -1,16 +1,26 @@
 #![allow(clippy::field_reassign_with_default)]
 use crate::users::domain::UserListItem;
 use imphnen_entities::{
-	PermissionsQueryDto, RolesDetailQueryDto, UsersDetailQueryDto,
+	PermissionsEnum, PermissionsQueryDto, RolesDetailQueryDto, UsersDetailQueryDto,
 	seaorm::auth::roles::Entity as RolesEntity,
 	seaorm::auth::users::{Column as UserColumn, Entity as UsersEntity},
 };
+use strum::IntoEnumIterator;
 use imphnen_utils::AppError;
 use paginator_rs::{PaginationParams, SortDirection};
 use paginator_utils::{PaginatorResponse, PaginatorResponseMeta};
 use sea_orm::prelude::*;
 use sea_orm::{Order, PaginatorTrait, QueryOrder};
 use std::sync::Arc;
+
+fn resolve_permission_name(id: &str) -> String {
+	for perm in PermissionsEnum::iter() {
+		if perm.id() == id {
+			return perm.to_string();
+		}
+	}
+	id.to_string()
+}
 
 pub fn build_role_dto(
 	role: Option<imphnen_entities::seaorm::auth::roles::Model>,
@@ -25,9 +35,10 @@ pub fn build_role_dto(
 					list
 						.into_iter()
 						.map(|p| {
+							let name = resolve_permission_name(&p);
 							Some(PermissionsQueryDto {
-								id: Some(p.clone()),
-								name: Some(p),
+								id: Some(p),
+								name: Some(name),
 								created_at: None,
 								updated_at: None,
 							})
