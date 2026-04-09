@@ -35,7 +35,7 @@ use crate::qr::{
         (status = 401, description = "Unauthorized")
     ),
     tag = "QR - Users",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn get_me_handler(
 	Extension(service): Extension<Arc<dyn QrUserService>>,
@@ -66,7 +66,7 @@ pub async fn get_me_handler(
         (status = 401, description = "Unauthorized")
     ),
     tag = "QR - Users",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn update_me_handler(
 	Extension(service): Extension<Arc<dyn QrUserService>>,
@@ -113,7 +113,7 @@ pub async fn update_me_handler(
         (status = 403, description = "Forbidden - admin only")
     ),
     tag = "QR - Users",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn list_users_handler(
 	Extension(service): Extension<Arc<dyn QrUserService>>,
@@ -151,7 +151,7 @@ pub async fn list_users_handler(
         (status = 403, description = "Forbidden - admin only")
     ),
     tag = "QR - Users",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn update_role_handler(
 	Extension(service): Extension<Arc<dyn QrUserService>>,
@@ -179,7 +179,7 @@ pub async fn update_role_handler(
         (status = 403, description = "Forbidden - admin only")
     ),
     tag = "QR - Users",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn delete_user_handler(
 	Extension(service): Extension<Arc<dyn QrUserService>>,

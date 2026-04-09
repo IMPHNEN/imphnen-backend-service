@@ -41,7 +41,7 @@ use uuid::Uuid;
         (status = 403, description = "Forbidden - admin only")
     ),
     tag = "Hackathon - Admin",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn admin_list_users(
 	Extension(service): Extension<Arc<dyn AdminService>>,
@@ -81,7 +81,7 @@ pub async fn admin_list_users(
         (status = 404, description = "User not found")
     ),
     tag = "Hackathon - Admin",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn admin_get_user(
 	Extension(service): Extension<Arc<dyn AdminService>>,
@@ -102,7 +102,7 @@ pub async fn admin_get_user(
         (status = 403, description = "Forbidden - admin only")
     ),
     tag = "Hackathon - Admin",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn admin_set_admin(
 	Extension(service): Extension<Arc<dyn AdminService>>,
@@ -123,7 +123,7 @@ pub async fn admin_set_admin(
         (status = 403, description = "Forbidden - admin only")
     ),
     tag = "Hackathon - Admin",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn admin_delete_user(
 	Extension(service): Extension<Arc<dyn AdminService>>,
@@ -160,7 +160,7 @@ pub async fn admin_delete_user(
         (status = 403, description = "Forbidden - admin only")
     ),
     tag = "Hackathon - Admin",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn admin_list_teams(
 	Extension(service): Extension<Arc<dyn AdminService>>,
@@ -188,7 +188,7 @@ pub async fn admin_list_teams(
         (status = 403, description = "Forbidden - admin only")
     ),
     tag = "Hackathon - Admin",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn admin_delete_team(
 	Extension(service): Extension<Arc<dyn AdminService>>,
@@ -225,7 +225,7 @@ pub async fn admin_delete_team(
         (status = 403, description = "Forbidden - admin only")
     ),
     tag = "Hackathon - Admin",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn admin_list_submissions(
 	Extension(service): Extension<Arc<dyn AdminService>>,
@@ -253,7 +253,7 @@ pub async fn admin_list_submissions(
         (status = 403, description = "Forbidden - admin only")
     ),
     tag = "Hackathon - Admin",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn admin_set_winner(
 	Extension(service): Extension<Arc<dyn AdminService>>,
@@ -275,7 +275,7 @@ pub async fn admin_set_winner(
         (status = 403, description = "Forbidden - admin only")
     ),
     tag = "Hackathon - Admin",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn admin_remove_winner(
 	Extension(service): Extension<Arc<dyn AdminService>>,
@@ -305,7 +305,7 @@ pub async fn admin_remove_winner(
         (status = 403, description = "Forbidden - admin only")
     ),
     tag = "Hackathon - Admin",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn admin_list_winners(
 	Extension(service): Extension<Arc<dyn AdminService>>,

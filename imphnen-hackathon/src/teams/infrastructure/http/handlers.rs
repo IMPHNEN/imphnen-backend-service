@@ -52,7 +52,7 @@ use uuid::Uuid;
         (status = 401, description = "Unauthorized")
     ),
     tag = "Hackathon - Teams",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn create_team_handler(
 	Extension(service): Extension<Arc<dyn TeamService>>,
@@ -212,7 +212,7 @@ pub async fn browse_teams_handler(
         (status = 401, description = "Unauthorized")
     ),
     tag = "Hackathon - Teams",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn get_my_teams_handler(
 	Extension(service): Extension<Arc<dyn TeamService>>,
@@ -261,7 +261,7 @@ pub async fn get_my_teams_handler(
         (status = 403, description = "Forbidden - not team leader")
     ),
     tag = "Hackathon - Teams",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn update_team_handler(
 	Extension(service): Extension<Arc<dyn TeamService>>,
@@ -286,7 +286,7 @@ pub async fn update_team_handler(
         (status = 403, description = "Forbidden - not team leader")
     ),
     tag = "Hackathon - Teams",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn delete_team_handler(
 	Extension(service): Extension<Arc<dyn TeamService>>,
@@ -307,7 +307,7 @@ pub async fn delete_team_handler(
         (status = 401, description = "Unauthorized")
     ),
     tag = "Hackathon - Teams",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn leave_team_handler(
 	Extension(service): Extension<Arc<dyn TeamService>>,
@@ -332,7 +332,7 @@ pub async fn leave_team_handler(
         (status = 403, description = "Forbidden - not team leader")
     ),
     tag = "Hackathon - Teams",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn remove_member_handler(
 	Extension(service): Extension<Arc<dyn TeamService>>,

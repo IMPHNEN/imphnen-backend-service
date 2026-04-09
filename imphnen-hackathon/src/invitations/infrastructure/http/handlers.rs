@@ -32,7 +32,7 @@ use uuid::Uuid;
         (status = 401, description = "Unauthorized")
     ),
     tag = "Hackathon - Invitations",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn get_my_invitations_handler(
 	Extension(service): Extension<Arc<dyn InvitationService>>,
@@ -56,7 +56,7 @@ pub async fn get_my_invitations_handler(
         (status = 404, description = "Invitation not found")
     ),
     tag = "Hackathon - Invitations",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn respond_to_invitation_handler(
 	Extension(service): Extension<Arc<dyn InvitationService>>,
@@ -100,7 +100,7 @@ pub async fn respond_to_invitation_handler(
         (status = 403, description = "Forbidden - not team leader")
     ),
     tag = "Hackathon - Invitations",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn invite_team_member_handler(
 	Extension(service): Extension<Arc<dyn InvitationService>>,

@@ -36,7 +36,7 @@ use uuid::Uuid;
         (status = 401, description = "Unauthorized")
     ),
     tag = "Hackathon - Submissions",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn create_submission_handler(
 	Extension(service): Extension<Arc<dyn SubmissionService>>,
@@ -79,7 +79,7 @@ pub async fn create_submission_handler(
         (status = 404, description = "Submission not found")
     ),
     tag = "Hackathon - Submissions",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn get_team_submission_handler(
 	Extension(service): Extension<Arc<dyn SubmissionService>>,
@@ -119,7 +119,7 @@ pub async fn get_team_submission_handler(
         (status = 401, description = "Unauthorized")
     ),
     tag = "Hackathon - Submissions",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn update_submission_handler(
 	Extension(service): Extension<Arc<dyn SubmissionService>>,
@@ -161,7 +161,7 @@ pub async fn update_submission_handler(
         (status = 401, description = "Unauthorized")
     ),
     tag = "Hackathon - Submissions",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn submit_project_handler(
 	Extension(service): Extension<Arc<dyn SubmissionService>>,
@@ -200,7 +200,7 @@ pub async fn submit_project_handler(
         (status = 401, description = "Unauthorized")
     ),
     tag = "Hackathon - Submissions",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn confirm_submission_handler(
 	Extension(service): Extension<Arc<dyn SubmissionService>>,
@@ -241,7 +241,7 @@ pub async fn confirm_submission_handler(
         (status = 401, description = "Unauthorized")
     ),
     tag = "Hackathon - Submissions",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn cancel_submission_handler(
 	Extension(service): Extension<Arc<dyn SubmissionService>>,

@@ -38,7 +38,7 @@ use crate::qr::{
         (status = 403, description = "Forbidden - admin only")
     ),
     tag = "QR - Campaigns",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn create_campaign_handler(
 	Extension(service): Extension<Arc<dyn QrCampaignService>>,
@@ -80,7 +80,7 @@ pub async fn create_campaign_handler(
         (status = 403, description = "Forbidden - admin only")
     ),
     tag = "QR - Campaigns",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn list_campaigns_handler(
 	Extension(service): Extension<Arc<dyn QrCampaignService>>,
@@ -118,7 +118,7 @@ pub async fn list_campaigns_handler(
         (status = 403, description = "Forbidden - admin only")
     ),
     tag = "QR - Campaigns",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn activate_campaign_handler(
 	Extension(service): Extension<Arc<dyn QrCampaignService>>,
@@ -145,7 +145,7 @@ pub async fn activate_campaign_handler(
         (status = 403, description = "Forbidden - admin only")
     ),
     tag = "QR - Campaigns",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn delete_campaign_handler(
 	Extension(service): Extension<Arc<dyn QrCampaignService>>,
@@ -174,7 +174,7 @@ pub async fn delete_campaign_handler(
         (status = 401, description = "Unauthorized")
     ),
     tag = "QR - Campaigns",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn process_image_handler(
 	Extension(service): Extension<Arc<dyn QrCampaignService>>,

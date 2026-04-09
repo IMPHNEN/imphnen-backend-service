@@ -21,7 +21,7 @@ use std::sync::Arc;
         (status = 401, description = "Unauthorized")
     ),
     tag = "Hackathon - Storage",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn upload_file_handler(
 	Extension(service): Extension<Arc<dyn StorageService>>,
@@ -56,7 +56,7 @@ pub async fn upload_file_handler(
         (status = 401, description = "Unauthorized")
     ),
     tag = "Hackathon - Storage",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn upload_avatar_handler(
 	Extension(service): Extension<Arc<dyn StorageService>>,
@@ -91,7 +91,7 @@ pub async fn upload_avatar_handler(
         (status = 401, description = "Unauthorized")
     ),
     tag = "Hackathon - Storage",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn upload_team_handler(
 	Extension(service): Extension<Arc<dyn StorageService>>,
@@ -126,7 +126,7 @@ pub async fn upload_team_handler(
         (status = 401, description = "Unauthorized")
     ),
     tag = "Hackathon - Storage",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn upload_submission_handler(
 	Extension(service): Extension<Arc<dyn StorageService>>,

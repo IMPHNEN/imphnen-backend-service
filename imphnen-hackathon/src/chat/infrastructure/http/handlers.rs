@@ -43,7 +43,7 @@ use uuid::Uuid;
         (status = 401, description = "Unauthorized")
     ),
     tag = "Hackathon - Chat",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn get_team_messages_handler(
 	Extension(service): Extension<Arc<dyn ChatService>>,
@@ -80,7 +80,7 @@ pub async fn get_team_messages_handler(
         (status = 401, description = "Unauthorized")
     ),
     tag = "Hackathon - Chat",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn send_message_handler(
 	Extension(service): Extension<Arc<dyn ChatService>>,
@@ -105,7 +105,7 @@ pub async fn send_message_handler(
         (status = 403, description = "Forbidden - not message owner")
     ),
     tag = "Hackathon - Chat",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn delete_message_handler(
 	Extension(service): Extension<Arc<dyn ChatService>>,

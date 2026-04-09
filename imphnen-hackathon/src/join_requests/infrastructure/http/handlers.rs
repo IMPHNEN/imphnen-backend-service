@@ -34,7 +34,7 @@ use uuid::Uuid;
         (status = 401, description = "Unauthorized")
     ),
     tag = "Hackathon - Join Requests",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn create_join_request_handler(
 	Extension(service): Extension<Arc<dyn JoinRequestService>>,
@@ -72,7 +72,7 @@ pub async fn create_join_request_handler(
         (status = 401, description = "Unauthorized")
     ),
     tag = "Hackathon - Join Requests",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn get_my_join_requests_handler(
 	Extension(service): Extension<Arc<dyn JoinRequestService>>,
@@ -110,7 +110,7 @@ pub async fn get_my_join_requests_handler(
         (status = 403, description = "Forbidden - not team leader")
     ),
     tag = "Hackathon - Join Requests",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn get_team_join_requests_handler(
 	Extension(service): Extension<Arc<dyn JoinRequestService>>,
@@ -137,7 +137,7 @@ pub async fn get_team_join_requests_handler(
         (status = 403, description = "Forbidden - not team leader")
     ),
     tag = "Hackathon - Join Requests",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn respond_to_join_request_handler(
 	Extension(service): Extension<Arc<dyn JoinRequestService>>,

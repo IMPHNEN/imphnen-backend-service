@@ -31,7 +31,7 @@ use uuid::Uuid;
         (status = 401, description = "Unauthorized")
     ),
     tag = "Hackathon - Users",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn get_me_handler(
 	Extension(service): Extension<Arc<dyn HackathonUserService>>,
@@ -67,7 +67,7 @@ pub async fn get_me_handler(
         (status = 401, description = "Unauthorized")
     ),
     tag = "Hackathon - Users",
-    security(("bearer_auth" = []))
+    security(("Bearer" = []))
 )]
 pub async fn update_me_handler(
 	Extension(service): Extension<Arc<dyn HackathonUserService>>,
