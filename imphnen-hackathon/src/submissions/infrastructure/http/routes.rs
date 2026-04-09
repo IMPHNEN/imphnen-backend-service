@@ -37,6 +37,6 @@ pub fn hackathon_submissions_routes(pool: Arc<PgPool>) -> Router {
 			post(cancel_submission_handler),
 		)
 		.layer(Extension(service))
-		.layer(Extension(pool))
 		.layer(from_fn(hackathon_auth_middleware))
+		.layer(Extension(pool))
 }

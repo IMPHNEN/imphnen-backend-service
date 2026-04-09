@@ -26,6 +26,6 @@ pub fn build_invitation_routes(pool: Arc<PgPool>) -> Router {
 			post(invite_team_member_handler),
 		)
 		.layer(Extension(service))
-		.layer(Extension(pool))
 		.layer(from_fn(hackathon_auth_middleware))
+		.layer(Extension(pool))
 }

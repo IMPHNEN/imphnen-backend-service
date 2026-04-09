@@ -33,8 +33,8 @@ pub fn build_team_routes(pool: Arc<PgPool>) -> Router {
 			delete(remove_member_handler),
 		)
 		.layer(Extension(service))
-		.layer(Extension(pool.clone()))
-		.layer(from_fn(hackathon_auth_middleware));
+		.layer(from_fn(hackathon_auth_middleware))
+		.layer(Extension(pool.clone()));
 
 	Router::new().merge(public).merge(protected)
 }

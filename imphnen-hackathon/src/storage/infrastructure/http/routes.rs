@@ -18,6 +18,6 @@ pub fn hackathon_storage_routes(
 		.route("/upload/team", post(upload_team_handler))
 		.route("/upload/submission", post(upload_submission_handler))
 		.layer(Extension(service))
-		.layer(Extension(pool))
 		.layer(from_fn(hackathon_auth_middleware))
+		.layer(Extension(pool))
 }

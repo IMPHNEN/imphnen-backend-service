@@ -22,6 +22,6 @@ pub fn build_chat_routes(pool: Arc<PgPool>) -> Router {
 		)
 		.route("/chat/messages/{message_id}", delete(delete_message_handler))
 		.layer(Extension(service))
-		.layer(Extension(pool))
 		.layer(from_fn(hackathon_auth_middleware))
+		.layer(Extension(pool))
 }

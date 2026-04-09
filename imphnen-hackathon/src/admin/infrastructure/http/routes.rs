@@ -33,8 +33,7 @@ pub fn hackathon_admin_routes(pool: Arc<PgPool>) -> Router {
 		)
 		.route("/admin/winners/{team_id}", delete(admin_remove_winner))
 		.layer(Extension(service))
-		.layer(Extension(pool.clone()))
 		.layer(from_fn(admin_only))
-		.layer(Extension(pool))
 		.layer(from_fn(hackathon_auth_middleware))
+		.layer(Extension(pool))
 }

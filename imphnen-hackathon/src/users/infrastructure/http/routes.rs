@@ -19,6 +19,6 @@ pub fn hackathon_users_routes(pool: Arc<PgPool>) -> Router {
 		.route("/users/{user_id}", get(get_user_handler))
 		.route("/users/{user_id}/teams", get(get_user_teams_handler))
 		.layer(Extension(service))
-		.layer(Extension(pool))
 		.layer(from_fn(hackathon_auth_middleware))
+		.layer(Extension(pool))
 }

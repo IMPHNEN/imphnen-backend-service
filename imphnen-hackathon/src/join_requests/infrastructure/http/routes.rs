@@ -30,6 +30,6 @@ pub fn build_join_request_routes(pool: Arc<PgPool>) -> Router {
 			post(respond_to_join_request_handler),
 		)
 		.layer(Extension(service))
-		.layer(Extension(pool))
 		.layer(from_fn(hackathon_auth_middleware))
+		.layer(Extension(pool))
 }
