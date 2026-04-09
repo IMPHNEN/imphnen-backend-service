@@ -36,6 +36,6 @@ pub fn qr_campaigns_routes(pool: Arc<PgPool>) -> Router {
 		.route("/campaigns/{id}", delete(delete_campaign_handler))
 		.route("/campaigns/process-image", post(process_image_handler))
 		.layer(Extension(service))
-		.layer(Extension(pool))
 		.layer(from_fn(qr_auth_middleware))
+		.layer(Extension(pool))
 }

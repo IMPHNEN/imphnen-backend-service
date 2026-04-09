@@ -32,6 +32,6 @@ pub fn qr_users_routes(pool: Arc<PgPool>) -> Router {
 		.route("/users/{id}/role", put(update_role_handler))
 		.route("/users/{id}", delete(delete_user_handler))
 		.layer(Extension(service))
-		.layer(Extension(pool))
 		.layer(from_fn(qr_auth_middleware))
+		.layer(Extension(pool))
 }
