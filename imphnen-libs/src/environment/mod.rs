@@ -200,7 +200,7 @@ pub static ENV: Lazy<Env> = Lazy::new(|| {
 		cdn_url: get_env_with_warning("CDN_URL", "https://cdn.asepharyana.tech"),
 		cors_allowed_origins: get_env_with_warning(
 			"CORS_ALLOWED_ORIGINS",
-			"https://gacha.imphnen.dev,https://imphnen.dev,https://dimentorin.imphnen.dev",
+			"https://gacha.imphnen.dev,https://imphnen.dev,https://dimentorin.imphnen.dev,https://backoffice.imphnen.dev,https://hackathon.imphnen.dev,https://qr.imphnen.dev,https://infra.imphnen.dev",
 		)
 		.split(',')
 		.map(|s| s.trim().to_string())
