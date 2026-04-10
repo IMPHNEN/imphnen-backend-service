@@ -3,6 +3,11 @@ use imphnen_cms::events::infrastructure::http::dto::{
 	EventsDetailItemDto, EventsListItemDto,
 };
 use imphnen_cms::events::infrastructure::http::handlers as events_controller;
+use imphnen_cms::roadmap::infrastructure::http::dto::{
+	RoadmapCreateRequestDto, RoadmapDetailItemDto, RoadmapListItemDto,
+	RoadmapUpdateRequestDto,
+};
+use imphnen_cms::roadmap::infrastructure::http::handlers as roadmap_controller;
 use imphnen_cms::qr::campaigns::infrastructure::http::dto::CreateCampaignRequest;
 use imphnen_cms::qr::campaigns::infrastructure::http::handlers as qr_campaigns_controller;
 use imphnen_cms::qr::users::infrastructure::http::dto::{
@@ -137,6 +142,9 @@ use utoipa::OpenApi;
         events_controller::get_event_list, events_controller::get_event_by_id,
         events_controller::post_create_event, events_controller::patch_update_event,
         events_controller::delete_event,
+        roadmap_controller::get_roadmap_list, roadmap_controller::get_roadmap_by_id,
+        roadmap_controller::post_create_roadmap, roadmap_controller::patch_update_roadmap,
+        roadmap_controller::delete_roadmap, roadmap_controller::post_vote_roadmap,
         testimonials_controller::get_testimonial_list, testimonials_controller::get_testimonial_by_id,
         testimonials_controller::post_create_testimonial, testimonials_controller::patch_update_testimonial,
         testimonials_controller::delete_testimonial,
@@ -214,6 +222,8 @@ use utoipa::OpenApi;
         ResponseListSuccessDto<Vec<UsersListItemDto>>, ResponseSuccessDto<UsersDetailItemDto>,
         ResponseListSuccessDto<Vec<PermissionsItemDto>>, ResponseSuccessDto<PermissionsItemDto>,
         ResponseListSuccessDto<Vec<EventsListItemDto>>, ResponseSuccessDto<EventsDetailItemDto>,
+        RoadmapCreateRequestDto, RoadmapUpdateRequestDto, RoadmapListItemDto, RoadmapDetailItemDto,
+        ResponseListSuccessDto<Vec<RoadmapListItemDto>>, ResponseSuccessDto<RoadmapDetailItemDto>,
         ResponseListSuccessDto<Vec<TestimonialsListItemDto>>, ResponseSuccessDto<TestimonialsDetailItemDto>,
         TestimonialsCreateRequestDto, TestimonialsUpdateRequestDto,
         MentorUserRegisterRequestDto, MentorRegisterFromTokenRequestDto, MentorRegisterResponseDto,
@@ -255,6 +265,7 @@ use utoipa::OpenApi;
         (name = "Roles", description = "IAM — Role management (/v1/iam/roles)"),
         (name = "Permissions", description = "IAM — Permission management (/v1/iam/permissions)"),
         (name = "Events", description = "Landing CMS — Event management (/v1/landing/cms/events)"),
+        (name = "Roadmap", description = "Landing CMS — Roadmap management (/v1/landing/cms/roadmap)"),
         (name = "Testimonials", description = "Landing CMS — Testimonial management (/v1/landing/cms/testimonials)"),
         (name = "Mentors", description = "Dimentorin — Mentor management (/v1/dimentorin/mentors)"),
         (name = "Mentors - Admin", description = "Dimentorin — Mentor admin endpoints (/v1/dimentorin/mentors)"),

@@ -3,6 +3,7 @@ pub mod enum_impls;
 pub mod enums;
 pub mod events;
 pub mod rate_limit;
+pub mod roadmap_items;
 pub mod testimonials;
 pub mod types;
 pub mod utils;

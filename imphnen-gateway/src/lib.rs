@@ -2,8 +2,8 @@ use axum::{
 	Extension, Router, middleware::from_fn, response::Redirect, routing::get,
 };
 use imphnen_cms::{
-	events_protected_routes, events_public_routes, qr_router, testimonials_protected_routes,
-	testimonials_public_routes,
+	events_protected_routes, events_public_routes, qr_router, roadmap_protected_routes,
+	roadmap_public_routes, testimonials_protected_routes, testimonials_public_routes,
 };
 use imphnen_dimentorin::{
 	mentors_protected_routes, mentors_public_routes, sessions_protected_routes,
@@ -62,10 +62,12 @@ pub async fn gateway_service(postgres_clients: PostgresClients) -> Router {
 	let cms_routes = Router::new()
 		.merge(testimonials_public_routes(db.clone()))
 		.merge(events_public_routes(db.clone()))
+		.merge(roadmap_public_routes(db.clone()))
 		.merge(
 			Router::new()
 				.merge(events_protected_routes(db.clone()))
 				.merge(testimonials_protected_routes(db.clone()))
+				.merge(roadmap_protected_routes(db.clone()))
 				.layer(from_fn(auth_middleware)),
 		);
 
