@@ -202,6 +202,7 @@ use utoipa::OpenApi;
         imphnen_iam::users::infrastructure::http::dto::HackathonProfileDto,
         imphnen_iam::users::infrastructure::http::dto::QrProfileDto,
         imphnen_iam::users::infrastructure::http::dto::MentorProfileDto,
+        imphnen_iam::users::infrastructure::http::dto::SessionProfileDto,
         GachaClaimDetailDto, GachaClaimCreateRequestDto,
         GachaCreditDto, GachaCreditAddRequestDto,
         GachaItemDto, GachaItemCreateRequestDto,

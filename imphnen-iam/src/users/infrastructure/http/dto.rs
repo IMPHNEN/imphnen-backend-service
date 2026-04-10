@@ -141,6 +141,21 @@ pub struct UsersMeResponseDto {
 	pub qr: Option<QrProfileDto>,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub mentor: Option<MentorProfileDto>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub sessions: Option<Vec<SessionProfileDto>>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+pub struct SessionProfileDto {
+	pub id: String,
+	pub topic: String,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub description: Option<String>,
+	pub scheduled_at: String,
+	pub duration_minutes: i32,
+	pub session_type: String,
+	pub status: String,
+	pub role: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]

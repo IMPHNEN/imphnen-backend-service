@@ -1,10 +1,15 @@
 use super::super::dto::{
-	HackathonProfileDto, MentorProfileDto, QrProfileDto, UsersDetailItemDto,
-	UsersListItemDto, UsersMeResponseDto,
+	HackathonProfileDto, MentorProfileDto, QrProfileDto, SessionProfileDto,
+	UsersDetailItemDto, UsersListItemDto, UsersMeResponseDto,
 };
 use crate::require_permissions;
 use crate::users::domain::UserService;
-use axum::{Extension, extract::Path, http::HeaderMap, response::IntoResponse};
+use axum::{
+	Extension,
+	extract::{Path, Query},
+	http::HeaderMap,
+	response::IntoResponse,
+};
 use imphnen_entities::{
 	PermissionsEnum, ResponseListSuccessDto, ResponseSuccessDto,
 };
@@ -13,8 +18,16 @@ use imphnen_utils::{ApiPaginated, ApiSuccess, AppError};
 use paginator_axum::PaginationQuery;
 use paginator_utils::PaginatorResponse;
 use sea_orm::DatabaseConnection;
+use serde::Deserialize;
+use std::collections::HashSet;
 use std::sync::Arc;
 use uuid::Uuid;
+
+#[derive(Debug, Deserialize)]
+pub struct MeQueryParams {
+	/// Comma-separated list of modules to include: hackathon,qr,mentor,sessions
+	pub include: Option<String>,
+}
 
 #[utoipa::path(
     get,
@@ -86,6 +99,9 @@ pub async fn get_user_by_id(
     get,
     path = "/v1/iam/users/me",
     security(("Bearer" = [])),
+    params(
+        ("include" = Option<String>, Query, description = "Comma-separated modules to include: hackathon,qr,mentor,sessions. Omit to include all."),
+    ),
     responses(
         (status = 200, description = "[USER] Get current user profile (unified across all modules)", body = ResponseSuccessDto<UsersMeResponseDto>)
     ),
@@ -95,6 +111,7 @@ pub async fn get_user_me(
 	headers: HeaderMap,
 	Extension(state): Extension<AppState>,
 	Extension(service): Extension<Arc<dyn UserService>>,
+	Query(params): Query<MeQueryParams>,
 ) -> Result<impl IntoResponse, AppError> {
 	let (claims, _) = crate::permissions_guard(
 		headers,
@@ -111,15 +128,43 @@ pub async fn get_user_me(
 	let user_uuid = Uuid::parse_str(&claims.user_id).ok();
 	let db = &state.postgres_connection.conn;
 
-	let hackathon = fetch_hackathon_profile(db, user_uuid).await;
-	let qr = fetch_qr_profile(db, user_uuid).await;
-	let mentor = fetch_mentor_profile(db, user_uuid).await;
+	let includes: Option<HashSet<String>> = params.include.map(|s| {
+		s.split(',').map(|v| v.trim().to_lowercase()).collect()
+	});
+	let should_include = |module: &str| -> bool {
+		match &includes {
+			None => true,
+			Some(set) => set.contains(module),
+		}
+	};
+
+	let hackathon = if should_include("hackathon") {
+		fetch_hackathon_profile(db, user_uuid).await
+	} else {
+		None
+	};
+	let qr = if should_include("qr") {
+		fetch_qr_profile(db, user_uuid).await
+	} else {
+		None
+	};
+	let mentor = if should_include("mentor") {
+		fetch_mentor_profile(db, user_uuid).await
+	} else {
+		None
+	};
+	let sessions = if should_include("sessions") {
+		fetch_sessions(db, user_uuid).await
+	} else {
+		None
+	};
 
 	Ok(ApiSuccess(UsersMeResponseDto {
 		user: user_dto,
 		hackathon,
 		qr,
 		mentor,
+		sessions,
 	}))
 }
 
@@ -182,6 +227,56 @@ async fn fetch_mentor_profile(
 		current_role: m.current_role,
 		years_of_experience: m.years_of_experience,
 	})
+}
+
+async fn fetch_sessions(
+	db: &DatabaseConnection,
+	user_id: Option<Uuid>,
+) -> Option<Vec<SessionProfileDto>> {
+	let uid = user_id?;
+	let pool = db.get_postgres_connection_pool();
+	let rows = sqlx::query_as::<_, SessionRow>(
+		r#"SELECT id, topic, description, scheduled_at, duration_minutes,
+			session_type, status,
+			CASE WHEN mentor_id = $1 THEN 'mentor' ELSE 'mentee' END as role
+		FROM sessions
+		WHERE mentor_id = $1 OR mentee_id = $1
+		ORDER BY scheduled_at DESC
+		LIMIT 20"#,
+	)
+	.bind(uid)
+	.fetch_all(pool)
+	.await
+	.ok()?;
+	if rows.is_empty() {
+		return None;
+	}
+	Some(
+		rows.into_iter()
+			.map(|s| SessionProfileDto {
+				id: s.id.to_string(),
+				topic: s.topic,
+				description: s.description,
+				scheduled_at: s.scheduled_at.to_rfc3339(),
+				duration_minutes: s.duration_minutes,
+				session_type: s.session_type,
+				status: s.status,
+				role: s.role,
+			})
+			.collect(),
+	)
+}
+
+#[derive(sqlx::FromRow)]
+struct SessionRow {
+	id: Uuid,
+	topic: String,
+	description: Option<String>,
+	scheduled_at: chrono::DateTime<chrono::Utc>,
+	duration_minutes: i32,
+	session_type: String,
+	status: String,
+	role: String,
 }
 
 #[derive(sqlx::FromRow)]
