@@ -131,6 +131,50 @@ impl From<&UsersDetailQueryDto> for UsersDetailItemDto {
 	}
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+pub struct UsersMeResponseDto {
+	#[serde(flatten)]
+	pub user: UsersDetailItemDto,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub hackathon: Option<HackathonProfileDto>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub qr: Option<QrProfileDto>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub mentor: Option<MentorProfileDto>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+pub struct HackathonProfileDto {
+	pub is_admin: bool,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub phone_number: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub location: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub bio: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub skills: Option<serde_json::Value>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+pub struct QrProfileDto {
+	pub role: String,
+	pub provider: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+pub struct MentorProfileDto {
+	pub mentor_id: String,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub status: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub current_company: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub current_role: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub years_of_experience: Option<i32>,
+}
+
 impl From<UserListItem> for UsersListItemDto {
 	fn from(item: UserListItem) -> Self {
 		Self {

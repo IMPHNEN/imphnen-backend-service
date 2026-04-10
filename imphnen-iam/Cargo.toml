@@ -23,6 +23,7 @@ zod-rs.workspace = true
 zod-rs-util.workspace = true
 axum-test.workspace = true
 sea-orm.workspace = true
+sqlx.workspace = true
 rand.workspace = true
 tokio.workspace = true
 chrono.workspace = true
