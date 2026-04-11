@@ -5,6 +5,7 @@ use axum::{
 	http::HeaderMap,
 	response::IntoResponse,
 };
+use imphnen_libs::decode_access_token;
 use imphnen_utils::AppError;
 use imphnen_utils::{ApiSuccess, extract_email};
 use serde::Deserialize;
@@ -85,10 +86,16 @@ pub async fn get_my_sessions(
 	Extension(service): Extension<Arc<dyn SessionService>>,
 	Query(filter): Query<SessionStatusFilter>,
 ) -> Result<impl IntoResponse, AppError> {
-	let user_email = extract_email(&headers)
+	let token = headers
+		.get(axum::http::header::AUTHORIZATION)
+		.and_then(|h| h.to_str().ok())
+		.and_then(|s| s.strip_prefix("Bearer "))
 		.ok_or_else(|| AppError::AuthenticationError("Token tidak valid".to_string()))?;
+	let claims = decode_access_token(token)
+		.map_err(|_| AppError::AuthenticationError("Token tidak valid".to_string()))?;
+	let user_id = claims.claims.user_id;
 	let resp = SessionListResponseDto::from(
-		service.get_user_sessions(user_email, filter.status).await?,
+		service.get_user_sessions(user_id, filter.status).await?,
 	);
 	Ok(ApiSuccess(resp))
 }
